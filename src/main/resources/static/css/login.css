@@ -1,0 +1,180 @@
+/* ============================================
+   Login Page — Custom Styles
+   Color Palette: Green / White / Blue
+   ============================================ */
+
+/* --- CSS Custom Properties --- */
+:root {
+    --color-green-primary: #28a745;
+    --color-green-dark: #1e7e34;
+    --color-green-light: #d4edda;
+    --color-blue-primary: #007bff;
+    --color-blue-dark: #0056b3;
+    --color-blue-light: #cce5ff;
+    --color-white: #ffffff;
+    --color-off-white: #f8f9fa;
+    --color-text-dark: #212529;
+    --color-text-muted: #6c757d;
+    --gradient-header: #66bb6a;
+    --gradient-button: #66bb6a;
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
+    --transition-smooth: all 0.3s ease;
+}
+
+/* --- Global Layout --- */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--color-off-white);
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* --- Header / Navbar --- */
+.login-navbar {
+    background: var(--gradient-header);
+    padding: 1rem 0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.login-navbar .navbar-brand {
+    color: var(--color-white);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.login-navbar .navbar-brand:hover {
+    color: var(--color-green-light);
+}
+
+/* --- Main Content Area --- */
+.login-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+/* --- Login Card --- */
+.login-card {
+    background: var(--color-white);
+    border: none;
+    border-radius: 0;
+    box-shadow: var(--shadow-card);
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem 2rem;
+    transition: var(--transition-smooth);
+}
+
+.login-card:hover {
+    box-shadow: var(--shadow-card);
+}
+
+.login-card-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-text-dark);
+    text-align: center;
+    margin-bottom: 0.25rem;
+}
+
+.login-card-subtitle {
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+/* --- Form Controls --- */
+.login-form .form-label {
+    font-weight: 600;
+    color: var(--color-text-dark);
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+
+.login-form .form-control {
+    border: 1.5px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.95rem;
+    transition: var(--transition-smooth);
+    background-color: var(--color-off-white);
+}
+
+.login-form .form-control:focus {
+    border-color: var(--color-green-primary);
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.2);
+    background-color: var(--color-white);
+}
+
+.login-form .form-control::placeholder {
+    color: #adb5bd;
+}
+
+/* --- Login Button --- */
+.btn-login {
+    background: var(--gradient-button);
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.7rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-white);
+    letter-spacing: 0.3px;
+    transition: var(--transition-smooth);
+    width: 100%;
+    cursor: pointer;
+}
+
+.btn-login:hover {
+    background: var(--gradient-button);
+    color: var(--color-white);
+    box-shadow: 0 4px 16px rgba(40, 167, 69, 0.35);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* --- Footer --- */
+.login-footer {
+    background-color: var(--color-text-dark);
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 1rem 0;
+    font-size: 0.85rem;
+}
+
+.login-footer a {
+    color: var(--color-green-primary);
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    color: var(--color-green-light);
+    text-decoration: underline;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 576px) {
+    .login-card {
+        padding: 2rem 1.25rem;
+        margin: 0 0.5rem;
+    }
+
+    .login-card-title {
+        font-size: 1.5rem;
+    }
+}
