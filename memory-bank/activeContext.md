@@ -4,11 +4,11 @@
 `feature/login-page`
 
 ## Current Task
-Login page front-end UI implementation.
+Login page front-end UI — logo integration.
 
 ## Status
-- `index.html` — Updated with header, login form card, footer (UI-only)
-- `css/login.css` — Created with green/white/blue palette, gradients, responsive layout
+- `index.html` — Added `logo.png` to navbar-brand, added `logo2.png` centered above login-card-title
+- `css/login.css` — Added `.navbar-logo`, `.login-card-logo`, `.card-logo` style rules
 - No backend wiring yet
 - No database or SQL involved
 
