@@ -1,16 +1,16 @@
 # Active Context — Anihan SRMS
 
 ## Current Branch
-`feature/login-page`
+`main`
 
 ## Current Task
-Login page front-end UI — logo integration.
+Gradle upgrade from 7.3.1 to 9.4.1 (latest supported by Spring Boot 4.0).
 
 ## Status
-- `index.html` — Added `logo.png` to navbar-brand, added `logo2.png` centered above login-card-title
-- `css/login.css` — Added `.navbar-logo`, `.login-card-logo`, `.card-logo` style rules
-- No backend wiring yet
-- No database or SQL involved
+- `gradle-wrapper.properties` — Updated distribution URL to Gradle 9.4.1
+- `gradlew wrapper --gradle-version 9.4.1` — Ran successfully, BUILD SUCCESSFUL
+- `gradlew --version` — Confirmed Gradle 9.4.1
+- Previous work (login page logos) remains intact on `feature/login-page`
 
 ## Open Questions
 None at this time.

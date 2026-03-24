@@ -10,7 +10,7 @@
 | Validation  | Spring Validation         |
 | Data        | Spring Data JPA           |
 | Database    | MySQL 8 (Docker)          |
-| Build       | Gradle (Kotlin DSL)       |
+| Build       | Gradle 9.4.1 (Kotlin DSL) |
 | IDE         | Antigravity               |
 
 ## Local Assets
