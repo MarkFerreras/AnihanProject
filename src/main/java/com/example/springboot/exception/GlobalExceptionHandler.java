@@ -42,6 +42,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles access denied (403) for authenticated users trying to access resources without proper roles.
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("message", "Access denied. You do not have permission to view this page."));
+    }
+
+    /**
+     * Handles unauthenticated users (401) trying to access secured resources.
+     */
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<Map<String, String>> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "Unauthorized. Please log in."));
+    }
+
+    /**
      * Catch-all handler for unexpected exceptions.
      */
     @ExceptionHandler(Exception.class)
