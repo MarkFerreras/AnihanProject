@@ -126,3 +126,52 @@ CREATE TABLE IF NOT EXISTS qualifications (
     qualification_name VARCHAR(255) NOT NULL,
     qualification_description VARCHAR(255) NOT NULL -- Remove?
 );
+
+CREATE TABLE IF NOT EXISTS qualification_assessment (
+    assessemnt_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    qualification_code INT NOT NULL,
+    student_id VARCHAR(20) NOT NULL,
+    assessor_id INT NOT NULL,
+    assessment VARCHAR(255) NOT NULL,
+    assessment_result VARCHAR(255) NOT NULL,
+    assessment_date DATE NOT NULL,
+    training_start_date DATE NOT NULL,
+    training_end_date DATE NOT NULL,
+    -- FOREIGN KEYS
+    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code),
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id),
+    FOREIGN KEY (assessor_id) REFERENCES users (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS classess (
+    class_code INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    section_code VARCHAR(20) NOT NULL,
+    subject_code VARCHAR(20) NOT NULL,
+    trainer_id INT NOT NULL,
+    -- FOREIGN KEYS
+    FOREIGN KEY (section_code) REFERENCES sections (section_code),
+    FOREIGN KEY (subject_code) REFERENCES subjects (subject_code),
+    FOREIGN KEY (trainer_id) REFERENCES users (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS log(
+    log_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    event VARCHAR(255) NOT NULL,
+    user_id INT NOT NULL,
+    log_time TIME,
+    log_date DATE,
+    -- FOREIGN KEYS
+    FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS previous_school (
+    school_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    educational_level VARCHAR(25) NOT NULL,
+    school VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    start_level_year YEAR NOT NULL,
+    end_level_year YEAR NOT NULL,
+    -- FOREIGN KEY
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+);
