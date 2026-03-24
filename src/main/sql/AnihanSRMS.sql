@@ -6,36 +6,6 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(15) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS student_records (
-    student_id VARCHAR(20) NOT NULL PRIMARY KEY,
-    last_name VARCHAR(255) NOT NULL,
-    first_name VARCHAR(255) NOT NULL,
-    middle_name VARCHAR(255) NOT NULL,
-    birthdate DATE NOT NULL, -- NOTE: Automatically calculate the age in the Java code and NOT in the SQL!!!
-    sex VARCHAR(10) NOT NULL,
-    permanent_address VARCHAR(255) NOT NULL,
-    temporary_address VARCHAR(255) NULL,
-    email VARCHAR(255) NOT NULL,
-    contact_no VARCHAR(255) NOT NULL,
-    religion VARCHAR(255) NOT NULL,
-    baptized TINYINT(1) NOT NULL DEFAULT 0, -- This is BOOLEAN
-    baptism_date DATE NULL,
-    baptism_place VARCHAR(255) NOT NULL,
-    sibling_count INT NOT NULL,
-    brother_count INT NULL,
-    sister_count INT NULL,
-    batch_code VARCHAR(20) NOT NULL,
-    course_code VARCHAR(20) NOT NULL,
-    section_code VARCHAR(20) NOT NULL,
-    profile_picture MEDIUMBLOB NULL,
-    enrollment_date DATE NULL,
-    student_status VARCHAR(25) NOT NULL DEFAULT "Enrolling",
-    -- Foreign Keys
-    FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
-    FOREIGN KEY (course_code) REFERENCES courses (course_code),
-    FOREIGN KEY (section_code) REFERENCES sections (section_code)
-);
-
 CREATE TABLE IF NOT EXISTS batches (
     batch_code VARCHAR(20) NOT NULL PRIMARY KEY,
     batch_year YEAR NOT NULL
@@ -46,14 +16,56 @@ CREATE TABLE IF NOT EXISTS courses (
     course_name VARCHAR(100) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS qualifications (
+    qualification_code INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    qualification_name VARCHAR(255) NOT NULL,
+    qualification_description VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subjects (
+    subject_code VARCHAR(20) NOT NULL PRIMARY KEY,
+    subject_name VARCHAR(255) NOT NULL,
+    qualification_code INT NOT NULL,
+    units INT NOT NULL,
+    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code)
+);
+
 CREATE TABLE IF NOT EXISTS sections (
     section_code VARCHAR(20) NOT NULL PRIMARY KEY,
     section VARCHAR(25) NOT NULL,
     batch_code VARCHAR(20) NOT NULL,
     course_code VARCHAR(20) NOT NULL,
-    -- FOREIGN KEYS
     FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
     FOREIGN KEY (course_code) REFERENCES courses (course_code)
+);
+
+CREATE TABLE IF NOT EXISTS student_records (
+    student_id VARCHAR(20) NOT NULL PRIMARY KEY,
+    last_name VARCHAR(255) NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    middle_name VARCHAR(255) NOT NULL,
+    birthdate DATE NOT NULL,
+    sex VARCHAR(10) NOT NULL,
+    permanent_address VARCHAR(255) NOT NULL,
+    temporary_address VARCHAR(255) NULL,
+    email VARCHAR(255) NOT NULL,
+    contact_no VARCHAR(255) NOT NULL,
+    religion VARCHAR(255) NOT NULL,
+    baptized TINYINT(1) NOT NULL DEFAULT 0,
+    baptism_date DATE NULL,
+    baptism_place VARCHAR(255) NOT NULL,
+    sibling_count INT NOT NULL,
+    brother_count INT NULL,
+    sister_count INT NULL,
+    batch_code VARCHAR(20) NOT NULL,
+    course_code VARCHAR(20) NOT NULL,
+    section_code VARCHAR(20) NOT NULL,
+    profile_picture MEDIUMBLOB NULL,
+    enrollment_date DATE NULL,
+    student_status VARCHAR(25) NOT NULL DEFAULT 'Enrolling',
+    FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
+    FOREIGN KEY (course_code) REFERENCES courses (course_code),
+    FOREIGN KEY (section_code) REFERENCES sections (section_code)
 );
 
 CREATE TABLE IF NOT EXISTS parents (
@@ -69,7 +81,6 @@ CREATE TABLE IF NOT EXISTS parents (
     contact_no VARCHAR(20) NOT NULL,
     email VARCHAR(255) NOT NULL,
     address VARCHAR(255) NOT NULL,
-    -- FOREIGN KEY
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 );
 
@@ -82,20 +93,18 @@ CREATE TABLE IF NOT EXISTS other_guardians (
     middle_name VARCHAR(255) NOT NULL,
     birthdate DATE NOT NULL,
     address VARCHAR(255) NOT NULL,
-    -- FOREIGN KEY
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 );
 
 CREATE TABLE IF NOT EXISTS documents (
     document_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
-    document_type VARCHAR(255) NOT NULL, -- This is to determine if TOR, Grades, etc.
+    document_type VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
-    file_type VARCHAR(50) NOT NULL, -- This is to determine if pdf, docx, etc.
+    file_type VARCHAR(50) NOT NULL,
     file_size INT NOT NULL,
     content_data LONGBLOB NOT NULL,
-    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Please double check this
-    -- FOREIGN KEY
+    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 );
 
@@ -107,22 +116,6 @@ CREATE TABLE IF NOT EXISTS grades (
     re_exam_grade DECIMAL(5, 2) NULL,
     hours_studied DECIMAL(3, 2) NOT NULL,
     remarks VARCHAR(255) NOT NULL,
-    -- FOREIGN KEYS
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
     FOREIGN KEY (subject_code) REFERENCES subjects (subject_code)
-);
-
-CREATE TABLE IF NOT EXISTS subjects (
-    subject_code VARCHAR(20) NOT NULL PRIMARY KEY,
-    subject_name VARCHAR(255) NOT NULL,
-    qualification_code INT NOT NULL,
-    units INT NOT NULL,
-    -- FOREIGN KEYS
-    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code)
-);
-
-CREATE TABLE IF NOT EXISTS qualifications (
-    qualification_code INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    qualification_name VARCHAR(255) NOT NULL,
-    qualification_description VARCHAR(255) NOT NULL -- Remove?
 );

@@ -36,6 +36,9 @@
             <h1 class="login-card-title">Welcome Back</h1>
             <p class="login-card-subtitle">Sign in to your account</p>
 
+            <!-- Error Alert (hidden by default) -->
+            <div class="alert alert-danger d-none" id="loginError" role="alert"></div>
+
             <form class="login-form" id="loginForm">
                 <!-- Username -->
                 <div class="mb-3">
@@ -84,6 +87,62 @@
 
     <!-- Bootstrap 5.3 JS Bundle (local) -->
     <script src="js/bootstrap.bundle.min.js"></script>
+
+    <!-- Login Logic -->
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginError = document.getElementById('loginError');
+        const loginButton = document.getElementById('loginButton');
+
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            // Hide previous error
+            loginError.classList.add('d-none');
+            loginError.textContent = '';
+
+            // Disable button during request
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Route to dashboard based on role
+                    const routes = {
+                        'ROLE_ADMIN': '/admin.html',
+                        'ROLE_REGISTRAR': '/registrar.html',
+                        'ROLE_TRAINER': '/trainer.html'
+                    };
+                    const destination = routes[data.role] ?? '/index.html';
+                    window.location.href = destination;
+                } else {
+                    // Display validation or auth errors
+                    const errorMsg = data.errors
+                        ? Object.values(data.errors).join('. ')
+                        : data.message ?? 'Login failed. Please try again.';
+                    loginError.textContent = errorMsg;
+                    loginError.classList.remove('d-none');
+                }
+            } catch (error) {
+                loginError.textContent = 'Unable to connect to the server. Please try again later.';
+                loginError.classList.remove('d-none');
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = 'Log In';
+            }
+        });
+    </script>
 
 </body>
 

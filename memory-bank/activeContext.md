@@ -1,16 +1,18 @@
 # Active Context — Anihan SRMS
 
 ## Current Branch
-`main`
+`feature/backend-auth-setup`
 
 ## Current Task
-Gradle upgrade from 7.3.1 to 9.4.1 (latest supported by Spring Boot 4.0).
+Phase 5: Frontend Dashboard Templates for routing targets
 
 ## Status
-- `gradle-wrapper.properties` — Updated distribution URL to Gradle 9.4.1
-- `gradlew wrapper --gradle-version 9.4.1` — Ran successfully, BUILD SUCCESSFUL
-- `gradlew --version` — Confirmed Gradle 9.4.1
-- Previous work (login page logos) remains intact on `feature/login-page`
+- Created `admin.html`
+- Created `registrar.html`
+- Created `trainer.html`
+- All files have identical header (with logo) and footer matching `index.html`.
+- `<main>` body is empty and ready for dashboard UI elements.
 
 ## Open Questions
-None at this time.
+- What dashboard layout rules/components are expected for these pages?
+- What are the required API calls for each dashboard widget?
