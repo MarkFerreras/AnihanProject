@@ -24,6 +24,7 @@
 
 ## In Progress
 - [/] User review of Phases 1–4 implementation
+- [/] Troubleshoot IDE indexing errors
 
 ## Remaining
 - [ ] Student record CRUD

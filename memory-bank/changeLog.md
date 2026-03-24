@@ -49,3 +49,12 @@
 - Gradle `clean build -x test`: **BUILD SUCCESSFUL**
 - `.\gradlew bootRun` started successfully
 - `Invoke-RestMethod` to `/api/auth/login` returned 200 OK + `ROLE_ADMIN`
+
+## 2026-03-24 — Troubleshooting IDE Syntax Errors
+**Branch:** `feature/fix-src-errors`
+
+### Verification
+- Checked user IDE error: `String cannot be resolved to a type` inside `LoginRequest.java`.
+- Ran `./gradlew clean compileJava` locally. Confirmed `BUILD SUCCESSFUL`.
+- Diagnosed issue as a false-positive caused by IDE Java Language Server (JDTLS) losing connection to the Java 25 JDK.
+- Updated `activeContext.md` and `progress.md`.
