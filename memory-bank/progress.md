@@ -1,31 +1,41 @@
 # Progress — Anihan SRMS
 
-## Completed
-- [x] Project folder structure created (`controller`, `model`, `repository`, `service`)
-- [x] Login page front-end UI (`index.html`, `css/login.css`)
-- [x] Memory bank initialized
+## Research & Documentation (Completed)
+- [x] Extracted Project Scope, Problem Statements, and Limitations from `Chapter-1.pdf`
+- [x] Defined Actor roles (Registrar, Trainer, Admin, Student) and Use Cases from `Chapter-3.pdf`
+- [x] Defined System Workflows via BPMNs and DFDs (Enrollment, Special Order, Grading)
+- [x] Established Data Dictionaries & Base ERD Entities
+- [x] Recorded Deployment Constraints (Local Network, Windows Server 2025)
+
+## Backend & Infrastructure (Completed)
+- [x] Project folders created (`controller`, `model`, `repository`, `service`)
+- [x] Memory bank initialized & populated with Capstone constraints
 - [x] Gradle upgraded to 9.4.1
-- [x] Existing `mysql-server` container reused
-- [x] `AnihanSRMS.sql` table order fixed for FKs and injected into database
-- [x] `application.properties` updated (ddl-auto=none, MySQL dialect, session config)
-- [x] 11 JPA entities mapped from `AnihanSRMS.sql`
-- [x] `UserRepository` with username/email query methods
-- [x] `CustomUserDetailsService` (login by username OR email)
-- [x] `SecurityConfig` (session-based, RBAC, BCrypt, 401 JSON)
-- [x] `LoginRequest` DTO with @Valid / @NotBlank
-- [x] `AuthController` (login/logout/me endpoints)
-- [x] `GlobalExceptionHandler` (@ControllerAdvice)
-- [x] `DataSeeder` (3 dummy accounts)
-- [x] Frontend login JS (fetch POST → route by role)
-- [x] Gradle build passes
-- [x] Spring Boot boots cleanly + seeds basic users
-- [x] Login endpoint verified via `Invoke-RestMethod`
-- [x] Created empty dashboard templates (`admin.html`, `registrar.html`, `trainer.html`)
+- [x] Existing MySQL 8 via Docker integration
+- [x] `AnihanSRMS.sql` ERD mapped into 11 JPA Entities
+- [x] Initial Spring Security 7 RBAC & Authentication logic (LoginRequest, AuthController)
+- [x] Global Exception Handler established
+- [x] Data Seeder executed for Admins, Registrars, and Trainers
+
+## Frontend & UI (Completed)
+- [x] Login page front-end UI (`index.html`, `css/login.css`)
+- [x] Dashboard empty templates built (`admin.html`, `registrar.html`, `trainer.html`) 
+- [x] Custom JS fetch logic for form interactions
 
 ## In Progress
-- [/] User review of Phases 1–4 implementation
-- [/] Troubleshoot IDE indexing errors
+- [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
+- [/] Resolving false-positive IDE syntax issues with Core Java classes ("String cannot be resolved")
 
-## Remaining
-- [ ] Student record CRUD
-- [ ] DataTables integration
+## Remainder Requirements / Roadmap
+- [ ] Create `StudentUser` Enrollment Portal logic
+- [ ] Implement `updateGrade()` logic for Trainers 
+- [ ] Implement BLOB Database encoding via `encodeStudentDocsPerBatch()`
+- [ ] Implement rigorous Unit Testing as required by Agile sprints
+- [ ] Prepare User Acceptance Testing tools to execute the Time and Motion Study
+- [ ] Build KPI Evaluation Dashboards (Processing efficiency, SO prep time, data accuracy) against ISO/IEC 25010 standards
+
+## Validation Metrics (From Non-Functional Requirements)
+- Document Upload Response: < 3 seconds (< 5MB files)
+- Student Record Retrieval: < 5 seconds
+- Concurrent User Limit testing: 50+ users
+- Hardware RAM footprint: < 6GB RAM required on runtime environment
