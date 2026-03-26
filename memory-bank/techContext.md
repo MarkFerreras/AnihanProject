@@ -1,6 +1,12 @@
 # Tech Context — Anihan SRMS
 
-## Confirmed Stack
+## Deployment & Infrastructure Constraints
+- **Hosting Environment**: Dedicated on-premise server located strictly within the Registrar's office.
+- **Network Setting**: Completely isolated from the public internet (Local Area Network ONLY) to prevent external cyber threats. No mobile accessibility (Desktop/Laptop use only).
+- **Server Specifications**: High-performance multi-core processor, **Windows Server 2025 Standard**, min 16GB RAM. Data stored securely on a high-capacity SSD, backed up redundantly on a secondary HDD. 
+- **Connectivity**: Local workstations link via CAT6 Ethernet switch. Uninterruptible Power Supply (UPS) is mandatory to prevent dataloss during encodings. 
+
+## Confirmed Software Stack
 | Layer       | Technology                |
 |-------------|---------------------------|
 | Front-End   | HTML5, CSS3, JS ES2024    |
@@ -13,10 +19,10 @@
 | Build       | Gradle 9.4.1 (Kotlin DSL) |
 | IDE         | Antigravity               |
 
-## Local Assets
-All front-end libraries are bundled locally under `src/main/resources/static/`:
-- `css/bootstrap.min.css`
-- `css/datatables.min.css`
-- `js/bootstrap.bundle.min.js`
-- `js/datatables.min.js`
-- `js/jquery-4.0.0.min.js`
+> **[Confirmed Stack Choice]**: The documented capstone research (`Chapter 3`, Coding Phase) lists **Python** as the primary programming language. However, the user has explicitly confirmed that the project will use **Java 25 and Spring Boot 4.0**. Work will proceed strictly with the Java/Spring Boot stack.
+
+## Front-End Assets Structure
+All libraries are served completely locally (no internet required):
+- `src/main/resources/static/css/` (bootstrap, datatables, custom css)
+- `src/main/resources/static/js/` (jquery, bootstrap bundle, datatables)
+- Images/Logos stored locally to prevent external API calls.
