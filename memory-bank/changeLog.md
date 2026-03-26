@@ -58,3 +58,8 @@
 - Ran `./gradlew clean compileJava` locally. Confirmed `BUILD SUCCESSFUL`.
 - Diagnosed issue as a false-positive caused by IDE Java Language Server (JDTLS) losing connection to the Java 25 JDK.
 - Updated `activeContext.md` and `progress.md`.
+- Updated `build.gradle.kts` to use Java 25.
+- Updated `src/main/resources/static/index.html` to add error alert div + login fetch JS.
+- Updated `src/main/resources/static/admin.html` to add header/footer + empty main.
+- Updated `src/main/resources/static/registrar.html` to add header/footer + empty main.
+- Updated `src/main/resources/static/trainer.html` to add header/footer + empty main.
