@@ -2,16 +2,33 @@ CREATE TABLE IF NOT EXISTS users (
     user_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
+    lastname VARCHAR(255) NOT NULL,
+    firstname VARCHAR(255) NOT NULL,
+    middlename VARCHAR(255) NOT NULL,
+    birthdate DATE NOT NULL DEFAULT '2000-01-01',
+    age INT NOT NULL,
     email VARCHAR(255) NOT NULL,
     role VARCHAR(15) NOT NULL
 );
 
+-- RUN THIS IS YOU ALREADY HAVE users TABLE! Otherwise, just run the CREATE TABLE for users
+ALTER TABLE users
+ADD COLUMN lastname VARCHAR(255) NOT NULL,
+ADD COLUMN firstname VARCHAR(255) NOT NULL,
+ADD COLUMN middlename VARCHAR(255) NOT NULL,
+ADD COLUMN birthdate DATE NOT NULL DEFAULT '2000-01-01',
+ADD COLUMN age INT NOT NULL;
+-- Run this if already have an existing student_records table
+ALTER TABLE student_records add column age INT NOT NULL;
+
 CREATE TABLE IF NOT EXISTS student_records (
-    student_id VARCHAR(20) NOT NULL PRIMARY KEY,
+    record_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) NOT NULL,
     birthdate DATE NOT NULL, -- NOTE: Automatically calculate the age in the Java code and NOT in the SQL!!!
+    age INT NOT NULL,
     sex VARCHAR(10) NOT NULL,
     permanent_address VARCHAR(255) NOT NULL,
     temporary_address VARCHAR(255) NULL,
