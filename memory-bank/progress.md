@@ -19,13 +19,11 @@
 
 ## Frontend & UI (Completed)
 - [x] Login page front-end UI (`index.html`, `css/login.css`)
-<<<<<<< HEAD
-- [x] Dashboard empty templates built (`admin.html`, `registrar.html`, `trainer.html`) 
+- [x] Dashboard empty templates built (`admin.html`, `registrar.html`, `trainer.html`, `student-records.html`, `subjects.html`, `logs.html`)
 - [x] Custom JS fetch logic for form interactions
-=======
-- [x] Memory bank initialized
 - [x] SQL database schema created and updated (`AnihanSRMS.sql`)
->>>>>>> SQLs
+- [x] Admin User Management Dashboard (`admin.html`) built with DataTables and Bootstrap Navbar.
+- [x] User Details Modal & Edit User Page (`edit-user.html`) with self-role lock protections.
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements

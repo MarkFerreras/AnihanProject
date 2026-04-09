@@ -47,9 +47,14 @@ public class SecurityConfig {
                 // Auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
                 // Role-based access
+                // Role-based access for API endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
+                // Role-based access for HTML pages
+                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html").hasRole("ADMIN")
+                .requestMatchers("/registrar.html").hasRole("REGISTRAR")
+                .requestMatchers("/trainer.html").hasRole("TRAINER")
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

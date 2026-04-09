@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Anihan SRMS — Edit User">
+    <title>Edit User — Admin</title>
+
+    <!-- Bootstrap 5.3 CSS (local) -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/login.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--color-off-white, #f8f9fa);
+        }
+        main {
+            flex: 1;
+        }
+        /* Navbar Hover Effect */
+        .admin-nav-link {
+            transition: color 0.3s ease, background-color 0.3s ease;
+            border-radius: 4px;
+        }
+        .admin-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff !important;
+        }
+        .navbar-logo {
+            max-height: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <nav class="navbar login-navbar navbar-expand-lg navbar-dark bg-success" style="background-color: #2b5d34 !important;">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="admin.html">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo me-3">
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="adminNavbar">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="admin.html">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="student-records.html">Student Records</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="subjects.html">Subjects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="logs.html">Logs</a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text text-white fw-bold me-3">Admin Portal (Editing User)</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container my-5">
+        <h2 class="fw-bold mb-4">Edit User Details</h2>
+        
+        <div class="card shadow-sm border-0" style="max-width: 600px; margin: 0 auto;">
+            <div class="card-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="userId">
+                    <input type="hidden" id="username"> <!-- Unchangeable -->
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="displayUsername" disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <select class="form-select" id="role" required>
+                            <option value="ROLE_ADMIN">Admin</option>
+                            <option value="ROLE_REGISTRAR">Registrar</option>
+                            <option value="ROLE_TRAINER">Trainer</option>
+                        </select>
+                        <div id="roleWarning" class="form-text text-danger d-none">You cannot change your own role to prevent losing administrative access.</div>
+                    </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="lastname" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="lastname">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="firstname" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="firstname">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="middlename" class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="middlename">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="age" class="form-label">Age</label>
+                        <input type="number" class="form-control" id="age">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="birthdate" class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="birthdate">
+                    </div>
+
+                    <div class="alert alert-danger d-none" id="errorMsg"></div>
+                    <div class="alert alert-success d-none" id="successMsg">User updated successfully! Redirecting...</div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-secondary w-100 me-2" id="cancelBtn">Cancel</button>
+                        <button type="submit" class="btn btn-success w-100 ms-2" id="saveBtn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="login-footer mt-auto">
+        <div class="container">
+            <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/jquery-4.0.0.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('id');
+
+            if (!userId) {
+                alert('No User ID provided.');
+                window.location.href = 'admin.html';
+                return;
+            }
+
+            // Fetch current user and user being edited
+            $.when(
+                $.ajax({ url: '/api/auth/me', method: 'GET' }),
+                $.ajax({ url: '/api/admin/users/' + userId, method: 'GET' })
+            ).done(function(meResponse, userResponse) {
+                const me = meResponse[0];
+                const user = userResponse[0];
+
+                $('#userId').val(user.userId);
+                $('#username').val(user.username);
+                $('#displayUsername').val(user.username);
+                $('#email').val(user.email);
+                $('#role').val(user.role);
+                $('#lastname').val(user.lastname);
+                $('#firstname').val(user.firstname);
+                $('#middlename').val(user.middlename);
+                $('#age').val(user.age);
+                $('#birthdate').val(user.birthdate);
+
+                // Check if editing self
+                if (me.username === user.username) {
+                    $('#role').prop('disabled', true);
+                    $('#roleWarning').removeClass('d-none');
+                }
+            }).fail(function() {
+                alert('Failed to load required user data.');
+                window.location.href = 'admin.html';
+            });
+
+            let isModified = false;
+
+            // Track changes in the form
+            $('#editUserForm :input').on('change input', function() {
+                isModified = true;
+            });
+
+            // Warn before leaving page if changes were made
+            window.addEventListener('beforeunload', function(e) {
+                if (isModified) {
+                    const confirmationMessage = 'You have unsaved changes. Are you sure you want to leave?';
+                    e.returnValue = confirmationMessage; // Standard for most browsers
+                    return confirmationMessage;          // Standard for some others
+                }
+            });
+
+            // Handle Cancel button click
+            $('#cancelBtn').on('click', function() {
+                if (isModified) {
+                    if (confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+                        isModified = false; // Prevent beforeunload pop-up
+                        window.location.href = 'admin.html';
+                    }
+                } else {
+                    window.location.href = 'admin.html';
+                }
+            });
+            
+            // Handle clicking navbar links
+            $('.nav-link, .navbar-brand').on('click', function(e) {
+                if (isModified) {
+                    if (!confirm('You have unsaved changes. Are you sure you want to navigate away?')) {
+                        e.preventDefault(); // Stop navigation if they click cancel
+                    } else {
+                        isModified = false; // Allow navigation
+                    }
+                }
+            });
+
+            // Handle Submit
+            $('#editUserForm').on('submit', function(e) {
+                e.preventDefault();
+                $('#saveBtn').prop('disabled', true).text('Saving...');
+                $('#cancelBtn').prop('disabled', true);
+                $('#errorMsg').addClass('d-none');
+                $('#successMsg').addClass('d-none');
+
+                const payload = {
+                    userId: $('#userId').val(),
+                    username: $('#username').val(),
+                    email: $('#email').val(),
+                    role: $('#role').val(),
+                    lastname: $('#lastname').val(),
+                    firstname: $('#firstname').val(),
+                    middlename: $('#middlename').val(),
+                    age: $('#age').val() ? parseInt($('#age').val()) : null,
+                    birthdate: $('#birthdate').val() ? $('#birthdate').val() : null
+                };
+
+                $.ajax({
+                    url: '/api/admin/users/' + userId,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function() {
+                        isModified = false; // Form saved, no longer modified
+                        $('#successMsg').removeClass('d-none');
+                        setTimeout(function() {
+                            window.location.href = 'admin.html';
+                        }, 1500);
+                    },
+                    error: function() {
+                        $('#saveBtn').prop('disabled', false).text('Save Changes');
+                        $('#cancelBtn').prop('disabled', false);
+                        $('#errorMsg').text('Failed to update user. Please try again.').removeClass('d-none');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
