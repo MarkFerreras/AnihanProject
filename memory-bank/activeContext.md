@@ -9,10 +9,19 @@
 3. **Trainer Grading Module**: Providing a filtered view of assigned classes and enforcing numerical grade submission.
 4. **Registrar Batch Document Module**: Implementation of the document upload system ensuring files are stored efficiently in the database as BLOBs to prevent physical green folder accumulation.
 
+<<<<<<< HEAD
 ## Status (March 2026)
 - **Completed**: DFD, ERD, and BPMNs identified from `Chapter-1.pdf` and `Chapter-3.pdf` have been synthesized into System Patterns. Required project data dictionary and infrastructure expectations added.
 - **In-Progress**: Fixing IDE Java compiler error parsing issues, specifically "String cannot be resolved to a type" in `LoginRequest.java`.
 - **Immediate Task**: Refine backend dashboard layouts now that we have exact functional and non-functional requirements (e.g. viewStudentList() load time <= 5 seconds).
+=======
+## Status
+- `index.html` — Added `logo.png` to navbar-brand, added `logo2.png` centered above login-card-title
+- `css/login.css` — Added `.navbar-logo`, `.login-card-logo`, `.card-logo` style rules
+- No backend wiring yet
+- SQL Schema `AnihanSRMS.sql` created and updated with comprehensive student, course, and assessment tables.
+- Database includes tables for `users`, `student_records`, `batches`, `courses`, `sections`, `parents`, `guardians`, `documents`, `grades`, `subjects`, `qualifications`, `assessments`, `classes`, and `logs`.
+>>>>>>> SQLs
 
 ## Open Questions & Unverified Items
 1. **Tech Stack Adherence**: `Chapter 3` emphasizes the use of Python, but the user has explicitly confirmed continuing with **Java 25 and Spring Boot 4.0**. *Conflict resolved.*

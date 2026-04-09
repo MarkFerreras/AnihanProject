@@ -19,8 +19,13 @@
 
 ## Frontend & UI (Completed)
 - [x] Login page front-end UI (`index.html`, `css/login.css`)
+<<<<<<< HEAD
 - [x] Dashboard empty templates built (`admin.html`, `registrar.html`, `trainer.html`) 
 - [x] Custom JS fetch logic for form interactions
+=======
+- [x] Memory bank initialized
+- [x] SQL database schema created and updated (`AnihanSRMS.sql`)
+>>>>>>> SQLs
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
