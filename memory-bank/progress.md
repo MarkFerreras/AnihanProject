@@ -5,6 +5,7 @@
 - [x] MySQL database `AnihanSRMS` created
 - [x] Login page front-end UI (`index.html`, `css/login.css`)
 - [x] Memory bank initialized
+- [x] SQL database schema created and updated (`AnihanSRMS.sql`)
 
 ## In Progress
 - [/] Browser verification of login page

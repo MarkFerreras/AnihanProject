@@ -10,4 +10,4 @@
 - **Build**: Gradle (Kotlin DSL)
 
 ## Current Status
-Initial UI scaffolding phase — building the login page front-end first.
+Database schema development and initial UI scaffolding (Login page).
