@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Anihan SRMS student records module placeholder">
+    <title>Student Records - Anihan SRMS</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="dashboard-page" data-required-role="ROLE_ADMIN">
+    <header>
+        <nav class="navbar login-navbar admin-navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand" href="admin.html">
+                    <span class="brand-mark">
+                        <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                        <span class="brand-title">Anihan SRMS</span>
+                    </span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
+                    aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="adminNavbar">
+                    <ul class="navbar-nav me-auto mb-3 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="admin.html">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link active" aria-current="page" href="student-records.html">Student Records</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="subjects.html">Subjects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="logs.html">Logs</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center gap-3 ms-lg-3">
+                        <span class="portal-label">Admin Portal</span>
+                        <div class="account-dropdown dropdown">
+                            <button class="account-icon-btn dropdown-toggle" type="button" id="accountDropdownBtn"
+                                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                                <span id="accountInitial">?</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdownBtn">
+                                <li class="account-dropdown-header">
+                                    <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
+                                    <p class="account-dropdown-role" id="accountDropdownRole">-</p>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" id="editAccountBtn" data-bs-toggle="modal"
+                                        data-bs-target="#editAccountModal">Edit Account</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard-main">
+        <div class="container">
+            <section class="page-hero">
+                <div>
+                    <span class="page-eyebrow">Admin Module</span>
+                    <h1 class="page-title">Student records workbench</h1>
+                    <p class="page-subtitle">
+                        This page is now part of the root admin navigation and keeps the merged style system ready for
+                        the future records implementation.
+                    </p>
+                </div>
+            </section>
+
+            <section class="surface-card placeholder-card">
+                <div class="surface-card-header">
+                    <div>
+                        <h2>Student Records</h2>
+                        <p>Placeholder page preserved from the donor project and cleaned into the root layout.</p>
+                    </div>
+                </div>
+                <div class="surface-card-body">
+                    <p class="placeholder-copy">
+                        The records table and CRUD flows are still out of scope for this merge, but the navigation,
+                        styling, and access control are now ready in the main application.
+                    </p>
+                    <ul class="placeholder-points">
+                        <li>Admin-only route protection is active for this page.</li>
+                        <li>The page now shares the same header, dropdown, and theme as the rest of the admin module.</li>
+                        <li>Future records features can be added without reworking the shell again.</li>
+                    </ul>
+                    <div class="placeholder-note">
+                        Next implementation can attach a real student records table or form workflow here without
+                        redoing the merged front-end structure.
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="login-footer mt-auto">
+        <div class="container">
+            <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
+        aria-labelledby="editAccountModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAccountModalLabel">Edit Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="editAccountTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-personal" data-bs-toggle="tab"
+                                data-bs-target="#pane-personal" type="button" role="tab"
+                                aria-controls="pane-personal" aria-selected="true">Personal Details</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-account" data-bs-toggle="tab"
+                                data-bs-target="#pane-account" type="button" role="tab"
+                                aria-controls="pane-account" aria-selected="false">Account Settings</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="editAccountTabContent">
+                        <div class="tab-pane fade show active" id="pane-personal" role="tabpanel" aria-labelledby="tab-personal">
+                            <div class="alert d-none" id="personalDetailsAlert" role="alert"></div>
+                            <form id="personalDetailsForm">
+                                <div>
+                                    <label for="lastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="lastName" autocomplete="family-name">
+                                </div>
+                                <div class="mt-3">
+                                    <label for="firstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="firstName" autocomplete="given-name">
+                                </div>
+                                <div class="mt-3">
+                                    <label for="middleName" class="form-label">Middle Name</label>
+                                    <input type="text" class="form-control" id="middleName" autocomplete="additional-name">
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-6 mb-3 mb-md-0">
+                                        <label for="age" class="form-label">Age</label>
+                                        <input type="number" class="form-control" id="age" min="1" max="150">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="birthdate" class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" id="birthdate">
+                                    </div>
+                                </div>
+                                <div id="trainerFields" class="trainer-only-fields">
+                                    <hr>
+                                    <h6 class="section-title">Trainer Assignment</h6>
+                                    <div class="mb-3">
+                                        <label for="subjectCode" class="form-label">Subject</label>
+                                        <select class="form-select" id="subjectCode"><option value="">Select Subject</option></select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="sectionCode" class="form-label">Section Handled</label>
+                                        <select class="form-select" id="sectionCode"><option value="">Select Section</option></select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-save">Save Details</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="pane-account" role="tabpanel" aria-labelledby="tab-account">
+                            <h6 class="section-title">Change Username</h6>
+                            <div class="alert d-none" id="usernameChangeAlert" role="alert"></div>
+                            <form id="usernameChangeForm">
+                                <div class="mb-3">
+                                    <label for="newUsername" class="form-label">New Username</label>
+                                    <input type="text" class="form-control" id="newUsername" autocomplete="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="usernameCurrentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="usernameCurrentPassword"
+                                        autocomplete="current-password" required>
+                                </div>
+                                <button type="submit" class="btn btn-save">Save Username</button>
+                            </form>
+                            <hr>
+                            <h6 class="section-title">Change Password</h6>
+                            <div class="alert d-none" id="passwordChangeAlert" role="alert"></div>
+                            <form id="passwordChangeForm">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="currentPassword"
+                                        autocomplete="current-password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="changeNewPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="changeNewPassword"
+                                        autocomplete="new-password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmNewPassword"
+                                        autocomplete="new-password" required>
+                                </div>
+                                <button type="submit" class="btn btn-save">Save Password</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth-guard.js"></script>
+</body>
+
+</html>

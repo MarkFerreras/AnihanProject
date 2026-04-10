@@ -1,7 +1,7 @@
 # Progress — Anihan SRMS
 
 ## Current Status
-- **Tasks in Progress**: Updating database schema and aligning backend Entities, DTOs, Controllers, and Frontend views (AGILE-XXX).
+- **Tasks in Progress**: Stabilizing the merged root admin module and validating UI behavior in-browser.
 - **Completed**: G2.1 Edit Personal Details (Sprint 4 completed). Database Schema migration to support distinct name fields (lastName, firstName, middleName) and birthdate.
 
 ## Research & Documentation (Completed)
@@ -45,6 +45,16 @@
 - [x] Custom JS fetch logic for form interactions
 - [x] Dashboard CSS for account dropdown and modal styling
 - [x] Shared auth-guard.js for session protection and account UI
+- [x] Merged admin user-management dashboard into root `admin.html`
+- [x] Added root admin pages: `edit-user.html`, `student-records.html`, `subjects.html`, `logs.html`
+- [x] Unified merged admin pages under the root green/white/blue shell and shared account modal behavior
+
+## Admin Merge (Completed)
+- [x] Added `/api/admin/users` and `/api/admin/users/{id}` in the root app using DTO responses
+- [x] Added root-side admin update flow with self-role-lock protection
+- [x] Extended root RBAC for admin-only HTML pages introduced from `main-em`
+- [x] Added automated tests for admin service and admin controller behavior
+- [x] Normalized `AnihanSRMS.sql` ordering and root-aligned users/student records keys
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements

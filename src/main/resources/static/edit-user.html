@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS admin dashboard">
-    <title>Admin Dashboard - Anihan SRMS</title>
+    <meta name="description" content="Anihan SRMS admin edit user">
+    <title>Edit User - Anihan SRMS</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
@@ -29,7 +28,7 @@
                 <div class="collapse navbar-collapse" id="adminNavbar">
                     <ul class="navbar-nav me-auto mb-3 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page" href="admin.html">Home</a>
+                            <a class="nav-link admin-nav-link" href="admin.html">Home</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="student-records.html">Student Records</a>
@@ -74,63 +73,92 @@
     <main class="dashboard-main">
         <div class="container">
             <section class="page-hero">
-                <div class="page-hero-grid">
-                    <div>
-                        <span class="page-eyebrow">Operations Dashboard</span>
-                        <h1 class="page-title">Manage user accounts and keep the admin workspace aligned.</h1>
-                        <p class="page-subtitle">
-                            Review system users, inspect profile details, and open the dedicated edit flow without
-                            losing the current Anihan look and feel.
-                        </p>
-                    </div>
-                    <div class="hero-stats">
-                        <article class="stat-card">
-                            <span class="stat-label">Total Users</span>
-                            <span class="stat-value" id="totalUsersStat">0</span>
-                            <span class="stat-caption">Loaded from the root application API.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Admins</span>
-                            <span class="stat-value" id="adminUsersStat">0</span>
-                            <span class="stat-caption">Protected administrators.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Registrars</span>
-                            <span class="stat-value" id="registrarUsersStat">0</span>
-                            <span class="stat-caption">Records operations users.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Trainers</span>
-                            <span class="stat-value" id="trainerUsersStat">0</span>
-                            <span class="stat-caption">Teaching and grading users.</span>
-                        </article>
-                    </div>
+                <div>
+                    <span class="page-eyebrow">Admin Editing</span>
+                    <h1 class="page-title">Update a user profile without breaking the current auth rules.</h1>
+                    <p class="page-subtitle">
+                        This flow keeps username changes in the self-service account modal and focuses this page on
+                        safe admin edits for role, email, and profile fields.
+                    </p>
                 </div>
             </section>
 
-            <section class="surface-card">
-                <div class="surface-card-header">
-                    <div>
-                        <h2>System Users</h2>
-                        <p>Open details for a quick review or continue into the dedicated edit page.</p>
+            <section class="form-shell">
+                <div class="surface-card form-panel">
+                    <div class="surface-card-header">
+                        <div>
+                            <h2>Edit User Details</h2>
+                            <p>Changes save back into the root project admin API.</p>
+                        </div>
+                    </div>
+                    <div class="surface-card-body">
+                        <div class="alert alert-danger d-none" id="editUserError" role="alert"></div>
+                        <div class="alert alert-success d-none" id="editUserSuccess" role="alert"></div>
+
+                        <form id="editUserForm" novalidate>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="editUserId" class="form-label">User ID</label>
+                                    <input type="text" class="form-control" id="editUserId" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editUsernameDisplay" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="editUsernameDisplay" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="editEmail" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editRole" class="form-label">Role</label>
+                                    <select class="form-select" id="editRole" required>
+                                        <option value="ROLE_ADMIN">Admin</option>
+                                        <option value="ROLE_REGISTRAR">Registrar</option>
+                                        <option value="ROLE_TRAINER">Trainer</option>
+                                    </select>
+                                    <div class="form-text text-danger d-none" id="editRoleLockMessage">
+                                        You cannot change your own role from this page.
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editLastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="editLastName" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editFirstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="editFirstName" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editMiddleName" class="form-label">Middle Name</label>
+                                    <input type="text" class="form-control" id="editMiddleName" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editAge" class="form-label">Age</label>
+                                    <input type="number" class="form-control" id="editAge" min="1" max="150" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editBirthdate" class="form-label">Birthdate</label>
+                                    <input type="date" class="form-control" id="editBirthdate" required>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 mt-4">
+                                <a href="admin.html" class="btn btn-surface-secondary" id="cancelEditLink">Cancel</a>
+                                <button type="submit" class="btn btn-surface" id="saveEditButton">Save Changes</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-                <div class="surface-card-body compact">
-                    <div class="table-responsive">
-                        <table id="usersTable" class="table table-hover admin-table align-middle w-100">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>User ID</th>
-                                    <th>Role</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th class="text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
+
+                <aside class="form-note">
+                    <h3>Guardrails</h3>
+                    <p>The merged admin flow keeps a few protections in place while donor features are folded into root.</p>
+                    <ul>
+                        <li>Admins can update another user without exposing password hashes in the API.</li>
+                        <li>The current admin cannot demote their own role and lose dashboard access.</li>
+                        <li>Unsaved edits trigger a leave warning before navigation.</li>
+                    </ul>
+                </aside>
             </section>
         </div>
     </main>
@@ -140,68 +168,6 @@
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
-
-    <div class="modal fade detail-modal" id="userDetailsModal" tabindex="-1"
-        aria-labelledby="userDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <div>
-                        <h2 class="modal-title h5 mb-1" id="userDetailsModalLabel">User Details</h2>
-                        <p class="mb-0 text-white-50">Current account information from the root project.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="detail-grid">
-                        <article class="detail-card">
-                            <span class="detail-label">User ID</span>
-                            <p class="detail-value" id="detailsUserId">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Username</span>
-                            <p class="detail-value" id="detailsUsername">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Role</span>
-                            <div id="detailsRole">-</div>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Email</span>
-                            <p class="detail-value" id="detailsEmail">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Last Name</span>
-                            <p class="detail-value" id="detailsLastName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">First Name</span>
-                            <p class="detail-value" id="detailsFirstName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Middle Name</span>
-                            <p class="detail-value" id="detailsMiddleName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Age</span>
-                            <p class="detail-value" id="detailsAge">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Birthdate</span>
-                            <p class="detail-value" id="detailsBirthdate">-</p>
-                        </article>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
-                        Close
-                    </button>
-                    <a href="logs.html" class="btn btn-surface-secondary" id="detailsLogsLink">View Logs</a>
-                    <a href="edit-user.html" class="btn btn-surface" id="detailsEditLink">Edit User</a>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
         aria-labelledby="editAccountModalLabel" aria-hidden="true">
@@ -330,10 +296,8 @@
     </div>
 
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/jquery-4.0.0.min.js"></script>
-    <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/admin-users.js"></script>
+    <script src="js/admin-edit-user.js"></script>
 </body>
 
 </html>

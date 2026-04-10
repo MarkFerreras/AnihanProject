@@ -1,37 +1,34 @@
 /**
- * auth-guard.js — Shared Authentication Guard & Account UI
- * 
- * Include this script on every authenticated page (admin.html, registrar.html, trainer.html).
- * The page must have:
- *   - data-required-role attribute on <body> (e.g., "ROLE_ADMIN")
- *   - #accountInitial, #accountDropdownName, #accountDropdownRole
- *   - #logoutBtn, #editAccountBtn, #editAccountModal
- *   - Tab 1 (Personal Details): #personalDetailsForm, #fullName, #age, #dateOfBirth
- *   - Trainer-only: #trainerFields, #subjectCode, #sectionCode
- *   - Tab 2 (Account Settings): username + password change forms
+ * Shared authentication guard and account modal behavior.
+ *
+ * Expected page elements:
+ * - <body data-required-role="ROLE_*">
+ * - account dropdown nodes:
+ *   #accountInitial, #accountDropdownName, #accountDropdownRole, #logoutBtn
+ * - optional account modal nodes:
+ *   #editAccountModal, #personalDetailsForm, #usernameChangeForm, #passwordChangeForm
+ * - optional personal detail inputs:
+ *   #lastName, #firstName, #middleName, #age, #birthdate
+ * - optional trainer fields:
+ *   #trainerFields, #subjectCode, #sectionCode
  */
 
 (function () {
     'use strict';
 
     const ROLE_DASHBOARDS = {
-        'ROLE_ADMIN': '/admin.html',
-        'ROLE_REGISTRAR': '/registrar.html',
-        'ROLE_TRAINER': '/trainer.html'
+        ROLE_ADMIN: '/admin.html',
+        ROLE_REGISTRAR: '/registrar.html',
+        ROLE_TRAINER: '/trainer.html'
     };
 
     const ROLE_DISPLAY = {
-        'ROLE_ADMIN': 'Admin',
-        'ROLE_REGISTRAR': 'Registrar',
-        'ROLE_TRAINER': 'Trainer'
+        ROLE_ADMIN: 'Admin',
+        ROLE_REGISTRAR: 'Registrar',
+        ROLE_TRAINER: 'Trainer'
     };
 
-    // Store current user data globally within the IIFE
     let currentUserData = null;
-
-    // ──────────────────────────────────────────────
-    // SESSION VERIFICATION
-    // ──────────────────────────────────────────────
 
     async function verifySession() {
         const requiredRole = document.body.getAttribute('data-required-role');
@@ -48,23 +45,17 @@
             currentUserData = data;
 
             if (requiredRole && data.role !== requiredRole) {
-                const correctDashboard = ROLE_DASHBOARDS[data.role] || '/index.html';
-                window.location.replace(correctDashboard);
+                window.location.replace(ROLE_DASHBOARDS[data.role] || '/index.html');
                 return;
             }
 
             populateAccountUI(data.username, data.role);
             populatePersonalDetailsForm(data);
             handleTrainerFields(data.role);
-
         } catch (error) {
             window.location.replace('/index.html');
         }
     }
-
-    // ──────────────────────────────────────────────
-    // UI POPULATION
-    // ──────────────────────────────────────────────
 
     function populateAccountUI(username, role) {
         const initialEl = document.getElementById('accountInitial');
@@ -72,10 +63,21 @@
         const roleEl = document.getElementById('accountDropdownRole');
         const newUsernameEl = document.getElementById('newUsername');
 
-        if (initialEl) initialEl.textContent = username.charAt(0).toUpperCase();
-        if (nameEl) nameEl.textContent = username;
-        if (roleEl) roleEl.textContent = ROLE_DISPLAY[role] || role;
-        if (newUsernameEl) newUsernameEl.value = username;
+        if (initialEl) {
+            initialEl.textContent = username ? username.charAt(0).toUpperCase() : '?';
+        }
+
+        if (nameEl) {
+            nameEl.textContent = username || 'Unknown user';
+        }
+
+        if (roleEl) {
+            roleEl.textContent = ROLE_DISPLAY[role] || role || '-';
+        }
+
+        if (newUsernameEl) {
+            newUsernameEl.value = username || '';
+        }
     }
 
     function populatePersonalDetailsForm(data) {
@@ -83,21 +85,34 @@
         const firstNameEl = document.getElementById('firstName');
         const middleNameEl = document.getElementById('middleName');
         const ageEl = document.getElementById('age');
-        const dobEl = document.getElementById('birthdate');
+        const birthdateEl = document.getElementById('birthdate');
 
-        if (lastNameEl) lastNameEl.value = data.lastName || '';
-        if (firstNameEl) firstNameEl.value = data.firstName || '';
-        if (middleNameEl) middleNameEl.value = data.middleName || '';
-        if (ageEl) ageEl.value = data.age || '';
-        if (dobEl) dobEl.value = data.birthdate || '';
+        if (lastNameEl) {
+            lastNameEl.value = data.lastName || '';
+        }
+
+        if (firstNameEl) {
+            firstNameEl.value = data.firstName || '';
+        }
+
+        if (middleNameEl) {
+            middleNameEl.value = data.middleName || '';
+        }
+
+        if (ageEl) {
+            ageEl.value = data.age || '';
+        }
+
+        if (birthdateEl) {
+            birthdateEl.value = data.birthdate || '';
+        }
     }
 
-    /**
-     * Shows trainer-only fields and loads dropdowns if the user is a trainer.
-     */
     async function handleTrainerFields(role) {
         const trainerFields = document.getElementById('trainerFields');
-        if (!trainerFields) return;
+        if (!trainerFields) {
+            return;
+        }
 
         if (role !== 'ROLE_TRAINER') {
             trainerFields.style.display = 'none';
@@ -105,67 +120,69 @@
         }
 
         trainerFields.style.display = 'block';
-
-        // Load dropdown data
         await Promise.all([loadSubjects(), loadSections()]);
-
-        // Note: Trainer subject assignments are managed in classess table, not user table.
-        // Pre-selection of current class is removed for now until class manager is implemented.
     }
 
     async function loadSubjects() {
         const subjectEl = document.getElementById('subjectCode');
-        if (!subjectEl) return;
+        if (!subjectEl) {
+            return;
+        }
 
         try {
             const response = await fetch('/api/lookup/subjects', { credentials: 'same-origin' });
-            if (!response.ok) return;
-            const subjects = await response.json();
+            if (!response.ok) {
+                return;
+            }
 
-            // Clear existing options except the placeholder
-            subjectEl.innerHTML = '<option value="">— Select Subject —</option>';
-            subjects.forEach(function (s) {
-                const opt = document.createElement('option');
-                opt.value = s.code;
-                opt.textContent = s.code + ' — ' + s.name;
-                subjectEl.appendChild(opt);
+            const subjects = await response.json();
+            subjectEl.innerHTML = '<option value="">Select Subject</option>';
+
+            subjects.forEach(function (subject) {
+                const option = document.createElement('option');
+                option.value = subject.code;
+                option.textContent = subject.code + ' - ' + subject.name;
+                subjectEl.appendChild(option);
             });
         } catch (error) {
-            // Silently fail — dropdown will be empty
+            // Leave the dropdown empty if lookups are unavailable.
         }
     }
 
     async function loadSections() {
         const sectionEl = document.getElementById('sectionCode');
-        if (!sectionEl) return;
+        if (!sectionEl) {
+            return;
+        }
 
         try {
             const response = await fetch('/api/lookup/sections', { credentials: 'same-origin' });
-            if (!response.ok) return;
-            const sections = await response.json();
+            if (!response.ok) {
+                return;
+            }
 
-            sectionEl.innerHTML = '<option value="">— Select Section —</option>';
-            sections.forEach(function (s) {
-                const opt = document.createElement('option');
-                opt.value = s.code;
-                opt.textContent = s.name;
-                sectionEl.appendChild(opt);
+            const sections = await response.json();
+            sectionEl.innerHTML = '<option value="">Select Section</option>';
+
+            sections.forEach(function (section) {
+                const option = document.createElement('option');
+                option.value = section.code;
+                option.textContent = section.name;
+                sectionEl.appendChild(option);
             });
         } catch (error) {
-            // Silently fail
+            // Leave the dropdown empty if lookups are unavailable.
         }
     }
 
-    // ──────────────────────────────────────────────
-    // LOGOUT
-    // ──────────────────────────────────────────────
-
     function setupLogout() {
         const logoutBtn = document.getElementById('logoutBtn');
-        if (!logoutBtn) return;
+        if (!logoutBtn) {
+            return;
+        }
 
-        logoutBtn.addEventListener('click', async function (e) {
-            e.preventDefault();
+        logoutBtn.addEventListener('click', async function (event) {
+            event.preventDefault();
 
             try {
                 await fetch('/api/auth/logout', {
@@ -173,21 +190,19 @@
                     credentials: 'same-origin'
                 });
             } catch (error) {
-                // Even if request fails, redirect
+                // Redirect even if logout transport fails.
             }
 
-            // Redirect to login with logout flag for notification
             window.location.replace('/index.html?loggedOut=true');
         });
     }
 
-    // ──────────────────────────────────────────────
-    // ALERTS
-    // ──────────────────────────────────────────────
-
     function showAlert(containerId, message, type) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container) {
+            return;
+        }
+
         container.className = 'alert alert-' + type;
         container.textContent = message;
         container.classList.remove('d-none');
@@ -195,40 +210,37 @@
 
     function hideAlert(containerId) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container) {
+            return;
+        }
+
         container.classList.add('d-none');
         container.textContent = '';
     }
 
-    // ──────────────────────────────────────────────
-    // PERSONAL DETAILS FORM
-    // ──────────────────────────────────────────────
-
     function setupPersonalDetailsForm() {
         const form = document.getElementById('personalDetailsForm');
-        if (!form) return;
+        if (!form) {
+            return;
+        }
 
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
             hideAlert('personalDetailsAlert');
 
-            const lastNameVal = document.getElementById('lastName').value.trim();
-            const firstNameVal = document.getElementById('firstName').value.trim();
-            const middleNameVal = document.getElementById('middleName').value.trim();
-            const ageVal = document.getElementById('age').value;
-            const birthdateVal = document.getElementById('birthdate').value;
-            const submitBtn = form.querySelector('button[type="submit"]');
-
+            const submitButton = form.querySelector('button[type="submit"]');
             const payload = {
-                lastName: lastNameVal || null,
-                firstName: firstNameVal || null,
-                middleName: middleNameVal || null,
-                age: ageVal ? parseInt(ageVal, 10) : null,
-                birthdate: birthdateVal || null
+                lastName: document.getElementById('lastName')?.value.trim() || null,
+                firstName: document.getElementById('firstName')?.value.trim() || null,
+                middleName: document.getElementById('middleName')?.value.trim() || null,
+                age: document.getElementById('age')?.value
+                    ? parseInt(document.getElementById('age').value, 10)
+                    : null,
+                birthdate: document.getElementById('birthdate')?.value || null
             };
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
 
             try {
                 const response = await fetch('/api/account/details', {
@@ -241,47 +253,51 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('personalDetailsAlert', 'Personal details updated successfully!', 'success');
-                    // Update stored data
-                    currentUserData = { ...currentUserData, ...data };
+                    showAlert('personalDetailsAlert', 'Personal details updated successfully.', 'success');
+                    currentUserData = {
+                        ...currentUserData,
+                        lastName: data.lastName,
+                        firstName: data.firstName,
+                        middleName: data.middleName,
+                        age: data.age,
+                        birthdate: data.birthdate
+                    };
                 } else {
-                    const errorMsg = data.errors
+                    const errorMessage = data.errors
                         ? Object.values(data.errors).join('. ')
                         : data.message || 'Failed to update details.';
-                    showAlert('personalDetailsAlert', errorMsg, 'danger');
+                    showAlert('personalDetailsAlert', errorMessage, 'danger');
                 }
             } catch (error) {
                 showAlert('personalDetailsAlert', 'Unable to connect to the server.', 'danger');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Details';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Save Details';
             }
         });
     }
 
-    // ──────────────────────────────────────────────
-    // USERNAME CHANGE
-    // ──────────────────────────────────────────────
-
     function setupUsernameChange() {
         const form = document.getElementById('usernameChangeForm');
-        if (!form) return;
+        if (!form) {
+            return;
+        }
 
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
             hideAlert('usernameChangeAlert');
 
             const username = document.getElementById('newUsername').value.trim();
             const currentPassword = document.getElementById('usernameCurrentPassword').value;
-            const submitBtn = form.querySelector('button[type="submit"]');
+            const submitButton = form.querySelector('button[type="submit"]');
 
             if (!username || !currentPassword) {
                 showAlert('usernameChangeAlert', 'Please fill in all fields.', 'danger');
                 return;
             }
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
 
             try {
                 const response = await fetch('/api/account/profile', {
@@ -294,40 +310,39 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('usernameChangeAlert', 'Username updated successfully!', 'success');
+                    currentUserData = { ...currentUserData, username: data.username };
                     populateAccountUI(data.username, document.body.getAttribute('data-required-role'));
                     document.getElementById('usernameCurrentPassword').value = '';
+                    showAlert('usernameChangeAlert', 'Username updated successfully.', 'success');
                 } else {
-                    const errorMsg = data.errors
+                    const errorMessage = data.errors
                         ? Object.values(data.errors).join('. ')
                         : data.message || 'Failed to update username.';
-                    showAlert('usernameChangeAlert', errorMsg, 'danger');
+                    showAlert('usernameChangeAlert', errorMessage, 'danger');
                 }
             } catch (error) {
                 showAlert('usernameChangeAlert', 'Unable to connect to the server.', 'danger');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Username';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Save Username';
             }
         });
     }
 
-    // ──────────────────────────────────────────────
-    // PASSWORD CHANGE
-    // ──────────────────────────────────────────────
-
     function setupPasswordChange() {
         const form = document.getElementById('passwordChangeForm');
-        if (!form) return;
+        if (!form) {
+            return;
+        }
 
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
             hideAlert('passwordChangeAlert');
 
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('changeNewPassword').value;
             const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-            const submitBtn = form.querySelector('button[type="submit"]');
+            const submitButton = form.querySelector('button[type="submit"]');
 
             if (!currentPassword || !newPassword || !confirmNewPassword) {
                 showAlert('passwordChangeAlert', 'Please fill in all fields.', 'danger');
@@ -339,8 +354,8 @@
                 return;
             }
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
 
             try {
                 const response = await fetch('/api/account/password', {
@@ -353,50 +368,46 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('passwordChangeAlert', 'Password updated! Redirecting to login...', 'success');
+                    showAlert('passwordChangeAlert', 'Password updated. Redirecting to login...', 'success');
                     setTimeout(function () {
                         window.location.replace('/index.html');
                     }, 1500);
                 } else {
-                    const errorMsg = data.errors
+                    const errorMessage = data.errors
                         ? Object.values(data.errors).join('. ')
                         : data.message || 'Failed to update password.';
-                    showAlert('passwordChangeAlert', errorMsg, 'danger');
+                    showAlert('passwordChangeAlert', errorMessage, 'danger');
                 }
             } catch (error) {
                 showAlert('passwordChangeAlert', 'Unable to connect to the server.', 'danger');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Password';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Save Password';
             }
         });
     }
 
-    // ──────────────────────────────────────────────
-    // MODAL RESET
-    // ──────────────────────────────────────────────
-
     function setupModalReset() {
         const modal = document.getElementById('editAccountModal');
-        if (!modal) return;
+        if (!modal) {
+            return;
+        }
 
         modal.addEventListener('hidden.bs.modal', function () {
             hideAlert('personalDetailsAlert');
             hideAlert('usernameChangeAlert');
             hideAlert('passwordChangeAlert');
-            // Clear password fields
-            const pwFields = modal.querySelectorAll('input[type="password"]');
-            pwFields.forEach(function (field) { field.value = ''; });
-            // Re-populate personal details from stored data
+
+            modal.querySelectorAll('input[type="password"]').forEach(function (field) {
+                field.value = '';
+            });
+
             if (currentUserData) {
                 populatePersonalDetailsForm(currentUserData);
+                populateAccountUI(currentUserData.username, currentUserData.role);
             }
         });
     }
-
-    // ──────────────────────────────────────────────
-    // INIT
-    // ──────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', function () {
         verifySession();

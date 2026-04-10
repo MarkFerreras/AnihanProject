@@ -41,31 +41,33 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
             .authorizeHttpRequests(auth -> auth
-                // Static resources and login page — always accessible
                 .requestMatchers(
-                    "/", "/index.html",
-                    "/css/**", "/js/**", "/images/**"
+                        "/",
+                        "/index.html",
+                        "/css/**",
+                        "/js/**",
+                        "/images/**"
                 ).permitAll()
-                // Auth endpoints — always accessible
                 .requestMatchers("/api/auth/**").permitAll()
-                // Role-based access for dashboard HTML pages
-                .requestMatchers("/admin.html").hasRole("ADMIN")
+                .requestMatchers(
+                        "/admin.html",
+                        "/edit-user.html",
+                        "/student-records.html",
+                        "/subjects.html",
+                        "/logs.html"
+                ).hasRole("ADMIN")
                 .requestMatchers("/registrar.html").hasRole("REGISTRAR")
                 .requestMatchers("/trainer.html").hasRole("TRAINER")
-                // Role-based access for API endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
-                // Account endpoints require authentication (any role)
                 .requestMatchers("/api/account/**").authenticated()
-                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(this::handleUnauthorized)
                 .accessDeniedHandler(this::handleAccessDenied)
             )
-            // Prevent caching of authenticated pages so back-button doesn't work after logout
             .headers(headers -> headers
                 .cacheControl(cache -> cache.disable())
             );
@@ -85,11 +87,6 @@ public class SecurityConfig {
         return new ProviderManager(provider);
     }
 
-    /**
-     * Handles unauthenticated access (401).
-     * - API requests (/api/**) get a JSON 401 response.
-     * - Browser page requests get redirected to /index.html.
-     */
     private void handleUnauthorized(HttpServletRequest request,
                                     HttpServletResponse response,
                                     org.springframework.security.core.AuthenticationException authException)
@@ -103,11 +100,6 @@ public class SecurityConfig {
         }
     }
 
-    /**
-     * Handles access denied (403) for authenticated users accessing wrong-role resources.
-     * - API requests get a JSON 403 response.
-     * - Browser page requests get redirected to the user's own dashboard.
-     */
     private void handleAccessDenied(HttpServletRequest request,
                                     HttpServletResponse response,
                                     org.springframework.security.access.AccessDeniedException accessDeniedException)
@@ -117,32 +109,23 @@ public class SecurityConfig {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.getWriter().write("{\"message\":\"Access denied. You do not have permission.\"}");
         } else {
-            // Redirect to the user's own dashboard based on their role
-            String dashboard = getDashboardForCurrentUser(request);
-            response.sendRedirect(dashboard);
+            response.sendRedirect(getDashboardForCurrentUser());
         }
     }
 
-    /**
-     * Determines if the request is an API call (expects JSON) vs a browser page request.
-     */
     private boolean isApiRequest(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri.startsWith("/api/");
+        return request.getRequestURI().startsWith("/api/");
     }
 
-    /**
-     * Returns the correct dashboard URL based on the authenticated user's role.
-     */
-    private String getDashboardForCurrentUser(HttpServletRequest request) {
+    private String getDashboardForCurrentUser() {
         var authentication = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication();
+                .getContext()
+                .getAuthentication();
 
         if (authentication != null && authentication.isAuthenticated()) {
             Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
             for (GrantedAuthority authority : authorities) {
-                String role = authority.getAuthority();
-                return switch (role) {
+                return switch (authority.getAuthority()) {
                     case "ROLE_ADMIN" -> "/admin.html";
                     case "ROLE_REGISTRAR" -> "/registrar.html";
                     case "ROLE_TRAINER" -> "/trainer.html";
@@ -150,6 +133,7 @@ public class SecurityConfig {
                 };
             }
         }
+
         return "/index.html";
     }
 }
