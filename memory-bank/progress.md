@@ -24,6 +24,7 @@
 - [x] SQL database schema created and updated (`AnihanSRMS.sql`)
 - [x] Admin User Management Dashboard (`admin.html`) built with DataTables and Bootstrap Navbar.
 - [x] User Details Modal & Edit User Page (`edit-user.html`) with self-role lock protections.
+- [x] Admin UI Layout Polish (Navbar color standardization & `edit-user.html` structural cleanup).
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
