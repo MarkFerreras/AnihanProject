@@ -38,4 +38,4 @@
 - Document Upload Response: < 3 seconds (< 5MB files)
 - Student Record Retrieval: < 5 seconds
 - Concurrent User Limit testing: 50+ users
-- Hardware RAM footprint: < 6GB RAM required on runtime environment
+- Hardware RAM footprint: < 6GB RAM required on runtime environment.
