@@ -30,6 +30,8 @@
 | `admin.html` | Built responsive Navbar, DataTables User table, and Expand Details Modal |
 | `edit-user.html` | Created page for updating user details with Javascript change-tracking |
 | `logs.html, subjects.html, student-records.html` | Created placeholder pages ensuring navbar linking |
+| `admin.html, et al` | Reverted navbar color to the original login.css light green gradient, removing inline styles |
+| `edit-user.html` | Fixed structural HTML bug: removed extra `</div>` that prematurely closed the card-body, causing form fields to render outside the card |
 
 ### Verification
 - Tested DataTables rendering users.
