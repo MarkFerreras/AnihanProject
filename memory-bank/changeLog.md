@@ -1,6 +1,50 @@
-# Change Log — Anihan SRMS
+# Change Log - Anihan SRMS
 
-## 2026-04-06 — AGILE-100: G2.1 Edit Personal Details
+## 2026-04-11 - Root/Admin Merge from `main-em`
+**Branch:** `feature/fix-login-security`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `controller/AdminController.java` | Root admin API for listing, viewing, and updating users |
+| `service/AdminService.java` | Admin-side user-management business logic |
+| `dto/AdminUserResponse.java` | Sanitized admin API response DTO |
+| `dto/AdminUpdateUserRequest.java` | Validated admin update request DTO |
+| `static/edit-user.html` | Root admin edit-user page |
+| `static/student-records.html` | Root admin student-records placeholder page |
+| `static/subjects.html` | Root admin subjects placeholder page |
+| `static/logs.html` | Root admin logs placeholder page |
+| `static/js/admin-users.js` | Admin dashboard DataTables and detail modal logic |
+| `static/js/admin-edit-user.js` | Edit-user page fetch/save logic and unsaved-change guard |
+| `test/controller/AdminControllerWebMvcTest.java` | Admin controller security and validation coverage |
+| `test/service/AdminServiceTest.java` | Admin service self-role-lock and sanitized-response coverage |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `config/SecurityConfig.java` | Added admin-only route protection for merged HTML pages |
+| `exception/GlobalExceptionHandler.java` | Added 404 handling for missing admin resources |
+| `build.gradle.kts` | Added Spring Boot starter test dependency required by the new admin tests |
+| `static/admin.html` | Rebuilt the admin dashboard shell around merged user-management UI |
+| `static/css/dashboard.css` | Added shared admin shell, modal, table, placeholder-page, and responsive styles |
+| `static/js/auth-guard.js` | Cleaned shared session/account modal logic for merged pages |
+| `src/main/sql/AnihanSRMS.sql` | Reordered schema definitions and aligned users/student records keys with the root app |
+| `memory-bank/activeContext.md` | Updated current phase/task for the root/admin merge |
+| `memory-bank/progress.md` | Recorded merged admin module completion details |
+
+### Merge Notes
+- Kept the repo root as the source-of-truth application.
+- Treated `main-em/` as a read-only donor/reference only.
+- Preserved the newer root user schema: `lastname`, `firstname`, `middlename`, `birthdate`.
+- Used DTOs for `/api/admin/users` responses so password hashes are never exposed.
+- Preserved self-role-lock protection so an admin cannot demote their own role.
+
+### Verification
+- `./gradlew test` -> BUILD SUCCESSFUL
+- `./gradlew build` -> BUILD SUCCESSFUL
+- `rg -n "^(<<<<<<<|=======|>>>>>>>)" src memory-bank build.gradle.kts` -> no matches
+
+## 2026-04-06 - AGILE-100: G2.1 Edit Personal Details
 **Branch:** `feature/fix-login-security`
 
 ### Files Created
@@ -14,7 +58,7 @@
 ### Files Modified
 | File | Change |
 |---|---|
-| `service/CustomUserDetailsService.java`| Enforced strict case match on username login; fallback to case-insensitive email |
+| `service/CustomUserDetailsService.java` | Enforced strict case match on username login; fallback to case-insensitive email |
 | `model/User.java` | Added fullName, age, dateOfBirth, subjectCode, sectionCode fields |
 | `service/AccountService.java` | Added updatePersonalDetails() with role-based field enforcement |
 | `controller/AccountController.java` | Added PUT /api/account/details |
@@ -37,16 +81,16 @@
 | Seeded sections | SEC-A, SEC-B, SEC-C |
 
 ### Verification
-- `./gradlew clean build -x test` → BUILD SUCCESSFUL
-- `./gradlew bootRun` → Started in ~10s
-- PUT /api/account/details (trainer) → 200 + all fields saved ✅
-- GET /api/lookup/subjects → 3 subjects returned ✅
-- GET /api/lookup/sections → 3 sections returned ✅
-- GET /api/auth/me → includes personal details ✅
-- Browser: tabbed modal works, dropdowns populated ✅
-- Browser: logout notification banner slides in ✅
+- `./gradlew clean build -x test` -> BUILD SUCCESSFUL
+- `./gradlew bootRun` -> Started in ~10s
+- PUT `/api/account/details` (trainer) -> 200 + all fields saved
+- GET `/api/lookup/subjects` -> 3 subjects returned
+- GET `/api/lookup/sections` -> 3 sections returned
+- GET `/api/auth/me` -> includes personal details
+- Browser: tabbed modal works, dropdowns populated
+- Browser: logout notification banner slides in
 
-## 2026-04-05 — AGILE-142: G1.R Fix Login
+## 2026-04-05 - AGILE-142: G1.R Fix Login
 **Branch:** `feature/fix-login-security`
 
 ### Files Created
@@ -73,7 +117,7 @@
 ### Files Deleted
 | File | Reason |
 |---|---|
-| `config/DataSeeder.java` | Removed — accounts managed directly in database per user decision |
+| `config/DataSeeder.java` | Removed - accounts managed directly in database per user decision |
 
 ### Database Changes
 | Change | Command |
@@ -81,20 +125,20 @@
 | Added unique index on `users.username` | `ALTER TABLE AnihanSRMS.users ADD UNIQUE INDEX idx_username (username);` |
 
 ### Verification
-- `./gradlew clean build -x test` → BUILD SUCCESSFUL
-- `./gradlew bootRun` → Started successfully (no errors, no DataSeeder output)
-- Unauthenticated `/admin.html` → 302 redirect to `/index.html` ✅
-- API `/api/auth/me` without session → 401 JSON ✅
-- Admin login → 200 + admin.html ✅
-- Admin accessing `/registrar.html` → 302 redirect (wrong role blocked) ✅
-- Registrar login → 200 + registrar.html ✅
-- Username change → 200 + session updated ✅
-- Password change → 200 + session invalidated (401 on next request) ✅
-- Login with new password → 200 ✅
-- Logout → subsequent access returns 302 ✅
-- Wrong password on profile update → 400 "Current password is incorrect" ✅
+- `./gradlew clean build -x test` -> BUILD SUCCESSFUL
+- `./gradlew bootRun` -> Started successfully (no errors, no DataSeeder output)
+- Unauthenticated `/admin.html` -> 302 redirect to `/index.html`
+- API `/api/auth/me` without session -> 401 JSON
+- Admin login -> 200 + `admin.html`
+- Admin accessing `/registrar.html` -> 302 redirect (wrong role blocked)
+- Registrar login -> 200 + `registrar.html`
+- Username change -> 200 + session updated
+- Password change -> 200 + session invalidated (401 on next request)
+- Login with new password -> 200
+- Logout -> subsequent access returns 302
+- Wrong password on profile update -> 400 "Current password is incorrect"
 
-## 2026-03-24 — Phases 1–4: Backend Auth Setup
+## 2026-03-24 - Phases 1-4: Backend Auth Setup
 **Branch:** `feature/backend-auth-setup`
 
 ### Files Created
@@ -140,11 +184,11 @@
 
 ### Verification
 - Re-injected corrected SQL script into `mysql-server`
-- Gradle `clean build -x test`: **BUILD SUCCESSFUL**
-- `.\gradlew bootRun` started successfully
+- Gradle `clean build -x test` -> BUILD SUCCESSFUL
+- `./gradlew bootRun` started successfully
 - `Invoke-RestMethod` to `/api/auth/login` returned 200 OK + `ROLE_ADMIN`
 
-## 2026-03-24 — Troubleshooting IDE Syntax Errors
+## 2026-03-24 - Troubleshooting IDE Syntax Errors
 **Branch:** `feature/fix-src-errors`
 
 ### Verification
@@ -157,12 +201,13 @@
 - Updated `src/main/resources/static/admin.html` to add header/footer + empty main.
 - Updated `src/main/resources/static/registrar.html` to add header/footer + empty main.
 - Updated `src/main/resources/static/trainer.html` to add header/footer + empty main.
+
 ### 2026-04-10
-- Refactored DB Schema to drop 'full_name' in favor of 'lastname', 'firstname', 'middlename'.
-- Renamed 'date_of_birth' to 'birthdate'.
-- Removed inline 'subject_code' and 'section_code' from users table and corresponding java entities.
-- Updated AnihanSRMS.sql to remove GIT conflict marks and use clean CREATE TABLE.
-- Updated User.java, UpdatePersonalDetailsRequest.java for the entity structural changes.
-- Updated AccountService.java, AuthController.java, AccountController.java for new personal detail endpoints.
-- Updated auth-guard.js and admin, trainer, registrar HTML pages to render distinct inputs for names.
-- Re-seeded 3 standard test accounts into the new 'users' table schema.
+- Refactored DB schema to drop `full_name` in favor of `lastname`, `firstname`, `middlename`.
+- Renamed `date_of_birth` to `birthdate`.
+- Removed inline `subject_code` and `section_code` from users table and corresponding Java entities.
+- Updated `AnihanSRMS.sql` to remove Git conflict marks and use clean `CREATE TABLE`.
+- Updated `User.java`, `UpdatePersonalDetailsRequest.java` for the entity structural changes.
+- Updated `AccountService.java`, `AuthController.java`, `AccountController.java` for new personal detail endpoints.
+- Updated `auth-guard.js` and admin, trainer, registrar HTML pages to render distinct inputs for names.
+- Re-seeded 3 standard test accounts into the new `users` table schema.
