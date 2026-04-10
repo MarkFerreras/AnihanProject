@@ -1,10 +1,10 @@
 package com.example.springboot.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.springboot.dto.LoginRequest;
+import com.example.springboot.model.User;
+import com.example.springboot.repository.UserRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -26,9 +28,11 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
 
-    public AuthController(AuthenticationManager authenticationManager) {
+    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository) {
         this.authenticationManager = authenticationManager;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -78,10 +82,11 @@ public class AuthController {
 
     /**
      * GET /api/auth/me
-     * Returns the current authenticated user's info, or 401 if not authenticated.
+     * Returns the current authenticated user's info including personal details,
+     * or 401 if not authenticated.
      */
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> currentUser() {
+    public ResponseEntity<Map<String, Object>> currentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()
@@ -96,9 +101,20 @@ public class AuthController {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_UNKNOWN");
 
-        return ResponseEntity.ok(Map.of(
-                "username", username,
-                "role", role
-        ));
+        // Fetch full user entity for personal details
+        Map<String, Object> response = new HashMap<>();
+        response.put("username", username);
+        response.put("role", role);
+
+        userRepository.findByUsername(username).ifPresent(user -> {
+            response.put("lastName", user.getLastName());
+            response.put("firstName", user.getFirstName());
+            response.put("middleName", user.getMiddleName());
+            response.put("age", user.getAge());
+            response.put("birthdate", user.getBirthdate());
+        });
+
+        return ResponseEntity.ok(response);
     }
 }
+
