@@ -166,3 +166,4 @@
 - Updated AccountService.java, AuthController.java, AccountController.java for new personal detail endpoints.
 - Updated auth-guard.js and admin, trainer, registrar HTML pages to render distinct inputs for names.
 - Re-seeded 3 standard test accounts into the new 'users' table schema.
+- This is the stable version for the general features
