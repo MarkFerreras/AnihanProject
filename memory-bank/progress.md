@@ -41,6 +41,12 @@
 
 ## Frontend & UI (Completed)
 - [x] Login page front-end UI (`index.html`, `css/login.css`)
+- [x] Dashboard empty templates built (`admin.html`, `registrar.html`, `trainer.html`, `student-records.html`, `subjects.html`, `logs.html`)
+- [x] Custom JS fetch logic for form interactions
+- [x] SQL database schema created and updated (`AnihanSRMS.sql`)
+- [x] Admin User Management Dashboard (`admin.html`) built with DataTables and Bootstrap Navbar.
+- [x] User Details Modal & Edit User Page (`edit-user.html`) with self-role lock protections.
+- [x] Admin UI Layout Polish (Navbar color standardization & `edit-user.html` structural cleanup).
 - [x] Dashboard templates built (`admin.html`, `registrar.html`, `trainer.html`) 
 - [x] Custom JS fetch logic for form interactions
 - [x] Dashboard CSS for account dropdown and modal styling

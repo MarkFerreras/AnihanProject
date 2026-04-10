@@ -6,12 +6,29 @@ CREATE TABLE IF NOT EXISTS users (
     lastname VARCHAR(255) NOT NULL,
     firstname VARCHAR(255) NOT NULL,
     middlename VARCHAR(255) NOT NULL,
+
+    middlename VARCHAR(255) NOT NULL,
+ main
     birthdate DATE NOT NULL DEFAULT '2000-01-01',
     age INT NOT NULL,
     email VARCHAR(255) NOT NULL,
     role VARCHAR(15) NOT NULL
 );
 
+-- RUN THIS IS YOU ALREADY HAVE users TABLE! Otherwise, just run the CREATE TABLE for users
+ALTER TABLE users
+ADD COLUMN lastname VARCHAR(255) NOT NULL,
+ADD COLUMN firstname VARCHAR(255) NOT NULL,
+ADD COLUMN birthdate DATE NOT NULL DEFAULT '2000-01-01',
+ADD COLUMN age INT NOT NULL;
+
+ADD COLUMN middlename VARCHAR(255) NOT NULL,
+ADD COLUMN birthdate DATE NOT NULL DEFAULT '2000-01-01',
+ADD COLUMN age INT NOT NULL;
+-- Run this if already have an existing student_records table
+ALTER TABLE student_records add column age INT NOT NULL;
+
+ main
 
 CREATE TABLE IF NOT EXISTS student_records (
     record_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -183,4 +200,5 @@ CREATE TABLE IF NOT EXISTS previous_school (
     end_level_year YEAR NOT NULL,
     -- FOREIGN KEY
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+);
 );SET FOREIGN_KEY_CHECKS = 1;

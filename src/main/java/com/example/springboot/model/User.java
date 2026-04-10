@@ -30,6 +30,19 @@ public class User {
     @Column(name = "role", nullable = false, length = 15)
     private String role;
 
+    @Column(name = "lastname")
+    private String lastname;
+
+    @Column(name = "firstname")
+    private String firstname;
+
+    @Column(name = "middlename")
+    private String middlename;
+
+    @Column(name = "birthdate")
+    private java.time.LocalDate birthdate;
+
+    @Column(name = "age")
     @Column(name = "lastname", nullable = false)
     private String lastName;
 
@@ -97,6 +110,36 @@ public class User {
         this.role = role;
     }
 
+    public String getLastname() {
+        return lastname;
+    }
+
+    public void setLastname(String lastname) {
+        this.lastname = lastname;
+    }
+
+    public String getFirstname() {
+        return firstname;
+    }
+
+    public void setFirstname(String firstname) {
+        this.firstname = firstname;
+    }
+
+    public String getMiddlename() {
+        return middlename;
+    }
+
+    public void setMiddlename(String middlename) {
+        this.middlename = middlename;
+    }
+
+    public java.time.LocalDate getBirthdate() {
+        return birthdate;
+    }
+
+    public void setBirthdate(java.time.LocalDate birthdate) {
+        this.birthdate = birthdate;
     public String getLastName() {
         return lastName;
     }

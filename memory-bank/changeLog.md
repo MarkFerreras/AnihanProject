@@ -101,53 +101,37 @@
 | File | Purpose |
 |---|---|
 | `model/User.java` | Users table entity |
-| `model/Batch.java` | Batches table entity |
-| `model/Course.java` | Courses table entity |
-| `model/Qualification.java` | Qualifications table entity |
-| `model/Section.java` | Sections table entity (FK: batch, course) |
-| `model/Subject.java` | Subjects table entity (FK: qualification) |
-| `model/StudentRecord.java` | Student records entity (FK: batch, course, section) |
-| `model/Parent.java` | Parents table entity (FK: student) |
-| `model/OtherGuardian.java` | Other guardians table entity (FK: student) |
-| `model/Document.java` | Documents table entity (FK: student) |
-| `model/Grade.java` | Grades table entity (FK: student, subject) |
 | `repository/UserRepository.java` | JPA repo with username/email queries |
-| `service/CustomUserDetailsService.java` | Login by username or email |
-| `config/SecurityConfig.java` | Session-based auth, RBAC, BCrypt |
-| `config/DataSeeder.java` | 3 dummy accounts seeder |
-| `dto/LoginRequest.java` | Login DTO with validation |
 | `controller/AuthController.java` | Login/logout/me endpoints |
-| `exception/GlobalExceptionHandler.java` | Validation + auth error handler |
 | `src/main/resources/static/admin.html` | Empty admin template with header/footer |
 | `src/main/resources/static/registrar.html` | Empty registrar template with header/footer |
 | `src/main/resources/static/trainer.html` | Empty trainer template with header/footer |
 
-### Files Modified
+## 2026-04-07 — Database Schema Development
+| File | Action | Description |
+|------|--------|-------------|
+| `AnihanSRMS.sql` | Created | Defined complete database schema with 15 tables for student records, enrollment, and results |
+
+## 2026-04-10 — Admin Dashboard UI & Logic (Current)
+**Branch:** `feature/admin-dashboard-ui`
+
+### Files Created/Modifed
 | File | Change |
 |---|---|
-| `application.properties` | Added ddl-auto=none, MySQL dialect, session config |
-| `index.html` | Added error alert div + login fetch JS |
-| `src/main/sql/AnihanSRMS.sql` | Reordered tables to respect foreign key creation order |
-
-### Files Deleted
-| File | Reason |
-|---|---|
-| `src/main/java/controller/` | Empty folder outside Spring Boot package |
-| `src/main/java/model/` | Empty folder outside Spring Boot package |
-| `src/main/java/repository/` | Empty folder outside Spring Boot package |
-| `src/main/java/service/` | Empty folder outside Spring Boot package |
-| `docker-compose.yml` | Removed per user request, using existing `mysql-server` container |
+| `model/User.java` | Added DB columns: name, birthdate, age |
+| `controller/AdminController.java` | Created `GET /users`, `GET /users/{id}`, `PUT /users/{id}` APIs with self-role lock |
+| `config/SecurityConfig.java` | Added HTML static page security bindings (hasRole) |
+| `admin.html` | Built responsive Navbar, DataTables User table, and Expand Details Modal |
+| `edit-user.html` | Created page for updating user details with Javascript change-tracking |
+| `logs.html, subjects.html, student-records.html` | Created placeholder pages ensuring navbar linking |
+| `admin.html, et al` | Reverted navbar color to the original login.css light green gradient, removing inline styles |
+| `edit-user.html` | Fixed structural HTML bug: removed extra `</div>` that prematurely closed the card-body, causing form fields to render outside the card |
 
 ### Verification
-- Re-injected corrected SQL script into `mysql-server`
-- Gradle `clean build -x test`: **BUILD SUCCESSFUL**
-- `.\gradlew bootRun` started successfully
-- `Invoke-RestMethod` to `/api/auth/login` returned 200 OK + `ROLE_ADMIN`
-
-## 2026-03-24 — Troubleshooting IDE Syntax Errors
-**Branch:** `feature/fix-src-errors`
-
-### Verification
+- Tested DataTables rendering users.
+- Confirmed Modal successfully fetches via Ajax.
+- Confirmed `edit-user.html` correctly displays "Unsaved changes" warnings visually.
+- Verified backend rejects self-demoting role assignments.
 - Checked user IDE error: `String cannot be resolved to a type` inside `LoginRequest.java`.
 - Ran `./gradlew clean compileJava` locally. Confirmed `BUILD SUCCESSFUL`.
 - Diagnosed issue as a false-positive caused by IDE Java Language Server (JDTLS) losing connection to the Java 25 JDK.

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Anihan SRMS — Admin Subjects">
+    <title>Subjects — Admin</title>
+
+    <!-- Bootstrap 5.3 CSS (local) -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <!-- Custom Common Styles -->
+    <link rel="stylesheet" href="css/login.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--color-off-white, #f8f9fa);
+        }
+
+        main {
+            flex: 1;
+        }
+
+        /* Navbar Hover Effect */
+        .admin-nav-link {
+            transition: color 0.3s ease, background-color 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .admin-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff !important;
+        }
+
+        .navbar-logo {
+            max-height: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <nav class="navbar login-navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="admin.html">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo me-3">
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
+                    aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="adminNavbar">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="admin.html">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="student-records.html">Student
+                                Records</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link active text-white fw-bold" aria-current="page"
+                                href="subjects.html">Subjects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="logs.html">Logs</a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text text-white fw-bold me-3">Admin Portal</span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="container my-5">
+        <h2 class="fw-bold">Subjects</h2>
+        <p class="text-muted">Subjects will be shown here.</p>
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="login-footer mt-auto">
+        <div class="container">
+            <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5.3 JS Bundle (local) -->
+    <script src="js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>
