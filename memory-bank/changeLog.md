@@ -150,3 +150,8 @@
 - Updated AccountService.java, AuthController.java, AccountController.java for new personal detail endpoints.
 - Updated auth-guard.js and admin, trainer, registrar HTML pages to render distinct inputs for names.
 - Re-seeded 3 standard test accounts into the new 'users' table schema.
+
+### 2026-04-10
+- Resolved Hibernate MappingException in User.java by removing duplicate fields (lastname/lastName, firstname/firstName, middlename/middleName).
+- Updated AdminController.java to reflect standard camelCase getter and setter calls on the User entity.
+- Restored successful execution of gradle build contextLoads().

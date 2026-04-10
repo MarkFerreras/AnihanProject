@@ -51,9 +51,9 @@ public class AdminController {
             user.setUsername(userDetails.getUsername());
             user.setEmail(userDetails.getEmail());
             user.setRole(userDetails.getRole());
-            user.setFirstname(userDetails.getFirstname());
-            user.setLastname(userDetails.getLastname());
-            user.setMiddlename(userDetails.getMiddlename());
+            user.setFirstName(userDetails.getFirstName());
+            user.setLastName(userDetails.getLastName());
+            user.setMiddleName(userDetails.getMiddleName());
             user.setBirthdate(userDetails.getBirthdate());
             user.setAge(userDetails.getAge());
             
