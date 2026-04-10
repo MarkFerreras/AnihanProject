@@ -1,13 +1,14 @@
+SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS users (
     user_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     lastname VARCHAR(255) NOT NULL,
     firstname VARCHAR(255) NOT NULL,
-<<<<<<< HEAD
-=======
     middlename VARCHAR(255) NOT NULL,
->>>>>>> SQLs
+
+    middlename VARCHAR(255) NOT NULL,
+ main
     birthdate DATE NOT NULL DEFAULT '2000-01-01',
     age INT NOT NULL,
     email VARCHAR(255) NOT NULL,
@@ -18,17 +19,16 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users
 ADD COLUMN lastname VARCHAR(255) NOT NULL,
 ADD COLUMN firstname VARCHAR(255) NOT NULL,
-<<<<<<< HEAD
 ADD COLUMN birthdate DATE NOT NULL DEFAULT '2000-01-01',
 ADD COLUMN age INT NOT NULL;
 
-=======
 ADD COLUMN middlename VARCHAR(255) NOT NULL,
 ADD COLUMN birthdate DATE NOT NULL DEFAULT '2000-01-01',
 ADD COLUMN age INT NOT NULL;
->>>>>>> SQLs
 -- Run this if already have an existing student_records table
 ALTER TABLE student_records add column age INT NOT NULL;
+
+ main
 
 CREATE TABLE IF NOT EXISTS student_records (
     record_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -201,3 +201,4 @@ CREATE TABLE IF NOT EXISTS previous_school (
     -- FOREIGN KEY
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 );
+);SET FOREIGN_KEY_CHECKS = 1;

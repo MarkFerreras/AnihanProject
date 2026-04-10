@@ -12,9 +12,15 @@
 
     <!-- Custom Login Styles -->
     <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 
 <body>
+
+    <!-- Logout Notification (shown when redirected from logout) -->
+    <div class="logout-notification" id="logoutNotification">
+        ✅ You have been logged out successfully.
+    </div>
 
     <!-- ===== HEADER ===== -->
     <header>
@@ -90,6 +96,46 @@
 
     <!-- Login Logic -->
     <script>
+        // --- Session Check: redirect if already logged in ---
+        (async function checkExistingSession() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const routes = {
+                        'ROLE_ADMIN': '/admin.html',
+                        'ROLE_REGISTRAR': '/registrar.html',
+                        'ROLE_TRAINER': '/trainer.html'
+                    };
+                    const destination = routes[data.role];
+                    if (destination) {
+                        window.location.replace(destination);
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Not logged in or network error — show login form
+            }
+        })();
+
+        // --- Logout Notification ---
+        (function showLogoutNotification() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('loggedOut') === 'true') {
+                const banner = document.getElementById('logoutNotification');
+                if (banner) {
+                    banner.classList.add('show');
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(function () {
+                        banner.classList.remove('show');
+                    }, 3000);
+                }
+                // Clean URL without reloading
+                window.history.replaceState({}, '', '/index.html');
+            }
+        })();
+
+        // --- Login Form Logic ---
         const loginForm = document.getElementById('loginForm');
         const loginError = document.getElementById('loginError');
         const loginButton = document.getElementById('loginButton');

@@ -1,5 +1,7 @@
 package com.example.springboot.model;
 
+import java.time.LocalDate;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -16,7 +18,7 @@ public class User {
     @Column(name = "user_id")
     private Integer userId;
 
-    @Column(name = "username", nullable = false)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
     @Column(name = "password", nullable = false)
@@ -41,6 +43,19 @@ public class User {
     private java.time.LocalDate birthdate;
 
     @Column(name = "age")
+    @Column(name = "lastname", nullable = false)
+    private String lastName;
+
+    @Column(name = "firstname", nullable = false)
+    private String firstName;
+
+    @Column(name = "middlename", nullable = false)
+    private String middleName;
+
+    @Column(name = "birthdate", nullable = false)
+    private LocalDate birthdate;
+
+    @Column(name = "age", nullable = false)
     private Integer age;
 
     public User() {
@@ -125,6 +140,28 @@ public class User {
 
     public void setBirthdate(java.time.LocalDate birthdate) {
         this.birthdate = birthdate;
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
     }
 
     public Integer getAge() {
@@ -133,5 +170,13 @@ public class User {
 
     public void setAge(Integer age) {
         this.age = age;
+    }
+
+    public LocalDate getBirthdate() {
+        return birthdate;
+    }
+
+    public void setBirthdate(LocalDate birthdate) {
+        this.birthdate = birthdate;
     }
 }
