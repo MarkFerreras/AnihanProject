@@ -32,6 +32,15 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found with username or email: " + username));
 
+        // Enforce exact case-sensitivity for username. 
+        // If it's an email login, allow it to remain case-insensitive.
+        boolean isExactUsernameMatch = user.getUsername().equals(username);
+        boolean isEmailMatch = user.getEmail().equalsIgnoreCase(username);
+
+        if (!isExactUsernameMatch && !isEmailMatch) {
+            throw new UsernameNotFoundException("Invalid username or password");
+        }
+
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
