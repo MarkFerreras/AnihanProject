@@ -1,5 +1,35 @@
 # Decisions — Anihan SRMS
 
+## 2026-04-05 — Remove DataSeeder, Use Direct SQL for Accounts (AGILE-142)
+
+**Decision**: Delete `DataSeeder.java` entirely. Manage test accounts directly in the database via SQL.
+
+**Alternatives considered**:
+1. Keep DataSeeder with "only seed if missing" logic — unnecessary overhead on every startup
+2. Keep DataSeeder with "reset on every restart" — destroys username/password changes made via the UI
+
+**Why chosen**: User confirmed that accounts should be inserted directly in the database. This avoids startup overhead, prevents accidental data reset, and keeps `ddl-auto=none` clean.
+
+## 2026-04-05 — Unique Index on username via ALTER TABLE (AGILE-142)
+
+**Decision**: Run `ALTER TABLE AnihanSRMS.users ADD UNIQUE INDEX idx_username (username);` via MCP instead of using `ddl-auto=update`.
+
+**Alternatives considered**:
+1. Temporarily set `ddl-auto=update` to let Hibernate create the index, then revert — risky, could alter other tables
+2. Manual SQL via MCP — precise, no side effects
+
+**Why chosen**: Option 2 is safer and keeps the production-safe `ddl-auto=none` setting untouched.
+
+## 2026-04-05 — Dual-Mode Auth Entry Point (AGILE-142)
+
+**Decision**: Use request URI prefix (`/api/`) to distinguish API vs browser requests when handling 401/403.
+
+**Alternatives considered**:
+1. Check `Accept` header for `application/json` — unreliable, browsers sometimes send JSON accept
+2. Check URI prefix `/api/` — simple, deterministic, matches our routing convention
+
+**Why chosen**: URI-based detection is deterministic and matches the established `/api/**` convention throughout the codebase.
+
 ## 2026-03-21 — Login Page Design
 
 **Decision**: Use a card-based centered login form with gradient header/button.
