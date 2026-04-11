@@ -46,6 +46,13 @@
 - [x] `./gradlew test` -> BUILD SUCCESSFUL after the conflict cleanup pass
 - [x] `./gradlew build` -> BUILD SUCCESSFUL after the conflict cleanup pass
 
+## Build Repair - Admin Controller
+- [x] Restored `AdminController` to constructor-injected `AdminService` usage
+- [x] Reinstated validated `AdminUpdateUserRequest` handling on `PUT /api/admin/users/{id}`
+- [x] Reinstated sanitized `AdminUserResponse` payloads on admin user endpoints
+- [x] `./gradlew test` -> BUILD SUCCESSFUL after the controller repair
+- [x] `./gradlew build` -> BUILD SUCCESSFUL after the controller repair
+
 ## Dashboard UI - Visual Checklist
 - [ ] Account icon visible top-right on admin dashboard
 - [ ] Account icon visible top-right on registrar dashboard

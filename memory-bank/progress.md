@@ -1,7 +1,7 @@
 # Progress - Anihan SRMS
 
 ## Current Status
-- **Tasks in Progress**: Final browser-level validation of the repaired admin merge pages.
+- **Tasks in Progress**: Final browser-level validation of the repaired admin merge pages after restoring the admin API controller contract.
 - **Completed**: G2.1 Edit Personal Details (Sprint 4 completed). Database Schema migration to support distinct name fields (lastName, firstName, middleName) and birthdate.
 
 ## Research & Documentation (Completed)
@@ -63,6 +63,7 @@
 - [x] Normalized `AnihanSRMS.sql` ordering and root-aligned users/student records keys
 - [x] Removed unresolved merge markers and donor regressions that broke commit safety
 - [x] Re-verified the branch with `./gradlew test` and `./gradlew build`
+- [x] Restored `AdminController` to the service/DTO implementation after a repository-based regression broke `AdminControllerWebMvcTest`
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements

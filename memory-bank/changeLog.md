@@ -1,5 +1,26 @@
 # Change Log - Anihan SRMS
 
+## 2026-04-11 - Build Repair for Admin Controller Regression
+**Branch:** `feature/fix-login-security`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `controller/AdminController.java` | Replaced the regressed repository-backed controller with the service/DTO-based admin API expected by the current tests |
+| `memory-bank/activeContext.md` | Updated active task and recorded the build-failure root cause |
+| `memory-bank/progress.md` | Recorded the controller regression fix in the admin merge progress notes |
+| `memory-bank/testing.md` | Added fresh automated verification results for the controller repair |
+
+### Root Cause
+- `AdminController` had drifted back to an older `UserRepository` implementation.
+- The current `AdminControllerWebMvcTest` slice expects `AdminService` injection, validated `AdminUpdateUserRequest`, and sanitized `AdminUserResponse` DTO output.
+- That mismatch caused the Spring test context to fail before the controller tests could run.
+
+### Verification
+- `./gradlew test` -> BUILD SUCCESSFUL
+- `./gradlew build` -> BUILD SUCCESSFUL
+- `git diff --check` -> no tracked whitespace errors after the controller repair
+
 ## 2026-04-11 - Conflict Cleanup and Commit-Safety Recheck
 **Branch:** `feature/fix-login-security`
 
