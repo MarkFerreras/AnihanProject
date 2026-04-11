@@ -1,7 +1,7 @@
 # Progress - Anihan SRMS
 
 ## Current Status
-- **Tasks in Progress**: Final browser-level validation of the repaired admin merge pages after restoring the admin API controller contract.
+- **Tasks in Progress**: Browser-level revalidation of the repaired admin dashboard and edit-user flow after the front-end shell rebuild.
 - **Completed**: G2.1 Edit Personal Details (Sprint 4 completed). Database Schema migration to support distinct name fields (lastName, firstName, middleName) and birthdate.
 
 ## Research & Documentation (Completed)
@@ -54,6 +54,8 @@
 - [x] Merged admin user-management dashboard into root `admin.html`
 - [x] Added root admin pages: `edit-user.html`, `student-records.html`, `subjects.html`, `logs.html`
 - [x] Unified merged admin pages under the root green/white/blue shell and shared account modal behavior
+- [x] Rebuilt `admin.html` after a malformed donor merge left duplicate markup and caused a blank admin page
+- [x] Rebuilt `edit-user.html` to match the current `admin-edit-user.js` contract and shared admin shell
 
 ## Admin Merge (Completed)
 - [x] Added `/api/admin/users` and `/api/admin/users/{id}` in the root app using DTO responses
