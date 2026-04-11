@@ -121,19 +121,19 @@ public class User {
         this.middleName = middleName;
     }
 
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
     public LocalDate getBirthdate() {
         return birthdate;
     }
 
     public void setBirthdate(LocalDate birthdate) {
         this.birthdate = birthdate;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
     }
 }

@@ -40,6 +40,12 @@
 - [x] `./gradlew test` -> BUILD SUCCESSFUL
 - [x] `./gradlew build` -> BUILD SUCCESSFUL
 
+## Commit-Safety Recheck
+- [x] `git diff --check` -> no tracked whitespace or conflict-marker errors
+- [x] `rg -n "^(<<<<<<<|=======|>>>>>>>)" -S .` -> no unresolved merge markers in the workspace
+- [x] `./gradlew test` -> BUILD SUCCESSFUL after the conflict cleanup pass
+- [x] `./gradlew build` -> BUILD SUCCESSFUL after the conflict cleanup pass
+
 ## Dashboard UI - Visual Checklist
 - [ ] Account icon visible top-right on admin dashboard
 - [ ] Account icon visible top-right on registrar dashboard

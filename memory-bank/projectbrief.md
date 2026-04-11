@@ -1,4 +1,4 @@
-# Project Brief — Anihan SRMS
+# Project Brief - Anihan SRMS
 
 ## Project Purpose
 To develop a centralized Student Records Management System (SRMS) that helps Anihan Technical School improve the storage, retrieval, and integrity of student records, preventing the increasing challenges posed by the accumulation of physical records.
@@ -31,4 +31,4 @@ Focuses on compiling and digitizing the existing records management and enrollme
 *(See `techContext.md` for full technical context and deployment constraints).*
 
 ## Current Status
-Initial UI scaffolding phase & backend auth setup. See `progress.md` and `activeContext.md` for daily tasks.
+Root/admin merge stabilization after integrating the donor admin module from `main-em`. See `progress.md` and `activeContext.md` for the current implementation and verification state.

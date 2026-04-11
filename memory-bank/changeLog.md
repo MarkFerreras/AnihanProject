@@ -1,5 +1,29 @@
 # Change Log - Anihan SRMS
 
+## 2026-04-11 - Conflict Cleanup and Commit-Safety Recheck
+**Branch:** `feature/fix-login-security`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `memory-bank/projectbrief.md` | Removed unresolved merge markers and rewrote current-status note |
+| `memory-bank/activeContext.md` | Replaced stale donor-status notes with current repaired branch state |
+| `memory-bank/progress.md` | Recorded commit-safety cleanup and fresh verification results |
+| `config/SecurityConfig.java` | Restored clean root RBAC configuration for merged admin routes |
+| `controller/AdminController.java` | Restored DTO/service-based admin API contract |
+| `static/admin.html` | Removed partially merged donor markup and restored clean root dashboard shell |
+| `static/edit-user.html` | Restored root edit-user flow and shared account modal integration |
+| `static/student-records.html` | Restored root placeholder shell with proper admin session guard |
+| `static/subjects.html` | Restored root placeholder shell with proper admin session guard |
+| `static/logs.html` | Restored root placeholder shell with proper admin session guard |
+| `src/main/sql/AnihanSRMS.sql` | Removed donor corruption and restored root-aligned schema ordering |
+
+### Verification
+- `./gradlew test` -> BUILD SUCCESSFUL
+- `./gradlew build` -> BUILD SUCCESSFUL
+- `git diff --check` -> no conflict markers or whitespace errors in tracked files
+- `rg -n "^(<<<<<<<|=======|>>>>>>>)" -S .` -> no matches in tracked project files
+
 ## 2026-04-11 - Root/Admin Merge from `main-em`
 **Branch:** `feature/fix-login-security`
 
