@@ -9,27 +9,78 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="css/datatables.min.css">
+    <style>
+        /* Temporary layout adjustments for empty dashboard */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--color-off-white, #f8f9fa);
+        }
+        main {
+            flex: 1;
+        }
+        /* Navbar Hover Effect */
+        .admin-nav-link {
+            transition: color 0.3s ease, background-color 0.3s ease;
+            border-radius: 4px;
+        }
+        .admin-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff !important;
+        }
+        .navbar-logo {
+            max-height: 40px;
+        }
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
 
 <body class="dashboard-page" data-required-role="ROLE_ADMIN">
     <header>
-        <nav class="navbar login-navbar admin-navbar navbar-expand-lg navbar-dark">
+        <nav class="navbar login-navbar navbar-expand-lg navbar-dark">
             <div class="container">
-                <a class="navbar-brand" href="admin.html">
-                    <span class="brand-mark">
-                        <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
-                        <span class="brand-title">Anihan SRMS</span>
-                    </span>
+                <a class="navbar-brand d-flex align-items-center" href="admin.html">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo me-3">
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
-                    aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="adminNavbar">
-                    <ul class="navbar-nav me-auto mb-3 mb-lg-0">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page" href="admin.html">Home</a>
+                            <a class="nav-link admin-nav-link active text-white fw-bold" aria-current="page" href="admin.html">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="student-records.html">Student Records</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="subjects.html">Subjects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link text-white-50" href="logs.html">Logs</a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text text-white fw-bold me-3">Admin Portal</span>
+        <nav class="navbar login-navbar">
+            <div class="container d-flex justify-content-between align-items-center">
+                <span class="navbar-brand mb-0 h1">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                </span>
+                <span class="text-white fw-bold">Admin Portal</span>
+
+                <!-- Account Dropdown -->
+                <div class="account-dropdown dropdown">
+                    <button class="account-icon-btn dropdown-toggle" type="button"
+                            id="accountDropdownBtn" data-bs-toggle="dropdown"
+                            aria-expanded="false" aria-label="Account menu">
+                        <span id="accountInitial">—</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdownBtn">
+                        <li class="account-dropdown-header">
+                            <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
+                            <p class="account-dropdown-role" id="accountDropdownRole">—</p>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="student-records.html">Student Records</a>
@@ -71,138 +122,172 @@
         </nav>
     </header>
 
-    <main class="dashboard-main">
-        <div class="container">
-            <section class="page-hero">
-                <div class="page-hero-grid">
-                    <div>
-                        <span class="page-eyebrow">Operations Dashboard</span>
-                        <h1 class="page-title">Manage user accounts and keep the admin workspace aligned.</h1>
-                        <p class="page-subtitle">
-                            Review system users, inspect profile details, and open the dedicated edit flow without
-                            losing the current Anihan look and feel.
-                        </p>
-                    </div>
-                    <div class="hero-stats">
-                        <article class="stat-card">
-                            <span class="stat-label">Total Users</span>
-                            <span class="stat-value" id="totalUsersStat">0</span>
-                            <span class="stat-caption">Loaded from the root application API.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Admins</span>
-                            <span class="stat-value" id="adminUsersStat">0</span>
-                            <span class="stat-caption">Protected administrators.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Registrars</span>
-                            <span class="stat-value" id="registrarUsersStat">0</span>
-                            <span class="stat-caption">Records operations users.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Trainers</span>
-                            <span class="stat-value" id="trainerUsersStat">0</span>
-                            <span class="stat-caption">Teaching and grading users.</span>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <section class="surface-card">
-                <div class="surface-card-header">
-                    <div>
-                        <h2>System Users</h2>
-                        <p>Open details for a quick review or continue into the dedicated edit page.</p>
-                    </div>
-                </div>
-                <div class="surface-card-body compact">
-                    <div class="table-responsive">
-                        <table id="usersTable" class="table table-hover admin-table align-middle w-100">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>User ID</th>
-                                    <th>Role</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th class="text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="container my-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold">System Users</h2>
         </div>
+        
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="usersTable" class="table table-striped table-hover mt-3 w-100">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>User ID</th>
+                                <th>Role</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Expand</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Admin dashboard content will go here -->
     </main>
 
+    <!-- ===== USER DETAILS MODAL ===== -->
+    <div class="modal fade" id="userDetailsModal" tabindex="-1" aria-labelledby="userDetailsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title" id="userDetailsModalLabel">User Details</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr><th>User ID</th><td id="modalUserId"></td></tr>
+                        <tr><th>Username</th><td id="modalUsername"></td></tr>
+                        <tr><th>Email</th><td id="modalEmail"></td></tr>
+                        <tr><th>Role</th><td id="modalRole"></td></tr>
+                        <tr><th>Last Name</th><td id="modalLastName"></td></tr>
+                        <tr><th>First Name</th><td id="modalFirstName"></td></tr>
+                        <tr><th>Middle Name</th><td id="modalMiddleName"></td></tr>
+                        <tr><th>Age</th><td id="modalAge"></td></tr>
+                        <tr><th>Birthdate</th><td id="modalBirthdate"></td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <a href="#" class="btn btn-warning" id="modalEditBtn">Edit Details</a>
+            <a href="#" class="btn btn-info text-white" id="modalLogBtn">User Log</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
     <footer class="login-footer mt-auto">
         <div class="container">
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
 
-    <div class="modal fade detail-modal" id="userDetailsModal" tabindex="-1"
-        aria-labelledby="userDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <div>
-                        <h2 class="modal-title h5 mb-1" id="userDetailsModalLabel">User Details</h2>
-                        <p class="mb-0 text-white-50">Current account information from the root project.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="detail-grid">
-                        <article class="detail-card">
-                            <span class="detail-label">User ID</span>
-                            <p class="detail-value" id="detailsUserId">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Username</span>
-                            <p class="detail-value" id="detailsUsername">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Role</span>
-                            <div id="detailsRole">-</div>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Email</span>
-                            <p class="detail-value" id="detailsEmail">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Last Name</span>
-                            <p class="detail-value" id="detailsLastName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">First Name</span>
-                            <p class="detail-value" id="detailsFirstName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Middle Name</span>
-                            <p class="detail-value" id="detailsMiddleName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Age</span>
-                            <p class="detail-value" id="detailsAge">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Birthdate</span>
-                            <p class="detail-value" id="detailsBirthdate">-</p>
-                        </article>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
-                        Close
-                    </button>
-                    <a href="logs.html" class="btn btn-surface-secondary" id="detailsLogsLink">View Logs</a>
-                    <a href="edit-user.html" class="btn btn-surface" id="detailsEditLink">Edit User</a>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Bootstrap 5.3 JS Bundle (local) -->
+    <script src="js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery and DataTables -->
+    <script src="js/jquery-4.0.0.min.js"></script>
+    <script src="js/datatables.min.js"></script>
 
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable
+            const table = $('#usersTable').DataTable({
+                ajax: {
+                    url: '/api/admin/users',
+                    dataSrc: ''
+                },
+                columns: [
+                    { data: 'userId' },
+                    { data: 'role' },
+                    { 
+                        data: null, 
+                        render: function(data, type, row) {
+                            const last = row.lastname;
+                            const first = row.firstname;
+                            const middle = row.middlename;
+
+                            // If any name piece is missing entirely (all null), you requested to display NULL.
+                            if (!last && !first && !middle) {
+                                return 'NULL';
+                            }
+                            
+                            // Format: Lastname, Firstname, Middlename
+                            const parts = [];
+                            if (last) parts.push(last);
+                            if (first) parts.push(first);
+                            if (middle) parts.push(middle);
+                            
+                            return parts.join(', ');
+                        }
+                    },
+                    { 
+                        data: 'email',
+                        render: function(data) {
+                            return data ? data : 'NULL';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function(data, type, row) {
+                            return `<button class="btn btn-sm btn-outline-primary expand-btn" data-id="${row.userId}">Expand</button>`;
+                        }
+                    }
+                ],
+                responsive: true,
+                language: {
+                    emptyTable: "No users found."
+                }
+            });
+
+            // Handle Expand Button click
+            $('#usersTable tbody').on('click', '.expand-btn', function() {
+                const userId = $(this).data('id');
+                
+                // Fetch details for the specific user
+                $.ajax({
+                    url: '/api/admin/users/' + userId,
+                    method: 'GET',
+                    success: function(user) {
+                        // Populate modal table
+                        $('#modalUserId').text(user.userId);
+                        $('#modalUsername').text(user.username);
+                        $('#modalEmail').text(user.email ? user.email : 'NULL');
+                        $('#modalRole').text(user.role);
+                        $('#modalLastName').text(user.lastname ? user.lastname : 'NULL');
+                        $('#modalFirstName').text(user.firstname ? user.firstname : 'NULL');
+                        $('#modalMiddleName').text(user.middlename ? user.middlename : 'NULL');
+                        $('#modalAge').text(user.age ? user.age : 'NULL');
+                        $('#modalBirthdate').text(user.birthdate ? user.birthdate : 'NULL');
+                        
+                        // Update button links
+                        $('#modalEditBtn').attr('href', 'edit-user.html?id=' + user.userId);
+                        $('#modalLogBtn').attr('href', 'logs.html?user=' + user.userId);
+
+                        // Show modal
+                        var userModal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
+                        userModal.show();
+                    },
+                    error: function() {
+                        alert("Failed to load user details.");
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+    <!-- ===== EDIT ACCOUNT MODAL (Tabbed) ===== -->
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
         aria-labelledby="editAccountModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">

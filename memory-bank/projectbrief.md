@@ -31,4 +31,10 @@ Focuses on compiling and digitizing the existing records management and enrollme
 *(See `techContext.md` for full technical context and deployment constraints).*
 
 ## Current Status
+
 Root/admin merge stabilization after integrating the donor admin module from `main-em`. See `progress.md` and `activeContext.md` for the current implementation and verification state.
+
+
+Initial UI scaffolding phase & backend auth setup. See `progress.md` and `activeContext.md` for daily tasks.
+
+Database schema development and initial UI scaffolding (Login page).
