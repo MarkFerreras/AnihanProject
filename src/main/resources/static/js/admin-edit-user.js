@@ -30,7 +30,8 @@
     }
 
     function buildPayload() {
-        return {
+        const payload = {
+            username: document.getElementById('editUsernameDisplay').value.trim(),
             email: document.getElementById('editEmail').value.trim(),
             role: document.getElementById('editRole').value,
             lastName: document.getElementById('editLastName').value.trim(),
@@ -39,6 +40,13 @@
             age: parseInt(document.getElementById('editAge').value, 10),
             birthdate: document.getElementById('editBirthdate').value
         };
+
+        const passwordValue = document.getElementById('editPassword').value;
+        if (passwordValue) {
+            payload.password = passwordValue;
+        }
+
+        return payload;
     }
 
     function markDirty() {
@@ -125,6 +133,24 @@
         saveButton.disabled = true;
         saveButton.textContent = 'Saving...';
 
+        // Client-side username validation (no spaces)
+        const usernameField = document.getElementById('editUsernameDisplay');
+        if (/\s/.test(usernameField.value)) {
+            setAlert('editUserError', 'Username must not contain spaces.', 'danger');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Changes';
+            return;
+        }
+
+        // Client-side password length check
+        const passwordField = document.getElementById('editPassword');
+        if (passwordField.value && passwordField.value.length < 8) {
+            setAlert('editUserError', 'Password must be at least 8 characters.', 'danger');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Changes';
+            return;
+        }
+
         try {
             const response = await fetch('/api/admin/users/' + encodeURIComponent(userId), {
                 method: 'PUT',
@@ -145,6 +171,9 @@
             isDirty = false;
             allowNavigation = true;
             setAlert('editUserSuccess', 'User updated successfully. Redirecting to the dashboard...', 'success');
+
+            // Clear the password field after successful save
+            document.getElementById('editPassword').value = '';
 
             window.setTimeout(function () {
                 window.location.replace('admin.html');

@@ -125,7 +125,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="usernameCurrentPassword" class="form-label">Current Password</label>
-                                    <input type="password" class="form-control" id="usernameCurrentPassword" placeholder="Enter current password" autocomplete="current-password" required>
+                                    <input type="password" class="form-control" id="usernameCurrentPassword" placeholder="Enter current password" autocomplete="current-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Username</button>
                             </form>
@@ -135,15 +135,16 @@
                             <form id="passwordChangeForm">
                                 <div class="mb-3">
                                     <label for="currentPassword" class="form-label">Current Password</label>
-                                    <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" autocomplete="current-password" required>
+                                    <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" autocomplete="current-password" minlength="8" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="changeNewPassword" class="form-label">New Password</label>
-                                    <input type="password" class="form-control" id="changeNewPassword" placeholder="Enter new password" autocomplete="new-password" required>
+                                    <input type="password" class="form-control" id="changeNewPassword" placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
+                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
-                                    <input type="password" class="form-control" id="confirmNewPassword" placeholder="Confirm new password" autocomplete="new-password" required>
+                                    <input type="password" class="form-control" id="confirmNewPassword" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>

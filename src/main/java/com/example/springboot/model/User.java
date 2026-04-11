@@ -1,6 +1,7 @@
 package com.example.springboot.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,6 +45,12 @@ public class User {
 
     @Column(name = "age", nullable = false)
     private Integer age;
+
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = true;
+
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
 
     public User() {
     }
@@ -135,5 +142,21 @@ public class User {
 
     public void setAge(Integer age) {
         this.age = age;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public LocalDateTime getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(LocalDateTime passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 }

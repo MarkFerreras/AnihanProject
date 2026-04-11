@@ -2,9 +2,11 @@ package com.example.springboot.controller;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -46,5 +48,38 @@ public class AdminController {
             Principal principal
     ) {
         return ResponseEntity.ok(adminService.updateUser(id, request, principal.getName()));
+    }
+
+    /**
+     * Soft delete — deactivates the user account (sets enabled = false).
+     */
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Map<String, String>> softDeleteUser(
+            @PathVariable Integer id,
+            Principal principal
+    ) {
+        adminService.softDeleteUser(id, principal.getName());
+        return ResponseEntity.ok(Map.of("message", "User account has been deactivated."));
+    }
+
+    /**
+     * Hard delete — permanently removes the user record from the database.
+     */
+    @DeleteMapping("/users/{id}/permanent")
+    public ResponseEntity<Map<String, String>> hardDeleteUser(
+            @PathVariable Integer id,
+            Principal principal
+    ) {
+        adminService.hardDeleteUser(id, principal.getName());
+        return ResponseEntity.ok(Map.of("message", "User account has been permanently deleted."));
+    }
+
+    /**
+     * Re-enable a previously deactivated (soft-deleted) user account.
+     */
+    @PutMapping("/users/{id}/enable")
+    public ResponseEntity<Map<String, String>> reEnableUser(@PathVariable Integer id) {
+        adminService.reEnableUser(id);
+        return ResponseEntity.ok(Map.of("message", "User account has been re-enabled."));
     }
 }

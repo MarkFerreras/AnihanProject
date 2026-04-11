@@ -1,5 +1,6 @@
 package com.example.springboot.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -89,6 +90,7 @@ public class AccountService {
 
         // Hash and save new password
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(LocalDateTime.now());
         userRepository.save(user);
     }
 
