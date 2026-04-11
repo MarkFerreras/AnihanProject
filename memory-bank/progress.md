@@ -1,7 +1,7 @@
-# Progress — Anihan SRMS
+# Progress - Anihan SRMS
 
 ## Current Status
-- **Tasks in Progress**: Stabilizing the merged root admin module and validating UI behavior in-browser.
+- **Tasks in Progress**: Final browser-level validation of the repaired admin merge pages after restoring the admin API controller contract.
 - **Completed**: G2.1 Edit Personal Details (Sprint 4 completed). Database Schema migration to support distinct name fields (lastName, firstName, middleName) and birthdate.
 
 ## Research & Documentation (Completed)
@@ -20,13 +20,13 @@
 - [x] Initial Spring Security 7 RBAC & Authentication logic (LoginRequest, AuthController)
 - [x] Global Exception Handler established
 - [x] Data Seeder executed for Admins, Registrars, and Trainers
-- [x] Removed DataSeeder — accounts managed directly in database
+- [x] Removed DataSeeder - accounts managed directly in database
 - [x] Added unique constraint on `users.username` column
 
-## Login Security & Account Management (Completed — AGILE-142)
+## Login Security & Account Management (Completed - AGILE-142)
 - [x] Server-side role-based page matchers for dashboard HTML pages
 - [x] Dual-mode authentication entry point (redirect browser / JSON API)
-- [x] Dual-mode access denied handler (wrong-role → own dashboard / API → 403 JSON)
+- [x] Dual-mode access denied handler (wrong-role -> own dashboard / API -> 403 JSON)
 - [x] AccountService with username change and password change logic
 - [x] AccountController with PUT /api/account/profile and PUT /api/account/password
 - [x] UpdateProfileRequest and UpdatePasswordRequest DTOs with validation
@@ -61,6 +61,9 @@
 - [x] Extended root RBAC for admin-only HTML pages introduced from `main-em`
 - [x] Added automated tests for admin service and admin controller behavior
 - [x] Normalized `AnihanSRMS.sql` ordering and root-aligned users/student records keys
+- [x] Removed unresolved merge markers and donor regressions that broke commit safety
+- [x] Re-verified the branch with `./gradlew test` and `./gradlew build`
+- [x] Restored `AdminController` to the service/DTO implementation after a repository-based regression broke `AdminControllerWebMvcTest`
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
