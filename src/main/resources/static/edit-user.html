@@ -114,7 +114,10 @@
 
                             <div class="mb-3">
                                 <label for="editUsernameDisplay" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="editUsernameDisplay" disabled>
+                                <input type="text" class="form-control" id="editUsernameDisplay"
+                                    pattern="^\S+$" title="Username must not contain spaces"
+                                    autocomplete="username" required>
+                                <div class="form-text">No spaces allowed.</div>
                             </div>
 
                             <div class="mb-3">
@@ -161,6 +164,13 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="editPassword" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="editPassword" minlength="8"
+                                    placeholder="Leave blank to keep current password" autocomplete="new-password">
+                                <div class="form-text">Optional. Minimum 8 characters. Leave empty to keep the current password.</div>
+                            </div>
+
                             <div class="alert d-none" id="editUserError" role="alert"></div>
                             <div class="alert d-none" id="editUserSuccess" role="alert"></div>
 
@@ -174,10 +184,12 @@
                             <h3>Current Contract</h3>
                             <p>The edit page is bound to the admin DTO fields expected by the root backend:</p>
                             <ul>
+                                <li>`username` (no spaces allowed)</li>
                                 <li>`email`</li>
                                 <li>`role`</li>
                                 <li>`lastName`, `firstName`, `middleName`</li>
                                 <li>`age`, `birthdate`</li>
+                                <li>`password` (optional — leave blank to keep current)</li>
                             </ul>
                         </aside>
                     </form>
@@ -279,12 +291,13 @@
                                 <div class="mb-3">
                                     <label for="changeNewPassword" class="form-label">New Password</label>
                                     <input type="password" class="form-control" id="changeNewPassword"
-                                        placeholder="Enter new password" autocomplete="new-password" required>
+                                        placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
+                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
                                     <input type="password" class="form-control" id="confirmNewPassword"
-                                        placeholder="Confirm new password" autocomplete="new-password" required>
+                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>

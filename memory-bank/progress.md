@@ -67,6 +67,58 @@
 - [x] Re-verified the branch with `./gradlew test` and `./gradlew build`
 - [x] Restored `AdminController` to the service/DTO implementation after a repository-based regression broke `AdminControllerWebMvcTest`
 
+## Admin Password, Delete & Hover Fix (Completed — April 2026)
+- [x] Added optional password field to admin edit-user form + backend DTO (`AdminUpdateUserRequest`)
+- [x] Admin can reset any user's password (BCrypt-hashed, 8-char minimum)
+- [x] Added `@Size(min=8)` validation to self-service `UpdatePasswordRequest` DTO
+- [x] Added `enabled` column to `users` table schema (soft delete support)
+- [x] Added `enabled` field to `User.java` entity + `AdminUserResponse` DTO
+- [x] `CustomUserDetailsService` blocks disabled users from logging in via Spring Security `enabled` flag
+- [x] Added `DELETE /api/admin/users/{id}` (soft delete — deactivate) endpoint
+- [x] Added `DELETE /api/admin/users/{id}/permanent` (hard delete — permanent removal) endpoint
+- [x] Self-deletion prevention in `AdminService` (backend) and `admin-users.js` (frontend — hides button)
+- [x] Added delete confirmation modal (`deleteConfirmModal`) with Deactivate + Permanently Delete options
+- [x] Hard delete requires extra browser `confirm()` dialog
+- [x] Added Status column (Active/Disabled badge) to admin DataTable
+- [x] Fixed `.btn-surface:hover` / `:focus` CSS — explicitly sets green background so Bootstrap doesn't override to white
+- [x] Added client-side 8-char password validation in `auth-guard.js` and `admin-edit-user.js`
+- [x] Added `minlength="8"` to all password input fields in Edit Account modals
+- [x] Updated all test files (`AdminServiceTest`, `AdminControllerWebMvcTest`) for new constructor signatures
+- [x] `./gradlew build` passes (7/7 tasks, all tests green)
+
+## Admin Enhancements Phase 2 (Completed — April 2026)
+- [x] Added `password_changed_at DATETIME NULL` column to `users` table + `User.java` entity
+- [x] Added `passwordChangedAt` to `AdminUserResponse` DTO
+- [x] Admin Service sets `passwordChangedAt` on admin password reset
+- [x] Account Service sets `passwordChangedAt` on self-service password change
+- [x] "Password Last Changed" displayed in User Details modal (formatted date or "Never")
+- [x] Added `PUT /api/admin/users/{id}/enable` endpoint for re-enabling soft-deleted users
+- [x] Added `reEnableUser()` method to `AdminService`
+- [x] Added "Re-enable Account" button in User Details modal (green, shown only for disabled users)
+- [x] Added password visibility toggle (eye icon SVG) — auto-injected on ALL `input[type=password]` via `auth-guard.js`
+- [x] Toggle resets correctly on modal close (input type reverted, icons reset)
+- [x] Added strong password validation — `@Pattern` regex on `UpdatePasswordRequest.newPassword`
+- [x] Requires: 1 uppercase, 1 lowercase, 1 number, 1 special character, min 8 chars
+- [x] Client-side strong password check in `auth-guard.js` `setupPasswordChange()`
+- [x] Admin password resets remain simple (8-char minimum only — temporary passwords allowed)
+- [x] Added `minlength="8"` + strong password help text to `registrar.html` and `trainer.html`
+- [x] Added CSS for `.btn-reenable` and `.password-toggle-btn`
+- [x] Updated test files for new `passwordChangedAt` field
+- [x] DB migration executed: `ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL`
+- [x] `./gradlew build` passes (7/7 tasks, all tests green)
+
+## Admin Enhancements Phase 3 — Username Edit & Hover Fixes (Completed — April 2026)
+- [x] Fixed `.btn-reenable:hover` → `.btn.btn-reenable:hover` (Bootstrap specificity override)
+- [x] Fixed `.btn-danger-surface`, `.btn-deactivate`, `.btn-permanent-delete` hover selectors (same pattern)
+- [x] Added `username` field to `AdminUpdateUserRequest` DTO with `@Pattern(^\S+$)` no-spaces validation
+- [x] Updated `AdminService.updateUser()` with duplicate-username check via `findByUsername()`
+- [x] Made username field editable in `edit-user.html` (was `disabled`), added `pattern` + help text
+- [x] Added `username` to `buildPayload()` in `admin-edit-user.js`
+- [x] Added client-side no-spaces validation in `saveUser()` in `admin-edit-user.js`
+- [x] Updated contract note in `edit-user.html`
+- [x] Updated `AdminServiceTest` constructors for new `username` parameter (null)
+- [x] `./gradlew build` passes (7/7 tasks, all tests green)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 

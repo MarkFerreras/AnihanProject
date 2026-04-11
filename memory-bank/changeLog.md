@@ -1,5 +1,88 @@
 # Change Log - Anihan SRMS
 
+## 2026-04-11 - Admin Username Edit & Button Hover Fixes
+**Branch:** `feature/admin-password-delete-hover-fix`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `css/dashboard.css` | Fixed hover selectors for `.btn-reenable`, `.btn-danger-surface`, `.btn-deactivate`, `.btn-permanent-delete` (added `.btn.` prefix for Bootstrap specificity) |
+| `dto/AdminUpdateUserRequest.java` | Added optional `username` field with `@Pattern(^\S+$)` no-spaces validation |
+| `service/AdminService.java` | Added duplicate-username check in `updateUser()` |
+| `edit-user.html` | Made username field editable (removed `disabled`), added `pattern` + help text, updated contract note |
+| `js/admin-edit-user.js` | Added `username` to payload, added client-side no-spaces validation |
+| `test/service/AdminServiceTest.java` | Updated constructors for new `username` parameter |
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+
+---
+
+## 2026-04-11 - Re-enable, Password Toggle, Strong Validation & Timestamp
+**Branch:** `feature/admin-password-delete-hover-fix`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `model/User.java` | Added `passwordChangedAt` (LocalDateTime) field + getter/setter |
+| `dto/AdminUserResponse.java` | Added `LocalDateTime passwordChangedAt` field + updated `from()` |
+| `dto/UpdatePasswordRequest.java` | Added `@Pattern` regex for strong password enforcement |
+| `service/AdminService.java` | Sets `passwordChangedAt` on admin password reset; added `reEnableUser()` method |
+| `service/AccountService.java` | Sets `passwordChangedAt` on self-service password change |
+| `controller/AdminController.java` | Added `PUT /api/admin/users/{id}/enable` endpoint |
+| `static/js/auth-guard.js` | Added `isStrongPassword()` validation, `setupPasswordToggles()` function (eye icon SVG auto-injection), modal reset logic for toggle state |
+| `static/js/admin-users.js` | Added `passwordChangedAt` display, re-enable button toggle logic, `setupReEnableHandler()` function |
+| `static/admin.html` | Added "Password Last Changed" detail card, "Re-enable Account" button, updated password help text |
+| `static/edit-user.html` | Updated self-service password help text for strong requirements |
+| `static/registrar.html` | Added `minlength="8"` to all password inputs, added strong password help text |
+| `static/trainer.html` | Added `minlength="8"` to all password inputs, added strong password help text |
+| `static/css/dashboard.css` | Added `.btn-reenable` and `.password-toggle-btn` styles |
+| `src/main/sql/AnihanSRMS.sql` | Added `password_changed_at DATETIME NULL` column |
+| `test/controller/AdminControllerWebMvcTest.java` | Updated constructor with `null` for passwordChangedAt |
+
+### Database Migration
+```sql
+ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL;
+```
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+
+---
+
+## 2026-04-11 - Admin Password Reset, Delete Account & Button Hover Fix
+**Branch:** `feature/admin-password-delete-hover-fix`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `model/User.java` | Added `enabled` field (Boolean, default true) with JPA column mapping + getter/setter |
+| `dto/AdminUpdateUserRequest.java` | Added optional `password` field with `@Size(min=8)` validation |
+| `dto/UpdatePasswordRequest.java` | Added `@Size(min=8)` to `newPassword` and `confirmNewPassword` |
+| `dto/AdminUserResponse.java` | Added `Boolean enabled` field and updated `from()` factory |
+| `service/AdminService.java` | Injected `PasswordEncoder`, added password hashing in `updateUser()`, added `softDeleteUser()` and `hardDeleteUser()` with self-deletion prevention |
+| `controller/AdminController.java` | Added `DELETE /api/admin/users/{id}` (soft) and `DELETE /api/admin/users/{id}/permanent` (hard) |
+| `service/CustomUserDetailsService.java` | Uses Spring Security 7-arg `User` constructor to block disabled users via `enabled` flag |
+| `static/admin.html` | Added "Delete User" button in details modal, added delete confirmation modal with soft/hard options, added Status column header, added `minlength="8"` to password fields |
+| `static/edit-user.html` | Added "New Password" input field with `minlength="8"`, added `minlength="8"` to self-service password fields |
+| `static/js/admin-users.js` | Rewrote: added delete flow, status badge rendering, self-delete prevention (hides button), delete confirmation modal handlers |
+| `static/js/admin-edit-user.js` | Updated `buildPayload()` to include optional password, added client-side 8-char validation |
+| `static/js/auth-guard.js` | Added 8-char minimum validation in `setupPasswordChange()` |
+| `static/css/dashboard.css` | Fixed `.btn-surface:hover`/`:focus` to explicitly set green background; added `.btn-danger-surface`, `.status-badge`, `.delete-confirm-modal`, `.btn-deactivate`, `.btn-permanent-delete` styles |
+| `src/main/sql/AnihanSRMS.sql` | Added `enabled TINYINT(1) NOT NULL DEFAULT 1` column to users table |
+| `test/service/AdminServiceTest.java` | Added `PasswordEncoder` mock, updated constructor calls with null password, set `enabled=true` in test builder |
+| `test/controller/AdminControllerWebMvcTest.java` | Updated `AdminUserResponse` constructor to include `enabled=true` |
+
+### Database Migration Required
+```sql
+ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1;
+```
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+
+---
+
 ## 2026-04-11 - Admin Dashboard Front-End Repair
 **Branch:** `feature/fix-login-security`
 

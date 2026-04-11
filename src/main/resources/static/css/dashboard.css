@@ -267,26 +267,36 @@ body.dashboard-page {
     padding: 0.55rem 1rem;
 }
 
-.btn-surface {
+.btn.btn-surface {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #1e7e34;
+    --bs-btn-border-color: #1e7e34;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #28a745;
+    --bs-btn-hover-border-color: #28a745;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #1e7e34;
+    --bs-btn-active-border-color: #1e7e34;
     background: var(--gradient-button);
     border: none;
-    color: var(--color-white);
 }
 
-.btn-surface:hover {
+.btn.btn-surface:hover,
+.btn.btn-surface:focus {
+    background: var(--gradient-button);
     box-shadow: 0 4px 16px rgba(40, 167, 69, 0.35);
-    color: var(--color-white);
 }
 
-.btn-surface-secondary {
-    background: transparent;
-    border: 1px solid rgba(40, 167, 69, 0.22);
-    color: var(--color-green-dark);
-}
-
-.btn-surface-secondary:hover {
-    background: rgba(40, 167, 69, 0.08);
-    color: var(--color-green-dark);
+.btn.btn-surface-secondary {
+    --bs-btn-color: #1e7e34;
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: rgba(40, 167, 69, 0.22);
+    --bs-btn-hover-color: #1e7e34;
+    --bs-btn-hover-bg: rgba(40, 167, 69, 0.08);
+    --bs-btn-hover-border-color: rgba(40, 167, 69, 0.22);
+    --bs-btn-active-color: #1e7e34;
+    --bs-btn-active-bg: rgba(40, 167, 69, 0.12);
+    --bs-btn-active-border-color: rgba(40, 167, 69, 0.3);
 }
 
 .detail-grid {
@@ -627,4 +637,166 @@ body.dashboard-page {
     .admin-table {
         min-width: 44rem;
     }
+}
+
+/* --- Delete / Danger Button --- */
+.btn.btn-danger-surface {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #dc3545;
+    --bs-btn-border-color: #dc3545;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #c82333;
+    --bs-btn-hover-border-color: #c82333;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #bd2130;
+    --bs-btn-active-border-color: #bd2130;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    transition: var(--transition-smooth);
+}
+
+.btn.btn-danger-surface:hover,
+.btn.btn-danger-surface:focus {
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.35);
+}
+
+/* --- Disabled User Badge --- */
+.status-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.65rem;
+    text-transform: uppercase;
+}
+
+.status-badge-active {
+    background: rgba(40, 167, 69, 0.14);
+    color: var(--color-green-dark);
+}
+
+.status-badge-disabled {
+    background: rgba(220, 53, 69, 0.12);
+    color: #922b21;
+}
+
+/* --- Delete Confirmation Modal --- */
+.delete-confirm-modal .modal-content {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.16);
+}
+
+.delete-confirm-modal .modal-header {
+    background: #dc3545;
+    border-bottom: none;
+    color: var(--color-white);
+}
+
+.delete-confirm-modal .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.delete-confirm-modal .modal-body {
+    padding: 1.5rem;
+}
+
+.delete-confirm-modal .warning-text {
+    color: var(--color-text-dark);
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+.delete-confirm-modal .danger-zone {
+    background: rgba(220, 53, 69, 0.06);
+    border: 1px solid rgba(220, 53, 69, 0.15);
+    border-radius: 0.75rem;
+    margin-top: 1rem;
+    padding: 1rem;
+}
+
+.delete-confirm-modal .danger-zone p {
+    color: #922b21;
+    font-size: 0.88rem;
+    margin: 0 0 0.75rem;
+}
+
+.btn.btn-deactivate {
+    --bs-btn-color: var(--color-text-dark);
+    --bs-btn-bg: #ffc107;
+    --bs-btn-border-color: #ffc107;
+    --bs-btn-hover-color: var(--color-text-dark);
+    --bs-btn-hover-bg: #e0a800;
+    --bs-btn-hover-border-color: #e0a800;
+    --bs-btn-active-color: var(--color-text-dark);
+    --bs-btn-active-bg: #d39e00;
+    --bs-btn-active-border-color: #d39e00;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: var(--transition-smooth);
+}
+
+.btn.btn-permanent-delete {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #dc3545;
+    --bs-btn-border-color: #dc3545;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #c82333;
+    --bs-btn-hover-border-color: #c82333;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #bd2130;
+    --bs-btn-active-border-color: #bd2130;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: var(--transition-smooth);
+}
+
+/* --- Re-enable Account Button --- */
+.btn.btn-reenable {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #1e7e34;
+    --bs-btn-border-color: #1e7e34;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #28a745;
+    --bs-btn-hover-border-color: #28a745;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #1e7e34;
+    --bs-btn-active-border-color: #1e7e34;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 1rem;
+    transition: var(--transition-smooth);
+}
+
+.btn.btn-reenable:hover,
+.btn.btn-reenable:focus {
+    box-shadow: 0 4px 16px rgba(0, 108, 53, 0.3);
+}
+
+/* --- Password Visibility Toggle --- */
+.password-toggle-btn {
+    align-items: center;
+    border-color: var(--color-border, #ced4da);
+    display: flex;
+    padding: 0.375rem 0.6rem;
+}
+
+.password-toggle-btn:hover {
+    background: var(--color-off-white, #f8f9fa);
+    border-color: var(--color-green-mid);
+    color: var(--color-green-dark);
+}
+
+.password-toggle-btn svg {
+    display: block;
+    height: 16px;
+    width: 16px;
 }

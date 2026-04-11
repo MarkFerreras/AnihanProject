@@ -1,6 +1,7 @@
 package com.example.springboot.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import com.example.springboot.model.User;
 
@@ -13,7 +14,9 @@ public record AdminUserResponse(
         String firstName,
         String middleName,
         Integer age,
-        LocalDate birthdate
+        LocalDate birthdate,
+        Boolean enabled,
+        LocalDateTime passwordChangedAt
 ) {
 
     public static AdminUserResponse from(User user) {
@@ -26,7 +29,9 @@ public record AdminUserResponse(
                 user.getFirstName(),
                 user.getMiddleName(),
                 user.getAge(),
-                user.getBirthdate()
+                user.getBirthdate(),
+                user.getEnabled(),
+                user.getPasswordChangedAt()
         );
     }
 }
