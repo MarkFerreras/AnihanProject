@@ -53,6 +53,14 @@
 - [x] `./gradlew test` -> BUILD SUCCESSFUL after the controller repair
 - [x] `./gradlew build` -> BUILD SUCCESSFUL after the controller repair
 
+## Admin Front-End Repair
+- [x] Rebuilt `admin.html` so it now has one valid document structure and matches `admin-users.js`
+- [x] Rebuilt `edit-user.html` so it matches `admin-edit-user.js`
+- [x] Confirmed required static assets exist for the repaired admin flow (`dashboard.css`, `auth-guard.js`, `admin-users.js`, `admin-edit-user.js`, `datatables.min.js`, `jquery-4.0.0.min.js`)
+- [x] `./gradlew build` -> BUILD SUCCESSFUL after the front-end shell rebuild
+- [ ] Browser retest: confirm admin login opens the rebuilt dashboard instead of a blank page
+- [ ] Browser retest: confirm the user detail modal and edit-user flow work end-to-end
+
 ## Dashboard UI - Visual Checklist
 - [ ] Account icon visible top-right on admin dashboard
 - [ ] Account icon visible top-right on registrar dashboard

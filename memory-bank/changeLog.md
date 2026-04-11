@@ -1,5 +1,27 @@
 # Change Log - Anihan SRMS
 
+## 2026-04-11 - Admin Dashboard Front-End Repair
+**Branch:** `feature/fix-login-security`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/admin.html` | Rebuilt the admin dashboard HTML to remove duplicate donor markup, restore a valid document structure, and match the current `admin-users.js` IDs |
+| `static/edit-user.html` | Rebuilt the admin edit-user page to match `admin-edit-user.js` and the shared account modal shell |
+| `memory-bank/activeContext.md` | Recorded the front-end regression cause and current browser retest task |
+| `memory-bank/progress.md` | Added the admin shell and edit-flow rebuild work to the UI progress notes |
+| `memory-bank/testing.md` | Recorded the post-repair verification steps for the admin front-end fix |
+
+### Root Cause
+- `admin.html` had regressed into a partially merged donor version with overlapping navbars, misplaced closing tags, inline scripts duplicated in the page body, and mismatched IDs compared to `admin-users.js`.
+- `edit-user.html` had also drifted back to older markup that no longer matched the current `admin-edit-user.js` field names.
+- That combination could leave the admin experience blank or broken immediately after login and during the follow-up edit flow.
+
+### Verification
+- `./gradlew build` -> BUILD SUCCESSFUL
+- `git diff --check` -> no tracked whitespace errors after the HTML rebuild
+- Structural spot-check confirmed single `head`, `body`, and `html` blocks in both repaired pages
+
 ## 2026-04-11 - Build Repair for Admin Controller Regression
 **Branch:** `feature/fix-login-security`
 

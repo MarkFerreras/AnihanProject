@@ -12,13 +12,15 @@
 - **Admin User Management**: Root admin dashboard includes DataTables user listing, detail modal, and dedicated edit-user flow.
 - **Schema**: `AnihanSRMS.sql` has been cleaned and aligned with the root user schema and student record keys.
 - **Build Repair**: `AdminController` was restored to the service/DTO contract after regressing to a direct `UserRepository` implementation that broke the WebMvc admin tests.
-- **Verification**: `./gradlew test` and `./gradlew build` both pass after the controller repair.
+- **Front-End Repair**: `admin.html` was rebuilt after a donor regression left duplicate navbars, malformed head/body structure, and mismatched modal/table markup that could render the admin page blank.
+- **Edit Flow Repair**: `edit-user.html` was rebuilt to match the current `admin-edit-user.js` field IDs and shared admin shell.
+- **Verification**: `./gradlew build` passes after the admin front-end repair.
 ## Current Task
-Resume manual browser validation of the merged admin pages now that the automated build and test flow is green again.
+Re-test the repaired admin shell in the browser and confirm the dashboard, detail modal, and edit-user flow behave correctly end-to-end.
 
 ## Previous Task (Completed)
 Database Schema Refactor - Dropped `full_name` and `date_of_birth` columns, replaced with `lastname`, `firstname`, `middlename`, and `birthdate`. Adapted backend data models and updated the frontend modals.
 
 ## Open Questions & Unverified Items
-1. Confirm visual behavior of the merged admin pages (`admin.html`, `edit-user.html`, `student-records.html`, `subjects.html`, `logs.html`) in the browser.
+1. Confirm the rebuilt `admin.html` no longer renders as a blank white page after admin login.
 2. Decide whether registrar and trainer dashboard shells should be visually refreshed to match the newer admin shell more closely.
