@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.example.springboot.dto.AdminUpdateUserRequest;
 import com.example.springboot.dto.AdminUserResponse;
@@ -27,6 +28,9 @@ class AdminServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private AdminService adminService;
@@ -44,13 +48,15 @@ class AdminServiceTest {
         );
 
         AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                null,
                 "admin@anihan.edu",
                 "ROLE_REGISTRAR",
                 "Admin",
                 "System",
                 "Owner",
                 30,
-                LocalDate.of(1996, 4, 11)
+                LocalDate.of(1996, 4, 11),
+                null
         );
 
         when(userRepository.findById(1)).thenReturn(Optional.of(admin));
@@ -80,13 +86,15 @@ class AdminServiceTest {
         );
 
         AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                null,
                 "records@anihan.edu",
                 "ROLE_REGISTRAR",
                 "Cruz",
                 "Maria",
                 "Santos",
                 28,
-                LocalDate.of(1998, 3, 20)
+                LocalDate.of(1998, 3, 20),
+                null
         );
 
         when(userRepository.findById(2)).thenReturn(Optional.of(registrar));
@@ -125,6 +133,7 @@ class AdminServiceTest {
         user.setMiddleName(middleName);
         user.setAge(30);
         user.setBirthdate(LocalDate.of(1996, 4, 11));
+        user.setEnabled(true);
         return user;
     }
 }

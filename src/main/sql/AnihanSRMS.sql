@@ -26,8 +26,16 @@ CREATE TABLE IF NOT EXISTS users (
     birthdate DATE NOT NULL DEFAULT '2000-01-01',
     age INT NOT NULL,
     email VARCHAR(255) NOT NULL,
-    role VARCHAR(15) NOT NULL
+    role VARCHAR(15) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    password_changed_at DATETIME NULL
 );
+
+-- RUN THIS IF YOU ALREADY HAVE users TABLE without the enabled column:
+-- ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1;
+
+-- RUN THIS IF YOU ALREADY HAVE users TABLE without the password_changed_at column:
+-- ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL;
 
 -- RUN THIS IS YOU ALREADY HAVE users TABLE! Otherwise, just run the CREATE TABLE for users
 ALTER TABLE users

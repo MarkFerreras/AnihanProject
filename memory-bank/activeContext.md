@@ -1,26 +1,24 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Root/Admin Merge Stabilization**
+**Admin User Management Enhancement — All Phases Complete**
 
 ## Active Branch
-`feature/fix-login-security`
+`feature/admin-password-delete-hover-fix`
 
 ## Status (April 2026)
-- **Completed**: Root admin module merged from `main-em` into the tracked repo root.
-- **Security**: Admin-only routes are enforced for `admin.html`, `edit-user.html`, `student-records.html`, `subjects.html`, `logs.html`, and `/api/admin/**`.
-- **Admin User Management**: Root admin dashboard includes DataTables user listing, detail modal, and dedicated edit-user flow.
-- **Schema**: `AnihanSRMS.sql` has been cleaned and aligned with the root user schema and student record keys.
-- **Build Repair**: `AdminController` was restored to the service/DTO contract after regressing to a direct `UserRepository` implementation that broke the WebMvc admin tests.
-- **Front-End Repair**: `admin.html` was rebuilt after a donor regression left duplicate navbars, malformed head/body structure, and mismatched modal/table markup that could render the admin page blank.
-- **Edit Flow Repair**: `edit-user.html` was rebuilt to match the current `admin-edit-user.js` field IDs and shared admin shell.
-- **Verification**: `./gradlew build` passes after the admin front-end repair.
-## Current Task
-Re-test the repaired admin shell in the browser and confirm the dashboard, detail modal, and edit-user flow behave correctly end-to-end.
+All 3 phases complete. Build passes. Browser-tested and verified.
 
-## Previous Task (Completed)
-Database Schema Refactor - Dropped `full_name` and `date_of_birth` columns, replaced with `lastname`, `firstname`, `middlename`, and `birthdate`. Adapted backend data models and updated the frontend modals.
+### Phase 1 (Done)
+Admin password reset, soft/hard delete, button hover fix, 8-char minimum.
 
-## Open Questions & Unverified Items
-1. Confirm the rebuilt `admin.html` no longer renders as a blank white page after admin login.
-2. Decide whether registrar and trainer dashboard shells should be visually refreshed to match the newer admin shell more closely.
+### Phase 2 (Done)
+Re-enable button, password_changed_at timestamp, password visibility toggle, strong password policy.
+
+### Phase 3 (Done)
+- **Button hover fix (permanent)**: All custom buttons now use Bootstrap 5.3 CSS custom properties (`--bs-btn-color`, `--bs-btn-hover-color`, etc.) instead of regular `color`/`background` declarations. This permanently prevents Bootstrap's `.btn:hover` from overriding text colors. Fixed: `.btn-surface`, `.btn-surface-secondary`, `.btn-danger-surface`, `.btn-deactivate`, `.btn-permanent-delete`, `.btn-reenable`.
+- **Admin username edit**: Username field on Edit User page is now editable with no-spaces validation at 3 levels: HTML pattern, client-side JS, backend @Pattern.
+
+## Verified
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+- **Browser-tested**: Re-enable button green with white text on hover ✅, Delete button red with white text on hover ✅, Username field editable ✅

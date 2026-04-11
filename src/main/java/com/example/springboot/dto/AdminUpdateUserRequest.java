@@ -9,8 +9,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record AdminUpdateUserRequest(
+        @Pattern(regexp = "^\\S+$", message = "Username must not contain spaces")
+        @Size(min = 1, message = "Username must not be empty")
+        String username,
+
         @NotBlank(message = "Email is required")
         @Email(message = "Email must be valid")
         String email,
@@ -38,6 +43,9 @@ public record AdminUpdateUserRequest(
 
         @NotNull(message = "Birthdate is required")
         @PastOrPresent(message = "Birthdate cannot be in the future")
-        LocalDate birthdate
+        LocalDate birthdate,
+
+        @Size(min = 8, message = "Password must be at least 8 characters")
+        String password
 ) {
 }

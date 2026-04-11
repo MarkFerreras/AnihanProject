@@ -131,6 +131,7 @@
                                     <th scope="col">Role</th>
                                     <th scope="col">Name</th>
                                     <th scope="col">Email</th>
+                                    <th scope="col">Status</th>
                                     <th scope="col" class="text-end">Details</th>
                                 </tr>
                             </thead>
@@ -194,9 +195,15 @@
                             <span class="detail-label">Birthdate</span>
                             <p class="detail-value" id="detailsBirthdate">-</p>
                         </article>
+                        <article class="detail-card">
+                            <span class="detail-label">Password Last Changed</span>
+                            <p class="detail-value" id="detailsPasswordChanged">-</p>
+                        </article>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-danger-surface me-auto" id="detailsDeleteBtn">Delete User</button>
+                    <button type="button" class="btn btn-reenable me-auto" id="detailsReEnableBtn" style="display:none;">Re-enable Account</button>
                     <a href="logs.html" class="btn btn-surface-secondary" id="detailsLogsLink">View Logs</a>
                     <a href="edit-user.html" class="btn btn-surface" id="detailsEditLink">Edit User</a>
                 </div>
@@ -297,17 +304,48 @@
                                 <div class="mb-3">
                                     <label for="changeNewPassword" class="form-label">New Password</label>
                                     <input type="password" class="form-control" id="changeNewPassword"
-                                        placeholder="Enter new password" autocomplete="new-password" required>
+                                        placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
+                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
                                     <input type="password" class="form-control" id="confirmNewPassword"
-                                        placeholder="Confirm new password" autocomplete="new-password" required>
+                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade delete-confirm-modal" id="deleteConfirmModal" tabindex="-1"
+        aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteConfirmModalLabel">Delete User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">
+                        You are about to remove <strong id="deleteUserName">this user</strong> from the system.
+                        Please choose an action:
+                    </p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-deactivate" id="confirmSoftDeleteBtn">
+                            Deactivate Account
+                        </button>
+                    </div>
+                    <div class="danger-zone">
+                        <p><strong>Danger Zone</strong> — This permanently removes the account and all associated data. This action cannot be undone.</p>
+                        <button type="button" class="btn btn-permanent-delete" id="confirmHardDeleteBtn">
+                            Permanently Delete
+                        </button>
+                    </div>
+                    <div class="alert d-none mt-3" id="deleteResultAlert" role="alert"></div>
                 </div>
             </div>
         </div>
