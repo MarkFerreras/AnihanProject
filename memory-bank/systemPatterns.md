@@ -25,3 +25,14 @@
 - **Styling**: Bootstrap 5.3 + custom CSS (`kebab-case` classes). Semantic HTML IDs (`camelCase`).
 - **Data Display**: DataTables 2 for high-efficiency tabular search, filtering, and sorting of student and grade data.
 - **JavaScript**: jQuery 4.0 handling AJAX requests and DOM manipulation.
+
+## Admin Page Template Pattern (Mandatory for All Admin Pages)
+Every admin page **must** include:
+1. `<body class="dashboard-page" data-required-role="ROLE_ADMIN">`
+2. `css/dashboard.css` — shared color scheme and component styles
+3. **Brand-mark navbar** with `<span class="brand-mark">` (logo + "Anihan SRMS" title)
+4. **Account dropdown** — `.account-icon-btn` with user initial, dropdown menu with "Edit Account" and "Log Out"
+5. **Edit Account modal** (`#editAccountModal`) — tabbed (Personal Details + Account Settings) with username change, password change forms
+6. `js/auth-guard.js` — session protection + account dropdown logic
+7. `js/jquery-4.0.0.min.js` — required for auth-guard.js and AJAX
+8. Nav links: Home | Student Records | Subjects | Logs — with `active` class on current page

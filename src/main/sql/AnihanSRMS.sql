@@ -172,6 +172,17 @@ CREATE TABLE IF NOT EXISTS log (
     FOREIGN KEY (user_id) REFERENCES users (user_id)
 );
 
+CREATE TABLE IF NOT EXISTS system_logs (
+    log_id      INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    user_id     INT NULL,
+    username    VARCHAR(255) NOT NULL,
+    role        VARCHAR(15) NOT NULL,
+    action      VARCHAR(500) NOT NULL,
+    ip_address  VARCHAR(45) NULL,
+    timestamp   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_system_logs_timestamp (timestamp DESC)
+);
+
 CREATE TABLE IF NOT EXISTS previous_school (
     school_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
