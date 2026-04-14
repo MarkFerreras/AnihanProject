@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.springboot.dto.LoginRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
+import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -29,10 +30,14 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
+    private final SystemLogService systemLogService;
 
-    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository) {
+    public AuthController(AuthenticationManager authenticationManager,
+                          UserRepository userRepository,
+                          SystemLogService systemLogService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -60,6 +65,12 @@ public class AuthController {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_UNKNOWN");
 
+        // Log the login action
+        String ipAddress = httpRequest.getRemoteAddr();
+        userRepository.findByUsername(username).ifPresent(user ->
+                systemLogService.logAction(user.getUserId(), username, role, "User logged in", ipAddress)
+        );
+
         return ResponseEntity.ok(Map.of(
                 "username", username,
                 "role", role
@@ -72,6 +83,22 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
+        // Capture user identity BEFORE clearing context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getPrincipal())) {
+            String username = authentication.getName();
+            String role = authentication.getAuthorities().stream()
+                    .findFirst()
+                    .map(GrantedAuthority::getAuthority)
+                    .orElse("ROLE_UNKNOWN");
+            String ipAddress = request.getRemoteAddr();
+
+            userRepository.findByUsername(username).ifPresent(user ->
+                    systemLogService.logAction(user.getUserId(), username, role, "User logged out", ipAddress)
+            );
+        }
+
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
@@ -117,4 +144,3 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 }
-

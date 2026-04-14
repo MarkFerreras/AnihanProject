@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .requestMatchers("/registrar.html").hasRole("REGISTRAR")
                 .requestMatchers("/trainer.html").hasRole("TRAINER")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/logs/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
                 // Role-based access for HTML pages

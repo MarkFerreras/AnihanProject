@@ -4,13 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Admin Logs">
-    <title>Logs — Admin</title>
+    <meta name="description" content="Anihan SRMS — Admin System Logs">
+    <title>System Logs — Admin</title>
 
     <!-- Bootstrap 5.3 CSS (local) -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
+    <!-- DataTables 2 CSS (local) -->
+    <link rel="stylesheet" href="css/datatables.min.css">
     <!-- Custom Common Styles -->
     <link rel="stylesheet" href="css/login.css">
+    <!-- Dashboard Shared Styles (unified color scheme) -->
+    <link rel="stylesheet" href="css/dashboard.css">
     <style>
         body {
             display: flex;
@@ -37,17 +41,113 @@
         .navbar-logo {
             max-height: 40px;
         }
+
+        /* --- System Logs Specific Styles --- */
+        .logs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .logs-header h2 {
+            color: var(--color-text-dark, #212529);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .logs-header p {
+            color: var(--color-text-muted, #6c757d);
+            font-size: 0.92rem;
+            margin: 0.2rem 0 0;
+        }
+
+        .logs-stats {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .logs-stat-pill {
+            background: rgba(40, 167, 69, 0.10);
+            border: 1px solid rgba(40, 167, 69, 0.18);
+            border-radius: 999px;
+            color: var(--color-green-dark, #155724);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 0.4rem 0.9rem;
+        }
+
+        .logs-table-wrapper {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(40, 167, 69, 0.12);
+            border-radius: 1.25rem;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            padding: 1.25rem 1.4rem 1.5rem;
+        }
+
+        /* Action text styling */
+        .log-action-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--color-text-dark, #212529);
+        }
+
+        /* Timestamp column styling */
+        .log-timestamp {
+            font-family: 'Segoe UI Mono', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.84rem;
+            color: var(--color-text-muted, #6c757d);
+            white-space: nowrap;
+        }
+
+        /* IP Address styling */
+        .log-ip {
+            font-family: 'Segoe UI Mono', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.84rem;
+            color: var(--color-text-muted, #6c757d);
+        }
+
+        /* User ID column */
+        .log-user-id {
+            font-weight: 600;
+            color: var(--color-text-dark, #212529);
+        }
+
+        /* Loading spinner */
+        .logs-loading {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--color-text-muted, #6c757d);
+        }
+
+        .logs-loading .spinner-border {
+            color: var(--color-green-primary, #28a745);
+        }
+
+        /* Error alert */
+        .logs-error {
+            display: none;
+        }
     </style>
 </head>
 
-<body>
+<body class="dashboard-page" data-required-role="ROLE_ADMIN">
 
     <!-- ===== HEADER ===== -->
     <header>
-        <nav class="navbar login-navbar navbar-expand-lg navbar-dark">
+        <nav class="navbar navbar-expand-lg login-navbar admin-navbar">
             <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="admin.html">
-                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo me-3">
+                <a class="navbar-brand" href="admin.html">
+                    <span class="brand-mark">
+                        <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                        <span class="brand-title">Anihan SRMS</span>
+                    </span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
                     aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,31 +156,207 @@
                 <div class="collapse navbar-collapse" id="adminNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link text-white-50" href="admin.html">Home</a>
+                            <a class="nav-link admin-nav-link" href="admin.html">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link text-white-50" href="student-records.html">Student
-                                Records</a>
+                            <a class="nav-link admin-nav-link" href="student-records.html">Student Records</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link text-white-50" href="subjects.html">Subjects</a>
+                            <a class="nav-link admin-nav-link" href="subjects.html">Subjects</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active text-white fw-bold" aria-current="page"
+                            <a class="nav-link admin-nav-link active" aria-current="page"
                                 href="logs.html">Logs</a>
                         </li>
                     </ul>
-                    <span class="navbar-text text-white fw-bold me-3">Admin Portal</span>
+                    <div class="d-flex align-items-center gap-3 ms-lg-3">
+                        <span class="portal-label">Admin Portal</span>
+                        <div class="account-dropdown dropdown">
+                            <button class="account-icon-btn dropdown-toggle" type="button" id="accountDropdownBtn"
+                                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                                <span id="accountInitial">?</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdownBtn">
+                                <li class="account-dropdown-header">
+                                    <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
+                                    <p class="account-dropdown-role" id="accountDropdownRole">-</p>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="editAccountBtn" data-bs-toggle="modal"
+                                        data-bs-target="#editAccountModal">Edit Account</a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
 
     <!-- ===== MAIN CONTENT ===== -->
-    <main class="container my-5">
-        <h2 class="fw-bold">Logs</h2>
-        <p class="text-muted">System logs will be shown here.</p>
+    <main class="container my-4">
+
+        <!-- Logs Header with Stats -->
+        <div class="logs-header">
+            <div>
+                <h2>System Logs</h2>
+                <p>Real-time audit trail of all user actions across the system.</p>
+            </div>
+            <div class="logs-stats">
+                <span class="logs-stat-pill" id="totalLogsStat">Total: 0</span>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div class="alert alert-danger logs-error" id="logsErrorAlert" role="alert">
+            <strong>Error:</strong> <span id="logsErrorMessage">Failed to load system logs.</span>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="logs-table-wrapper">
+            <!-- Loading Spinner -->
+            <div class="logs-loading" id="logsLoading">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading system logs...</p>
+            </div>
+
+            <div class="table-responsive">
+                <table id="systemLogsTable" class="table admin-table table-hover align-middle mb-0 w-100"
+                    style="display:none;">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Date &amp; Time</th>
+                            <th scope="col">User ID</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
+
+    <!-- ===== EDIT ACCOUNT MODAL ===== -->
+    <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
+        aria-labelledby="editAccountModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAccountModalLabel">Edit Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="editAccountTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-personal" data-bs-toggle="tab"
+                                data-bs-target="#pane-personal" type="button" role="tab"
+                                aria-controls="pane-personal" aria-selected="true">
+                                Personal Details
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-account" data-bs-toggle="tab"
+                                data-bs-target="#pane-account" type="button" role="tab"
+                                aria-controls="pane-account" aria-selected="false">
+                                Account Settings
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="editAccountTabContent">
+                        <div class="tab-pane fade show active" id="pane-personal" role="tabpanel"
+                            aria-labelledby="tab-personal">
+                            <div class="alert d-none" id="personalDetailsAlert" role="alert"></div>
+                            <form id="personalDetailsForm">
+                                <div>
+                                    <label for="lastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="lastName"
+                                        placeholder="Enter last name" autocomplete="family-name">
+                                </div>
+                                <div class="mt-3">
+                                    <label for="firstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="firstName"
+                                        placeholder="Enter first name" autocomplete="given-name">
+                                </div>
+                                <div class="mt-3">
+                                    <label for="middleName" class="form-label">Middle Name</label>
+                                    <input type="text" class="form-control" id="middleName"
+                                        placeholder="Enter middle name" autocomplete="additional-name">
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-6 mb-3 mb-md-0">
+                                        <label for="age" class="form-label">Age</label>
+                                        <input type="number" class="form-control" id="age" min="1" max="150"
+                                            placeholder="e.g. 30">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="birthdate" class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" id="birthdate">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-save mt-3">Save Details</button>
+                            </form>
+                        </div>
+
+                        <div class="tab-pane fade" id="pane-account" role="tabpanel"
+                            aria-labelledby="tab-account">
+                            <h6 class="section-title">Change Username</h6>
+                            <div class="alert d-none" id="usernameChangeAlert" role="alert"></div>
+                            <form id="usernameChangeForm">
+                                <div class="mb-3">
+                                    <label for="newUsername" class="form-label">New Username</label>
+                                    <input type="text" class="form-control" id="newUsername"
+                                        placeholder="Enter new username" autocomplete="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="usernameCurrentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="usernameCurrentPassword"
+                                        placeholder="Enter current password" autocomplete="current-password" required>
+                                </div>
+                                <button type="submit" class="btn btn-save">Save Username</button>
+                            </form>
+
+                            <hr>
+
+                            <h6 class="section-title">Change Password</h6>
+                            <div class="alert d-none" id="passwordChangeAlert" role="alert"></div>
+                            <form id="passwordChangeForm">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="currentPassword"
+                                        placeholder="Enter current password" autocomplete="current-password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="changeNewPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="changeNewPassword"
+                                        placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
+                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmNewPassword"
+                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                                </div>
+                                <button type="submit" class="btn btn-save">Save Password</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== FOOTER ===== -->
     <footer class="login-footer mt-auto">
@@ -91,6 +367,14 @@
 
     <!-- Bootstrap 5.3 JS Bundle (local) -->
     <script src="js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery 4.0 (local) -->
+    <script src="js/jquery-4.0.0.min.js"></script>
+    <!-- DataTables 2 (local) -->
+    <script src="js/datatables.min.js"></script>
+    <!-- Auth Guard (session protection) -->
+    <script src="js/auth-guard.js"></script>
+    <!-- System Logs Logic -->
+    <script src="js/system-logs.js"></script>
 
 </body>
 

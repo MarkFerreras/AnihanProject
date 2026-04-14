@@ -119,6 +119,22 @@
 - [x] Updated `AdminServiceTest` constructors for new `username` parameter (null)
 - [x] `./gradlew build` passes (7/7 tasks, all tests green)
 
+## Admin System Logs (Completed — April 14, 2026)
+- [x] Created `SystemLog.java` entity mapped to `system_logs` table
+- [x] Created `SystemLogRepository.java` with `findAllByOrderByTimestampDesc()`
+- [x] Created `SystemLogService.java` with `logAction()` and `getAllLogs()` methods
+- [x] Created `SystemLogResponse.java` DTO record with `from()` factory
+- [x] Created `SystemLogController.java` — `GET /api/logs` (ADMIN-only)
+- [x] Added `/api/logs/**` ADMIN matcher to `SecurityConfig.java`
+- [x] Integrated login/logout logging in `AuthController.java` (captures identity before session cleanup)
+- [x] Integrated admin action logging in `AdminController.java` (update, soft delete, hard delete, re-enable)
+- [x] Integrated self-service logging in `AccountController.java` (password, username, personal details)
+- [x] Added `system_logs` table to `AnihanSRMS.sql`
+- [x] Rebuilt `logs.html` with unified color scheme, DataTables 2, and auth-guard.js
+- [x] Created `system-logs.js` for AJAX fetch and DataTables initialization
+- [x] Updated `AdminControllerWebMvcTest.java` with new mock beans
+- [x] `./gradlew build` passes (7/7 tasks, all tests green)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 

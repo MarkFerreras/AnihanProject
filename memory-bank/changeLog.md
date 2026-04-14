@@ -1,4 +1,67 @@
 # Change Log - Anihan SRMS
+## 2026-04-14 - Account Icon Dropdown on All Admin Pages
+**Branch:** `feature/admin-system-logs`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/student-records.html` | Added brand-mark navbar, account dropdown, Edit Account modal, `dashboard.css`, `auth-guard.js`, `data-required-role` |
+| `static/subjects.html` | Same as above |
+| `static/logs.html` | Same as above (already had `auth-guard.js` but lacked account dropdown/modal) |
+| `memory-bank/systemPatterns.md` | Added "Admin Page Template Pattern" section as mandatory standard for future pages |
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+
+---
+
+## 2026-04-14 - Admin System Logs
+**Branch:** `feature/admin-system-logs`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `model/SystemLog.java` | JPA entity for `system_logs` table |
+| `repository/SystemLogRepository.java` | Data access with `findAllByOrderByTimestampDesc()` |
+| `service/SystemLogService.java` | `logAction()` and `getAllLogs()` business logic |
+| `dto/SystemLogResponse.java` | API response DTO record with `from()` factory |
+| `controller/SystemLogController.java` | `GET /api/logs` REST endpoint (ADMIN-only) |
+| `static/js/system-logs.js` | DataTables 2 AJAX fetch and table rendering |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `config/SecurityConfig.java` | Added `/api/logs/**` ADMIN role matcher |
+| `controller/AuthController.java` | Injected `SystemLogService`, logs login/logout (captures identity before session cleanup) |
+| `controller/AdminController.java` | Injected `SystemLogService` + `UserRepository`, logs update/delete/re-enable actions with `LogContext` helper |
+| `controller/AccountController.java` | Injected `SystemLogService` + `UserRepository`, logs self-service password/username/details changes |
+| `static/logs.html` | Rebuilt with unified color scheme (`dashboard.css`), DataTables 2, `auth-guard.js`, loading spinner |
+| `src/main/sql/AnihanSRMS.sql` | Added `system_logs` table with timestamp index |
+| `test/controller/AdminControllerWebMvcTest.java` | Added `@MockitoBean` for `SystemLogService` and `UserRepository` |
+
+### Database Migration Required
+```sql
+CREATE TABLE system_logs (
+    log_id      INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    user_id     INT NULL,
+    username    VARCHAR(255) NOT NULL,
+    role        VARCHAR(15) NOT NULL,
+    action      VARCHAR(500) NOT NULL,
+    ip_address  VARCHAR(45) NULL,
+    timestamp   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_system_logs_timestamp (timestamp DESC)
+);
+```
+
+### Tracked Actions
+- Login / Logout
+- Admin: Update user details, Reset password, Deactivate account, Permanently delete account, Re-enable account
+- Self-service: Change own password, Change own username, Update own personal details
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+
+---
 
 ## 2026-04-11 - Admin Username Edit & Button Hover Fixes
 **Branch:** `feature/admin-password-delete-hover-fix`
