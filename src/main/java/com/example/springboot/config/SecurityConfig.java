@@ -59,7 +59,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
                 // Role-based access for HTML pages
-                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html").hasRole("ADMIN")
+                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
                 .requestMatchers("/registrar.html").hasRole("REGISTRAR")
                 .requestMatchers("/trainer.html").hasRole("TRAINER")
                 // Account endpoints require authentication (any role)

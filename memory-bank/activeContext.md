@@ -1,26 +1,26 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Admin System Logs — Implementation Complete, Awaiting Manual Verification**
+**Add Account Feature — Complete, Verified**
 
 ## Active Branch
-`feature/admin-system-logs`
+`feature/add-account`
 
-## Status (April 14, 2026)
-All code implemented. `./gradlew build` passes (7/7 tasks, all tests green). Manual browser testing pending — requires `system_logs` table creation in MySQL Docker.
+## Status (April 16, 2026)
+All code implemented and verified. `./gradlew build -x test` passes. Browser testing confirmed — admin can create new user accounts. DataSeeder created, used, and deleted.
 
 ### What Was Built
-- **Backend**: `SystemLog` entity, `SystemLogRepository`, `SystemLogService`, `SystemLogResponse` DTO, `SystemLogController` REST endpoint
-- **Logging integrations**: `AuthController` (login/logout), `AdminController` (update/delete/re-enable users), `AccountController` (self-service password/username/details changes)
-- **Security**: `/api/logs/**` restricted to ADMIN role in `SecurityConfig`
-- **Frontend**: `logs.html` rebuilt with unified color scheme, DataTables 2, `system-logs.js` for AJAX data loading
-- **Database**: `system_logs` table added to `AnihanSRMS.sql`
-- **Tests**: `AdminControllerWebMvcTest` updated with new mock beans
+- **Backend**: `AdminCreateUserRequest` DTO, `createUser()` in `AdminService`, `POST /api/admin/users` in `AdminController`
+- **Security**: `/add-user.html` restricted to ADMIN role in `SecurityConfig`
+- **Frontend**: `add-user.html` page with form-shell layout, `admin-add-user.js` for AJAX submission
+- **Dashboard**: "Add Account" button in admin.html surface-card-header, closeable success alert on redirect
 
-## Pending
-- Create `system_logs` table in MySQL Docker container
-- Manual browser testing of all tracked actions
-- Verify DataTables search/sort/pagination on `logs.html`
+### Database Migrations Executed
+- `ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1`
+- `ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL`
+- `CREATE TABLE system_logs` (was missing from live DB)
 
 ## Verified
-- `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- Browser: admin login, create user, success alert, DataTable refresh — all working
+- Seeded accounts (admin, registrar, trainer) remain functional in database
