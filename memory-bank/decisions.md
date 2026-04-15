@@ -1,5 +1,27 @@
 # Decisions - Anihan SRMS
 
+## 2026-04-14 - Separate system_logs Table (No FK to users)
+
+**Decision**: Create a standalone `system_logs` table with `user_id INT NULL` and no foreign key to the `users` table, despite the existing `log` table having an FK.
+
+**Alternatives considered**:
+1. Use the existing `log` table — has FK to `users`, limited columns (only `event`, `user_id`, `log_time`, `log_date`)
+2. New `system_logs` table with FK to `users.user_id` — normalized but breaks when users are hard-deleted
+3. New `system_logs` table with nullable `user_id`, no FK — logs survive hard deletes
+
+**Why chosen**: Option 3. The admin can permanently delete user accounts (hard delete). If `system_logs` had an FK, those deletes would either cascade (losing audit trail) or be blocked. A nullable `user_id` with no FK preserves the complete audit history regardless of user lifecycle.
+
+## 2026-04-14 - Manual Service Calls Over AOP for System Logging
+
+**Decision**: Inject `SystemLogService` directly into controllers and call `logAction()` explicitly at each integration point, rather than using Spring AOP to auto-intercept controller methods.
+
+**Alternatives considered**:
+1. Spring AOP with `@Around` on controller methods — automatic but produces generic log messages like "Called PUT /api/admin/users/3"
+2. Manual `systemLogService.logAction()` calls — more code, but produces human-readable messages like "Deactivated account: Mark"
+
+**Why chosen**: Option 2. System logs are read by humans (admins). Clean, descriptive action strings like "Reset password for: registrar" are far more useful than auto-generated AOP messages. The small extra code is worth the readability gain.
+
+
 ## 2026-04-11 - Split Password Policy (Admin vs Self-Service)
 
 **Decision**: Apply strong password requirements (uppercase, lowercase, number, special character, min 8 chars) only to self-service password changes. Admin password resets only require 8-character minimum.

@@ -22,8 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.example.springboot.config.SecurityConfig;
 import com.example.springboot.dto.AdminUserResponse;
 import com.example.springboot.exception.GlobalExceptionHandler;
+import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.AdminService;
 import com.example.springboot.service.CustomUserDetailsService;
+import com.example.springboot.service.SystemLogService;
 
 @WebMvcTest(AdminController.class)
 @Import({ SecurityConfig.class, GlobalExceptionHandler.class })
@@ -37,6 +39,12 @@ class AdminControllerWebMvcTest {
 
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockitoBean
+    private SystemLogService systemLogService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")

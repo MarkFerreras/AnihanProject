@@ -1,24 +1,26 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Admin User Management Enhancement — All Phases Complete**
+**Admin System Logs — Implementation Complete, Awaiting Manual Verification**
 
 ## Active Branch
-`feature/admin-password-delete-hover-fix`
+`feature/admin-system-logs`
 
-## Status (April 2026)
-All 3 phases complete. Build passes. Browser-tested and verified.
+## Status (April 14, 2026)
+All code implemented. `./gradlew build` passes (7/7 tasks, all tests green). Manual browser testing pending — requires `system_logs` table creation in MySQL Docker.
 
-### Phase 1 (Done)
-Admin password reset, soft/hard delete, button hover fix, 8-char minimum.
+### What Was Built
+- **Backend**: `SystemLog` entity, `SystemLogRepository`, `SystemLogService`, `SystemLogResponse` DTO, `SystemLogController` REST endpoint
+- **Logging integrations**: `AuthController` (login/logout), `AdminController` (update/delete/re-enable users), `AccountController` (self-service password/username/details changes)
+- **Security**: `/api/logs/**` restricted to ADMIN role in `SecurityConfig`
+- **Frontend**: `logs.html` rebuilt with unified color scheme, DataTables 2, `system-logs.js` for AJAX data loading
+- **Database**: `system_logs` table added to `AnihanSRMS.sql`
+- **Tests**: `AdminControllerWebMvcTest` updated with new mock beans
 
-### Phase 2 (Done)
-Re-enable button, password_changed_at timestamp, password visibility toggle, strong password policy.
-
-### Phase 3 (Done)
-- **Button hover fix (permanent)**: All custom buttons now use Bootstrap 5.3 CSS custom properties (`--bs-btn-color`, `--bs-btn-hover-color`, etc.) instead of regular `color`/`background` declarations. This permanently prevents Bootstrap's `.btn:hover` from overriding text colors. Fixed: `.btn-surface`, `.btn-surface-secondary`, `.btn-danger-surface`, `.btn-deactivate`, `.btn-permanent-delete`, `.btn-reenable`.
-- **Admin username edit**: Username field on Edit User page is now editable with no-spaces validation at 3 levels: HTML pattern, client-side JS, backend @Pattern.
+## Pending
+- Create `system_logs` table in MySQL Docker container
+- Manual browser testing of all tracked actions
+- Verify DataTables search/sort/pagination on `logs.html`
 
 ## Verified
 - `./gradlew build` → BUILD SUCCESSFUL (7/7 tasks, all tests green)
-- **Browser-tested**: Re-enable button green with white text on hover ✅, Delete button red with white text on hover ✅, Username field editable ✅
