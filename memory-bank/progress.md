@@ -135,6 +135,15 @@
 - [x] Updated `AdminControllerWebMvcTest.java` with new mock beans
 - [x] `./gradlew build` passes (7/7 tasks, all tests green)
 
+## Navbar Logo UI Standardization (Completed — April 16, 2026)
+- [x] Removed `<span class="brand-title">Anihan SRMS</span>` from all dashboard navbars to declutter the UI.
+- [x] Standardized logo scaling across `.navbar-logo` in login and dashboard pages.
+- [x] Enlarged the logo (height set to `85px`) to maximize readability of "ANIHAN TECHNICAL SCHOOL".
+- [x] Applied negative vertical margins (`-22px`) to `.navbar-logo` to collapse its layout footprint, keeping the navbar height unchanged.
+- [x] Removed the restrictive inline `max-height: 40px` from `logs.html`.
+- [x] Removed unused `.brand-title` CSS block.
+- [x] `./gradlew build -x test` passes (all HTML/CSS changes verified).
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 

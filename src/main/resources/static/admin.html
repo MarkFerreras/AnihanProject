@@ -26,7 +26,6 @@
                 <a class="navbar-brand" href="admin.html">
                     <span class="brand-mark">
                         <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
-                        <span class="brand-title">Anihan SRMS</span>
                     </span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
@@ -60,12 +59,16 @@
                                     <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
                                     <p class="account-dropdown-role" id="accountDropdownRole">-</p>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li>
                                     <a class="dropdown-item" href="#" id="editAccountBtn" data-bs-toggle="modal"
                                         data-bs-target="#editAccountModal">Edit Account</a>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li>
                                     <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a>
                                 </li>
@@ -83,10 +86,9 @@
                 <div class="page-hero-grid">
                     <div>
                         <span class="page-eyebrow">Administration</span>
-                        <h1 class="page-title">Manage system users from one dashboard.</h1>
+                        <h1 class="page-title">Admin Dashboard</h1>
                         <p class="page-subtitle">
-                            Review account coverage across the system, open user details quickly, and move into the
-                            dedicated edit flow without leaving the admin workspace.
+                            Account creation, Edit accounts, Delete accounts, System logs.
                         </p>
                     </div>
                     <div class="hero-stats">
@@ -126,7 +128,8 @@
                     </div>
                 </div>
                 <div class="surface-card-body compact">
-                    <div class="alert alert-success alert-dismissible fade d-none" id="createdSuccessAlert" role="alert">
+                    <div class="alert alert-success alert-dismissible fade d-none" id="createdSuccessAlert"
+                        role="alert">
                         Account created successfully.
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -156,8 +159,8 @@
         </div>
     </footer>
 
-    <div class="modal fade detail-modal" id="userDetailsModal" tabindex="-1"
-        aria-labelledby="userDetailsModalLabel" aria-hidden="true">
+    <div class="modal fade detail-modal" id="userDetailsModal" tabindex="-1" aria-labelledby="userDetailsModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -209,8 +212,10 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger-surface me-auto" id="detailsDeleteBtn">Delete User</button>
-                    <button type="button" class="btn btn-reenable me-auto" id="detailsReEnableBtn" style="display:none;">Re-enable Account</button>
+                    <button type="button" class="btn btn-danger-surface me-auto" id="detailsDeleteBtn">Delete
+                        User</button>
+                    <button type="button" class="btn btn-reenable me-auto" id="detailsReEnableBtn"
+                        style="display:none;">Re-enable Account</button>
                     <a href="logs.html" class="btn btn-surface-secondary" id="detailsLogsLink">View Logs</a>
                     <a href="edit-user.html" class="btn btn-surface" id="detailsEditLink">Edit User</a>
                 </div>
@@ -230,15 +235,15 @@
                     <ul class="nav nav-tabs" id="editAccountTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="tab-personal" data-bs-toggle="tab"
-                                data-bs-target="#pane-personal" type="button" role="tab"
-                                aria-controls="pane-personal" aria-selected="true">
+                                data-bs-target="#pane-personal" type="button" role="tab" aria-controls="pane-personal"
+                                aria-selected="true">
                                 Personal Details
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="tab-account" data-bs-toggle="tab"
-                                data-bs-target="#pane-account" type="button" role="tab"
-                                aria-controls="pane-account" aria-selected="false">
+                                data-bs-target="#pane-account" type="button" role="tab" aria-controls="pane-account"
+                                aria-selected="false">
                                 Account Settings
                             </button>
                         </li>
@@ -251,8 +256,8 @@
                             <form id="personalDetailsForm">
                                 <div>
                                     <label for="lastName" class="form-label">Last Name</label>
-                                    <input type="text" class="form-control" id="lastName"
-                                        placeholder="Enter last name" autocomplete="family-name">
+                                    <input type="text" class="form-control" id="lastName" placeholder="Enter last name"
+                                        autocomplete="family-name">
                                 </div>
                                 <div class="mt-3">
                                     <label for="firstName" class="form-label">First Name</label>
@@ -280,8 +285,7 @@
                             </form>
                         </div>
 
-                        <div class="tab-pane fade" id="pane-account" role="tabpanel"
-                            aria-labelledby="tab-account">
+                        <div class="tab-pane fade" id="pane-account" role="tabpanel" aria-labelledby="tab-account">
                             <h6 class="section-title">Change Username</h6>
                             <div class="alert d-none" id="usernameChangeAlert" role="alert"></div>
                             <form id="usernameChangeForm">
@@ -311,13 +315,16 @@
                                 <div class="mb-3">
                                     <label for="changeNewPassword" class="form-label">New Password</label>
                                     <input type="password" class="form-control" id="changeNewPassword"
-                                        placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
-                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
+                                        placeholder="Enter new password" autocomplete="new-password" minlength="8"
+                                        required>
+                                    <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and
+                                        special character.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
                                     <input type="password" class="form-control" id="confirmNewPassword"
-                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8"
+                                        required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>
@@ -347,7 +354,8 @@
                         </button>
                     </div>
                     <div class="danger-zone">
-                        <p><strong>Danger Zone</strong> — This permanently removes the account and all associated data. This action cannot be undone.</p>
+                        <p><strong>Danger Zone</strong> — This permanently removes the account and all associated data.
+                            This action cannot be undone.</p>
                         <button type="button" class="btn btn-permanent-delete" id="confirmHardDeleteBtn">
                             Permanently Delete
                         </button>

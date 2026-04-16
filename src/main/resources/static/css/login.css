@@ -23,7 +23,8 @@
 }
 
 /* --- Global Layout --- */
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -56,9 +57,13 @@ body {
 }
 
 .navbar-logo {
-    height: 36px;
+    height: 85px;
     vertical-align: middle;
-    margin-right: 0.5rem;
+    margin-top: -22px;
+    margin-bottom: -22px;
+    margin-right: 1rem;
+    position: relative;
+    z-index: 1050;
 }
 
 .login-card-logo {

@@ -1,4 +1,25 @@
 # Change Log - Anihan SRMS
+## 2026-04-16 - Navbar Logo UI Standardization
+**Branch:** `ui-style/fix`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/admin.html` | Removed `.brand-title` span ("Anihan SRMS") from navbar |
+| `static/add-user.html` | Removed `.brand-title` span from navbar |
+| `static/edit-user.html` | Removed `.brand-title` span from navbar |
+| `static/logs.html` | Removed `.brand-title` span from navbar, removed inline `max-height` restriction from logo |
+| `static/student-records.html` | Removed `.brand-title` span from navbar |
+| `static/subjects.html` | Removed `.brand-title` span from navbar |
+| `static/css/login.css` | Enlarged `.navbar-logo` height to `85px` and applied `-22px` vertical margins to keep navbar size intact |
+| `static/css/dashboard.css` | Removed unused `.brand-title` CSS rules |
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (html/css changes verified)
+- Checked layouts for uniformity across all referenced HTML files.
+
+---
+
 ## 2026-04-14 - Account Icon Dropdown on All Admin Pages
 **Branch:** `feature/admin-system-logs`
 

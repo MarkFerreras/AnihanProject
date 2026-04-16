@@ -1,26 +1,20 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Add Account Feature — Complete, Verified**
+**UI Styling Adjustments — Complete, Verified**
 
 ## Active Branch
-`feature/add-account`
+`ui-style/fix`
 
 ## Status (April 16, 2026)
-All code implemented and verified. `./gradlew build -x test` passes. Browser testing confirmed — admin can create new user accounts. DataSeeder created, used, and deleted.
+All HTML and CSS modified. `./gradlew build -x test` passes. Navbars standardized across the system. 
+"ANIHAN SRMS" text has been removed, and the `navbar-logo` has been enlarged (height: 85px) using negative vertical margins to prevent the navbar container from growing.
 
 ### What Was Built
-- **Backend**: `AdminCreateUserRequest` DTO, `createUser()` in `AdminService`, `POST /api/admin/users` in `AdminController`
-- **Security**: `/add-user.html` restricted to ADMIN role in `SecurityConfig`
-- **Frontend**: `add-user.html` page with form-shell layout, `admin-add-user.js` for AJAX submission
-- **Dashboard**: "Add Account" button in admin.html surface-card-header, closeable success alert on redirect
-
-### Database Migrations Executed
-- `ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1`
-- `ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL`
-- `CREATE TABLE system_logs` (was missing from live DB)
+- **HTML Cleanup**: Removed `<span class="brand-title">Anihan SRMS</span>` from `admin.html`, `add-user.html`, `edit-user.html`, `logs.html`, `student-records.html`, and `subjects.html`. Removed `max-height` inline style restriction from `logs.html`.
+- **CSS Standardization**: Enlarged `.navbar-logo` height to `85px` and applied top/bottom negative margins (`-22px`) in `css/login.css`. This ensures the logo is clearly readable without disproportionately expanding the `login-navbar` element's height.
+- **CSS CleanUp**: Removed unused `.brand-title` class from `css/dashboard.css`.
 
 ## Verified
 - `./gradlew build -x test` → BUILD SUCCESSFUL
-- Browser: admin login, create user, success alert, DataTable refresh — all working
-- Seeded accounts (admin, registrar, trainer) remain functional in database
+- No remaining "Anihan SRMS" spans in dashboard navbar code.
