@@ -144,6 +144,14 @@
 - [x] Removed unused `.brand-title` CSS block.
 - [x] `./gradlew build -x test` passes (all HTML/CSS changes verified).
 
+## Unit Test Coverage Expansion (Completed — April 17, 2026)
+- [x] Created `AccountServiceTest.java` — 10 unit tests covering `updateUsername`, `updatePassword`, `updatePersonalDetails`
+- [x] Created `SystemLogServiceTest.java` — 4 unit tests covering `logAction`, `getAllLogs`
+- [x] Created `AccountControllerWebMvcTest.java` — 7 WebMvc tests for `/api/account/**` endpoints
+- [x] Created `SystemLogControllerWebMvcTest.java` — 5 WebMvc tests for `/api/logs` endpoint
+- [x] All tests follow established patterns (Mockito + `@ExtendWith(MockitoExtension.class)` for services, `@WebMvcTest` + `@Import(SecurityConfig.class)` for controllers)
+- [x] `./gradlew test` → BUILD SUCCESSFUL (all tests green across all modules)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 

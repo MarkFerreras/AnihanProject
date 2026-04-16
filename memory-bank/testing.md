@@ -40,6 +40,46 @@
 - [x] `./gradlew test` -> BUILD SUCCESSFUL
 - [x] `./gradlew build` -> BUILD SUCCESSFUL
 
+## Account Module - Automated Tests (April 17, 2026)
+### AccountServiceTest (10 tests)
+- [x] `updateUsername` succeeds with valid input
+- [x] `updateUsername` throws when user not found
+- [x] `updateUsername` throws when password is incorrect
+- [x] `updateUsername` throws when new username is same as current
+- [x] `updateUsername` throws when username is already taken
+- [x] `updatePassword` succeeds with valid input
+- [x] `updatePassword` throws when user not found
+- [x] `updatePassword` throws when current password is incorrect
+- [x] `updatePassword` throws when new passwords do not match
+- [x] `updatePassword` throws when new password same as current
+- [x] `updatePersonalDetails` succeeds with valid input
+- [x] `updatePersonalDetails` throws when user not found
+
+### AccountControllerWebMvcTest (7 tests)
+- [x] PUT `/api/account/profile` (valid) -> 200 + username updated
+- [x] PUT `/api/account/profile` (blank username) -> 400 validation error
+- [x] PUT `/api/account/profile` (wrong password) -> 400 "Current password is incorrect"
+- [x] PUT `/api/account/profile` (unauthenticated) -> 401
+- [x] PUT `/api/account/password` (valid) -> 200 + session invalidated
+- [x] PUT `/api/account/password` (weak password) -> 400 validation error
+- [x] PUT `/api/account/password` (unauthenticated) -> 401
+- [x] PUT `/api/account/details` (valid) -> 200 + details returned
+- [x] PUT `/api/account/details` (unauthenticated) -> 401
+
+## SystemLog Module - Automated Tests (April 17, 2026)
+### SystemLogServiceTest (4 tests)
+- [x] `logAction` saves system log with all fields
+- [x] `logAction` handles null userId gracefully
+- [x] `getAllLogs` returns mapped SystemLogResponse list
+- [x] `getAllLogs` returns empty list when no logs exist
+
+### SystemLogControllerWebMvcTest (5 tests)
+- [x] GET `/api/logs` as ADMIN -> 200 with log entries
+- [x] GET `/api/logs` as ADMIN (empty) -> 200 with empty array
+- [x] GET `/api/logs` as REGISTRAR -> 403
+- [x] GET `/api/logs` as TRAINER -> 403
+- [x] GET `/api/logs` (unauthenticated) -> 401
+
 ## Commit-Safety Recheck
 - [x] `git diff --check` -> no tracked whitespace or conflict-marker errors
 - [x] `rg -n "^(<<<<<<<|=======|>>>>>>>)" -S .` -> no unresolved merge markers in the workspace
