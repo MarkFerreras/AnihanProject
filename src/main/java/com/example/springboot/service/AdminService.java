@@ -2,6 +2,7 @@ package com.example.springboot.service;
 
 import java.time.LocalDateTime;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.springboot.dto.AdminCreateUserRequest;
 import com.example.springboot.dto.AdminUpdateUserRequest;
 import com.example.springboot.dto.AdminUserResponse;
 import com.example.springboot.model.User;
@@ -25,6 +27,45 @@ public class AdminService {
     public AdminService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    /**
+     * Creates a new user account. Applies defaults for optional fields.
+     */
+    @Transactional
+    public AdminUserResponse createUser(AdminCreateUserRequest request) {
+        // Check for duplicate username
+        if (userRepository.existsByUsername(request.username().trim())) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
+
+        // Derive effective email
+        String email = (request.email() != null && !request.email().isBlank())
+                ? request.email().trim()
+                : "user@anihan.local";
+
+        // Check for duplicate email
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email is already taken by another account");
+        }
+
+        User user = new User();
+        user.setUsername(request.username().trim());
+        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setRole(request.role().trim());
+        user.setLastName(request.lastName() != null && !request.lastName().isBlank()
+                ? request.lastName().trim() : "User");
+        user.setFirstName(request.firstName() != null && !request.firstName().isBlank()
+                ? request.firstName().trim() : "New");
+        user.setMiddleName(request.middleName() != null && !request.middleName().isBlank()
+                ? request.middleName().trim() : "N/A");
+        user.setEmail(email);
+        user.setBirthdate(request.birthdate() != null
+                ? request.birthdate() : LocalDate.of(2000, 1, 1));
+        user.setAge(request.age() != null ? request.age() : 25);
+        user.setEnabled(true);
+
+        return AdminUserResponse.from(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)

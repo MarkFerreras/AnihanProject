@@ -252,6 +252,18 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Show success alert if redirected from add-user page
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('created') === 'true') {
+            var alertEl = document.getElementById('createdSuccessAlert');
+            if (alertEl) {
+                alertEl.classList.remove('d-none');
+                alertEl.classList.add('show');
+            }
+            // Clean the URL without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         const tableElement = document.getElementById('usersTable');
         if (!tableElement || !window.jQuery || !window.bootstrap) {
             return;

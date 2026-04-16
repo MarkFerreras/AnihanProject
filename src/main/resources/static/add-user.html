@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS admin dashboard">
-    <title>Admin Dashboard - Anihan SRMS</title>
+    <meta name="description" content="Anihan SRMS admin create user">
+    <title>Add User - Admin</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
@@ -36,7 +35,7 @@
                 <div class="collapse navbar-collapse" id="adminNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page" href="admin.html">Home</a>
+                            <a class="nav-link admin-nav-link" href="admin.html">Home</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="student-records.html">Student Records</a>
@@ -82,34 +81,21 @@
             <section class="page-hero">
                 <div class="page-hero-grid">
                     <div>
-                        <span class="page-eyebrow">Administration</span>
-                        <h1 class="page-title">Manage system users from one dashboard.</h1>
+                        <span class="page-eyebrow">New Account</span>
+                        <h1 class="page-title">Create a new user account for the system.</h1>
                         <p class="page-subtitle">
-                            Review account coverage across the system, open user details quickly, and move into the
-                            dedicated edit flow without leaving the admin workspace.
+                            Set the required credentials and role. Personal details can be filled in now
+                            or edited later by the admin or the user themselves.
                         </p>
                     </div>
-                    <div class="hero-stats">
-                        <article class="stat-card">
-                            <span class="stat-label">Total Users</span>
-                            <span class="stat-value" id="totalUsersStat">0</span>
-                            <span class="stat-caption">All active accounts in the SRMS.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Admins</span>
-                            <span class="stat-value" id="adminUsersStat">0</span>
-                            <span class="stat-caption">Users with full administrative access.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Registrars</span>
-                            <span class="stat-value" id="registrarUsersStat">0</span>
-                            <span class="stat-caption">Staff assigned to records administration.</span>
-                        </article>
-                        <article class="stat-card">
-                            <span class="stat-label">Trainers</span>
-                            <span class="stat-value" id="trainerUsersStat">0</span>
-                            <span class="stat-caption">Accounts tied to training and grading work.</span>
-                        </article>
+                    <div class="form-note">
+                        <h3>Creation Notes</h3>
+                        <p>Only a username, password, and role are required. Everything else has a safe default.</p>
+                        <ul>
+                            <li>Username must not contain spaces.</li>
+                            <li>Password requires a minimum of 8 characters.</li>
+                            <li>Personal details can be updated after the account is created.</li>
+                        </ul>
                     </div>
                 </div>
             </section>
@@ -117,34 +103,95 @@
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>User Directory</h2>
-                        <p>Browse system accounts, inspect their profile details, and continue into admin editing.</p>
-                    </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-surface-secondary" href="logs.html">View Audit Placeholders</a>
-                        <a class="btn btn-surface" href="add-user.html" id="addAccountBtn">Add Account</a>
+                        <h2>New User Form</h2>
+                        <p>Fill in the account credentials and optionally customize the personal details.</p>
                     </div>
                 </div>
-                <div class="surface-card-body compact">
-                    <div class="alert alert-success alert-dismissible fade d-none" id="createdSuccessAlert" role="alert">
-                        Account created successfully.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    <div class="table-responsive">
-                        <table id="usersTable" class="table admin-table align-middle mb-0 w-100">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">User ID</th>
-                                    <th scope="col">Role</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col" class="text-end">Details</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                <div class="surface-card-body">
+                    <form id="addUserForm" class="form-shell" novalidate>
+                        <section class="form-panel">
+
+                            <div class="mb-3">
+                                <label for="addUsername" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="addUsername"
+                                    pattern="^\S+$" title="Username must not contain spaces"
+                                    autocomplete="username" required>
+                                <div class="form-text">Required. No spaces allowed.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="addPassword" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="addPassword" minlength="8"
+                                    autocomplete="new-password" required>
+                                <div class="form-text">Required. Minimum 8 characters.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="addRole" class="form-label">Role</label>
+                                <select class="form-select" id="addRole" required>
+                                    <option value="ROLE_ADMIN">Admin</option>
+                                    <option value="ROLE_REGISTRAR" selected>Registrar</option>
+                                    <option value="ROLE_TRAINER">Trainer</option>
+                                </select>
+                            </div>
+
+                            <hr>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="addLastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="addLastName" value="User">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="addFirstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="addFirstName" value="New">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="addMiddleName" class="form-label">Middle Name</label>
+                                <input type="text" class="form-control" id="addMiddleName" value="N/A">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="addEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="addEmail" value="user@anihan.local">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="addAge" class="form-label">Age</label>
+                                    <input type="number" class="form-control" id="addAge" min="1" max="150" value="25">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="addBirthdate" class="form-label">Birthdate</label>
+                                    <input type="date" class="form-control" id="addBirthdate" value="2000-01-01">
+                                </div>
+                            </div>
+
+                            <div class="alert d-none" id="addUserError" role="alert"></div>
+                            <div class="alert d-none" id="addUserSuccess" role="alert"></div>
+
+                            <div class="d-flex gap-3 flex-wrap pt-2">
+                                <a class="btn btn-surface-secondary" href="admin.html" id="cancelAddLink">Cancel</a>
+                                <button type="submit" class="btn btn-surface" id="createAccountButton">Create Account</button>
+                            </div>
+                        </section>
+
+                        <aside class="form-note">
+                            <h3>Account Defaults</h3>
+                            <p>If left unchanged, the following defaults are applied:</p>
+                            <ul>
+                                <li><strong>Last Name:</strong> User</li>
+                                <li><strong>First Name:</strong> New</li>
+                                <li><strong>Middle Name:</strong> N/A</li>
+                                <li><strong>Email:</strong> user@anihan.local</li>
+                                <li><strong>Birthdate:</strong> 2000-01-01</li>
+                                <li><strong>Age:</strong> 25</li>
+                            </ul>
+                            <p>The user or an admin can update these details at any time after creation.</p>
+                        </aside>
+                    </form>
                 </div>
             </section>
         </div>
@@ -155,68 +202,6 @@
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
-
-    <div class="modal fade detail-modal" id="userDetailsModal" tabindex="-1"
-        aria-labelledby="userDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="userDetailsModalLabel">User Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="detail-grid">
-                        <article class="detail-card">
-                            <span class="detail-label">User ID</span>
-                            <p class="detail-value" id="detailsUserId">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Username</span>
-                            <p class="detail-value" id="detailsUsername">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Email</span>
-                            <p class="detail-value" id="detailsEmail">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Role</span>
-                            <p class="detail-value" id="detailsRole">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Last Name</span>
-                            <p class="detail-value" id="detailsLastName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">First Name</span>
-                            <p class="detail-value" id="detailsFirstName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Middle Name</span>
-                            <p class="detail-value" id="detailsMiddleName">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Age</span>
-                            <p class="detail-value" id="detailsAge">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Birthdate</span>
-                            <p class="detail-value" id="detailsBirthdate">-</p>
-                        </article>
-                        <article class="detail-card">
-                            <span class="detail-label">Password Last Changed</span>
-                            <p class="detail-value" id="detailsPasswordChanged">-</p>
-                        </article>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger-surface me-auto" id="detailsDeleteBtn">Delete User</button>
-                    <button type="button" class="btn btn-reenable me-auto" id="detailsReEnableBtn" style="display:none;">Re-enable Account</button>
-                    <a href="logs.html" class="btn btn-surface-secondary" id="detailsLogsLink">View Logs</a>
-                    <a href="edit-user.html" class="btn btn-surface" id="detailsEditLink">Edit User</a>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
         aria-labelledby="editAccountModalLabel" aria-hidden="true">
@@ -243,7 +228,6 @@
                             </button>
                         </li>
                     </ul>
-
                     <div class="tab-content" id="editAccountTabContent">
                         <div class="tab-pane fade show active" id="pane-personal" role="tabpanel"
                             aria-labelledby="tab-personal">
@@ -275,13 +259,10 @@
                                         <input type="date" class="form-control" id="birthdate">
                                     </div>
                                 </div>
-
                                 <button type="submit" class="btn btn-save mt-3">Save Details</button>
                             </form>
                         </div>
-
-                        <div class="tab-pane fade" id="pane-account" role="tabpanel"
-                            aria-labelledby="tab-account">
+                        <div class="tab-pane fade" id="pane-account" role="tabpanel" aria-labelledby="tab-account">
                             <h6 class="section-title">Change Username</h6>
                             <div class="alert d-none" id="usernameChangeAlert" role="alert"></div>
                             <form id="usernameChangeForm">
@@ -297,9 +278,7 @@
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Username</button>
                             </form>
-
                             <hr>
-
                             <h6 class="section-title">Change Password</h6>
                             <div class="alert d-none" id="passwordChangeAlert" role="alert"></div>
                             <form id="passwordChangeForm">
@@ -328,41 +307,10 @@
         </div>
     </div>
 
-    <div class="modal fade delete-confirm-modal" id="deleteConfirmModal" tabindex="-1"
-        aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteConfirmModalLabel">Delete User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="warning-text">
-                        You are about to remove <strong id="deleteUserName">this user</strong> from the system.
-                        Please choose an action:
-                    </p>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-deactivate" id="confirmSoftDeleteBtn">
-                            Deactivate Account
-                        </button>
-                    </div>
-                    <div class="danger-zone">
-                        <p><strong>Danger Zone</strong> — This permanently removes the account and all associated data. This action cannot be undone.</p>
-                        <button type="button" class="btn btn-permanent-delete" id="confirmHardDeleteBtn">
-                            Permanently Delete
-                        </button>
-                    </div>
-                    <div class="alert d-none mt-3" id="deleteResultAlert" role="alert"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
-    <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/admin-users.js"></script>
+    <script src="js/admin-add-user.js"></script>
 </body>
 
 </html>
