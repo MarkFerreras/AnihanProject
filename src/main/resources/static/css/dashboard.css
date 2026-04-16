@@ -31,12 +31,7 @@ body.dashboard-page {
     gap: 0.75rem;
 }
 
-.brand-title {
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
+
 
 .portal-label {
     color: var(--color-white);
