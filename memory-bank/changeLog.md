@@ -1,4 +1,21 @@
 # Change Log - Anihan SRMS
+## 2026-04-17 - Unit Test Coverage Expansion
+**Branch:** `feature/unit-tests-coverage`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `test/service/AccountServiceTest.java` | 10 unit tests for `updateUsername`, `updatePassword`, `updatePersonalDetails` |
+| `test/service/SystemLogServiceTest.java` | 4 unit tests for `logAction`, `getAllLogs` |
+| `test/controller/AccountControllerWebMvcTest.java` | 7 WebMvc tests for `/api/account/**` endpoints |
+| `test/controller/SystemLogControllerWebMvcTest.java` | 5 WebMvc tests for `/api/logs` endpoint |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL (all tests green)
+- Total test coverage now spans: Admin, Account, SystemLog modules
+
+---
+
 ## 2026-04-16 - Navbar Logo UI Standardization
 **Branch:** `ui-style/fix`
 
