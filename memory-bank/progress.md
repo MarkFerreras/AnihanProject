@@ -144,6 +144,14 @@
 - [x] Removed unused `.brand-title` CSS block.
 - [x] `./gradlew build -x test` passes (all HTML/CSS changes verified).
 
+## Admin Navbar Cleanup (Completed — April 17, 2026)
+- [x] Removed "Student Records" and "Subjects" nav links from `admin.html`, `edit-user.html`, `add-user.html`, `logs.html`
+- [x] Admin navbar now shows: **Home | Logs**
+- [x] `student-records.html` and `subjects.html` pages preserved (NOT deleted) for future use
+- [x] ⚠️ `student-records.html` and `subjects.html` internal navbars intentionally NOT updated — must be synced when re-adding
+- [x] Updated `systemPatterns.md` with current navbar pattern and stale navbar warning
+- [x] No CSS changes required — purely HTML `<li>` removal
+
 ## Unit Test Coverage Expansion (Completed — April 17, 2026)
 - [x] Created `AccountServiceTest.java` — 10 unit tests covering `updateUsername`, `updatePassword`, `updatePersonalDetails`
 - [x] Created `SystemLogServiceTest.java` — 4 unit tests covering `logAction`, `getAllLogs`

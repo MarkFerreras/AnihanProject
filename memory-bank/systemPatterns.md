@@ -35,4 +35,10 @@ Every admin page **must** include:
 5. **Edit Account modal** (`#editAccountModal`) — tabbed (Personal Details + Account Settings) with username change, password change forms
 6. `js/auth-guard.js` — session protection + account dropdown logic
 7. `js/jquery-4.0.0.min.js` — required for auth-guard.js and AJAX
-8. Nav links: Home | Student Records | Subjects | Logs — with `active` class on current page
+8. Nav links: **Home | Logs** — with `active` class on current page
+
+> **⚠️ CRITICAL WARNING — STALE NAVBARS:**
+> `student-records.html` and `subjects.html` still contain the OLD 4-link navbar (Home | Student Records | Subjects | Logs).
+> These pages were intentionally left unchanged when Student Records and Subjects were removed from the active admin navbar.
+> **Before re-adding these pages to the admin navbar, you MUST update their internal navbars to match the current pattern above.**
+> Failure to do so will create an inconsistent navigation experience across admin pages.
