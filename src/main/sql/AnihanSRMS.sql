@@ -170,13 +170,13 @@ CREATE TABLE IF NOT EXISTS log(
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
-    log_id      INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    user_id     INT NULL,
-    username    VARCHAR(255) NOT NULL,
-    role        VARCHAR(15) NOT NULL,
-    action      VARCHAR(500) NOT NULL,
-    ip_address  VARCHAR(45) NULL,
-    timestamp   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    log_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NULL,
+    username VARCHAR(255) NOT NULL,
+    role VARCHAR(15) NOT NULL,
+    action VARCHAR(500) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_system_logs_timestamp (timestamp DESC)
 );
 

@@ -144,6 +144,14 @@
 - [x] Removed unused `.brand-title` CSS block.
 - [x] `./gradlew build -x test` passes (all HTML/CSS changes verified).
 
+## Admin Navbar Cleanup (Completed — April 17, 2026)
+- [x] Removed "Student Records" and "Subjects" nav links from `admin.html`, `edit-user.html`, `add-user.html`, `logs.html`
+- [x] Admin navbar now shows: **Home | Logs**
+- [x] `student-records.html` and `subjects.html` pages preserved (NOT deleted) for future use
+- [x] ⚠️ `student-records.html` and `subjects.html` internal navbars intentionally NOT updated — must be synced when re-adding
+- [x] Updated `systemPatterns.md` with current navbar pattern and stale navbar warning
+- [x] No CSS changes required — purely HTML `<li>` removal
+
 ## Unit Test Coverage Expansion (Completed — April 17, 2026)
 - [x] Created `AccountServiceTest.java` — 10 unit tests covering `updateUsername`, `updatePassword`, `updatePersonalDetails`
 - [x] Created `SystemLogServiceTest.java` — 4 unit tests covering `logAction`, `getAllLogs`
@@ -151,6 +159,14 @@
 - [x] Created `SystemLogControllerWebMvcTest.java` — 5 WebMvc tests for `/api/logs` endpoint
 - [x] All tests follow established patterns (Mockito + `@ExtendWith(MockitoExtension.class)` for services, `@WebMvcTest` + `@Import(SecurityConfig.class)` for controllers)
 - [x] `./gradlew test` → BUILD SUCCESSFUL (all tests green across all modules)
+
+## Admin Bulk Load Tests (Completed — April 18, 2026)
+- [x] Created `AdminBulkLoadTest.java` — 3 unit tests verifying `AdminService.getAllUsers()` handles 100 users (count, DTO mapping, performance)
+- [x] Created `AdminBulkLoadWebMvcTest.java` — 2 WebMvc tests verifying `GET /api/admin/users` serializes 100 users as JSON
+- [x] All 100 test users generated programmatically in-memory via Mockito — no database touched, no hard-coded dummy data
+- [x] Performance: service layer 0.008s, HTTP layer 0.663s — well within 5-second non-functional requirement
+- [x] No existing test files modified, no new dependencies added
+- [x] `./gradlew test` → BUILD SUCCESSFUL (42 tests, all green)
 
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements

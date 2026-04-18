@@ -1,4 +1,89 @@
 # Change Log - Anihan SRMS
+## 2026-04-18 - Admin Bulk Load Tests (100 Users)
+**Branch:** `feature/unit-tests-coverage`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `test/service/AdminBulkLoadTest.java` | 3 unit tests verifying `AdminService.getAllUsers()` handles 100 users (count, DTO mapping, performance) |
+| `test/controller/AdminBulkLoadWebMvcTest.java` | 2 WebMvc tests verifying `GET /api/admin/users` serializes 100 users as JSON with correct content and timing |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `memory-bank/testing.md` | Added "Admin Users Table — Bulk Load Tests" section with detailed results |
+| `memory-bank/progress.md` | Added "Admin Bulk Load Tests" completed section |
+| `memory-bank/activeContext.md` | Updated current phase and status for April 18 session |
+
+### Not Modified (Intentional)
+| File | Reason |
+|---|---|
+| `test/service/AdminServiceTest.java` | Existing tests preserved — bulk tests placed in a separate file |
+| `test/controller/AdminControllerWebMvcTest.java` | Existing tests preserved — bulk tests placed in a separate file |
+| `build.gradle.kts` | No new dependencies needed — bulk tests use only existing JUnit 5, Mockito, Spring Test |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL (42 tests, 0 failures, 12.897s total)
+- AdminBulkLoadTest: 3/3 passed in 0.008s
+- AdminBulkLoadWebMvcTest: 2/2 passed in 0.663s
+- Both well within 5-second non-functional requirement
+
+---
+
+## 2026-04-17 - Admin Navbar Cleanup (Student Records & Subjects Removed)
+**Branch:** `feature/unit-tests-coverage`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/admin.html` | Removed "Student Records" and "Subjects" `<li>` nav items from navbar |
+| `static/edit-user.html` | Same — removed "Student Records" and "Subjects" nav items |
+| `static/add-user.html` | Same — removed "Student Records" and "Subjects" nav items |
+| `static/logs.html` | Same — removed "Student Records" and "Subjects" nav items |
+| `memory-bank/systemPatterns.md` | Updated nav links pattern to "Home | Logs", added stale navbar warning |
+| `memory-bank/activeContext.md` | Recorded navbar cleanup and stale navbar warning |
+
+### Not Modified (Intentional)
+| File | Reason |
+|---|---|
+| `static/student-records.html` | Page kept for future use — internal navbar NOT updated (still has old 4-link nav) |
+| `static/subjects.html` | Page kept for future use — internal navbar NOT updated (still has old 4-link nav) |
+
+### Verification
+- Admin navbar now shows: **Home | Logs** across all active admin pages
+- No CSS changes needed — nav items are standard Bootstrap `<li>` elements
+- `student-records.html` and `subjects.html` remain accessible via direct URL and `SecurityConfig.java` route protection
+
+---
+
+## 2026-04-17 - Database Migration Fix & SQL Cleanup
+**Branch:** `feature/unit-tests-coverage`
+
+### Database Migrations Applied (Docker `mysql-server` container)
+| Statement | Purpose |
+|---|---|
+| `ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1;` | Adds soft-delete support column expected by `User.java` and `CustomUserDetailsService.java` |
+| `ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL;` | Adds password tracking column expected by `User.java` and `AdminUserResponse.java` |
+| `CREATE TABLE IF NOT EXISTS system_logs (...)` | Creates audit log table expected by `SystemLogService.java` and `AuthController.java` |
+
+### SQL File Cleanup — `AnihanSRMS.sql`
+| Change | Description |
+|---|---|
+| Removed dangling `ALTER TABLE users ADD COLUMN ...` block (lines 40–49) | Leftover merge-conflict artifact that would error on fresh import |
+| Removed bare `main` text (line 53) | Git merge conflict remnant |
+| Removed stray closing `)` near EOF | Syntax error from merge conflict |
+| Commented out inline `ALTER TABLE student_records` | Converted to comment to prevent accidental execution |
+
+### Root Cause
+The Docker MySQL database had been recreated or reverted since the last session where these migrations were applied. The seeded accounts existed but the schema was outdated, causing Hibernate SQL errors on login.
+
+### Verification
+- `DESCRIBE AnihanSRMS.users` → 12 columns including `enabled` and `password_changed_at`
+- `DESCRIBE AnihanSRMS.system_logs` → 7 columns with timestamp index
+- All 3 existing accounts (`Ado`, `registrar`, `trainer`) preserved with `enabled=1`
+
+---
+
 ## 2026-04-17 - Unit Test Coverage Expansion
 **Branch:** `feature/unit-tests-coverage`
 

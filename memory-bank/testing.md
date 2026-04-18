@@ -117,3 +117,30 @@
 - [ ] Edit User page loads existing user details and saves successfully
 - [ ] `student-records.html`, `subjects.html`, and `logs.html` share the same admin shell and theme
 - [ ] Merged admin pages render correctly on mobile widths
+
+## Admin Users Table — Bulk Load Tests (April 18, 2026)
+Tests verify that the Admin "View All Users" table can handle 100 users simultaneously.
+Created in **new standalone files** — no existing test files were modified.
+
+### AdminBulkLoadTest (3 tests) — `service/AdminBulkLoadTest.java`
+- [x] `getAllUsersReturnsOneHundredUsers` — mocks 100 `User` entities, verifies `AdminService.getAllUsers()` returns exactly 100 DTOs with correct first/last usernames
+- [x] `getAllUsersMapsAllDtoFieldsCorrectly` — spot-checks 5 entries (indices 0, 25, 50, 75, 99) for correct userId, username, email, lastName, firstName, middleName, age, enabled fields
+- [x] `getAllUsersCompletesWithinPerformanceBound` — verifies 100-user retrieval completes in < 5 seconds (actual: **0.008s**)
+
+### AdminBulkLoadWebMvcTest (2 tests) — `controller/AdminBulkLoadWebMvcTest.java`
+- [x] `getUsersReturnsOneHundredUsersAsJson` — mocks 100 DTOs, performs `GET /api/admin/users`, verifies HTTP 200, JSON array length = 100, correct username fields, password field absent
+- [x] `getUsersOneHundredCompletesWithinPerformanceBound` — same endpoint timed, verifies < 5 seconds (actual: **0.663s**)
+
+### Test Results Summary
+| Test Class | Tests | Failures | Skipped | Duration | Success Rate |
+|---|---|---|---|---|---|
+| AdminBulkLoadTest | 3 | 0 | 0 | 0.008s | 100% |
+| AdminBulkLoadWebMvcTest | 2 | 0 | 0 | 0.663s | 100% |
+| **Full Suite (42 tests)** | **42** | **0** | **0** | **12.897s** | **100%** |
+
+### Environment
+- All 100 test users generated programmatically in a loop — no hard-coded dummy users
+- All data exists only in JVM memory via Mockito mocks — no database touched
+- No existing test files were modified
+- No new dependencies added — uses only JUnit 5, Mockito, Spring Test (already in `build.gradle.kts`)
+
