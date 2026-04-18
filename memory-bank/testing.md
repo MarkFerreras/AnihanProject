@@ -177,4 +177,28 @@ Tests verify the new server-side date filtering for Admin System Logs.
 | SystemLogControllerWebMvcTest | 9 | 0 | 0 | 100% |
 | **Full Suite** | **52** | **0** | **0** | **100%** |
 
+## SystemLog Export - Automated Tests (April 18, 2026)
+Tests verify backend export generation and the new download endpoint.
+
+### SystemLogExportServiceTest (3 tests) - `service/SystemLogExportServiceTest.java`
+- [x] `exportCsvIncludesSummaryAndHeaders` - verifies summary rows, table headers, filename, and CSV escaping for action text
+- [x] `exportXlsxIncludesSummaryAndTableData` - verifies workbook title, selected range summary, headers, and mapped row values
+- [x] `exportDocxIncludesSummaryAndTableData` - verifies document title, selected range paragraph, table headers, and mapped row values
+
+### SystemLogControllerWebMvcTest (17 tests total) - `controller/SystemLogControllerWebMvcTest.java`
+- [x] Existing `GET /api/logs` filter tests remain green
+- [x] `exportLogsDefaultsToSevenDaysCsv` - no filter params + `format=csv` -> 200 with attachment response
+- [x] `exportLogsWithRangeDays14AsXlsx` - preset range export -> 200 with XLSX content type
+- [x] `exportLogsWithCustomDateRangeAsDocx` - custom inclusive date range export -> 200 with DOCX content type
+- [x] `exportLogsInvalidFormatReturns400` - unsupported format -> 400
+- [x] `exportLogsInvalidRangeReturns400` - invalid date range -> 400
+- [x] `exportLogsRejectNonAdminUser` - REGISTRAR -> 403
+- [x] `exportLogsRejectTrainerUser` - TRAINER -> 403
+- [x] `exportLogsRejectUnauthenticatedUser` - unauthenticated -> 401
+
+### Full Suite Verification
+- [x] `./gradlew test` -> BUILD SUCCESSFUL
+- [x] 63 tests, 0 failures, 0 skipped
+- [x] `git diff --check` -> no tracked whitespace or conflict-marker errors
+
 

@@ -130,6 +130,13 @@
             box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
         }
 
+        .logs-filter-section {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
         .logs-filter-presets {
             display: flex;
             gap: 0.4rem;
@@ -179,7 +186,8 @@
             font-weight: 600;
         }
 
-        .logs-filter-custom .form-control-sm {
+        .logs-filter-custom .form-control-sm,
+        .logs-export-controls .form-select-sm {
             width: 140px;
             border-radius: 0.5rem;
             font-size: 0.84rem;
@@ -219,9 +227,44 @@
             border-color: rgba(108, 117, 125, 0.4);
         }
 
+        .logs-export-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-export-logs {
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+            border: none;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 0.38rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-export-logs:hover {
+            box-shadow: 0 2px 10px rgba(13, 110, 253, 0.24);
+        }
+
+        .btn-export-logs:disabled {
+            cursor: wait;
+            opacity: 0.75;
+        }
+
         .logs-filter-feedback {
             font-size: 0.8rem;
             color: #dc3545;
+            font-weight: 600;
+            display: none;
+        }
+
+        .logs-export-feedback {
+            font-size: 0.8rem;
+            color: #0d6efd;
             font-weight: 600;
             display: none;
         }
@@ -234,7 +277,8 @@
             .logs-filter-divider {
                 display: none;
             }
-            .logs-filter-custom .form-control-sm {
+            .logs-filter-custom .form-control-sm,
+            .logs-export-controls .form-select-sm {
                 width: 100%;
             }
         }
@@ -327,21 +371,36 @@
 
         <!-- Date Range Filter -->
         <div class="logs-filter-bar">
-            <div class="logs-filter-presets">
-                <button class="btn btn-filter-preset active" data-range="7" id="filterBtn7">7 Days</button>
-                <button class="btn btn-filter-preset" data-range="14" id="filterBtn14">14 Days</button>
-                <button class="btn btn-filter-preset" data-range="30" id="filterBtn30">30 Days</button>
+            <div class="logs-filter-section">
+                <span class="filter-label">Quick Range</span>
+                <div class="logs-filter-presets">
+                    <button class="btn btn-filter-preset active" data-range="7" id="filterBtn7">7 Days</button>
+                    <button class="btn btn-filter-preset" data-range="14" id="filterBtn14">14 Days</button>
+                    <button class="btn btn-filter-preset" data-range="30" id="filterBtn30">30 Days</button>
+                </div>
             </div>
             <div class="logs-filter-divider"></div>
-            <div class="logs-filter-custom">
+            <div class="logs-filter-section logs-filter-custom">
+                <span class="filter-label">Exact Dates</span>
                 <label for="filterFrom" class="filter-label">From</label>
                 <input type="date" class="form-control form-control-sm" id="filterFrom">
                 <label for="filterTo" class="filter-label">To</label>
                 <input type="date" class="form-control form-control-sm" id="filterTo">
                 <button class="btn btn-filter-apply" id="filterApplyBtn">Apply</button>
+            </div>
+            <div class="logs-filter-divider"></div>
+            <div class="logs-export-controls">
+                <label for="exportFormat" class="filter-label">Export</label>
+                <select class="form-select form-select-sm" id="exportFormat">
+                    <option value="csv" selected>CSV (.csv)</option>
+                    <option value="xlsx">Excel (.xlsx)</option>
+                    <option value="docx">Word (.docx)</option>
+                </select>
+                <button class="btn btn-export-logs" id="exportLogsBtn">Export</button>
                 <button class="btn btn-filter-reset" id="filterResetBtn" title="Reset to default (7 days)">Reset</button>
             </div>
             <span class="logs-filter-feedback" id="filterFeedback"></span>
+            <span class="logs-export-feedback" id="exportFeedback"></span>
         </div>
 
         <!-- Error Alert -->

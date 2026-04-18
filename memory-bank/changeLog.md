@@ -1,4 +1,36 @@
 # Change Log - Anihan SRMS
+## 2026-04-18 - System Logs Export UI Cleanup
+**Branch:** `feature/export-logs`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `service/SystemLogExportFormat.java` | Enum for supported export formats and media types |
+| `service/SystemLogExportFile.java` | Record carrying exported bytes, media type, and filename |
+| `service/SystemLogQueryResult.java` | Shared filtered log payload with resolved date window |
+| `service/SystemLogExportService.java` | Generates CSV, XLSX, and DOCX exports |
+| `test/service/SystemLogExportServiceTest.java` | Verifies export file generation for all supported formats |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `build.gradle.kts` | Added Apache POI dependency for XLSX and DOCX generation |
+| `service/SystemLogService.java` | Added `queryLogs()` so page rendering and export share the same resolved filter window |
+| `controller/SystemLogController.java` | Added `GET /api/logs/export` with attachment response handling |
+| `static/logs.html` | Removed redundant extra date-selection controls and kept the export toolbar |
+| `static/js/system-logs.js` | Reworked filter state handling so presets, exact dates, and export share one flow |
+| `test/controller/SystemLogControllerWebMvcTest.java` | Added export endpoint success, validation, and security coverage |
+| `memory-bank/activeContext.md` | Corrected active branch and recorded the export enhancement |
+| `memory-bank/progress.md` | Added completed export cleanup work |
+| `memory-bank/testing.md` | Added export-related automated verification results |
+| `memory-bank/decisions.md` | Added API-contract and server-side export decisions |
+| `memory-bank/changeLog.md` | This entry |
+
+### Verification
+- `./gradlew test` -> BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
+- `git diff --check` -> no tracked whitespace or conflict-marker errors
+- Logs page now exports the selected range as `.csv`, `.xlsx`, or `.docx`
+
 ## 2026-04-18 - System Logs Date Filtering Enhancement
 **Branch:** `feature/logs-date-filter`
 

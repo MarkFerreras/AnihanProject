@@ -1,7 +1,7 @@
 /**
  * system-logs.js
- * Fetches system logs from GET /api/logs and renders them in a DataTables 2 table.
- * Supports server-side date filtering with preset day ranges and custom date ranges.
+ * Fetches system logs from GET /api/logs, supports preset and exact-date filtering,
+ * and exports the currently selected range through GET /api/logs/export.
  * Admin-only — page is protected by auth-guard.js and SecurityConfig.
  */
 $(document).ready(function () {
@@ -13,42 +13,49 @@ $(document).ready(function () {
     const $errorMessage = $('#logsErrorMessage');
     const $totalLogsStat = $('#totalLogsStat');
     const $filterFeedback = $('#filterFeedback');
+    const $exportFeedback = $('#exportFeedback');
+    const $filterFrom = $('#filterFrom');
+    const $filterTo = $('#filterTo');
+    const $exportFormat = $('#exportFormat');
+    const $exportButton = $('#exportLogsBtn');
 
-    /**
-     * Formats a LocalDateTime string (ISO) to a human-readable format.
-     * Input:  "2026-04-14T14:30:00"
-     * Output: "2026-04-14  14:30:00"
-     */
+    let currentFilter = {
+        mode: 'preset',
+        rangeDays: 7
+    };
+
     function formatTimestamp(isoString) {
-        if (!isoString) return '-';
-        // Handle array format [year, month, day, hour, minute, second] from Spring
-        if (Array.isArray(isoString)) {
-            const [y, mo, d, h, mi, s] = isoString;
-            return String(y).padStart(4, '0') + '-' +
-                   String(mo).padStart(2, '0') + '-' +
-                   String(d).padStart(2, '0') + '  ' +
-                   String(h).padStart(2, '0') + ':' +
-                   String(mi).padStart(2, '0') + ':' +
-                   String(s || 0).padStart(2, '0');
+        if (!isoString) {
+            return '-';
         }
-        // Handle ISO string format
-        const dt = new Date(isoString);
-        if (isNaN(dt.getTime())) return isoString;
-        const yyyy = dt.getFullYear();
-        const mm = String(dt.getMonth() + 1).padStart(2, '0');
-        const dd = String(dt.getDate()).padStart(2, '0');
-        const hh = String(dt.getHours()).padStart(2, '0');
-        const mi = String(dt.getMinutes()).padStart(2, '0');
-        const ss = String(dt.getSeconds()).padStart(2, '0');
-        return yyyy + '-' + mm + '-' + dd + '  ' + hh + ':' + mi + ':' + ss;
+
+        if (Array.isArray(isoString)) {
+            const year = String(isoString[0]).padStart(4, '0');
+            const month = String(isoString[1]).padStart(2, '0');
+            const day = String(isoString[2]).padStart(2, '0');
+            const hour = String(isoString[3]).padStart(2, '0');
+            const minute = String(isoString[4]).padStart(2, '0');
+            const second = String(isoString[5] || 0).padStart(2, '0');
+            return year + '-' + month + '-' + day + '  ' + hour + ':' + minute + ':' + second;
+        }
+
+        const parsed = new Date(isoString);
+        if (isNaN(parsed.getTime())) {
+            return isoString;
+        }
+
+        return parsed.getFullYear() + '-' +
+            String(parsed.getMonth() + 1).padStart(2, '0') + '-' +
+            String(parsed.getDate()).padStart(2, '0') + '  ' +
+            String(parsed.getHours()).padStart(2, '0') + ':' +
+            String(parsed.getMinutes()).padStart(2, '0') + ':' +
+            String(parsed.getSeconds()).padStart(2, '0');
     }
 
-    /**
-     * Returns a role pill HTML badge matching the dashboard.css styles.
-     */
     function renderRolePill(role) {
         const roleClean = (role || '').replace('ROLE_', '').toUpperCase();
         let pillClass = '';
+
         switch (roleClean) {
             case 'ADMIN':
                 pillClass = 'role-pill-admin';
@@ -62,52 +69,92 @@ $(document).ready(function () {
             default:
                 pillClass = '';
         }
+
         return '<span class="role-pill ' + pillClass + '">' + roleClean + '</span>';
     }
 
-    /**
-     * Hides the filter validation feedback message.
-     */
     function hideFilterFeedback() {
         $filterFeedback.hide().text('');
     }
 
-    /**
-     * Shows a filter validation feedback message.
-     */
-    function showFilterFeedback(msg) {
-        $filterFeedback.text(msg).show();
+    function showFilterFeedback(message) {
+        $filterFeedback.text(message).show();
     }
 
-    /**
-     * Fetches logs from the backend with optional filter parameters and initializes/reloads DataTables.
-     *
-     * @param {Object} [params] - Filter parameters
-     * @param {number} [params.rangeDays] - Preset day range (7, 14, or 30)
-     * @param {string} [params.startDate] - Custom range start (YYYY-MM-DD)
-     * @param {string} [params.endDate]   - Custom range end (YYYY-MM-DD)
-     */
-    function loadLogs(params) {
+    function hideExportFeedback() {
+        $exportFeedback.hide().text('');
+    }
+
+    function showExportFeedback(message) {
+        $exportFeedback.text(message).show();
+    }
+
+    function buildQueryParts(filter, format) {
+        const queryParts = [];
+
+        if (format) {
+            queryParts.push('format=' + encodeURIComponent(format));
+        }
+
+        if (filter.startDate && filter.endDate) {
+            queryParts.push('startDate=' + encodeURIComponent(filter.startDate));
+            queryParts.push('endDate=' + encodeURIComponent(filter.endDate));
+        } else if (filter.rangeDays) {
+            queryParts.push('rangeDays=' + encodeURIComponent(filter.rangeDays));
+        }
+
+        return queryParts;
+    }
+
+    function buildApiUrl(basePath, filter, format) {
+        const queryParts = buildQueryParts(filter, format);
+        return queryParts.length > 0 ? basePath + '?' + queryParts.join('&') : basePath;
+    }
+
+    function clearDateInputs() {
+        $filterFrom.val('');
+        $filterTo.val('');
+    }
+
+    function setPresetActive(rangeDays) {
+        $('.btn-filter-preset').removeClass('active');
+        $('.btn-filter-preset[data-range="' + rangeDays + '"]').addClass('active');
+    }
+
+    function clearPresetActive() {
+        $('.btn-filter-preset').removeClass('active');
+    }
+
+    function applyPreset(rangeDays) {
+        currentFilter = {
+            mode: 'preset',
+            rangeDays: rangeDays
+        };
+        setPresetActive(rangeDays);
+        clearDateInputs();
         hideFilterFeedback();
+        hideExportFeedback();
+        loadLogs();
+    }
 
-        // Build URL with query parameters
-        var url = '/api/logs';
-        var queryParts = [];
+    function applyDateRange(from, to) {
+        currentFilter = {
+            mode: 'date',
+            startDate: from,
+            endDate: to
+        };
+        clearPresetActive();
+        hideFilterFeedback();
+        hideExportFeedback();
+        loadLogs();
+    }
 
-        if (params) {
-            if (params.startDate && params.endDate) {
-                queryParts.push('startDate=' + encodeURIComponent(params.startDate));
-                queryParts.push('endDate=' + encodeURIComponent(params.endDate));
-            } else if (params.rangeDays) {
-                queryParts.push('rangeDays=' + encodeURIComponent(params.rangeDays));
-            }
-        }
+    function loadLogs() {
+        hideFilterFeedback();
+        hideExportFeedback();
 
-        if (queryParts.length > 0) {
-            url += '?' + queryParts.join('&');
-        }
+        const url = buildApiUrl('/api/logs', currentFilter);
 
-        // Show loading state
         $loading.show();
         $table.hide();
         $errorAlert.hide();
@@ -120,11 +167,8 @@ $(document).ready(function () {
                 $loading.hide();
                 $errorAlert.hide();
                 $table.show();
-
-                // Update stats
                 $totalLogsStat.text('Total: ' + data.length);
 
-                // Initialize DataTable
                 if ($.fn.DataTable.isDataTable($table)) {
                     $table.DataTable().clear().destroy();
                 }
@@ -134,38 +178,38 @@ $(document).ready(function () {
                     columns: [
                         {
                             data: 'timestamp',
-                            render: function (data) {
-                                return '<span class="log-timestamp">' + formatTimestamp(data) + '</span>';
+                            render: function (value) {
+                                return '<span class="log-timestamp">' + formatTimestamp(value) + '</span>';
                             }
                         },
                         {
                             data: 'userId',
-                            render: function (data) {
-                                return '<span class="log-user-id">' + (data != null ? data : '-') + '</span>';
+                            render: function (value) {
+                                return '<span class="log-user-id">' + (value != null ? value : '-') + '</span>';
                             }
                         },
                         {
                             data: 'username',
-                            render: function (data) {
-                                return '<strong>' + $('<span>').text(data).html() + '</strong>';
+                            render: function (value) {
+                                return '<strong>' + $('<span>').text(value || '-').html() + '</strong>';
                             }
                         },
                         {
                             data: 'role',
-                            render: function (data) {
-                                return renderRolePill(data);
+                            render: function (value) {
+                                return renderRolePill(value);
                             }
                         },
                         {
                             data: 'action',
-                            render: function (data) {
-                                return '<span class="log-action-text">' + $('<span>').text(data).html() + '</span>';
+                            render: function (value) {
+                                return '<span class="log-action-text">' + $('<span>').text(value || '-').html() + '</span>';
                             }
                         },
                         {
                             data: 'ipAddress',
-                            render: function (data) {
-                                return '<span class="log-ip">' + (data || '-') + '</span>';
+                            render: function (value) {
+                                return '<span class="log-ip">' + (value || '-') + '</span>';
                             }
                         }
                     ],
@@ -209,31 +253,66 @@ $(document).ready(function () {
         });
     }
 
-    // ========== Filter Event Handlers ==========
+    async function exportLogs() {
+        hideExportFeedback();
+        $exportButton.prop('disabled', true).text('Exporting...');
 
-    /**
-     * Sets the active state on preset buttons and clears custom date inputs.
-     */
-    function setPresetActive(rangeDays) {
-        $('.btn-filter-preset').removeClass('active');
-        $('.btn-filter-preset[data-range="' + rangeDays + '"]').addClass('active');
-        // Clear custom date inputs when using presets
-        $('#filterFrom').val('');
-        $('#filterTo').val('');
-        hideFilterFeedback();
+        try {
+            const format = $exportFormat.val();
+            const url = buildApiUrl('/api/logs/export', currentFilter, format);
+            const response = await fetch(url, { method: 'GET' });
+
+            if (response.status === 401) {
+                showExportFeedback('Session expired. Redirecting to login...');
+                setTimeout(function () {
+                    window.location.href = '/index.html';
+                }, 1500);
+                return;
+            }
+
+            if (response.status === 403) {
+                showExportFeedback('Access denied. You do not have permission to export logs.');
+                return;
+            }
+
+            if (response.status === 400) {
+                showExportFeedback('The selected filter or export format is invalid.');
+                return;
+            }
+
+            if (!response.ok) {
+                showExportFeedback('Export failed. Please try again later.');
+                return;
+            }
+
+            const blob = await response.blob();
+            const objectUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const fileNameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+            link.href = objectUrl;
+            link.download = fileNameMatch ? fileNameMatch[1] : 'system-logs.' + format;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(objectUrl);
+
+            showExportFeedback('Export ready.');
+        } catch (error) {
+            showExportFeedback('Export failed. Please try again later.');
+        } finally {
+            $exportButton.prop('disabled', false).text('Export');
+        }
     }
 
-    // Preset day-range buttons (7, 14, 30)
     $('.btn-filter-preset').on('click', function () {
-        var range = parseInt($(this).data('range'), 10);
-        setPresetActive(range);
-        loadLogs({ rangeDays: range });
+        applyPreset(parseInt($(this).data('range'), 10));
     });
 
-    // Apply custom date range
     $('#filterApplyBtn').on('click', function () {
-        var from = $('#filterFrom').val();
-        var to = $('#filterTo').val();
+        const from = $filterFrom.val();
+        const to = $filterTo.val();
 
         if (!from || !to) {
             showFilterFeedback('Please select both From and To dates.');
@@ -245,20 +324,16 @@ $(document).ready(function () {
             return;
         }
 
-        // Deactivate preset buttons when using custom range
-        $('.btn-filter-preset').removeClass('active');
-        hideFilterFeedback();
-
-        loadLogs({ startDate: from, endDate: to });
+        applyDateRange(from, to);
     });
 
-    // Reset to default (7 days)
     $('#filterResetBtn').on('click', function () {
-        setPresetActive(7);
-        loadLogs({ rangeDays: 7 });
+        applyPreset(7);
     });
 
-    // ========== Initial Load ==========
-    // Default: last 7 days
-    loadLogs({ rangeDays: 7 });
+    $('#exportLogsBtn').on('click', function () {
+        exportLogs();
+    });
+
+    loadLogs();
 });

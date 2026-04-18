@@ -1,35 +1,38 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**System Logs Date Filtering Enhancement**
+**System Logs Export UI Cleanup**
 
 ## Active Branch
-`feature/logs-date-filter`
+`feature/export-logs`
 
 ## Status (April 18, 2026)
 
-### System Logs Date Filtering (April 18, 2026)
-Implemented server-side date filtering for the Admin System Logs page:
-- Extended `GET /api/logs` with optional `rangeDays`, `startDate`, `endDate` query parameters
-- Default view shows only the last 7 days of logs (no more full-table fetch)
-- Quick filter presets: 7 days, 14 days, 30 days
-- Custom inclusive From/To date range with Apply/Reset actions
-- Invalid date ranges (startDate > endDate) return HTTP 400
-- All filtering happens in the database via `findByTimestampBetweenOrderByTimestampDesc()`
-- Frontend filter toolbar with preset pills and custom date inputs
+### System Logs Export Cleanup (April 18, 2026)
+Refined the Admin System Logs page to keep export and filtering focused on the non-redundant paths:
+- Added `GET /api/logs/export` for admin-only downloads
+- Supported export formats: `.csv`, `.xlsx`, `.docx`
+- Reused the existing filter contract: `rangeDays`, `startDate`, `endDate`
+- Kept the default view at the last 7 days and preserved filter precedence: custom range > preset days > default 7 days
+- Kept the logs UI focused on quick ranges, exact date filters, and export controls only
+- Generated summary headers in CSV/XLSX/DOCX outputs with selected range and export timestamp
+- Added Apache POI-based XLSX and DOCX generation plus automated tests for the export service and controller
 
-**Results:** 52 total tests, 0 failures, 100% success rate. BUILD SUCCESSFUL in 19.998s.
+**Results:** 63 total tests, 0 failures, 0 skipped. `./gradlew test` -> BUILD SUCCESSFUL in 25s.
 
 ### Previous Sessions
-- Admin Bulk Load Tests (April 18, 2026) — 5 new standalone tests verifying 100-user table handling
-- Database Migration Fix (April 17, 2026) — applied missing schema changes to Docker MySQL
-- Admin Navbar Cleanup (April 17, 2026) — removed "Student Records" and "Subjects" nav links
-- Unit Test Coverage Expansion (April 17, 2026) — AccountServiceTest, SystemLogServiceTest, AccountControllerWebMvcTest, SystemLogControllerWebMvcTest
+- Admin Bulk Load Tests (April 18, 2026) - 5 new standalone tests verifying 100-user table handling
+- Database Migration Fix (April 17, 2026) - applied missing schema changes to Docker MySQL
+- Admin Navbar Cleanup (April 17, 2026) - removed "Student Records" and "Subjects" nav links
+- Unit Test Coverage Expansion (April 17, 2026) - AccountServiceTest, SystemLogServiceTest, AccountControllerWebMvcTest, SystemLogControllerWebMvcTest
 
-> **⚠️ WARNING — STALE NAVBARS IN `student-records.html` AND `subjects.html`:**
-> These two pages still contain the OLD 4-link navbar (Home | Student Records | Subjects | Logs). Their navbars were intentionally NOT updated during this cleanup. When re-adding these pages to the admin navbar, you MUST first update their internal navbars to match the current admin navbar pattern. See `systemPatterns.md` for the current standard.
+> **Warning - Stale Navbars In `student-records.html` And `subjects.html`:**
+> These two pages still contain the old 4-link navbar (Home | Student Records | Subjects | Logs).
+> Their navbars were intentionally not updated during the cleanup.
+> When re-adding these pages to the admin navbar, update their internal navbars to match the current admin navbar pattern in `systemPatterns.md`.
 
 ## Verified
-- `./gradlew test` → BUILD SUCCESSFUL (52 tests, all green)
-- No references to removed `getAllLogs()` method remain in the codebase
-- All new test files follow existing project patterns (Mockito + `@ExtendWith(MockitoExtension.class)` for services, `@WebMvcTest` + `@Import(SecurityConfig.class)` for controllers)
+- `./gradlew test` -> BUILD SUCCESSFUL (63 tests, all green)
+- `git diff --check` -> no tracked whitespace or conflict-marker errors
+- Admin logs export endpoint now returns downloadable CSV/XLSX/DOCX files with attachment headers
+- Logs page supports preset days and exact-date filtering from one shared filter state

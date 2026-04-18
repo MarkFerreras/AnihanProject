@@ -54,6 +54,11 @@ public class SystemLogService {
      */
     @Transactional(readOnly = true)
     public List<SystemLogResponse> getLogs(Integer rangeDays, LocalDate startDate, LocalDate endDate) {
+        return queryLogs(rangeDays, startDate, endDate).logs();
+    }
+
+    @Transactional(readOnly = true)
+    public SystemLogQueryResult queryLogs(Integer rangeDays, LocalDate startDate, LocalDate endDate) {
         LocalDateTime windowStart;
         LocalDateTime windowEnd;
 
@@ -71,9 +76,11 @@ public class SystemLogService {
             windowStart = windowEnd.minusDays(days);
         }
 
-        return systemLogRepository.findByTimestampBetweenOrderByTimestampDesc(windowStart, windowEnd)
+        List<SystemLogResponse> logs = systemLogRepository.findByTimestampBetweenOrderByTimestampDesc(windowStart, windowEnd)
                 .stream()
                 .map(SystemLogResponse::from)
                 .toList();
+
+        return new SystemLogQueryResult(logs, windowStart, windowEnd);
     }
 }
