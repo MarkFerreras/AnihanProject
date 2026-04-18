@@ -1,4 +1,35 @@
 # Change Log - Anihan SRMS
+## 2026-04-18 - Admin Bulk Load Tests (100 Users)
+**Branch:** `feature/unit-tests-coverage`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `test/service/AdminBulkLoadTest.java` | 3 unit tests verifying `AdminService.getAllUsers()` handles 100 users (count, DTO mapping, performance) |
+| `test/controller/AdminBulkLoadWebMvcTest.java` | 2 WebMvc tests verifying `GET /api/admin/users` serializes 100 users as JSON with correct content and timing |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `memory-bank/testing.md` | Added "Admin Users Table — Bulk Load Tests" section with detailed results |
+| `memory-bank/progress.md` | Added "Admin Bulk Load Tests" completed section |
+| `memory-bank/activeContext.md` | Updated current phase and status for April 18 session |
+
+### Not Modified (Intentional)
+| File | Reason |
+|---|---|
+| `test/service/AdminServiceTest.java` | Existing tests preserved — bulk tests placed in a separate file |
+| `test/controller/AdminControllerWebMvcTest.java` | Existing tests preserved — bulk tests placed in a separate file |
+| `build.gradle.kts` | No new dependencies needed — bulk tests use only existing JUnit 5, Mockito, Spring Test |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL (42 tests, 0 failures, 12.897s total)
+- AdminBulkLoadTest: 3/3 passed in 0.008s
+- AdminBulkLoadWebMvcTest: 2/2 passed in 0.663s
+- Both well within 5-second non-functional requirement
+
+---
+
 ## 2026-04-17 - Admin Navbar Cleanup (Student Records & Subjects Removed)
 **Branch:** `feature/unit-tests-coverage`
 

@@ -1,40 +1,32 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Admin Navbar Cleanup & Capstone Alignment**
+**Admin Bulk Load Testing & Capstone Alignment**
 
 ## Active Branch
 `feature/unit-tests-coverage`
 
-## Status (April 17, 2026)
+## Status (April 18, 2026)
 
-### Database Migration Fix (April 17, 2026)
-The Docker MySQL container was missing 3 schema changes that the Java codebase expected, preventing login. Applied the following migrations directly to the running `mysql-server` container:
-1. `ALTER TABLE users ADD COLUMN enabled TINYINT(1) NOT NULL DEFAULT 1;`
-2. `ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL;`
-3. `CREATE TABLE IF NOT EXISTS system_logs (...)` — full schema per `AnihanSRMS.sql` lines 172–181
+### Admin Bulk Load Tests (April 18, 2026)
+Created 2 new standalone test files to verify the Admin "View All Users" table can handle 100 users:
+1. `test/service/AdminBulkLoadTest.java` — 3 tests (count, DTO field mapping, performance)
+2. `test/controller/AdminBulkLoadWebMvcTest.java` — 2 tests (JSON serialization, performance)
 
-All 3 statements match exactly what is defined in `AnihanSRMS.sql`. Login now works with the existing seeded accounts (`Ado`, `registrar`, `trainer`).
+All 100 test users generated programmatically via Mockito mocks — no database touched, no existing files modified, no new dependencies.
 
-### Admin Navbar Cleanup (April 17, 2026)
-Removed "Student Records" and "Subjects" nav links from the admin navbar in 4 files:
-- `admin.html`, `edit-user.html`, `add-user.html`, `logs.html`
+**Results:** 42 total tests, 0 failures, 100% success rate. Service layer: 0.008s, HTTP layer: 0.663s — well within the 5-second non-functional requirement.
 
-The navbar now shows only: **Home | Logs**
-
-The HTML pages `student-records.html` and `subjects.html` were **NOT deleted** — they still exist and are still protected by `SecurityConfig.java`. They will be re-added to the navbar when their features are implemented.
+### Previous Sessions
+- Database Migration Fix (April 17, 2026) — applied missing `enabled`, `password_changed_at`, `system_logs` schema changes to Docker MySQL
+- Admin Navbar Cleanup (April 17, 2026) — removed "Student Records" and "Subjects" nav links
+- Unit Test Coverage Expansion (April 17, 2026) — AccountServiceTest, SystemLogServiceTest, AccountControllerWebMvcTest, SystemLogControllerWebMvcTest
 
 > **⚠️ WARNING — STALE NAVBARS IN `student-records.html` AND `subjects.html`:**
 > These two pages still contain the OLD 4-link navbar (Home | Student Records | Subjects | Logs). Their navbars were intentionally NOT updated during this cleanup. When re-adding these pages to the admin navbar, you MUST first update their internal navbars to match the current admin navbar pattern. See `systemPatterns.md` for the current standard.
 
-### SQL File Cleanup (April 17, 2026)
-Removed leftover merge-conflict artifacts from `AnihanSRMS.sql`: dangling `ALTER TABLE` statements, a bare `main` text, and a stray closing parenthesis.
-
-### Previous Tasks (Completed)
-- Unit Test Coverage Expansion — all tests green across Admin, Account, SystemLog modules
-- UI Styling Adjustments on `ui-style/fix` branch — navbar logo standardization at 85px, brand-title text removal
-
 ## Verified
 - Docker MySQL schema now matches `AnihanSRMS.sql` and `User.java` entity
-- `./gradlew test` → BUILD SUCCESSFUL (all tests green)
-- All new test files follow existing project patterns (Mockito + `@WebMvcTest`)
+- `./gradlew test` → BUILD SUCCESSFUL (42 tests, all green)
+- All new test files follow existing project patterns (Mockito + `@ExtendWith(MockitoExtension.class)` for services, `@WebMvcTest` + `@Import(SecurityConfig.class)` for controllers)
+

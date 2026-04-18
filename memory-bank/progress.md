@@ -160,6 +160,14 @@
 - [x] All tests follow established patterns (Mockito + `@ExtendWith(MockitoExtension.class)` for services, `@WebMvcTest` + `@Import(SecurityConfig.class)` for controllers)
 - [x] `./gradlew test` → BUILD SUCCESSFUL (all tests green across all modules)
 
+## Admin Bulk Load Tests (Completed — April 18, 2026)
+- [x] Created `AdminBulkLoadTest.java` — 3 unit tests verifying `AdminService.getAllUsers()` handles 100 users (count, DTO mapping, performance)
+- [x] Created `AdminBulkLoadWebMvcTest.java` — 2 WebMvc tests verifying `GET /api/admin/users` serializes 100 users as JSON
+- [x] All 100 test users generated programmatically in-memory via Mockito — no database touched, no hard-coded dummy data
+- [x] Performance: service layer 0.008s, HTTP layer 0.663s — well within 5-second non-functional requirement
+- [x] No existing test files modified, no new dependencies added
+- [x] `./gradlew test` → BUILD SUCCESSFUL (42 tests, all green)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 
