@@ -144,3 +144,37 @@ Created in **new standalone files** — no existing test files were modified.
 - No existing test files were modified
 - No new dependencies added — uses only JUnit 5, Mockito, Spring Test (already in `build.gradle.kts`)
 
+## SystemLog Date Filtering — Automated Tests (April 18, 2026)
+Tests verify the new server-side date filtering for Admin System Logs.
+
+### SystemLogServiceTest (10 tests) — `service/SystemLogServiceTest.java`
+- [x] `logActionSavesSystemLog` — unchanged
+- [x] `logActionHandlesNullUserId` — unchanged
+- [x] `getLogsDefaultsToSevenDays` — no params → 7-day window applied
+- [x] `getLogsFourteenDayFilter` — `rangeDays=14` → 14-day window
+- [x] `getLogsThirtyDayFilter` — `rangeDays=30` → 30-day window
+- [x] `getLogsCustomDateRange` — `startDate + endDate` → inclusive boundaries verified
+- [x] `getLogsCustomDateRangeIgnoresRangeDays` — custom range takes precedence over rangeDays
+- [x] `getLogsInvalidDateRangeThrows` — startDate > endDate → `IllegalArgumentException`
+- [x] `getLogsReturnsEmptyListWhenNoLogsInRange` — valid range, no data → empty list
+- [x] `getLogsReturnsMappedResponses` — DTO mapping verified (logId, username, role, action)
+
+### SystemLogControllerWebMvcTest (9 tests) — `controller/SystemLogControllerWebMvcTest.java`
+- [x] `getLogsDefaultsToSevenDays` — `GET /api/logs` (no params) → 200 with filtered data
+- [x] `getLogsWithRangeDays14` — `GET /api/logs?rangeDays=14` → 200
+- [x] `getLogsWithRangeDays30` — `GET /api/logs?rangeDays=30` → 200
+- [x] `getLogsWithCustomDateRange` — `GET /api/logs?startDate=2026-04-01&endDate=2026-04-18` → 200
+- [x] `getLogsInvalidRangeReturns400` — invalid range → 400
+- [x] `getLogsReturnsEmptyListWhenNoLogs` — no data → 200 with empty array
+- [x] `getLogsRejectNonAdminUser` — REGISTRAR → 403 (unchanged)
+- [x] `getLogsRejectTrainerUser` — TRAINER → 403 (unchanged)
+- [x] `getLogsRejectUnauthenticatedUser` — unauthenticated → 401 (unchanged)
+
+### Test Results Summary
+| Test Class | Tests | Failures | Skipped | Success Rate |
+|---|---|---|---|---|
+| SystemLogServiceTest | 10 | 0 | 0 | 100% |
+| SystemLogControllerWebMvcTest | 9 | 0 | 0 | 100% |
+| **Full Suite** | **52** | **0** | **0** | **100%** |
+
+

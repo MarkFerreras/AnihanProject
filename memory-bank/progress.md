@@ -168,6 +168,21 @@
 - [x] No existing test files modified, no new dependencies added
 - [x] `./gradlew test` → BUILD SUCCESSFUL (42 tests, all green)
 
+## System Logs Date Filtering (Completed — April 18, 2026)
+- [x] Extended `GET /api/logs` with optional `rangeDays`, `startDate`, `endDate` query parameters
+- [x] Default behavior changed from full-table fetch to last 7 days only
+- [x] Quick filter presets: 7 days, 14 days, 30 days via `rangeDays` query param
+- [x] Custom inclusive date range via `startDate` + `endDate` (start of day to end of day)
+- [x] Custom range takes precedence over `rangeDays` when both are provided
+- [x] Invalid date ranges (startDate > endDate) return HTTP 400
+- [x] Added `findByTimestampBetweenOrderByTimestampDesc()` to `SystemLogRepository`
+- [x] Replaced `getAllLogs()` with `getLogs(rangeDays, startDate, endDate)` in `SystemLogService`
+- [x] Added filter toolbar UI to `logs.html` (preset pills + From/To inputs + Apply/Reset)
+- [x] Refactored `system-logs.js` with parameterized `loadLogs()` and filter event handlers
+- [x] Updated `SystemLogServiceTest` — 10 tests (2 logAction + 8 getLogs)
+- [x] Updated `SystemLogControllerWebMvcTest` — 9 tests (6 filtered + 3 security)
+- [x] `./gradlew test` → BUILD SUCCESSFUL (52 tests, 0 failures)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 
