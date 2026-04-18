@@ -1,5 +1,26 @@
 # Decisions - Anihan SRMS
 
+## 2026-04-18 - Reuse Existing Date Filter Contract for Export
+
+**Decision**: Keep the export API on `GET /api/logs/export` aligned with the existing `rangeDays`, `startDate`, and `endDate` query parameters only.
+
+**Alternatives considered**:
+1. Add another custom-range workflow in the UI for the same export use case - more controls without adding capability
+2. Keep one custom date filter path and reuse it for both table loading and export
+
+**Why chosen**: Option 2 keeps the backend contract and frontend UX smaller. The exact-date filter already covers the export use case, so removing extra controls reduces clutter without reducing functionality.
+
+## 2026-04-18 - Server-Side Export Generation for CSV, XLSX, and DOCX
+
+**Decision**: Generate all log exports on the server and return them from `GET /api/logs/export` as attachment downloads.
+
+**Alternatives considered**:
+1. Build exports in the browser from DataTables rows - simpler for CSV only, but unreliable for true XLSX/DOCX generation and tied to client-side pagination/search state
+2. Create a separate export screen - more UI overhead for a workflow that belongs on the existing logs page
+3. Generate files server-side from the selected filter - consistent output, real XLSX/DOCX support, ignores client-side table state
+
+**Why chosen**: Option 3 gives the admin real downloadable files, keeps export independent from DataTables paging/search, and preserves the source-of-truth filter on the backend.
+
 ## 2026-04-18 - System Logs Filter Precedence and Default
 
 **Decision**: When `GET /api/logs` is called, apply this filter precedence:

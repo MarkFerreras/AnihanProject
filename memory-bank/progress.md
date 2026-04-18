@@ -183,6 +183,20 @@
 - [x] Updated `SystemLogControllerWebMvcTest` — 9 tests (6 filtered + 3 security)
 - [x] `./gradlew test` → BUILD SUCCESSFUL (52 tests, 0 failures)
 
+## System Logs Export UI Cleanup (Completed - April 18, 2026)
+- [x] Added `GET /api/logs/export` with `format=csv|xlsx|docx`
+- [x] Added `SystemLogExportFormat`, `SystemLogQueryResult`, and `SystemLogExportService`
+- [x] Reused existing log filter precedence for both page data and exported files
+- [x] Added CSV export with summary rows and escaped values
+- [x] Added XLSX export with summary header and single-sheet table output
+- [x] Added DOCX export with summary header and table output
+- [x] Removed the redundant extra date-selection controls from `logs.html`
+- [x] Refactored `system-logs.js` to keep one shared filter state for presets, exact dates, and export
+- [x] Added export format selector and export button to the logs toolbar
+- [x] Added `SystemLogExportServiceTest` - 3 tests covering CSV/XLSX/DOCX generation
+- [x] Expanded `SystemLogControllerWebMvcTest` to cover export success, validation, and security cases
+- [x] `./gradlew test` -> BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
+
 ## In Progress
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 
