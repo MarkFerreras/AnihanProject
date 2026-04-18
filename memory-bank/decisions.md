@@ -1,5 +1,21 @@
 # Decisions - Anihan SRMS
 
+## 2026-04-18 - System Logs Filter Precedence and Default
+
+**Decision**: When `GET /api/logs` is called, apply this filter precedence:
+1. If both `startDate` and `endDate` are present → use inclusive custom range (ignore `rangeDays`)
+2. Else if `rangeDays` is present → use rolling window ending at current time
+3. Else → default to 7 days
+
+Default to the last 7 days instead of fetching all logs. No "all logs" mode is exposed.
+
+**Alternatives considered**:
+1. Default to all logs (current behavior) — simple but becomes expensive as the table grows
+2. Default to 7 days with an "All" option — adds risk of slow queries on large datasets
+3. Default to 7 days, no "All" option — safe, performant, sufficient for typical admin workflows
+
+**Why chosen**: Option 3. The `system_logs` table grows indefinitely with every login, logout, and admin action. Defaulting to a bounded window prevents page load degradation. Preset options (7/14/30 days) cover most audit review scenarios. Custom date ranges handle edge cases. No "all logs" mode avoids accidental full-table scans.
+
 ## 2026-04-14 - Separate system_logs Table (No FK to users)
 
 **Decision**: Create a standalone `system_logs` table with `user_id INT NULL` and no foreign key to the `users` table, despite the existing `log` table having an FK.

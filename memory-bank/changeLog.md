@@ -1,4 +1,30 @@
 # Change Log - Anihan SRMS
+## 2026-04-18 - System Logs Date Filtering Enhancement
+**Branch:** `feature/logs-date-filter`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `repository/SystemLogRepository.java` | Added `findByTimestampBetweenOrderByTimestampDesc()` range query method |
+| `service/SystemLogService.java` | Replaced `getAllLogs()` with `getLogs(rangeDays, startDate, endDate)` implementing filter precedence: custom range > preset days > default 7 days |
+| `controller/SystemLogController.java` | Added optional `rangeDays`, `startDate`, `endDate` query params with `@DateTimeFormat`; catches `IllegalArgumentException` → 400 |
+| `static/logs.html` | Added date filter toolbar (preset 7/14/30-day pills + custom From/To date inputs + Apply/Reset buttons) with matching CSS |
+| `static/js/system-logs.js` | Refactored `loadLogs()` to accept filter params and build query URL; added preset, apply, and reset event handlers; default load is 7 days |
+| `test/service/SystemLogServiceTest.java` | Rewrote: 10 tests (2 logAction unchanged + 8 new getLogs tests covering default, 14d, 30d, custom range, precedence, invalid range, empty result, DTO mapping) |
+| `test/controller/SystemLogControllerWebMvcTest.java` | Rewrote: 9 tests (6 new filter tests + 3 unchanged security tests) |
+| `memory-bank/activeContext.md` | Updated phase, branch, status, and verified section |
+| `memory-bank/progress.md` | Added "System Logs Date Filtering" completed section |
+| `memory-bank/testing.md` | Added date filtering test results section |
+| `memory-bank/changeLog.md` | This entry |
+| `memory-bank/decisions.md` | Added filter precedence decision record |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL (52 tests, 0 failures, 19.998s)
+- No references to removed `getAllLogs()` method remain
+- Existing security tests (403/401) pass unchanged
+
+---
+
 ## 2026-04-18 - Admin Bulk Load Tests (100 Users)
 **Branch:** `feature/unit-tests-coverage`
 
