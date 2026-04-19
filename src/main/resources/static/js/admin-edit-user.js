@@ -37,7 +37,6 @@
             lastName: document.getElementById('editLastName').value.trim(),
             firstName: document.getElementById('editFirstName').value.trim(),
             middleName: document.getElementById('editMiddleName').value.trim(),
-            age: parseInt(document.getElementById('editAge').value, 10),
             birthdate: document.getElementById('editBirthdate').value
         };
 
@@ -91,7 +90,6 @@
         document.getElementById('editLastName').value = user.lastName ?? '';
         document.getElementById('editFirstName').value = user.firstName ?? '';
         document.getElementById('editMiddleName').value = user.middleName ?? '';
-        document.getElementById('editAge').value = user.age ?? '';
         document.getElementById('editBirthdate').value = user.birthdate ?? '';
     }
 

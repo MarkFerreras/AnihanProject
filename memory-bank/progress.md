@@ -197,7 +197,21 @@
 - [x] Expanded `SystemLogControllerWebMvcTest` to cover export success, validation, and security cases
 - [x] `./gradlew test` -> BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
 
-## In Progress
+## Age Auto-Calculation from Birthdate (Completed — April 19, 2026)
+- [x] Created `AgeCalculator.java` utility — centralised `Period.between(birthdate, now).getYears()` logic
+- [x] Removed `age` field from `AdminUpdateUserRequest`, `AdminCreateUserRequest`, `UpdatePersonalDetailsRequest` DTOs
+- [x] Made `birthdate` `@NotNull` (mandatory) in `AdminCreateUserRequest`; removed default value `2000-01-01`
+- [x] `AdminService.createUser()` and `updateUser()` auto-calculate age from birthdate via `AgeCalculator`
+- [x] `AdminService.getUserById()` silently recalculates + persists age on every detail view (NOT logged)
+- [x] `AuthController.currentUser()` (`GET /api/auth/me`) silently recalculates + persists age (NOT logged)
+- [x] `AccountService.updatePersonalDetails()` auto-calculates age from birthdate
+- [x] Admin user table (`GET /api/admin/users`) does NOT recalculate — returns stored age (avoids bulk writes)
+- [x] Replaced age `<input>` with read-only `<p id="ageDisplay">` in 6 HTML pages: `admin.html`, `edit-user.html`, `add-user.html`, `registrar.html`, `trainer.html`, `logs.html`
+- [x] Removed `age` from JS payloads in `admin-edit-user.js`, `admin-add-user.js`, `auth-guard.js`
+- [x] Added client-side birthdate validation in `admin-add-user.js`
+- [x] Updated test constructors/assertions in `AdminServiceTest`, `AccountServiceTest`, `AdminControllerWebMvcTest`, `AccountControllerWebMvcTest`
+- [x] ⚠️ `student-records.html` and `subjects.html` intentionally NOT updated — deferred to student-focused session
+- [x] `./gradlew test` → BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 
 ## Remainder Requirements / Roadmap

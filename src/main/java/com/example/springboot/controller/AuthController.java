@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.springboot.dto.LoginRequest;
 import com.example.springboot.model.User;
@@ -112,6 +113,7 @@ public class AuthController {
      * Returns the current authenticated user's info including personal details,
      * or 401 if not authenticated.
      */
+    @Transactional
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> currentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -134,6 +136,13 @@ public class AuthController {
         response.put("role", role);
 
         userRepository.findByUsername(username).ifPresent(user -> {
+            // Silently recalculate and persist age from birthdate.
+            // This is NOT logged to system_logs.
+            if (user.getBirthdate() != null) {
+                user.setAge(com.example.springboot.service.AgeCalculator.calculateAge(user.getBirthdate()));
+                userRepository.save(user);
+            }
+
             response.put("lastName", user.getLastName());
             response.put("firstName", user.getFirstName());
             response.put("middleName", user.getMiddleName());

@@ -1,8 +1,6 @@
 package com.example.springboot.service;
 
 import java.time.LocalDateTime;
-
-import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -60,9 +58,8 @@ public class AdminService {
         user.setMiddleName(request.middleName() != null && !request.middleName().isBlank()
                 ? request.middleName().trim() : "N/A");
         user.setEmail(email);
-        user.setBirthdate(request.birthdate() != null
-                ? request.birthdate() : LocalDate.of(2000, 1, 1));
-        user.setAge(request.age() != null ? request.age() : 25);
+        user.setBirthdate(request.birthdate());
+        user.setAge(AgeCalculator.calculateAge(request.birthdate()));
         user.setEnabled(true);
 
         return AdminUserResponse.from(userRepository.save(user));
@@ -76,9 +73,16 @@ public class AdminService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AdminUserResponse getUserById(Integer userId) {
-        return AdminUserResponse.from(findUserById(userId));
+        User user = findUserById(userId);
+        // Silently recalculate and persist age from birthdate.
+        // This is NOT logged to system_logs.
+        if (user.getBirthdate() != null) {
+            user.setAge(AgeCalculator.calculateAge(user.getBirthdate()));
+            userRepository.save(user);
+        }
+        return AdminUserResponse.from(user);
     }
 
     @Transactional
@@ -113,8 +117,8 @@ public class AdminService {
         user.setLastName(request.lastName().trim());
         user.setFirstName(request.firstName().trim());
         user.setMiddleName(request.middleName().trim());
-        user.setAge(request.age());
         user.setBirthdate(request.birthdate());
+        user.setAge(AgeCalculator.calculateAge(request.birthdate()));
 
         // Only update password if provided (non-null and non-blank)
         if (request.password() != null && !request.password().isBlank()) {

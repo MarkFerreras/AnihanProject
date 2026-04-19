@@ -87,6 +87,7 @@
                         <ul>
                             <li>Username must not contain spaces.</li>
                             <li>Password requires a minimum of 8 characters.</li>
+                            <li>Birthdate is required — age is calculated automatically.</li>
                             <li>Personal details can be updated after the account is created.</li>
                         </ul>
                     </div>
@@ -151,15 +152,10 @@
                                 <input type="email" class="form-control" id="addEmail" value="user@anihan.local">
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="addAge" class="form-label">Age</label>
-                                    <input type="number" class="form-control" id="addAge" min="1" max="150" value="25">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="addBirthdate" class="form-label">Birthdate</label>
-                                    <input type="date" class="form-control" id="addBirthdate" value="2000-01-01">
-                                </div>
+                            <div class="mb-3">
+                                <label for="addBirthdate" class="form-label">Birthdate</label>
+                                <input type="date" class="form-control" id="addBirthdate" required>
+                                <div class="form-text">Required. Age is calculated automatically.</div>
                             </div>
 
                             <div class="alert d-none" id="addUserError" role="alert"></div>
@@ -179,9 +175,8 @@
                                 <li><strong>First Name:</strong> New</li>
                                 <li><strong>Middle Name:</strong> N/A</li>
                                 <li><strong>Email:</strong> user@anihan.local</li>
-                                <li><strong>Birthdate:</strong> 2000-01-01</li>
-                                <li><strong>Age:</strong> 25</li>
                             </ul>
+                            <p>Age is automatically calculated from the birthdate provided.</p>
                             <p>The user or an admin can update these details at any time after creation.</p>
                         </aside>
                     </form>
@@ -243,9 +238,8 @@
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-6 mb-3 mb-md-0">
-                                        <label for="age" class="form-label">Age</label>
-                                        <input type="number" class="form-control" id="age" min="1" max="150"
-                                            placeholder="e.g. 30">
+                                        <label class="form-label">Age</label>
+                                        <p class="form-control-plaintext" id="ageDisplay">-</p>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="birthdate" class="form-label">Date of Birth</label>

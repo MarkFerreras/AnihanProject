@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -179,7 +178,7 @@ class AccountServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdatePersonalDetailsRequest request = new UpdatePersonalDetailsRequest(
-                "Dela Cruz", "Juan", "Santos", 25, LocalDate.of(2001, 5, 15)
+                "Dela Cruz", "Juan", "Santos", LocalDate.of(2001, 5, 15)
         );
 
         User result = accountService.updatePersonalDetails("trainer", request);
@@ -187,7 +186,7 @@ class AccountServiceTest {
         assertEquals("Dela Cruz", result.getLastName());
         assertEquals("Juan", result.getFirstName());
         assertEquals("Santos", result.getMiddleName());
-        assertEquals(25, result.getAge());
+        assertEquals(AgeCalculator.calculateAge(LocalDate.of(2001, 5, 15)), result.getAge());
         assertEquals(LocalDate.of(2001, 5, 15), result.getBirthdate());
         verify(userRepository).save(user);
     }
@@ -197,7 +196,7 @@ class AccountServiceTest {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
         UpdatePersonalDetailsRequest request = new UpdatePersonalDetailsRequest(
-                "Dela Cruz", "Juan", "Santos", 25, LocalDate.of(2001, 5, 15)
+                "Dela Cruz", "Juan", "Santos", LocalDate.of(2001, 5, 15)
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
@@ -205,6 +204,56 @@ class AccountServiceTest {
 
         assertEquals("User not found", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updatePersonalDetailsRecalculatesAgeFromNewBirthdate() {
+        User user = buildUser("admin", "ROLE_ADMIN");
+        // Start with a stale age that doesn't match any birthdate
+        user.setAge(99);
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LocalDate newBirthdate = LocalDate.of(2000, 6, 15);
+        UpdatePersonalDetailsRequest request = new UpdatePersonalDetailsRequest(
+                "Admin", "User", "Middle", newBirthdate
+        );
+
+        User result = accountService.updatePersonalDetails("admin", request);
+
+        // Age should be freshly calculated from the NEW birthdate
+        assertEquals(AgeCalculator.calculateAge(newBirthdate), result.getAge());
+        assertEquals(newBirthdate, result.getBirthdate());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updatePersonalDetailsPreservesExistingBirthdateWhenRequestBirthdateIsNull() {
+        User user = buildUser("trainer", "ROLE_TRAINER");
+        // User already has a valid birthdate and age
+        LocalDate existingBirthdate = LocalDate.of(1996, 4, 11);
+        user.setBirthdate(existingBirthdate);
+        user.setAge(30);
+
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Request with null birthdate — should NOT wipe the existing one
+        UpdatePersonalDetailsRequest request = new UpdatePersonalDetailsRequest(
+                "Updated", "Name", "Here", null
+        );
+
+        User result = accountService.updatePersonalDetails("trainer", request);
+
+        // Birthdate should remain the existing value, NOT be overwritten to null
+        assertEquals(existingBirthdate, result.getBirthdate());
+        // Age should be recalculated from the EXISTING birthdate
+        assertEquals(AgeCalculator.calculateAge(existingBirthdate), result.getAge());
+        // Name fields SHOULD be updated
+        assertEquals("Updated", result.getLastName());
+        assertEquals("Name", result.getFirstName());
+        assertEquals("Here", result.getMiddleName());
+        verify(userRepository).save(user);
     }
 
     // ========== Helper ==========
@@ -225,3 +274,4 @@ class AccountServiceTest {
         return user;
     }
 }
+
