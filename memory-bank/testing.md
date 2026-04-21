@@ -201,4 +201,56 @@ Tests verify backend export generation and the new download endpoint.
 - [x] 63 tests, 0 failures, 0 skipped
 - [x] `git diff --check` -> no tracked whitespace or conflict-marker errors
 
+## Age Auto-Calculation from Birthdate (April 19, 2026)
+
+### Changes to Existing Tests
+The following tests were updated to remove `age` from DTO constructors/payloads and use `AgeCalculator` for assertions:
+
+#### AdminServiceTest.java
+- [x] `updateUserBlocksSelfRoleChange` — removed `age` param from `AdminUpdateUserRequest` constructor (8 args instead of 9)
+- [x] `updateUserReturnsSanitizedResponse` — removed `age` param; age assertion now uses `AgeCalculator.calculateAge()`
+
+#### AccountServiceTest.java
+- [x] `updatePersonalDetailsSucceeds` — removed `age` param from `UpdatePersonalDetailsRequest` (4 args instead of 5); age assertion uses `AgeCalculator.calculateAge()`
+- [x] `updatePersonalDetailsThrowsWhenUserNotFound` — removed `age` param from constructor
+
+#### AdminControllerWebMvcTest.java
+- [x] `updateUserRequiresValidPayload` — removed `"age": 0` from invalid JSON payload
+
+#### AccountControllerWebMvcTest.java
+- [x] `updateDetailsSucceeds` — removed `"age": 25` from JSON payload; age assertion changed to `.isNumber()` (dynamic calculation); `updatedUser` setup uses `AgeCalculator`
+
+### Key Verification Points
+- [x] `AdminCreateUserRequest` rejects null birthdate (`@NotNull`)
+- [x] `AdminUpdateUserRequest` no longer has an `age` field
+- [x] `UpdatePersonalDetailsRequest` no longer has an `age` field
+- [x] Age is correctly calculated from birthdate in service-layer tests
+- [x] All 63 tests pass with 0 failures after the refactor
+
+### Full Suite Verification
+- [x] `./gradlew test` → BUILD SUCCESSFUL
+- [x] 73 tests, 0 failures, 0 skipped
+
+## Age Calculation & DB Persistence Tests (April 19, 2026 — Round 2)
+
+### New Test File: AgeCalculatorTest.java
+Pure unit tests for the `AgeCalculator.calculateAge()` utility:
+- [x] `calculateAgeReturnsZeroForNullBirthdate` — null → 0
+- [x] `calculateAgeReturnsZeroForTodaysBirthdate` — birthdate = today → 0
+- [x] `calculateAgeReturnsCorrectYearsForKnownDate` — fixed past date → correct years (range assertion)
+- [x] `calculateAgeReturnsNegativeForFutureBirthdate` — future date → negative
+- [x] `calculateAgeHandlesBirthdayNotYetReachedThisYear` — birthday next month, 20 years ago → 19
+- [x] `calculateAgeHandlesBirthdayAlreadyPassedThisYear` — birthday last month, 20 years ago → 20
+
+### New Tests: AdminServiceTest.java
+- [x] `getUserByIdRecalculatesAgeFromBirthdate` — stale age=99 → recalculated from birthdate → save verified
+- [x] `getUserByIdSkipsRecalculationWhenBirthdateIsNull` — null birthdate → age preserved → no save called
+
+### New Tests: AccountServiceTest.java
+- [x] `updatePersonalDetailsRecalculatesAgeFromNewBirthdate` — new birthdate provided → age calculated from it
+- [x] `updatePersonalDetailsPreservesExistingBirthdateWhenRequestBirthdateIsNull` — null birthdate in request → existing birthdate preserved → age recalculated from existing
+
+### Full Suite Verification
+- [x] `./gradlew test` → BUILD SUCCESSFUL
+- [x] 73 tests, 0 failures, 0 skipped
 

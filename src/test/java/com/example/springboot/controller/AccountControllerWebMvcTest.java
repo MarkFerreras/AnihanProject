@@ -185,8 +185,8 @@ class AccountControllerWebMvcTest {
         updatedUser.setLastName("Dela Cruz");
         updatedUser.setFirstName("Juan");
         updatedUser.setMiddleName("Santos");
-        updatedUser.setAge(25);
         updatedUser.setBirthdate(LocalDate.of(2001, 5, 15));
+        updatedUser.setAge(com.example.springboot.service.AgeCalculator.calculateAge(LocalDate.of(2001, 5, 15)));
 
         when(accountService.updatePersonalDetails(eq("trainer"), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(updatedUser);
@@ -198,7 +198,6 @@ class AccountControllerWebMvcTest {
                                   "lastName": "Dela Cruz",
                                   "firstName": "Juan",
                                   "middleName": "Santos",
-                                  "age": 25,
                                   "birthdate": "2001-05-15"
                                 }
                                 """))
@@ -207,7 +206,7 @@ class AccountControllerWebMvcTest {
                 .andExpect(jsonPath("$.lastName").value("Dela Cruz"))
                 .andExpect(jsonPath("$.firstName").value("Juan"))
                 .andExpect(jsonPath("$.middleName").value("Santos"))
-                .andExpect(jsonPath("$.age").value(25));
+                .andExpect(jsonPath("$.age").isNumber());
     }
 
     @Test

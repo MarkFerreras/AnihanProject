@@ -146,15 +146,9 @@
                                 <input type="text" class="form-control" id="editMiddleName" required>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="editAge" class="form-label">Age</label>
-                                    <input type="number" class="form-control" id="editAge" min="1" max="150" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="editBirthdate" class="form-label">Birthdate</label>
-                                    <input type="date" class="form-control" id="editBirthdate" required>
-                                </div>
+                            <div class="mb-3">
+                                <label for="editBirthdate" class="form-label">Birthdate</label>
+                                <input type="date" class="form-control" id="editBirthdate" required>
                             </div>
 
                             <div class="mb-3">
@@ -181,7 +175,7 @@
                                 <li>`email`</li>
                                 <li>`role`</li>
                                 <li>`lastName`, `firstName`, `middleName`</li>
-                                <li>`age`, `birthdate`</li>
+                                <li>`birthdate` (age is auto-calculated)</li>
                                 <li>`password` (optional — leave blank to keep current)</li>
                             </ul>
                         </aside>
@@ -244,9 +238,8 @@
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-6 mb-3 mb-md-0">
-                                        <label for="age" class="form-label">Age</label>
-                                        <input type="number" class="form-control" id="age" min="1" max="150"
-                                            placeholder="e.g. 30">
+                                        <label class="form-label">Age</label>
+                                        <p class="form-control-plaintext" id="ageDisplay">-</p>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="birthdate" class="form-label">Date of Birth</label>

@@ -31,8 +31,7 @@
             firstName: document.getElementById('addFirstName').value.trim() || null,
             middleName: document.getElementById('addMiddleName').value.trim() || null,
             email: document.getElementById('addEmail').value.trim() || null,
-            birthdate: document.getElementById('addBirthdate').value || null,
-            age: parseInt(document.getElementById('addAge').value, 10) || null
+            birthdate: document.getElementById('addBirthdate').value || null
         };
     }
 
@@ -59,6 +58,13 @@
             // Client-side validation: password min 8 chars
             if (passwordInput.value.length < 8) {
                 setAlert('addUserError', 'Password must be at least 8 characters.', 'danger');
+                return;
+            }
+
+            // Client-side validation: birthdate is required
+            var birthdateInput = document.getElementById('addBirthdate');
+            if (!birthdateInput.value) {
+                setAlert('addUserError', 'Birthdate is required. Age is calculated automatically.', 'danger');
                 return;
             }
 

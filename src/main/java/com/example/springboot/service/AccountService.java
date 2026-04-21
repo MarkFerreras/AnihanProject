@@ -103,12 +103,22 @@ public class AccountService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Update common fields (all roles)
-        user.setLastName(request.lastName());
-        user.setFirstName(request.firstName());
-        user.setMiddleName(request.middleName());
-        user.setAge(request.age());
-        user.setBirthdate(request.birthdate());
+        // Only overwrite fields that the client actually provided (non-null)
+        if (request.lastName() != null) {
+            user.setLastName(request.lastName());
+        }
+        if (request.firstName() != null) {
+            user.setFirstName(request.firstName());
+        }
+        if (request.middleName() != null) {
+            user.setMiddleName(request.middleName());
+        }
+        if (request.birthdate() != null) {
+            user.setBirthdate(request.birthdate());
+        }
+
+        // Always recalculate age from the current birthdate on the entity
+        user.setAge(AgeCalculator.calculateAge(user.getBirthdate()));
 
         return userRepository.save(user);
     }

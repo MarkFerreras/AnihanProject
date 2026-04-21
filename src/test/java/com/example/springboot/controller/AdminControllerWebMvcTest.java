@@ -90,7 +90,6 @@ class AdminControllerWebMvcTest {
                                                   "lastName": "",
                                                   "firstName": "",
                                                   "middleName": "",
-                                                  "age": 0,
                                                   "birthdate": "2030-01-01"
                                                 }
                                                 """))

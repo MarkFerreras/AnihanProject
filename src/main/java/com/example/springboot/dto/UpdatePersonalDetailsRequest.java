@@ -6,7 +6,7 @@ public record UpdatePersonalDetailsRequest(
         String lastName,
         String firstName,
         String middleName,
-        Integer age,
         LocalDate birthdate
 ) {
 }
+

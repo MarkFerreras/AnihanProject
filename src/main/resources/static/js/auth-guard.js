@@ -84,7 +84,7 @@
         const lastNameEl = document.getElementById('lastName');
         const firstNameEl = document.getElementById('firstName');
         const middleNameEl = document.getElementById('middleName');
-        const ageEl = document.getElementById('age');
+        const ageDisplayEl = document.getElementById('ageDisplay');
         const birthdateEl = document.getElementById('birthdate');
 
         if (lastNameEl) {
@@ -99,8 +99,8 @@
             middleNameEl.value = data.middleName || '';
         }
 
-        if (ageEl) {
-            ageEl.value = data.age || '';
+        if (ageDisplayEl) {
+            ageDisplayEl.textContent = data.age != null ? data.age : '-';
         }
 
         if (birthdateEl) {
@@ -233,9 +233,6 @@
                 lastName: document.getElementById('lastName')?.value.trim() || null,
                 firstName: document.getElementById('firstName')?.value.trim() || null,
                 middleName: document.getElementById('middleName')?.value.trim() || null,
-                age: document.getElementById('age')?.value
-                    ? parseInt(document.getElementById('age').value, 10)
-                    : null,
                 birthdate: document.getElementById('birthdate')?.value || null
             };
 

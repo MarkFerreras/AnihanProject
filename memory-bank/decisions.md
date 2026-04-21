@@ -1,5 +1,27 @@
 # Decisions - Anihan SRMS
 
+## 2026-04-19 - Age as a Computed Field (Not User Input)
+
+**Decision**: Remove `age` from all input DTOs and forms. Calculate it server-side from `birthdate` using `java.time.Period.between(birthdate, LocalDate.now()).getYears()` via a centralized `AgeCalculator` utility.
+
+**Alternatives considered**:
+1. Keep age as a user-editable field alongside birthdate — simple but allows age/birthdate mismatch
+2. Calculate age client-side only and send it to the server — still allows tampered or stale values
+3. Compute age server-side from birthdate, store it in DB — single source of truth, always accurate
+
+**Why chosen**: Option 3 guarantees age is always consistent with the birthdate. The `AgeCalculator` utility centralises the logic so every code path (create, update, view) uses the same calculation.
+
+## 2026-04-19 - Silent Age Recalculation on View (Not on Table Load)
+
+**Decision**: When viewing individual user details (`GET /api/admin/users/{id}` or `GET /api/auth/me`), silently recalculate age from birthdate and persist it to the database. Do NOT recalculate when loading the admin user table (`GET /api/admin/users`). Do NOT log these silent writes to system_logs.
+
+**Alternatives considered**:
+1. Recalculate age everywhere (including table load) — causes N writes on every admin page load
+2. Recalculate only on create/update, never on view — age becomes stale between birthdays
+3. Recalculate on individual views only, skip bulk table — targeted writes, no performance impact on table
+
+**Why chosen**: Option 3 balances accuracy and performance. The table may show a slightly stale age (off by a day around a birthday), but viewing the user's details immediately corrects it. No system log entry is created because this is a derived-data maintenance operation, not a user action.
+
 ## 2026-04-18 - Reuse Existing Date Filter Contract for Export
 
 **Decision**: Keep the export API on `GET /api/logs/export` aligned with the existing `rangeDays`, `startDate`, and `endDate` query parameters only.

@@ -1,4 +1,44 @@
 # Change Log - Anihan SRMS
+## 2026-04-19 - Age Auto-Calculation from Birthdate
+**Branch:** `test-user-table`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `service/AgeCalculator.java` | Static utility for computing age from birthdate via `java.time.Period` |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `dto/AdminUpdateUserRequest.java` | Removed `age` field and `@Min`/`@Max` annotations |
+| `dto/AdminCreateUserRequest.java` | Removed `age` field; added `@NotNull` to `birthdate` |
+| `dto/UpdatePersonalDetailsRequest.java` | Removed `age` field from record |
+| `service/AdminService.java` | Auto-calculate age in `createUser()`, `updateUser()`, `getUserById()` via `AgeCalculator` |
+| `service/AccountService.java` | Auto-calculate age in `updatePersonalDetails()` via `AgeCalculator` |
+| `controller/AuthController.java` | Silently recalculate + persist age on `GET /api/auth/me` (no system log) |
+| `static/admin.html` | Self-service modal: age `<input>` → read-only `<p>` display |
+| `static/edit-user.html` | Admin form: removed age input (birthdate full-width); modal: age display-only |
+| `static/add-user.html` | Removed age input; birthdate required with no default; sidebar defaults updated |
+| `static/registrar.html` | Modal: age `<input>` → read-only display |
+| `static/trainer.html` | Modal: age `<input>` → read-only display |
+| `static/logs.html` | Modal: age `<input>` → read-only display |
+| `static/js/admin-edit-user.js` | Removed `age` from `buildPayload()` and `populateForm()` |
+| `static/js/admin-add-user.js` | Removed `age` from `buildPayload()`; added birthdate validation |
+| `static/js/auth-guard.js` | Age displayed via `#ageDisplay` text; removed `age` from save payload |
+| `test/service/AdminServiceTest.java` | Updated `AdminUpdateUserRequest` constructors (removed age param); age assertion uses `AgeCalculator` |
+| `test/service/AccountServiceTest.java` | Updated `UpdatePersonalDetailsRequest` constructors (removed age param); age assertion uses `AgeCalculator` |
+| `test/controller/AdminControllerWebMvcTest.java` | Removed `age` from invalid payload JSON |
+| `test/controller/AccountControllerWebMvcTest.java` | Removed `age` from JSON payload; age assertion uses `.isNumber()` |
+| `memory-bank/activeContext.md` | Updated to reflect age auto-calculation phase |
+| `memory-bank/progress.md` | Added age auto-calculation completed section |
+| `memory-bank/changeLog.md` | This entry |
+| `memory-bank/decisions.md` | Added age calculation design decisions |
+| `memory-bank/testing.md` | Added age-related test verification notes |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
+
+---
 ## 2026-04-18 - System Logs Export UI Cleanup
 **Branch:** `feature/export-logs`
 
