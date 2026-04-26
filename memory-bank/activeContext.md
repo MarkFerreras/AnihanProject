@@ -1,44 +1,40 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Age Auto-Calculation from Birthdate**
+**Database Schema Sync & SQL Export Files**
 
 ## Active Branch
 `test-user-table`
 
-## Status (April 19, 2026)
+## Status (April 26, 2026)
 
-### Age Auto-Calculation Refactor (April 19, 2026)
-Transitioned age from a manually-entered field to a computed value derived from birthdate:
-- Created `AgeCalculator.java` utility using `java.time.Period`
-- Removed `age` field from `AdminUpdateUserRequest`, `AdminCreateUserRequest`, and `UpdatePersonalDetailsRequest` DTOs
-- Made `birthdate` mandatory (`@NotNull`) for user creation; removed default value `2000-01-01`
-- `AdminService.createUser()` and `updateUser()` auto-calculate age from birthdate
-- `AdminService.getUserById()` silently recalculates and persists age on every view (NOT logged)
-- `AuthController.currentUser()` (`GET /api/auth/me`) silently recalculates and persists age (NOT logged)
-- `AccountService.updatePersonalDetails()` auto-calculates age from birthdate
-- Admin user table (`GET /api/admin/users`) does NOT recalculate — returns stored age to avoid bulk writes
-- Replaced age `<input>` with read-only `<p id="ageDisplay">` in: `admin.html`, `edit-user.html`, `add-user.html`, `registrar.html`, `trainer.html`, `logs.html`
-- Removed `age` from JavaScript payloads in `admin-edit-user.js`, `admin-add-user.js`, `auth-guard.js`
-- Added client-side birthdate validation in `admin-add-user.js`
-- Updated all test files: `AdminServiceTest`, `AccountServiceTest`, `AdminControllerWebMvcTest`, `AccountControllerWebMvcTest`
+### Database Schema Sync & SQL Export (April 26, 2026)
+Synchronized the live database with all JPA entity models and created export SQL files:
+- Created 6 missing tables in live Docker MySQL: `qualifications`, `subjects`, `parents`, `other_guardians`, `documents`, `grades`
+- Added `UNIQUE INDEX idx_student_id` on `student_records` (required for FK references)
+- Rewrote `src/main/sql/AnihanSRMS.sql` — full clone dump (12 tables DDL + 3 users + 79 system logs)
+- Created `src/main/sql/schema.sql` — clean schema + 3 dummy seed accounts (no system logs)
+- Removed obsolete tables from SQL: `log`, `classess`, `qualification_assessment`, `previous_school`
+- Both SQL files include `CREATE DATABASE` + `USE` for standalone execution on a new device
 
-**Results:** `./gradlew test` → BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped).
-
-> **Note — Intentionally NOT updated:**
-> `student-records.html` and `subjects.html` still have the old editable age input in their Edit Account modals.
-> These will be updated in a future student-focused session.
+**Database now has 12 tables:**
+`batches`, `courses`, `qualifications`, `sections`, `subjects`, `users`, `student_records`, `parents`, `other_guardians`, `documents`, `grades`, `system_logs`
 
 ### Previous Sessions
-- System Logs Export UI Cleanup (April 18, 2026) - CSV/XLSX/DOCX export via `/api/logs/export`
-- Admin Bulk Load Tests (April 18, 2026) - 5 new standalone tests verifying 100-user table handling
-- Database Migration Fix (April 17, 2026) - applied missing schema changes to Docker MySQL
-- Admin Navbar Cleanup (April 17, 2026) - removed "Student Records" and "Subjects" nav links
+- Age Auto-Calculation from Birthdate (April 19, 2026)
+- System Logs Export UI Cleanup (April 18, 2026)
+- Admin Bulk Load Tests (April 18, 2026)
+- Database Migration Fix (April 17, 2026)
+- Admin Navbar Cleanup (April 17, 2026)
 
 ## Verified
-- `./gradlew test` → BUILD SUCCESSFUL (63 tests, all green)
-- Age field removed from all edit/create forms (except student pages)
-- Age displayed as read-only text in self-service modals
-- Birthdate is mandatory for user creation
-- Age recalculated silently on user detail views without system log entries
+- `SHOW TABLES` → 12 tables confirmed in live database
+- All 6 new tables created successfully with correct FK constraints
+- Existing data preserved (3 users, 79 system logs)
+- `AnihanSRMS.sql` contains full DDL + all current data
+- `schema.sql` contains full DDL + 3 dummy accounts, no system log data
+- `student_records.record_id` remains PK (matching live DB)
 
+## Known Notes
+- `student-records.html` and `subjects.html` still have old editable age input in their Edit Account modals (future task)
+- `spring.jpa.hibernate.ddl-auto=none` — all schema changes must be done via SQL manually

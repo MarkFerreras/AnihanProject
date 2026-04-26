@@ -1,4 +1,46 @@
 # Change Log - Anihan SRMS
+## 2026-04-26 - Database Schema Sync & SQL Export Files
+**Branch:** `test-user-table` (no branch change per user request)
+
+### Database Tables Created (Live Docker MySQL)
+| Table | Purpose |
+|---|---|
+| `qualifications` | Qualification codes for subjects |
+| `subjects` | Subject catalog linked to qualifications |
+| `parents` | Parent/guardian info linked to student records |
+| `other_guardians` | Additional guardian info linked to student records |
+| `documents` | Uploaded student documents (LONGBLOB) |
+| `grades` | Student grades per subject |
+
+### Database Index Added
+| Change | Purpose |
+|---|---|
+| `UNIQUE INDEX idx_student_id ON student_records (student_id)` | Required for FK references from parents, other_guardians, documents, grades |
+
+### Files Created/Updated
+| File | Action | Purpose |
+|---|---|---|
+| `src/main/sql/AnihanSRMS.sql` | **Rewritten** | Full database dump (12 tables DDL + 3 user accounts + 79 system log entries) for cloning to a new device |
+| `src/main/sql/schema.sql` | **Created** | Clean schema (12 tables DDL) + 3 dummy seed accounts (Juan Dela Cruz/admin, Maria Reyes/registrar, Carlos Santos/trainer). No system log data. |
+
+### Key Changes from Old AnihanSRMS.sql
+- Removed stray `main` text (Git merge conflict remnant)
+- Removed duplicate/broken `ALTER TABLE` blocks
+- Removed stray closing `);` near EOF
+- Removed obsolete `log` table (replaced by `system_logs`)
+- Removed obsolete `classess` and `qualification_assessment` tables (no JPA entities)
+- Removed obsolete `previous_school` table (no JPA entity)
+- Added 6 missing table DDLs matching JPA entities
+- Added `CREATE DATABASE` + `USE` header for standalone execution
+- Added `UNIQUE KEY idx_student_id` on `student_records` for FK support
+- All timestamps converted to PHT (UTC+8) for consistency
+
+### Verification
+- `SHOW TABLES` → 12 tables confirmed in live database
+- All 6 new tables created successfully
+- Existing data (3 users, 79 system logs) preserved
+
+---
 ## 2026-04-19 - Age Auto-Calculation from Birthdate
 **Branch:** `test-user-table`
 
