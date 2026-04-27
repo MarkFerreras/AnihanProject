@@ -289,9 +289,15 @@
                     }
                 },
                 {
-                    data: null,
-                    render: function (data, type, row) {
-                        return escapeHtml(formatName(row));
+                    data: 'lastName',
+                    render: function (data) {
+                        return escapeHtml(data || 'Not set');
+                    }
+                },
+                {
+                    data: 'firstName',
+                    render: function (data) {
+                        return escapeHtml(data || 'Not set');
                     }
                 },
                 {

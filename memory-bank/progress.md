@@ -56,6 +56,7 @@
 - [x] Unified merged admin pages under the root green/white/blue shell and shared account modal behavior
 - [x] Rebuilt `admin.html` after a malformed donor merge left duplicate markup and caused a blank admin page
 - [x] Rebuilt `edit-user.html` to match the current `admin-edit-user.js` contract and shared admin shell
+- [x] Split admin Users table "Name" column into separate "Last Name" and "First Name" columns (`admin.html` + `admin-users.js`)
 
 ## Admin Merge (Completed)
 - [x] Added `/api/admin/users` and `/api/admin/users/{id}` in the root app using DTO responses

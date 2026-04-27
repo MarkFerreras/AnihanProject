@@ -1,4 +1,23 @@
 # Change Log - Anihan SRMS
+## 2026-04-27 - Admin Users Table Column Split (Name → Last Name + First Name)
+**Branch:** `test-user-table`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/admin.html` | Replaced single `<th>Name</th>` with `<th>Last Name</th>` + `<th>First Name</th>` in Users table header (6 → 7 columns) |
+| `static/js/admin-users.js` | Replaced single combined `formatName(row)` DataTables column with two separate `data: 'lastName'` and `data: 'firstName'` columns |
+
+### Not Modified (Intentional)
+| File | Reason |
+|---|---|
+| `dto/AdminUserResponse.java` | Already has separate `lastName` and `firstName` fields — no backend changes needed |
+| All test files | No test asserts on HTML table column structure — all 63 tests pass unchanged |
+
+### Verification
+- `./gradlew build` → BUILD SUCCESSFUL (7 tasks, all tests green)
+
+---
 ## 2026-04-26 - Database Schema Sync & SQL Export Files
 **Branch:** `test-user-table` (no branch change per user request)
 
