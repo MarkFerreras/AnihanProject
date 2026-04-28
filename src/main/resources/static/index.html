@@ -103,9 +103,9 @@
                 if (res.ok) {
                     const data = await res.json();
                     const routes = {
-                        'ROLE_ADMIN': '/admin.html',
-                        'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_ADMIN': '/admin',
+                        'ROLE_REGISTRAR': '/registrar',
+                        'ROLE_TRAINER': '/trainer'
                     };
                     const destination = routes[data.role];
                     if (destination) {
@@ -131,7 +131,7 @@
                     }, 3000);
                 }
                 // Clean URL without reloading
-                window.history.replaceState({}, '', '/index.html');
+                window.history.replaceState({}, '', '/index');
             }
         })();
 
@@ -166,11 +166,11 @@
                 if (response.ok) {
                     // Route to dashboard based on role
                     const routes = {
-                        'ROLE_ADMIN': '/admin.html',
-                        'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_ADMIN': '/admin',
+                        'ROLE_REGISTRAR': '/registrar',
+                        'ROLE_TRAINER': '/trainer'
                     };
-                    const destination = routes[data.role] ?? '/index.html';
+                    const destination = routes[data.role] ?? '/index';
                     window.location.href = destination;
                 } else {
                     // Display validation or auth errors

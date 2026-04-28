@@ -43,25 +43,22 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/",
-                        "/index.html",
+                        "/index", "/index.html",
                         "/css/**",
                         "/js/**",
                         "/images/**"
                 ).permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                // Role-based access
-                // Role-based access for dashboard HTML pages
-                .requestMatchers("/admin.html").hasRole("ADMIN")
-                .requestMatchers("/registrar.html").hasRole("REGISTRAR")
-                .requestMatchers("/trainer.html").hasRole("TRAINER")
+                // Role-based access for clean URLs and legacy .html redirects
+                .requestMatchers("/admin", "/admin.html", "/student-records", "/student-records.html",
+                        "/subjects", "/subjects.html", "/logs", "/logs.html",
+                        "/edit-user", "/edit-user.html", "/add-user", "/add-user.html").hasRole("ADMIN")
+                .requestMatchers("/registrar", "/registrar.html").hasRole("REGISTRAR")
+                .requestMatchers("/trainer", "/trainer.html").hasRole("TRAINER")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/logs/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
-                // Role-based access for HTML pages
-                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
-                .requestMatchers("/registrar.html").hasRole("REGISTRAR")
-                .requestMatchers("/trainer.html").hasRole("TRAINER")
                 // Account endpoints require authentication (any role)
                 .requestMatchers("/api/account/**").authenticated()
                 .anyRequest().authenticated()
@@ -98,7 +95,7 @@ public class SecurityConfig {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.getWriter().write("{\"message\":\"Unauthorized. Please log in.\"}");
         } else {
-            response.sendRedirect("/index.html");
+            response.sendRedirect("/index");
         }
     }
 
@@ -128,14 +125,14 @@ public class SecurityConfig {
             Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
             for (GrantedAuthority authority : authorities) {
                 return switch (authority.getAuthority()) {
-                    case "ROLE_ADMIN" -> "/admin.html";
-                    case "ROLE_REGISTRAR" -> "/registrar.html";
-                    case "ROLE_TRAINER" -> "/trainer.html";
-                    default -> "/index.html";
+                    case "ROLE_ADMIN" -> "/admin";
+                    case "ROLE_REGISTRAR" -> "/registrar";
+                    case "ROLE_TRAINER" -> "/trainer";
+                    default -> "/index";
                 };
             }
         }
 
-        return "/index.html";
+        return "/index";
     }
 }

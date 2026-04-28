@@ -17,9 +17,9 @@
     'use strict';
 
     const ROLE_DASHBOARDS = {
-        ROLE_ADMIN: '/admin.html',
-        ROLE_REGISTRAR: '/registrar.html',
-        ROLE_TRAINER: '/trainer.html'
+        ROLE_ADMIN: '/admin',
+        ROLE_REGISTRAR: '/registrar',
+        ROLE_TRAINER: '/trainer'
     };
 
     const ROLE_DISPLAY = {
@@ -37,7 +37,7 @@
             const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
 
             if (!response.ok) {
-                window.location.replace('/index.html');
+                window.location.replace('/index');
                 return;
             }
 
@@ -45,7 +45,7 @@
             currentUserData = data;
 
             if (requiredRole && data.role !== requiredRole) {
-                window.location.replace(ROLE_DASHBOARDS[data.role] || '/index.html');
+                window.location.replace(ROLE_DASHBOARDS[data.role] || '/index');
                 return;
             }
 
@@ -53,7 +53,7 @@
             populatePersonalDetailsForm(data);
             handleTrainerFields(data.role);
         } catch (error) {
-            window.location.replace('/index.html');
+            window.location.replace('/index');
         }
     }
 
@@ -193,7 +193,7 @@
                 // Redirect even if logout transport fails.
             }
 
-            window.location.replace('/index.html?loggedOut=true');
+            window.location.replace('/index?loggedOut=true');
         });
     }
 
@@ -377,7 +377,7 @@
                 if (response.ok) {
                     showAlert('passwordChangeAlert', 'Password updated. Redirecting to login...', 'success');
                     setTimeout(function () {
-                        window.location.replace('/index.html');
+                        window.location.replace('/index');
                     }, 1500);
                 } else {
                     const errorMessage = data.errors

@@ -174,7 +174,7 @@
             document.getElementById('editPassword').value = '';
 
             window.setTimeout(function () {
-                window.location.replace('admin.html');
+                window.location.replace('/admin');
             }, 1200);
         } catch (error) {
             setAlert('editUserError', error.message || 'Unable to update the selected user.', 'danger');

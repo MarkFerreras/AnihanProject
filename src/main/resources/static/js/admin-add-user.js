@@ -95,7 +95,7 @@
                 }
 
                 // Success — redirect to admin dashboard with success flag
-                window.location.href = 'admin.html?created=true';
+                window.location.href = '/admin?created=true';
             } catch (error) {
                 setAlert('addUserError', 'An unexpected error occurred. Please try again.', 'danger');
             } finally {

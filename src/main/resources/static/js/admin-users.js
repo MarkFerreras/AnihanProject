@@ -112,10 +112,10 @@
         const reEnableBtn = document.getElementById('detailsReEnableBtn');
 
         if (editLink) {
-            editLink.href = 'edit-user.html?id=' + encodeURIComponent(user.userId);
+            editLink.href = '/edit-user?id=' + encodeURIComponent(user.userId);
         }
         if (logsLink) {
-            logsLink.href = 'logs.html?user=' + encodeURIComponent(user.userId);
+            logsLink.href = '/logs?user=' + encodeURIComponent(user.userId);
         }
 
         // Store the user ID for delete and set the display name

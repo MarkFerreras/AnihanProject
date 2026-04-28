@@ -240,7 +240,7 @@ $(document).ready(function () {
                 if (xhr.status === 401) {
                     $errorMessage.text('Session expired. Redirecting to login...');
                     setTimeout(function () {
-                        window.location.href = '/index.html';
+                        window.location.href = '/index';
                     }, 1500);
                 } else if (xhr.status === 403) {
                     $errorMessage.text('Access denied. You do not have permission to view system logs.');
@@ -265,7 +265,7 @@ $(document).ready(function () {
             if (response.status === 401) {
                 showExportFeedback('Session expired. Redirecting to login...');
                 setTimeout(function () {
-                    window.location.href = '/index.html';
+                    window.location.href = '/index';
                 }, 1500);
                 return;
             }
