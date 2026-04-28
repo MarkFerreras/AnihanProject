@@ -1,27 +1,18 @@
 # Change Log - Anihan SRMS
-## 2026-04-26 - Student Portal Welcome Page
+## 2026-04-27 - Admin Users Table Column Split (Name → Last Name + First Name)
 **Branch:** `test-user-table`
-
-### Files Created
-| File | Purpose |
-|---|---|
-| `repository/StudentRecordRepository.java` | JPA repo with case-insensitive name duplicate check |
-| `controller/StudentPortalController.java` | Public `GET /api/student-portal/check-duplicate` endpoint |
-| `static/student-portal.html` | Welcome page with Last Name, First Name, Middle Name form |
-| `static/student-details.html` | Placeholder page for future student details input |
-| `static/js/student-portal.js` | Form logic: duplicate check → warning or redirect to details page |
 
 ### Files Modified
 | File | Change |
 |---|---|
-| `config/SecurityConfig.java` | Added `student-portal.html`, `student-details.html`, `/api/student-portal/**` to `permitAll()` |
+| `static/admin.html` | Replaced single `<th>Name</th>` with `<th>Last Name</th>` + `<th>First Name</th>` in Users table header (6 → 7 columns) |
+| `static/js/admin-users.js` | Replaced single combined `formatName(row)` DataTables column with two separate `data: 'lastName'` and `data: 'firstName'` columns |
 
-### Design Decisions
-- Students do NOT have user accounts — portal pages and API are fully public
-- Names are NOT saved to DB on the welcome page — passed to next page via URL query params
-- Duplicate check is case-insensitive across all 3 name fields
-- If duplicate found, a warning alert appears and the student cannot proceed (like password validation pattern)
-- If no duplicate, redirect to `student-details.html` with names as URL params
+### Not Modified (Intentional)
+| File | Reason |
+|---|---|
+| `dto/AdminUserResponse.java` | Already has separate `lastName` and `firstName` fields — no backend changes needed |
+| All test files | No test asserts on HTML table column structure — all 63 tests pass unchanged |
 
 ### Verification
 - `./gradlew build` → BUILD SUCCESSFUL (7 tasks, all tests green)
