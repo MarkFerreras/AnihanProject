@@ -2,6 +2,7 @@
 FROM gradle:jdk25-corretto AS build
 WORKDIR /app
 COPY . .
+RUN chmod +x ./gradlew
 RUN ./gradlew build -x test
 
 # Run stage
