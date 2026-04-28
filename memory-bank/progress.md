@@ -215,8 +215,18 @@
 - [x] `./gradlew test` → BUILD SUCCESSFUL (63 tests, 0 failures, 0 skipped)
 - [/] Refactoring logic to align heavily with newly integrated Capstone Requirements
 
+## Student Portal — Welcome Page (Completed — April 26, 2026)
+- [x] Created `StudentRecordRepository.java` with case-insensitive name duplicate check
+- [x] Created `StudentPortalController.java` with `GET /api/student-portal/check-duplicate` (public, no auth)
+- [x] Created `student-portal.html` — welcome page mirroring login page design (name form instead of credentials)
+- [x] Created `student-details.html` — placeholder page for future enrollment details
+- [x] Created `student-portal.js` — duplicate check on submit, warning alert or redirect
+- [x] Updated `SecurityConfig.java` — student portal pages and API added to `permitAll()`
+- [x] Names passed to next page via URL query params (no DB insert on welcome page)
+- [x] `./gradlew build` → BUILD SUCCESSFUL (7 tasks, all tests green)
+
 ## Remainder Requirements / Roadmap
-- [ ] Create `StudentUser` Enrollment Portal logic
+- [/] Create `StudentUser` Enrollment Portal logic (welcome page done, details page next)
 - [ ] Implement `updateGrade()` logic for Trainers 
 - [ ] Implement BLOB Database encoding via `encodeStudentDocsPerBatch()`
 - [ ] Implement rigorous Unit Testing as required by Agile sprints

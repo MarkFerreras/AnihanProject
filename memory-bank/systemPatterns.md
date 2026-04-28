@@ -42,3 +42,26 @@ Every admin page **must** include:
 > These pages were intentionally left unchanged when Student Records and Subjects were removed from the active admin navbar.
 > **Before re-adding these pages to the admin navbar, you MUST update their internal navbars to match the current pattern above.**
 > Failure to do so will create an inconsistent navigation experience across admin pages.
+
+## Student Portal Page Pattern (Public — No Auth)
+Student portal pages share the **login page** visual design (`login.css`) but are standalone (no `auth-guard.js`, no account dropdown).
+
+Every student portal page **must** include:
+1. `css/bootstrap.min.css` + `css/login.css` — shared login/portal styling
+2. **Header navbar** with `.login-navbar` and Anihan logo
+3. **Card layout** using `.login-card` for centered content
+4. **Footer** with `.login-footer`
+5. `js/bootstrap.bundle.min.js` — Bootstrap JS
+6. NO `auth-guard.js`, NO `dashboard.css` — students are unauthenticated
+
+### Portal Pages
+| Page | URL | Purpose |
+|---|---|---|
+| `student-portal.html` | `/student-portal.html` | Welcome page — name input + duplicate check |
+| `student-details.html` | `/student-details.html` | Student details input (placeholder — future) |
+
+### Portal API
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/student-portal/check-duplicate` | GET | Public | Case-insensitive name match against `student_records` |
+

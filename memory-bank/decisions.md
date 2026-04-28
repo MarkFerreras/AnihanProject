@@ -1,5 +1,27 @@
 # Decisions - Anihan SRMS
 
+## 2026-04-26 - No Database Insert on Student Portal Welcome Page
+
+**Decision**: Do not insert a row into `student_records` when the student submits their name on the welcome page. Instead, pass the 3 names to the next page via URL query parameters and only insert into the database when all required details are collected.
+
+**Alternatives considered**:
+1. Insert a partial record with placeholder/default values for NOT NULL columns — risks orphaned or incomplete rows
+2. Alter the schema to make columns nullable — weakens data integrity constraints
+3. Pass names via URL params, defer insert until full details are collected — clean, no schema changes
+
+**Why chosen**: Option 3 avoids incomplete rows in `student_records` and preserves the existing NOT NULL constraints. The welcome page is purely a name-collection and duplicate-check step.
+
+## 2026-04-26 - Public Student Portal (No Authentication)
+
+**Decision**: Make `student-portal.html`, `student-details.html`, and `/api/student-portal/**` fully public (`permitAll()`) in Spring Security. Students do not have user accounts.
+
+**Alternatives considered**:
+1. Require students to create an account first — adds complexity and contradicts project scope (students are not system users)
+2. Use a shared access code or token — adds friction without meaningful security on a LAN-only system
+3. Fully public — anyone on the LAN can access the portal
+
+**Why chosen**: Option 3 aligns with the project requirement that students do not have accounts. The system is LAN-only (no internet exposure), so public access on the local network is acceptable.
+
 ## 2026-04-19 - Age as a Computed Field (Not User Input)
 
 **Decision**: Remove `age` from all input DTOs and forms. Calculate it server-side from `birthdate` using `java.time.Period.between(birthdate, LocalDate.now()).getYears()` via a centralized `AgeCalculator` utility.

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Anihan SRMS — Student Details">
+    <title>Student Details — Anihan SRMS</title>
+
+    <!-- Bootstrap 5.3 CSS (local) -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+
+    <!-- Custom Login Styles (shared look) -->
+    <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <nav class="navbar login-navbar">
+            <div class="container">
+                <span class="navbar-brand">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                </span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ===== MAIN — Student Details Placeholder ===== -->
+    <main class="login-main">
+        <div class="login-card" style="max-width: 600px;">
+            <div class="login-card-logo">
+                <img src="images/logo2.png" alt="Anihan Logo" class="card-logo">
+            </div>
+            <h1 class="login-card-title">Student Details</h1>
+            <p class="login-card-subtitle" id="studentGreeting">Welcome!</p>
+
+            <div class="text-center py-4">
+                <div class="mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#28a745" viewBox="0 0 16 16">
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.502.002-.056-.271 2.478-.464zm.787-2.15a.94.94 0 0 1-.946.937.94.94 0 0 1-.946-.937.94.94 0 0 1 .946-.938.94.94 0 0 1 .946.938z"/>
+                    </svg>
+                </div>
+                <p class="text-muted" style="font-size: 1.05rem;">
+                    This section is for student details input.<br>
+                    <strong>Coming soon</strong> — additional enrollment fields will be available here.
+                </p>
+            </div>
+
+            <!-- Back Button -->
+            <div class="d-grid mt-2">
+                <a href="student-portal.html" class="btn btn-login">
+                    ← Back to Student Portal
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="login-footer">
+        <div class="container">
+            <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5.3 JS Bundle (local) -->
+    <script src="js/bootstrap.bundle.min.js"></script>
+
+    <!-- Read names from URL params and display greeting -->
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const lastName = params.get('lastName') || '';
+            const firstName = params.get('firstName') || '';
+            const middleName = params.get('middleName') || '';
+
+            if (firstName || lastName) {
+                const greeting = document.getElementById('studentGreeting');
+                greeting.textContent = 'Welcome, ' + firstName + ' ' + middleName + ' ' + lastName + '!';
+            }
+        })();
+    </script>
+
+</body>
+
+</html>
