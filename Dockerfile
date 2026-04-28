@@ -1,5 +1,5 @@
 # Build stage
-FROM gradle:8.12.1-jdk25-corretto AS build
+FROM gradle:jdk25-corretto AS build
 WORKDIR /app
 COPY . .
 RUN ./gradlew build -x test
