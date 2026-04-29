@@ -52,19 +52,15 @@ public class SecurityConfig {
                 .requestMatchers("/student-portal.html", "/student-details.html").permitAll()
                 .requestMatchers("/api/student-portal/**").permitAll()
                 .requestMatchers("/api/student/**").permitAll()
-                // Role-based access
-                // Role-based access for dashboard HTML pages
-                .requestMatchers("/admin.html").hasRole("ADMIN")
+                // Role-based access — HTML pages
+                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
                 .requestMatchers("/registrar.html").hasRole("REGISTRAR")
                 .requestMatchers("/trainer.html").hasRole("TRAINER")
+                // Role-based access — API endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/logs/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
-                // Role-based access for HTML pages
-                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
-                .requestMatchers("/registrar.html").hasRole("REGISTRAR")
-                .requestMatchers("/trainer.html").hasRole("TRAINER")
                 // Account endpoints require authentication (any role)
                 .requestMatchers("/api/account/**").authenticated()
                 .anyRequest().authenticated()

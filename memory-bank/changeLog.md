@@ -1,5 +1,102 @@
 # Change Log - Anihan SRMS
 
+## 2026-04-30 - Enrollment Flow Bug Audit & Fixes
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Full audit of the enrollment flow (portal → wizard → service → DB) for potential bugs, then fix critical and cleanup issues.
+
+### Bugs Found: 5
+
+| Bug | Severity | Status |
+|---|---|---|
+| Bug 3 — `Parent`/`OtherGuardian` `@JoinColumn` FK mismatch | 🔴 Critical | **Fixed** |
+| Bug 4 — `student_records.email` not in enrollment flow | 🟡 Medium | Open (needs product decision) |
+| Bug 5 — `AgeCalculator` returns 0 instead of null | 🟡 Medium | Open |
+| Bug 6 — Duplicate security authorization rules | 🟢 Low | **Fixed** |
+| Bug 7 — `saveDraft()` failure swallowed before submit | 🟡 Medium | **Fixed (Option A)** |
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `Parent.java` | Added `referencedColumnName = "student_id"` to `@JoinColumn` |
+| `OtherGuardian.java` | Added `referencedColumnName = "student_id"` to `@JoinColumn` |
+| `SecurityConfig.java` | Consolidated duplicate `requestMatchers` into single clean block |
+| `student-details.js` | `saveDraft()` returns boolean; submit handler blocks on failure |
+| `memory-bank/bugs.md` | **Created** — full bug tracker for team documentation |
+
+### Bug 3 Fix Detail
+After Bug 2 moved `@Id` from `studentId` (String) to `recordId` (Integer), the `@ManyToOne @JoinColumn(name = "student_id")` in `Parent` and `OtherGuardian` defaulted to joining `student_records.record_id` (INT) instead of `student_records.student_id` (VARCHAR). All 9 child table FKs in the DB point to `student_records.student_id`. Fix: `referencedColumnName = "student_id"`.
+
+### Bug 6 Fix Detail
+`/admin.html`, `/registrar.html`, `/trainer.html` had duplicate `requestMatchers` rules at lines 57-59 and 65-67. Consolidated into a single set with HTML pages and API endpoints clearly separated.
+
+### Bug 7 Fix Detail (Option A)
+`saveDraft()` refactored to return `true`/`false` instead of swallowing errors. Submit handler now validates first, then saves — if save fails, submission is **blocked** with error: *"Your data could not be saved. Please check your connection and try again."* The "Next" button retains best-effort save behavior (ignores return value) to provide browser-crash recovery.
+
+### Validation
+- `./gradlew build -x test` → BUILD SUCCESSFUL (4s)
+
+---
+
+## 2026-04-30 - Database Sync from AnihanSRMS.sql (No Data Drop)
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Update the live AnihanSRMS database to match `src/main/sql/AnihanSRMS.sql` without dropping any existing data.
+
+### Audit Summary
+Full column-by-column comparison of all 17 canonical tables between the live MySQL database and `AnihanSRMS.sql`.
+
+| Table | Column Match | Nullability Match | Index Match | Result |
+|---|---|---|---|---|
+| batches | ✅ | ✅ | ✅ | OK |
+| courses | ✅ | ✅ | ✅ | OK |
+| qualifications | ✅ | ✅ | ✅ | OK |
+| sections | ✅ | ✅ | ✅ | OK |
+| subjects | ✅ | ✅ | ✅ | OK |
+| **users** | ✅ | ✅ | **❌ Missing UNIQUE on username** | **Fixed** |
+| student_records | ✅ | ✅ | ✅ | OK |
+| parents | ✅ | ✅ | ✅ | OK |
+| other_guardians | ✅ | ✅ | ✅ | OK |
+| documents | ✅ | ✅ | ✅ | OK |
+| grades | ✅ | ✅ | ✅ | OK |
+| system_logs | ✅ | ✅ | ✅ | OK |
+| student_education | ✅ | ✅ | ✅ | OK |
+| student_school_years | ✅ | ✅ | ✅ | OK |
+| student_ojt | ✅ | ✅ | ✅ | OK |
+| student_tesda_qualifications | ✅ | ✅ | ✅ | OK |
+| student_uploads | ✅ | ✅ | ✅ | OK |
+
+### Fix Applied
+| Change | Detail |
+|---|---|
+| `ALTER TABLE users ADD UNIQUE INDEX uq_username (username)` | `AnihanSRMS.sql` declares `username VARCHAR(255) NOT NULL UNIQUE` and `User.java` has `@Column(unique=true)`. The live DB was missing this constraint. |
+
+### Pre-Check
+- Verified no duplicate usernames exist before adding UNIQUE index
+
+### Data Preserved
+| Table | Row Count |
+|---|---|
+| users | 3 |
+| student_records | 7 |
+| system_logs | 85 |
+| parents | 7 |
+| student_education | 24 |
+
+### Backend Validation
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- `./gradlew bootRun` → Started in 9.3s, no errors
+- Hibernate 7.2.7 connected to MySQL 8.0.45, initialized 12 JPA repositories
+- No schema validation warnings
+
+### JPA Entity Cross-Reference
+All 17 JPA entity files verified against live DB columns — full alignment confirmed.
+
+---
+
 ## 2026-04-30 - Bug Fix: student_records.age NOT NULL Blocks Enrollment (Bug 1)
 **Branch:** `feature/student-details`
 

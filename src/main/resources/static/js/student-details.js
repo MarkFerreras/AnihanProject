@@ -132,13 +132,20 @@ function setupNavButtons() {
     document.getElementById('btnSubmit').addEventListener('click', async () => {
         clearAlerts();
         clearValidation();
-        // Best-effort draft save — don't block submission if it fails
-        try { await saveDraft(); } catch { /* already alerted */ }
+
         const errors = validateAll();
         if (errors.length > 0) {
             highlightErrors(errors);
             return;
         }
+
+        // Final save MUST succeed before we can submit
+        const saved = await saveDraft();
+        if (!saved) {
+            showAlert('Your data could not be saved. Please check your connection and try again.', 'danger');
+            return;
+        }
+
         await submitForm();
     });
 }
@@ -171,12 +178,14 @@ async function apiPut(url, body) {
 }
 
 // ─── Save draft ───────────────────────────────────────────────────────────────
+// Returns true if the save succeeded, false otherwise.
 async function saveDraft() {
-    if (!studentId) return;
+    if (!studentId) return false;
     try {
         await apiPut(`/api/student/${studentId}`, buildPayload());
+        return true;
     } catch (e) {
-        showAlert('Could not save draft. Check your connection.', 'danger');
+        return false;
     }
 }
 
