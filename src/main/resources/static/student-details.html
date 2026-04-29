@@ -4,19 +4,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Student Details">
-    <title>Student Details — Anihan SRMS</title>
-
-    <!-- Bootstrap 5.3 CSS (local) -->
+    <title>Student Enrollment — Anihan SRMS</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
-
-    <!-- Custom Login Styles (shared look) -->
     <link rel="stylesheet" href="css/login.css">
+    <style>
+        .wizard-card {
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: #dee2e6;
+            z-index: 0;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #dee2e6;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #6c757d;
+            transition: all 0.2s;
+        }
+
+        .step-circle.active {
+            border-color: #2d7a3a;
+            background: #2d7a3a;
+            color: #fff;
+        }
+
+        .step-circle.done {
+            border-color: #2d7a3a;
+            background: #e8f5ea;
+            color: #2d7a3a;
+        }
+
+        .step-label {
+            font-size: 0.72rem;
+            margin-top: 6px;
+            color: #6c757d;
+            text-align: center;
+        }
+
+        .step-label.active {
+            color: #2d7a3a;
+            font-weight: 600;
+        }
+
+        .wizard-step {
+            display: none;
+        }
+
+        .wizard-step.active {
+            display: block;
+        }
+
+        .section-heading {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2d7a3a;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 0.4rem;
+            margin-bottom: 1rem;
+            margin-top: 1.4rem;
+        }
+
+        .section-heading:first-child {
+            margin-top: 0;
+        }
+
+        .upload-preview {
+            max-width: 100%;
+            max-height: 160px;
+            border-radius: 6px;
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .upload-preview.show {
+            display: block;
+        }
+
+        .upload-link {
+            font-size: 0.8rem;
+            color: #2d7a3a;
+        }
+
+        .alert-wizard {
+            font-size: 0.9rem;
+        }
+
+        .btn-nav {
+            min-width: 110px;
+        }
+
+        .form-label {
+            font-weight: 500;
+        }
+
+        .required-note {
+            font-size: 0.78rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+
+        .submitted-banner {
+            background: #e8f5ea;
+            border: 1px solid #2d7a3a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            display: none;
+        }
+
+        .submitted-banner.show {
+            display: block;
+        }
+    </style>
 </head>
 
 <body>
-
-    <!-- ===== HEADER ===== -->
+    <!-- HEADER -->
     <header>
         <nav class="navbar login-navbar">
             <div class="container">
@@ -27,61 +162,442 @@
         </nav>
     </header>
 
-    <!-- ===== MAIN — Student Details Placeholder ===== -->
-    <main class="login-main">
-        <div class="login-card" style="max-width: 600px;">
+    <!-- MAIN -->
+    <main class="login-main" style="padding: 2rem 1rem;">
+        <div class="login-card wizard-card">
             <div class="login-card-logo">
                 <img src="images/logo2.png" alt="Anihan Logo" class="card-logo">
             </div>
-            <h1 class="login-card-title">Student Details</h1>
-            <p class="login-card-subtitle" id="studentGreeting">Welcome!</p>
+            <h1 class="login-card-title">Student Enrollment</h1>
+            <p class="login-card-subtitle mb-3" id="studentName">Loading…</p>
 
-            <div class="text-center py-4">
-                <div class="mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#28a745" viewBox="0 0 16 16">
-                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.502.002-.056-.271 2.478-.464zm.787-2.15a.94.94 0 0 1-.946.937.94.94 0 0 1-.946-.937.94.94 0 0 1 .946-.938.94.94 0 0 1 .946.938z"/>
-                    </svg>
+            <!-- Submitted banner -->
+            <div class="submitted-banner" id="submittedBanner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2d7a3a" viewBox="0 0 16 16"
+                    class="mb-2">
+                    <path
+                        d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
+                </svg>
+                <h5 class="text-success fw-bold mt-1">Enrollment Submitted!</h5>
+                <p class="text-muted mb-1">Your enrollment form has been received. The Registrar will verify your
+                    details.</p>
+                <p class="text-muted small">Student ID: <strong id="submittedId"></strong></p>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar bg-success" id="redirectProgress"
+                        style="width:0%; transition: width 5s linear;"></div>
                 </div>
-                <p class="text-muted" style="font-size: 1.05rem;">
-                    This section is for student details input.<br>
-                    <strong>Coming soon</strong> — additional enrollment fields will be available here.
-                </p>
+                <p class="text-muted small mt-2" id="redirectMsg">Returning to portal…</p>
             </div>
 
-            <!-- Back Button -->
-            <div class="d-grid mt-2">
-                <a href="student-portal.html" class="btn btn-login">
-                    ← Back to Student Portal
-                </a>
+            <!-- Step indicator -->
+            <div class="step-indicator" id="stepIndicator">
+                <div class="step-item">
+                    <div class="step-circle active" id="circle1">1</div>
+                    <div class="step-label active" id="label1">Personal</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle" id="circle2">2</div>
+                    <div class="step-label" id="label2">Religion</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle" id="circle3">3</div>
+                    <div class="step-label" id="label3">Family</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle" id="circle4">4</div>
+                    <div class="step-label" id="label4">Education</div>
+                </div>
+            </div>
+
+            <!-- Error alert -->
+            <div class="alert alert-danger alert-wizard d-none" id="alertBox" role="alert"></div>
+            <!-- Success alert -->
+            <div class="alert alert-success alert-wizard d-none" id="successBox" role="alert"></div>
+
+            <!-- ========== STEP 1: Personal Details ========== -->
+            <div class="wizard-step active" id="step1">
+                <p class="required-note">Fields marked * are required before submitting.</p>
+
+                <div class="section-heading">Student Name</div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control bg-body-secondary" id="studentLastName" readonly tabindex="-1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control bg-body-secondary" id="studentFirstName" readonly tabindex="-1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" class="form-control bg-body-secondary" id="studentMiddleName" readonly tabindex="-1">
+                    </div>
+                </div>
+
+                <div class="section-heading">Basic Information</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Contact Number *</label>
+                        <input type="tel" class="form-control" id="contactNo" placeholder="09XX-XXX-XXXX">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Birthdate *</label>
+                        <input type="date" class="form-control" id="birthdate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Age</label>
+                        <input type="text" class="form-control" id="ageDisplay" readonly placeholder="Auto-calculated">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sex *</label>
+                        <select class="form-select" id="sex">
+                            <option value="">— Select —</option>
+                            <option value="Female">Female</option>
+                            <option value="Male">Male</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Civil Status</label>
+                        <select class="form-select" id="civilStatus">
+                            <option value="">— Select —</option>
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Widowed">Widowed</option>
+                            <option value="Separated">Separated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-heading">Address</div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Permanent Address *</label>
+                        <input type="text" class="form-control" id="permanentAddress"
+                            placeholder="House No., Street, Barangay, City, Province">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Temporary Address <span
+                                class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" class="form-control" id="temporaryAddress"
+                            placeholder="Leave blank if same as permanent">
+                    </div>
+                </div>
+
+                <div class="section-heading">Family Size</div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">No. of Siblings</label>
+                        <input type="number" class="form-control" id="siblingCount" min="0" placeholder="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">No. of Brothers</label>
+                        <input type="number" class="form-control" id="brotherCount" min="0" placeholder="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">No. of Sisters</label>
+                        <input type="number" class="form-control" id="sisterCount" min="0" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== STEP 2: Religion & Documents ========== -->
+            <div class="wizard-step" id="step2">
+                <div class="section-heading">Religion</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Religion *</label>
+                        <input type="text" class="form-control" id="religion" placeholder="e.g. Roman Catholic">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="baptized">
+                            <label class="form-check-label fw-500" for="baptized">Baptized</label>
+                        </div>
+                    </div>
+                    <div id="baptismFields" class="col-12 row g-3" style="display:none!important">
+                        <div class="col-md-4">
+                            <label class="form-label">Baptism Date</label>
+                            <input type="date" class="form-control" id="baptismDate">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Baptism Place</label>
+                            <input type="text" class="form-control" id="baptismPlace"
+                                placeholder="Church name and address">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-heading">Document Uploads</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">ID Photo <span class="text-muted fw-normal">(JPEG/PNG/WebP, max 2
+                                MB)</span></label>
+                        <input type="file" class="form-control" id="idPhotoFile"
+                            accept="image/jpeg,image/png,image/gif,image/webp">
+                        <img class="upload-preview" id="idPhotoPreview" alt="ID Photo preview">
+                        <div id="idPhotoStatus" class="upload-link mt-1"></div>
+                    </div>
+                    <div class="col-md-6" id="baptCertSection">
+                        <label class="form-label">Baptismal Certificate <span class="text-muted fw-normal">(image or
+                                PDF, max 5 MB)</span></label>
+                        <input type="file" class="form-control" id="baptCertFile"
+                            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf">
+                        <img class="upload-preview" id="baptCertPreview" alt="Baptismal cert preview">
+                        <div id="baptCertStatus" class="upload-link mt-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== STEP 3: Family ========== -->
+            <div class="wizard-step" id="step3">
+                <div class="section-heading">Father's Information</div>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label">Family Name</label>
+                        <input type="text" class="form-control" id="fatherFamilyName">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="fatherFirstName">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="fatherMiddleName">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="fatherBirthdate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Occupation</label>
+                        <input type="text" class="form-control" id="fatherOccupation">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Est. Monthly Income</label>
+                        <input type="number" class="form-control" id="fatherEstIncome" min="0" step="0.01"
+                            placeholder="0.00">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Contact No.</label>
+                        <input type="tel" class="form-control" id="fatherContactNo">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="fatherEmail">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control" id="fatherAddress">
+                    </div>
+                </div>
+
+                <div class="section-heading">Mother's Information</div>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label">Family Name</label>
+                        <input type="text" class="form-control" id="motherFamilyName">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="motherFirstName">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="motherMiddleName">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="motherBirthdate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Occupation</label>
+                        <input type="text" class="form-control" id="motherOccupation">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Est. Monthly Income</label>
+                        <input type="number" class="form-control" id="motherEstIncome" min="0" step="0.01"
+                            placeholder="0.00">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Contact No.</label>
+                        <input type="tel" class="form-control" id="motherContactNo">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="motherEmail">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control" id="motherAddress">
+                    </div>
+                </div>
+
+                <div class="section-heading">Guardian's Information <span class="text-muted fw-normal fs-6">(if no
+                        parents are present)</span></div>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Relation</label>
+                        <input type="text" class="form-control" id="guardianRelation" placeholder="e.g. Aunt">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="guardianLastName">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="guardianFirstName">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="guardianMiddleName">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="guardianBirthdate">
+                    </div>
+                    <div class="col-md-9">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control" id="guardianAddress">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== STEP 4: Education & Training ========== -->
+            <div class="wizard-step" id="step4">
+                <div class="section-heading">Educational Background</div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm" id="educationTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Level</th>
+                                <th>School Name</th>
+                                <th>School Address</th>
+                                <th>Grade/Year</th>
+                                <th>Semester</th>
+                                <th>Year Ended</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-level="Elementary">
+                                <td class="fw-500">Elementary</td>
+                                <td><input type="text" class="form-control form-control-sm edu-school"
+                                        data-level="Elementary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-address"
+                                        data-level="Elementary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-grade"
+                                        data-level="Elementary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-sem"
+                                        data-level="Elementary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-ended"
+                                        data-level="Elementary"></td>
+                            </tr>
+                            <tr data-level="Secondary">
+                                <td class="fw-500">Secondary</td>
+                                <td><input type="text" class="form-control form-control-sm edu-school"
+                                        data-level="Secondary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-address"
+                                        data-level="Secondary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-grade"
+                                        data-level="Secondary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-sem"
+                                        data-level="Secondary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-ended"
+                                        data-level="Secondary"></td>
+                            </tr>
+                            <tr data-level="Tertiary">
+                                <td class="fw-500">Tertiary</td>
+                                <td><input type="text" class="form-control form-control-sm edu-school"
+                                        data-level="Tertiary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-address"
+                                        data-level="Tertiary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-grade"
+                                        data-level="Tertiary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-sem"
+                                        data-level="Tertiary"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-ended"
+                                        data-level="Tertiary"></td>
+                            </tr>
+                            <tr data-level="Vocational">
+                                <td class="fw-500">Vocational</td>
+                                <td><input type="text" class="form-control form-control-sm edu-school"
+                                        data-level="Vocational"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-address"
+                                        data-level="Vocational"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-grade"
+                                        data-level="Vocational"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-sem"
+                                        data-level="Vocational"></td>
+                                <td><input type="text" class="form-control form-control-sm edu-ended"
+                                        data-level="Vocational"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section-heading">School Years at Anihan</div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm" id="syTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>S.Y. Start</th>
+                                <th>Sem Start</th>
+                                <th>S.Y. End</th>
+                                <th>Sem End</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="syTableBody">
+                            <!-- rows generated by JS -->
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-sm btn-outline-success" id="addSyRow">+ Add Row</button>
+                </div>
+
+                <div class="section-heading">OJT / On-the-Job Training</div>
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="ojtCompany">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Company Address</label>
+                        <input type="text" class="form-control" id="ojtAddress">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Hours Rendered</label>
+                        <input type="number" class="form-control" id="ojtHours" min="0" step="0.5" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="section-heading">TESDA Qualifications</div>
+                <div id="tesdaRows">
+                    <!-- 3 slots rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="d-flex justify-content-between mt-4" id="wizardNav">
+                <button type="button" class="btn btn-outline-secondary btn-nav" id="btnPrev" style="display:none">←
+                    Previous</button>
+                <div class="ms-auto d-flex gap-2">
+                    <button type="button" class="btn btn-outline-success btn-nav" id="btnSaveDraft">Save Draft</button>
+                    <button type="button" class="btn btn-login btn-nav" id="btnNext">Next →</button>
+                    <button type="button" class="btn btn-login btn-nav d-none" id="btnSubmit">Submit</button>
+                </div>
             </div>
         </div>
     </main>
 
-    <!-- ===== FOOTER ===== -->
+    <!-- FOOTER -->
     <footer class="login-footer">
         <div class="container">
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
 
-    <!-- Bootstrap 5.3 JS Bundle (local) -->
     <script src="js/bootstrap.bundle.min.js"></script>
-
-    <!-- Read names from URL params and display greeting -->
-    <script>
-        (function () {
-            const params = new URLSearchParams(window.location.search);
-            const lastName = params.get('lastName') || '';
-            const firstName = params.get('firstName') || '';
-            const middleName = params.get('middleName') || '';
-
-            if (firstName || lastName) {
-                const greeting = document.getElementById('studentGreeting');
-                greeting.textContent = 'Welcome, ' + firstName + ' ' + middleName + ' ' + lastName + '!';
-            }
-        })();
-    </script>
-
+    <script src="js/student-details.js"></script>
 </body>
 
 </html>

@@ -1,6 +1,5 @@
 package com.example.springboot.model;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import jakarta.persistence.Column;
@@ -28,25 +27,31 @@ public class StudentRecord {
     @Column(name = "middle_name", nullable = false)
     private String middleName;
 
-    @Column(name = "birthdate", nullable = false)
+    @Column(name = "birthdate")
     private LocalDate birthdate;
 
-    @Column(name = "sex", nullable = false, length = 10)
+    @Column(name = "age")
+    private Integer age;
+
+    @Column(name = "sex", length = 10)
     private String sex;
 
-    @Column(name = "permanent_address", nullable = false)
+    @Column(name = "civil_status", length = 50)
+    private String civilStatus;
+
+    @Column(name = "permanent_address")
     private String permanentAddress;
 
     @Column(name = "temporary_address")
     private String temporaryAddress;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
-    @Column(name = "contact_no", nullable = false)
+    @Column(name = "contact_no")
     private String contactNo;
 
-    @Column(name = "religion", nullable = false)
+    @Column(name = "religion")
     private String religion;
 
     @Column(name = "baptized", nullable = false)
@@ -55,10 +60,10 @@ public class StudentRecord {
     @Column(name = "baptism_date")
     private LocalDate baptismDate;
 
-    @Column(name = "baptism_place", nullable = false)
+    @Column(name = "baptism_place")
     private String baptismPlace;
 
-    @Column(name = "sibling_count", nullable = false)
+    @Column(name = "sibling_count")
     private Integer siblingCount;
 
     @Column(name = "brother_count")
@@ -67,16 +72,16 @@ public class StudentRecord {
     @Column(name = "sister_count")
     private Integer sisterCount;
 
-    @ManyToOne
-    @JoinColumn(name = "batch_code", nullable = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "batch_code", nullable = true)
     private Batch batch;
 
-    @ManyToOne
-    @JoinColumn(name = "course_code", nullable = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "course_code", nullable = true)
     private Course course;
 
-    @ManyToOne
-    @JoinColumn(name = "section_code", nullable = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "section_code", nullable = true)
     private Section section;
 
     @Lob
@@ -94,187 +99,78 @@ public class StudentRecord {
 
     // Getters and Setters
 
-    public String getStudentId() {
-        return studentId;
-    }
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
-    public void setStudentId(String studentId) {
-        this.studentId = studentId;
-    }
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public String getLastName() {
-        return lastName;
-    }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
 
-    public String getFirstName() {
-        return firstName;
-    }
+    public LocalDate getBirthdate() { return birthdate; }
+    public void setBirthdate(LocalDate birthdate) { this.birthdate = birthdate; }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
 
-    public String getMiddleName() {
-        return middleName;
-    }
+    public String getSex() { return sex; }
+    public void setSex(String sex) { this.sex = sex; }
 
-    public void setMiddleName(String middleName) {
-        this.middleName = middleName;
-    }
+    public String getCivilStatus() { return civilStatus; }
+    public void setCivilStatus(String civilStatus) { this.civilStatus = civilStatus; }
 
-    public LocalDate getBirthdate() {
-        return birthdate;
-    }
+    public String getPermanentAddress() { return permanentAddress; }
+    public void setPermanentAddress(String permanentAddress) { this.permanentAddress = permanentAddress; }
 
-    public void setBirthdate(LocalDate birthdate) {
-        this.birthdate = birthdate;
-    }
+    public String getTemporaryAddress() { return temporaryAddress; }
+    public void setTemporaryAddress(String temporaryAddress) { this.temporaryAddress = temporaryAddress; }
 
-    public String getSex() {
-        return sex;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setSex(String sex) {
-        this.sex = sex;
-    }
+    public String getContactNo() { return contactNo; }
+    public void setContactNo(String contactNo) { this.contactNo = contactNo; }
 
-    public String getPermanentAddress() {
-        return permanentAddress;
-    }
+    public String getReligion() { return religion; }
+    public void setReligion(String religion) { this.religion = religion; }
 
-    public void setPermanentAddress(String permanentAddress) {
-        this.permanentAddress = permanentAddress;
-    }
+    public Boolean getBaptized() { return baptized; }
+    public void setBaptized(Boolean baptized) { this.baptized = baptized; }
 
-    public String getTemporaryAddress() {
-        return temporaryAddress;
-    }
+    public LocalDate getBaptismDate() { return baptismDate; }
+    public void setBaptismDate(LocalDate baptismDate) { this.baptismDate = baptismDate; }
 
-    public void setTemporaryAddress(String temporaryAddress) {
-        this.temporaryAddress = temporaryAddress;
-    }
+    public String getBaptismPlace() { return baptismPlace; }
+    public void setBaptismPlace(String baptismPlace) { this.baptismPlace = baptismPlace; }
 
-    public String getEmail() {
-        return email;
-    }
+    public Integer getSiblingCount() { return siblingCount; }
+    public void setSiblingCount(Integer siblingCount) { this.siblingCount = siblingCount; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public Integer getBrotherCount() { return brotherCount; }
+    public void setBrotherCount(Integer brotherCount) { this.brotherCount = brotherCount; }
 
-    public String getContactNo() {
-        return contactNo;
-    }
+    public Integer getSisterCount() { return sisterCount; }
+    public void setSisterCount(Integer sisterCount) { this.sisterCount = sisterCount; }
 
-    public void setContactNo(String contactNo) {
-        this.contactNo = contactNo;
-    }
+    public Batch getBatch() { return batch; }
+    public void setBatch(Batch batch) { this.batch = batch; }
 
-    public String getReligion() {
-        return religion;
-    }
+    public Course getCourse() { return course; }
+    public void setCourse(Course course) { this.course = course; }
 
-    public void setReligion(String religion) {
-        this.religion = religion;
-    }
+    public Section getSection() { return section; }
+    public void setSection(Section section) { this.section = section; }
 
-    public Boolean getBaptized() {
-        return baptized;
-    }
+    public byte[] getProfilePicture() { return profilePicture; }
+    public void setProfilePicture(byte[] profilePicture) { this.profilePicture = profilePicture; }
 
-    public void setBaptized(Boolean baptized) {
-        this.baptized = baptized;
-    }
+    public LocalDate getEnrollmentDate() { return enrollmentDate; }
+    public void setEnrollmentDate(LocalDate enrollmentDate) { this.enrollmentDate = enrollmentDate; }
 
-    public LocalDate getBaptismDate() {
-        return baptismDate;
-    }
-
-    public void setBaptismDate(LocalDate baptismDate) {
-        this.baptismDate = baptismDate;
-    }
-
-    public String getBaptismPlace() {
-        return baptismPlace;
-    }
-
-    public void setBaptismPlace(String baptismPlace) {
-        this.baptismPlace = baptismPlace;
-    }
-
-    public Integer getSiblingCount() {
-        return siblingCount;
-    }
-
-    public void setSiblingCount(Integer siblingCount) {
-        this.siblingCount = siblingCount;
-    }
-
-    public Integer getBrotherCount() {
-        return brotherCount;
-    }
-
-    public void setBrotherCount(Integer brotherCount) {
-        this.brotherCount = brotherCount;
-    }
-
-    public Integer getSisterCount() {
-        return sisterCount;
-    }
-
-    public void setSisterCount(Integer sisterCount) {
-        this.sisterCount = sisterCount;
-    }
-
-    public Batch getBatch() {
-        return batch;
-    }
-
-    public void setBatch(Batch batch) {
-        this.batch = batch;
-    }
-
-    public Course getCourse() {
-        return course;
-    }
-
-    public void setCourse(Course course) {
-        this.course = course;
-    }
-
-    public Section getSection() {
-        return section;
-    }
-
-    public void setSection(Section section) {
-        this.section = section;
-    }
-
-    public byte[] getProfilePicture() {
-        return profilePicture;
-    }
-
-    public void setProfilePicture(byte[] profilePicture) {
-        this.profilePicture = profilePicture;
-    }
-
-    public LocalDate getEnrollmentDate() {
-        return enrollmentDate;
-    }
-
-    public void setEnrollmentDate(LocalDate enrollmentDate) {
-        this.enrollmentDate = enrollmentDate;
-    }
-
-    public String getStudentStatus() {
-        return studentStatus;
-    }
-
-    public void setStudentStatus(String studentStatus) {
-        this.studentStatus = studentStatus;
-    }
+    public String getStudentStatus() { return studentStatus; }
+    public void setStudentStatus(String studentStatus) { this.studentStatus = studentStatus; }
 }
