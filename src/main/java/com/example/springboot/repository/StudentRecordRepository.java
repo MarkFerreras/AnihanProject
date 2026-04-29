@@ -8,10 +8,12 @@ import org.springframework.data.repository.query.Param;
 
 import com.example.springboot.model.StudentRecord;
 
-public interface StudentRecordRepository extends JpaRepository<StudentRecord, String> {
+public interface StudentRecordRepository extends JpaRepository<StudentRecord, Integer> {
 
     boolean existsByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
             String lastName, String firstName, String middleName);
+
+    Optional<StudentRecord> findByStudentId(String studentId);
 
     Optional<StudentRecord> findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
             String lastName, String firstName, String middleName);

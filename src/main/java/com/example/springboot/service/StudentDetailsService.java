@@ -1,7 +1,6 @@
 package com.example.springboot.service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -106,7 +105,7 @@ public class StudentDetailsService {
         applyFamily(record, req);
         applyEducation(studentId, req);
 
-        return buildResponse(studentRecordRepo.findById(studentId).orElseThrow());
+        return buildResponse(studentRecordRepo.findByStudentId(studentId).orElseThrow());
     }
 
     @Transactional
@@ -135,7 +134,7 @@ public class StudentDetailsService {
     // ─── Private helpers ────────────────────────────────────────────────────────
 
     private StudentRecord findOrThrow(String studentId) {
-        return studentRecordRepo.findById(studentId)
+        return studentRecordRepo.findByStudentId(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Student record not found: " + studentId));
     }
 

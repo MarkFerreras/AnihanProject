@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS student_records (
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) NOT NULL,
     birthdate DATE NULL,
-    age INT NULL,
+    age INT NULL,                           -- calculated from birthdate; null until Step 1 is saved
     sex VARCHAR(10) NULL,
     civil_status VARCHAR(50) NULL,
     permanent_address VARCHAR(255) NULL,
