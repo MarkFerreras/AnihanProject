@@ -4,6 +4,8 @@ import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
@@ -15,7 +17,11 @@ import jakarta.persistence.Table;
 public class StudentRecord {
 
     @Id
-    @Column(name = "student_id", length = 20)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "record_id")
+    private Integer recordId;
+
+    @Column(name = "student_id", unique = true, nullable = false, length = 20)
     private String studentId;
 
     @Column(name = "last_name", nullable = false)
@@ -98,6 +104,9 @@ public class StudentRecord {
     }
 
     // Getters and Setters
+
+    public Integer getRecordId() { return recordId; }
+    public void setRecordId(Integer recordId) { this.recordId = recordId; }
 
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }

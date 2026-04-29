@@ -1,4 +1,82 @@
 # Change Log - Anihan SRMS
+
+## 2026-04-30 - Bug Fix: student_records.age NOT NULL Blocks Enrollment (Bug 1)
+**Branch:** `feature/student-details`
+
+### Root Cause
+`student_records.age` was `NOT NULL` with no default value in the live MySQL database. `StudentDetailsService.startOrResume()` creates a new `StudentRecord` with only the student's name and status set — `age` is intentionally left null because birthdate hasn't been provided yet (it's entered in Step 1 of the wizard). MySQL rejected the INSERT with a `Column 'age' cannot be null` error → Spring threw `DataIntegrityViolationException` → controller returned HTTP 500 → JavaScript caught it and displayed "Failed to start enrollment. Please go back and try again."
+
+### Fix Applied
+| Change | Detail |
+|---|---|
+| **DB migration** | `ALTER TABLE student_records MODIFY COLUMN age INT NULL` — applied to live MySQL |
+| **`AnihanSRMS.sql`** | Added clarifying comment to `age INT NULL` line: `-- calculated from birthdate; null until Step 1 is saved` |
+
+### No Java Code Changes Required
+`StudentRecord.java` already declared `age` as `Integer` (nullable in Java). The bug was purely a DB constraint mismatch.
+
+### Verification
+- `information_schema.COLUMNS` → `IS_NULLABLE: YES` for `student_records.age` ✅
+- Enrollment wizard `POST /api/student/start` should now succeed for new students
+
+---
+
+## 2026-04-30 - Bug Fix: StudentRecord JPA @Id Mismatch (Bug 2)
+**Branch:** `feature/student-details`
+
+### Root Cause
+`StudentRecord.java` mapped `@Id` to `student_id` (VARCHAR UNIQUE KEY), not `record_id` (INT AUTO_INCREMENT PRIMARY KEY). JPA identity resolution was technically incorrect — JPA was calling `merge()` on new records instead of `persist()` because the manually-set String ID appeared non-null.
+
+### Files Modified
+| File | Change |
+|---|---|
+| `model/StudentRecord.java` | Added `@Id @GeneratedValue(IDENTITY)` on new `recordId` field mapped to `record_id`. Demoted `studentId` to `@Column(unique=true, nullable=false)`. Added `getRecordId()`/`setRecordId()` accessors. Added `GeneratedValue` and `GenerationType` imports. |
+| `repository/StudentRecordRepository.java` | Changed `JpaRepository<StudentRecord, String>` → `JpaRepository<StudentRecord, Integer>`. Added `Optional<StudentRecord> findByStudentId(String studentId)` for service lookups. |
+| `service/StudentDetailsService.java` | Replaced both `studentRecordRepo.findById(studentId)` call sites with `studentRecordRepo.findByStudentId(studentId)` (the old `findById` now expects Integer, not String). |
+
+### Not Changed
+- No database schema changes — `record_id` and `student_id` were already correct in the DB
+- `StudentPortalController.java` — unaffected (only uses name-based finder methods)
+
+### Known Open Issue
+- ⚠️ Bug 1 still open: `student_records.age` is `NOT NULL` in the live DB with no default. `startOrResume()` inserts with `age = null`, causing `DataIntegrityViolationException` → HTTP 500 → "Failed to start enrollment" alert. Fix: `ALTER TABLE student_records MODIFY COLUMN age INT NULL;` (pending user approval)
+
+### Verification
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+
+---
+
+## 2026-04-30 - Database Schema Audit & Migration
+**Branch:** `feature/student-details`
+
+### Audit Summary
+Full comparison of `AnihanSRMS.sql` against the live local MySQL database. Found 4 missing tables, 1 missing column, multiple NOT NULL mismatches, and 1 missing unique index.
+
+### Migrations Applied (Live MySQL — 6 Steps)
+| Step | SQL Applied | Reason |
+|---|---|---|
+| 1a | `CREATE TABLE student_education` | Missing from live DB; required by wizard |
+| 1b | `CREATE TABLE student_school_years` | Missing from live DB; required by wizard |
+| 1c | `CREATE TABLE student_ojt` | Missing from live DB; required by wizard |
+| 1d | `CREATE TABLE student_tesda_qualifications` | Missing from live DB; required by wizard |
+| 1e | `CREATE TABLE student_uploads` | Missing from live DB; required by wizard |
+| 2 | `ALTER TABLE student_records ADD COLUMN civil_status VARCHAR(50) NULL AFTER sex` | Missing column; service sets it |
+| 3 | `ALTER TABLE student_records MODIFY COLUMN` (11 columns → NULL) | birthdate, sex, permanent_address, email, contact_no, religion, baptism_place, sibling_count, batch_code, course_code, section_code |
+| 4 | `ALTER TABLE parents MODIFY COLUMN` (9 columns → NULL) | family_name, first_name, middle_name, birthdate, occupation, est_income, contact_no, email, address |
+| 5 | `ALTER TABLE other_guardians MODIFY COLUMN` (6 columns → NULL) | relation, last_name, first_name, middle_name, birthdate, address |
+| 6 | `ALTER TABLE users ADD UNIQUE INDEX idx_users_username (username)` | Missing unique constraint |
+
+### Legacy Tables (Left Untouched)
+`classess`, `log`, `previous_school`, `qualification_assessment` — present in live DB only; no JPA entities reference them.
+
+### Verification
+- All 5 new student tables confirmed via `SHOW TABLES`
+- `civil_status` column confirmed in `student_records`
+- All nullability changes confirmed via `information_schema.COLUMNS`
+- `idx_users_username` confirmed with `NON_UNIQUE = 0`
+
+---
+
 ## 2026-04-29 - SQL Files Synced with Live Database
 **Branch:** `feature/student-details`
 

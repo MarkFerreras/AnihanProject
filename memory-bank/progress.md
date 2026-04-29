@@ -243,6 +243,34 @@
 - [x] Applied live DB migration via docker exec (ALTER TABLE + 5 CREATE TABLEs)
 - [x] `./gradlew build -x test` → BUILD SUCCESSFUL
 
+## Bug 1 Fix — student_records.age NOT NULL (Completed — April 30, 2026)
+- [x] Identified `student_records.age` as `NOT NULL` with no default in live DB
+- [x] Root cause: `startOrResume()` inserts a new record before birthdate is known, so `age = null` — MySQL rejects it
+- [x] Applied `ALTER TABLE student_records MODIFY COLUMN age INT NULL` to live MySQL
+- [x] Updated `AnihanSRMS.sql` with clarifying comment on the `age` line
+- [x] No Java changes needed — `StudentRecord.java` already declared `age` as `Integer` (nullable)
+- [x] Verified `IS_NULLABLE: YES` via `information_schema.COLUMNS`
+- [x] Enrollment wizard `POST /api/student/start` is now unblocked
+
+## StudentRecord JPA @Id Fix (Completed — April 30, 2026)
+- [x] Identified that `StudentRecord.java` incorrectly mapped `@Id` to `student_id` (UNIQUE VARCHAR) instead of `record_id` (INT AUTO_INCREMENT PRIMARY KEY)
+- [x] Added `@Id @GeneratedValue(strategy = GenerationType.IDENTITY)` on new `recordId` field mapped to `record_id` column
+- [x] Demoted `studentId` to `@Column(unique = true, nullable = false, length = 20)` (business key, not JPA identity)
+- [x] Updated `StudentRecordRepository` generic type from `String` → `Integer`
+- [x] Added `findByStudentId(String)` method to repository for service-layer lookups by business key
+- [x] Updated both `findById(studentId)` call sites in `StudentDetailsService` to `findByStudentId(studentId)`
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
+
+## DB Schema Audit & Migration (Completed — April 30, 2026)
+- [x] Compared live MySQL against `AnihanSRMS.sql` — identified 6 discrepancy categories
+- [x] Created 5 missing student tables: `student_education`, `student_school_years`, `student_ojt`, `student_tesda_qualifications`, `student_uploads`
+- [x] Added missing `civil_status` column to `student_records`
+- [x] Relaxed 11 NOT NULL → NULL on `student_records`
+- [x] Relaxed 9 NOT NULL → NULL on `parents`
+- [x] Relaxed 6 NOT NULL → NULL on `other_guardians`
+- [x] Added UNIQUE index on `users.username`
+- [x] Legacy orphan tables left intact (no JPA entities reference them)
+
 ## Remainder Requirements / Roadmap
 - [/] Create `StudentUser` Enrollment Portal logic (welcome page done, details page next)
 - [ ] Implement `updateGrade()` logic for Trainers 
