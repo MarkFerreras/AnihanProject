@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/student-portal.html", "/student-details.html").permitAll()
                 .requestMatchers("/api/student-portal/**").permitAll()
+                .requestMatchers("/api/student/**").permitAll()
                 // Role-based access
                 // Role-based access for dashboard HTML pages
                 .requestMatchers("/admin.html").hasRole("ADMIN")

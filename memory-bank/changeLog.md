@@ -1,4 +1,112 @@
 # Change Log - Anihan SRMS
+## 2026-04-29 - SQL Files Synced with Live Database
+**Branch:** `feature/student-details`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `src/main/sql/AnihanSRMS.sql` | Rewritten: 17 table DDLs (was 12) + 3 live user accounts. Removed old system_logs data dump. Added 5 new student tables, nullable columns on student_records/parents/other_guardians, civil_status column. |
+| `src/main/sql/schema.sql` | Rewritten: 17 table DDLs + 3 dummy seed accounts. Removed stale migration comments. |
+
+### Verification
+- All 17 tables confirmed in live MySQL
+- DDL matches live INFORMATION_SCHEMA column definitions
+- User data matches live `users` table (admin age=22, trainer password_changed_at set)
+
+---
+
+## 2026-04-29 - Submit Button Fix (Cache-Busting + Error Handling)
+**Branch:** `feature/student-details`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/student-details.html` | Added `?v=2` cache-busting query string to `student-details.js` script tag |
+| `static/js/student-details.js` | Removed `throw e` from `saveDraft()` catch block; wrapped `saveDraft()` in Submit handler with try/catch |
+
+### Root Cause
+Browser caching a stale `student-details.js` that still referenced a removed `btnSaveDraft` button. The `getElementById('btnSaveDraft')` returned null, `.addEventListener()` on null threw a TypeError, and `setupNavButtons()` aborted before the Submit listener was attached.
+
+Secondary issue: `saveDraft()` rethrowing errors would crash the Submit handler (and Next handler) if a draft-save PUT request failed.
+
+### Verification
+- Confirmed `btnSaveDraft` does not exist in current HTML or JS source
+- `saveDraft()` no longer rethrows — shows user-facing alert instead
+- Submit handler is resilient to draft-save failures
+
+---
+
+## 2026-04-29 - Student Details Enrollment Wizard
+**Branch:** `feature/student-details`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `model/StudentEducation.java` | JPA entity for `student_education` (prior school history) |
+| `model/StudentSchoolYear.java` | JPA entity for `student_school_years` (semesters at Anihan) |
+| `model/StudentOjt.java` | JPA entity for `student_ojt` (1:1 OJT record) |
+| `model/StudentTesdaQualification.java` | JPA entity for `student_tesda_qualifications` (up to 3 slots) |
+| `model/StudentUpload.java` | JPA entity for `student_uploads` (file metadata, disk storage) |
+| `repository/ParentRepository.java` | Parent JPA repo with relation-based finders |
+| `repository/OtherGuardianRepository.java` | OtherGuardian JPA repo |
+| `repository/StudentEducationRepository.java` | findByStudentIdAndLevel, findByStudentIdOrderByLevel |
+| `repository/StudentSchoolYearRepository.java` | findByStudentIdOrderByRowIndex |
+| `repository/StudentOjtRepository.java` | findByStudentId |
+| `repository/StudentTesdaQualificationRepository.java` | findByStudentIdOrderBySlot |
+| `repository/StudentUploadRepository.java` | findByStudentIdAndKind |
+| `dto/student/ParentDto.java` | Family name, contact, occupation, income record |
+| `dto/student/GuardianDto.java` | Guardian info record |
+| `dto/student/EducationItemDto.java` | Prior school history row record |
+| `dto/student/SchoolYearDto.java` | Anihan semester row record |
+| `dto/student/OjtDto.java` | OJT company/hours record |
+| `dto/student/TesdaQualDto.java` | TESDA qualification slot record |
+| `dto/student/UploadRefDto.java` | Upload metadata reference record |
+| `dto/student/StudentDetailsRequest.java` | Full wizard save request DTO |
+| `dto/student/StudentDetailsResponse.java` | Full wizard load response DTO |
+| `service/StorageService.java` | Local disk file storage (validate, store, load, delete) |
+| `service/StudentDetailsService.java` | startOrResume, load, saveDraft, submit, saveUpload |
+| `controller/StudentDetailsController.java` | 6 REST endpoints under `/api/student/**` |
+| `static/js/student-details.js` | Wizard logic: init, step nav, draft save, file upload, submit |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `model/StudentRecord.java` | Made most fields nullable; added `civilStatus`, `age`; batch/course/section `optional=true` |
+| `model/Parent.java` | Made all non-required fields nullable |
+| `model/OtherGuardian.java` | Made all non-required fields nullable |
+| `repository/StudentRecordRepository.java` | Added `findByLastName...` and `countByStudentIdStartingWith` |
+| `controller/StudentPortalController.java` | check-duplicate now only blocks Submitted/Active (Enrolling/Draft = resumable) |
+| `config/SecurityConfig.java` | Added `/api/student/**` to `permitAll()` |
+| `resources/application.properties` | Added `app.storage.root`, multipart max file/request sizes |
+| `static/student-details.html` | Replaced placeholder with full 4-step Bootstrap wizard |
+| `src/main/sql/schema.sql` | Corrected CREATE TABLE definitions + 5 new tables + migration section |
+| `memory-bank/activeContext.md` | Updated phase, branch, status |
+| `memory-bank/progress.md` | Added student details wizard completed section |
+| `memory-bank/changeLog.md` | This entry |
+
+### Database Migrations Applied (live Docker MySQL)
+```sql
+-- Made student_records columns nullable (birthdate, age, sex, permanent_address,
+--   email, contact_no, religion, baptism_place, sibling_count, batch_code,
+--   course_code, section_code)
+-- Added civil_status VARCHAR(50) NULL to student_records
+-- Made parents fields nullable (family_name, first_name, middle_name, birthdate,
+--   occupation, est_income, contact_no, email, address)
+-- Made other_guardians fields nullable (relation, last_name, first_name,
+--   middle_name, birthdate, address)
+-- CREATE TABLE student_education
+-- CREATE TABLE student_school_years
+-- CREATE TABLE student_ojt
+-- CREATE TABLE student_tesda_qualifications
+-- CREATE TABLE student_uploads
+```
+
+### Verification
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- `SHOW TABLES` → 17 tables confirmed in live MySQL
+
+---
+
 ## 2026-04-27 - Admin Users Table Column Split (Name → Last Name + First Name)
 **Branch:** `test-user-table`
 
