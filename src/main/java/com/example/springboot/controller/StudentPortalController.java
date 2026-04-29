@@ -21,8 +21,8 @@ public class StudentPortalController {
     }
 
     /**
-     * Public endpoint — checks if a student record already exists
-     * with the given first, middle, and last name (case-insensitive).
+     * Returns exists=true only when a Submitted or Active record already exists for this name,
+     * so Enrolling/Draft records are treated as resumable rather than duplicates.
      */
     @GetMapping("/check-duplicate")
     public ResponseEntity<Map<String, Boolean>> checkDuplicate(
@@ -30,10 +30,12 @@ public class StudentPortalController {
             @RequestParam String firstName,
             @RequestParam String middleName) {
 
-        boolean exists = studentRecordRepository
-                .existsByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
-                        lastName.trim(), firstName.trim(), middleName.trim());
+        boolean blocked = studentRecordRepository
+                .findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
+                        lastName.trim(), firstName.trim(), middleName.trim())
+                .map(r -> "Submitted".equals(r.getStudentStatus()) || "Active".equals(r.getStudentStatus()))
+                .orElse(false);
 
-        return ResponseEntity.ok(Map.of("exists", exists));
+        return ResponseEntity.ok(Map.of("exists", blocked));
     }
 }

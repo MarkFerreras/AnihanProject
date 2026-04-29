@@ -28,31 +28,31 @@ public class Parent {
     @Column(name = "relation", nullable = false, length = 20)
     private String relation;
 
-    @Column(name = "family_name", nullable = false)
+    @Column(name = "family_name")
     private String familyName;
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name")
     private String firstName;
 
-    @Column(name = "middle_name", nullable = false)
+    @Column(name = "middle_name")
     private String middleName;
 
-    @Column(name = "birthdate", nullable = false)
+    @Column(name = "birthdate")
     private LocalDate birthdate;
 
-    @Column(name = "occupation", nullable = false)
+    @Column(name = "occupation")
     private String occupation;
 
-    @Column(name = "est_income", nullable = false, precision = 15, scale = 2)
-    private BigDecimal estIncome = BigDecimal.ZERO;
+    @Column(name = "est_income", precision = 15, scale = 2)
+    private BigDecimal estIncome;
 
-    @Column(name = "contact_no", nullable = false, length = 20)
+    @Column(name = "contact_no", length = 20)
     private String contactNo;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
-    @Column(name = "address", nullable = false)
+    @Column(name = "address")
     private String address;
 
     public Parent() {
@@ -60,99 +60,39 @@ public class Parent {
 
     // Getters and Setters
 
-    public Integer getParentId() {
-        return parentId;
-    }
+    public Integer getParentId() { return parentId; }
+    public void setParentId(Integer parentId) { this.parentId = parentId; }
 
-    public void setParentId(Integer parentId) {
-        this.parentId = parentId;
-    }
+    public StudentRecord getStudent() { return student; }
+    public void setStudent(StudentRecord student) { this.student = student; }
 
-    public StudentRecord getStudent() {
-        return student;
-    }
+    public String getRelation() { return relation; }
+    public void setRelation(String relation) { this.relation = relation; }
 
-    public void setStudent(StudentRecord student) {
-        this.student = student;
-    }
+    public String getFamilyName() { return familyName; }
+    public void setFamilyName(String familyName) { this.familyName = familyName; }
 
-    public String getRelation() {
-        return relation;
-    }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    public void setRelation(String relation) {
-        this.relation = relation;
-    }
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
 
-    public String getFamilyName() {
-        return familyName;
-    }
+    public LocalDate getBirthdate() { return birthdate; }
+    public void setBirthdate(LocalDate birthdate) { this.birthdate = birthdate; }
 
-    public void setFamilyName(String familyName) {
-        this.familyName = familyName;
-    }
+    public String getOccupation() { return occupation; }
+    public void setOccupation(String occupation) { this.occupation = occupation; }
 
-    public String getFirstName() {
-        return firstName;
-    }
+    public BigDecimal getEstIncome() { return estIncome; }
+    public void setEstIncome(BigDecimal estIncome) { this.estIncome = estIncome; }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public String getContactNo() { return contactNo; }
+    public void setContactNo(String contactNo) { this.contactNo = contactNo; }
 
-    public String getMiddleName() {
-        return middleName;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setMiddleName(String middleName) {
-        this.middleName = middleName;
-    }
-
-    public LocalDate getBirthdate() {
-        return birthdate;
-    }
-
-    public void setBirthdate(LocalDate birthdate) {
-        this.birthdate = birthdate;
-    }
-
-    public String getOccupation() {
-        return occupation;
-    }
-
-    public void setOccupation(String occupation) {
-        this.occupation = occupation;
-    }
-
-    public BigDecimal getEstIncome() {
-        return estIncome;
-    }
-
-    public void setEstIncome(BigDecimal estIncome) {
-        this.estIncome = estIncome;
-    }
-
-    public String getContactNo() {
-        return contactNo;
-    }
-
-    public void setContactNo(String contactNo) {
-        this.contactNo = contactNo;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 }

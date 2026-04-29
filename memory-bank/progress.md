@@ -219,11 +219,29 @@
 - [x] Created `StudentRecordRepository.java` with case-insensitive name duplicate check
 - [x] Created `StudentPortalController.java` with `GET /api/student-portal/check-duplicate` (public, no auth)
 - [x] Created `student-portal.html` — welcome page mirroring login page design (name form instead of credentials)
-- [x] Created `student-details.html` — placeholder page for future enrollment details
 - [x] Created `student-portal.js` — duplicate check on submit, warning alert or redirect
 - [x] Updated `SecurityConfig.java` — student portal pages and API added to `permitAll()`
 - [x] Names passed to next page via URL query params (no DB insert on welcome page)
-- [x] `./gradlew build` → BUILD SUCCESSFUL (7 tasks, all tests green)
+- [x] `./gradlew build` → BUILD SUCCESSFUL
+
+## Student Details Enrollment Wizard (Completed — April 29, 2026)
+- [x] Created 5 new JPA entities: `StudentEducation`, `StudentSchoolYear`, `StudentOjt`, `StudentTesdaQualification`, `StudentUpload`
+- [x] Created 7 new repositories: `ParentRepository`, `OtherGuardianRepository`, `StudentEducationRepository`, `StudentSchoolYearRepository`, `StudentOjtRepository`, `StudentTesdaQualificationRepository`, `StudentUploadRepository`
+- [x] Updated `StudentRecordRepository` with `findByLastName...` and `countByStudentIdStartingWith`
+- [x] Created 9 DTOs in `dto/student/`: `ParentDto`, `GuardianDto`, `EducationItemDto`, `SchoolYearDto`, `OjtDto`, `TesdaQualDto`, `UploadRefDto`, `StudentDetailsRequest`, `StudentDetailsResponse`
+- [x] Created `StorageService` — local disk storage under `./uploads/students/{studentId}/`, validates MIME/size
+- [x] Created `StudentDetailsService` — `startOrResume`, `load`, `saveDraft`, `submit`, `saveUpload`
+- [x] Created `StudentDetailsController` — 6 REST endpoints under `/api/student/**`
+- [x] Updated `StudentRecord.java` — made most fields nullable, added `civilStatus`, `age`; batch/course/section now `optional=true`
+- [x] Updated `Parent.java` and `OtherGuardian.java` — made all non-required fields nullable
+- [x] Updated `StudentPortalController` — `check-duplicate` now only blocks Submitted/Active (allows Enrolling/Draft as resumable)
+- [x] Updated `SecurityConfig.java` — `/api/student/**` added to `permitAll()`
+- [x] Updated `application.properties` — added `app.storage.root`, multipart max sizes
+- [x] Replaced `student-details.html` placeholder with full 4-step Bootstrap wizard
+- [x] Created `js/student-details.js` — full wizard logic (init, step nav, draft save, file upload, submit, populate form)
+- [x] Updated `schema.sql` — corrected CREATE TABLE definitions + 5 new student tables + migration section
+- [x] Applied live DB migration via docker exec (ALTER TABLE + 5 CREATE TABLEs)
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
 
 ## Remainder Requirements / Roadmap
 - [/] Create `StudentUser` Enrollment Portal logic (welcome page done, details page next)

@@ -1,9 +1,10 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Dummy Seed Accounts
--- Generated: 2026-04-26
+-- Updated: 2026-04-29 (synced with live database)
 -- Purpose: Set up a fresh AnihanSRMS database with 3 test
 --          accounts (admin, registrar, trainer).
---          No system log data is included.
+--          No system log or student data is included.
+-- Tables: 17
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
@@ -82,6 +83,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ============================================================
 -- TABLE: student_records
+-- Many columns are nullable — students fill them in during the
+-- enrollment wizard; batch/course/section are assigned later
+-- by the Registrar.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS student_records (
     record_id INT NOT NULL AUTO_INCREMENT,
@@ -89,23 +93,24 @@ CREATE TABLE IF NOT EXISTS student_records (
     last_name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) NOT NULL,
-    birthdate DATE NOT NULL,
-    age INT NOT NULL,
-    sex VARCHAR(10) NOT NULL,
-    permanent_address VARCHAR(255) NOT NULL,
+    birthdate DATE NULL,
+    age INT NULL,
+    sex VARCHAR(10) NULL,
+    civil_status VARCHAR(50) NULL,
+    permanent_address VARCHAR(255) NULL,
     temporary_address VARCHAR(255) NULL,
-    email VARCHAR(255) NOT NULL,
-    contact_no VARCHAR(255) NOT NULL,
-    religion VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
+    contact_no VARCHAR(255) NULL,
+    religion VARCHAR(255) NULL,
     baptized TINYINT(1) NOT NULL DEFAULT 0,
     baptism_date DATE NULL,
-    baptism_place VARCHAR(255) NOT NULL,
-    sibling_count INT NOT NULL,
+    baptism_place VARCHAR(255) NULL,
+    sibling_count INT NULL,
     brother_count INT NULL,
     sister_count INT NULL,
-    batch_code VARCHAR(20) NOT NULL,
-    course_code VARCHAR(20) NOT NULL,
-    section_code VARCHAR(20) NOT NULL,
+    batch_code VARCHAR(20) NULL,
+    course_code VARCHAR(20) NULL,
+    section_code VARCHAR(20) NULL,
     profile_picture MEDIUMBLOB NULL,
     enrollment_date DATE NULL,
     student_status VARCHAR(25) NOT NULL DEFAULT 'Enrolling',
@@ -123,15 +128,15 @@ CREATE TABLE IF NOT EXISTS parents (
     parent_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     relation VARCHAR(20) NOT NULL,
-    family_name VARCHAR(255) NOT NULL,
-    first_name VARCHAR(255) NOT NULL,
-    middle_name VARCHAR(255) NOT NULL,
-    birthdate DATE NOT NULL,
-    occupation VARCHAR(255) NOT NULL,
-    est_income DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
-    contact_no VARCHAR(20) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    address VARCHAR(255) NOT NULL,
+    family_name VARCHAR(255) NULL,
+    first_name VARCHAR(255) NULL,
+    middle_name VARCHAR(255) NULL,
+    birthdate DATE NULL,
+    occupation VARCHAR(255) NULL,
+    est_income DECIMAL(15, 2) NULL,
+    contact_no VARCHAR(20) NULL,
+    email VARCHAR(255) NULL,
+    address VARCHAR(255) NULL,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -141,12 +146,12 @@ CREATE TABLE IF NOT EXISTS parents (
 CREATE TABLE IF NOT EXISTS other_guardians (
     guardian_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
-    relation VARCHAR(20) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
-    first_name VARCHAR(255) NOT NULL,
-    middle_name VARCHAR(255) NOT NULL,
-    birthdate DATE NOT NULL,
-    address VARCHAR(255) NOT NULL,
+    relation VARCHAR(20) NULL,
+    last_name VARCHAR(255) NULL,
+    first_name VARCHAR(255) NULL,
+    middle_name VARCHAR(255) NULL,
+    birthdate DATE NULL,
+    address VARCHAR(255) NULL,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -192,6 +197,87 @@ CREATE TABLE IF NOT EXISTS system_logs (
     ip_address VARCHAR(45) NULL,
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_system_logs_timestamp (timestamp DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: student_education
+-- Prior school history per student (one row per level).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS student_education (
+    education_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    level VARCHAR(50) NOT NULL,
+    school_name VARCHAR(255) NULL,
+    school_address VARCHAR(255) NULL,
+    grade_year VARCHAR(50) NULL,
+    semester VARCHAR(20) NULL,
+    ended_year VARCHAR(20) NULL,
+    UNIQUE KEY uq_student_education (student_id, level),
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: student_school_years
+-- Semesters the student attended at Anihan.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS student_school_years (
+    school_year_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    row_index INT NOT NULL,
+    sy_start VARCHAR(20) NULL,
+    sem_start VARCHAR(20) NULL,
+    sy_end VARCHAR(20) NULL,
+    sem_end VARCHAR(20) NULL,
+    remarks VARCHAR(255) NULL,
+    UNIQUE KEY uq_student_school_year (student_id, row_index),
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: student_ojt
+-- One OJT record per student.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS student_ojt (
+    ojt_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    company_name VARCHAR(255) NULL,
+    company_address VARCHAR(255) NULL,
+    hours_rendered DECIMAL(8, 2) NULL,
+    UNIQUE KEY uq_student_ojt (student_id),
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: student_tesda_qualifications
+-- Up to 3 TESDA qualification slots per student.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS student_tesda_qualifications (
+    qual_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    slot INT NOT NULL,
+    title VARCHAR(255) NULL,
+    center_address VARCHAR(255) NULL,
+    assessment_date DATE NULL,
+    result VARCHAR(50) NULL,
+    UNIQUE KEY uq_student_tesda_qual (student_id, slot),
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: student_uploads
+-- File metadata for ID photo and baptismal cert uploads.
+-- Files are stored on disk, not as BLOBs.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS student_uploads (
+    upload_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    student_id VARCHAR(20) NOT NULL,
+    kind VARCHAR(30) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    original_name VARCHAR(255) NULL,
+    mime_type VARCHAR(100) NULL,
+    size_bytes BIGINT NULL,
+    uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
