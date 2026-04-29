@@ -8,6 +8,12 @@
 
 ## Status (April 29, 2026)
 
+### Submit Button Fix (April 29, 2026 — Late)
+- **Root cause**: Browser caching a stale `student-details.js` that referenced a removed `btnSaveDraft` element, causing a TypeError that aborted `setupNavButtons()` before the Submit listener was attached.
+- **Fix 1**: Added cache-busting `?v=2` to the `<script>` tag in `student-details.html`.
+- **Fix 2**: Removed `throw e` from `saveDraft()` — the rethrow would crash both Next and Submit handlers if a draft-save failed.
+- **Fix 3**: Wrapped `saveDraft()` call in Submit handler with try/catch so submission isn't blocked by a draft-save failure.
+
 ### Student Details Enrollment Wizard (April 29, 2026)
 Full 4-step enrollment wizard implemented end-to-end:
 - **Step 1** — Personal Details (contact, birthdate/age, sex, civil status, addresses, sibling count)

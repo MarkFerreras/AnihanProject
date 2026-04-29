@@ -1,4 +1,41 @@
 # Change Log - Anihan SRMS
+## 2026-04-29 - SQL Files Synced with Live Database
+**Branch:** `feature/student-details`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `src/main/sql/AnihanSRMS.sql` | Rewritten: 17 table DDLs (was 12) + 3 live user accounts. Removed old system_logs data dump. Added 5 new student tables, nullable columns on student_records/parents/other_guardians, civil_status column. |
+| `src/main/sql/schema.sql` | Rewritten: 17 table DDLs + 3 dummy seed accounts. Removed stale migration comments. |
+
+### Verification
+- All 17 tables confirmed in live MySQL
+- DDL matches live INFORMATION_SCHEMA column definitions
+- User data matches live `users` table (admin age=22, trainer password_changed_at set)
+
+---
+
+## 2026-04-29 - Submit Button Fix (Cache-Busting + Error Handling)
+**Branch:** `feature/student-details`
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/student-details.html` | Added `?v=2` cache-busting query string to `student-details.js` script tag |
+| `static/js/student-details.js` | Removed `throw e` from `saveDraft()` catch block; wrapped `saveDraft()` in Submit handler with try/catch |
+
+### Root Cause
+Browser caching a stale `student-details.js` that still referenced a removed `btnSaveDraft` button. The `getElementById('btnSaveDraft')` returned null, `.addEventListener()` on null threw a TypeError, and `setupNavButtons()` aborted before the Submit listener was attached.
+
+Secondary issue: `saveDraft()` rethrowing errors would crash the Submit handler (and Next handler) if a draft-save PUT request failed.
+
+### Verification
+- Confirmed `btnSaveDraft` does not exist in current HTML or JS source
+- `saveDraft()` no longer rethrows — shows user-facing alert instead
+- Submit handler is resilient to draft-save failures
+
+---
+
 ## 2026-04-29 - Student Details Enrollment Wizard
 **Branch:** `feature/student-details`
 

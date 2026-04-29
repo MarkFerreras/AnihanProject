@@ -129,16 +129,11 @@ function setupNavButtons() {
         }
     });
 
-    document.getElementById('btnSaveDraft').addEventListener('click', async () => {
-        clearAlerts();
-        await saveDraft();
-        showAlert('Draft saved successfully.', 'success');
-    });
-
     document.getElementById('btnSubmit').addEventListener('click', async () => {
         clearAlerts();
         clearValidation();
-        await saveDraft();
+        // Best-effort draft save — don't block submission if it fails
+        try { await saveDraft(); } catch { /* already alerted */ }
         const errors = validateAll();
         if (errors.length > 0) {
             highlightErrors(errors);
@@ -182,7 +177,6 @@ async function saveDraft() {
         await apiPut(`/api/student/${studentId}`, buildPayload());
     } catch (e) {
         showAlert('Could not save draft. Check your connection.', 'danger');
-        throw e;
     }
 }
 
@@ -504,10 +498,8 @@ function attachPhoneFormatter(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', function () {
-        const pos = this.selectionStart;
         const formatted = formatPH(this.value);
         this.value = formatted;
-        // Restore cursor to end to avoid jumpy behaviour
         this.setSelectionRange(formatted.length, formatted.length);
     });
     el.addEventListener('blur', function () {
@@ -647,7 +639,7 @@ function clearAlerts() {
 function showSubmittedBanner(sid) {
     // Hide wizard UI
     document.getElementById('stepIndicator').style.display = 'none';
-    document.getElementById('wizardNav').style.display = 'none';
+    document.getElementById('wizardNav').classList.add('d-none');
     document.getElementById('alertBox').classList.add('d-none');
     document.getElementById('successBox').classList.add('d-none');
     for (let i = 1; i <= TOTAL_STEPS; i++) {

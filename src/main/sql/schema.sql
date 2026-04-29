@@ -1,9 +1,10 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Dummy Seed Accounts
--- Updated: 2026-04-29 (student-details feature)
+-- Updated: 2026-04-29 (synced with live database)
 -- Purpose: Set up a fresh AnihanSRMS database with 3 test
 --          accounts (admin, registrar, trainer).
---          No system log data is included.
+--          No system log or student data is included.
+-- Tables: 17
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
@@ -217,7 +218,7 @@ CREATE TABLE IF NOT EXISTS student_education (
 
 -- ============================================================
 -- TABLE: student_school_years
--- Semesters the student attended at Anihan (rows in the SY table).
+-- Semesters the student attended at Anihan.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS student_school_years (
     school_year_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -290,41 +291,3 @@ INSERT INTO users (username, password, lastname, firstname, middlename, birthdat
 ('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'juan.delacruz@example.com', 'ROLE_ADMIN',     1, NULL),
 ('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'maria.reyes@example.com',   'ROLE_REGISTRAR', 1, NULL),
 ('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'carlos.santos@example.com', 'ROLE_TRAINER',   1, NULL);
-
--- ============================================================
--- MIGRATION: Run these on an existing database to apply the
--- student-details schema changes (2026-04-29).
--- ============================================================
--- ALTER TABLE student_records
---     MODIFY COLUMN birthdate DATE NULL,
---     MODIFY COLUMN age INT NULL,
---     MODIFY COLUMN sex VARCHAR(10) NULL,
---     ADD COLUMN civil_status VARCHAR(50) NULL AFTER sex,
---     MODIFY COLUMN permanent_address VARCHAR(255) NULL,
---     MODIFY COLUMN email VARCHAR(255) NULL,
---     MODIFY COLUMN contact_no VARCHAR(255) NULL,
---     MODIFY COLUMN religion VARCHAR(255) NULL,
---     MODIFY COLUMN baptism_place VARCHAR(255) NULL,
---     MODIFY COLUMN sibling_count INT NULL,
---     MODIFY COLUMN batch_code VARCHAR(20) NULL,
---     MODIFY COLUMN course_code VARCHAR(20) NULL,
---     MODIFY COLUMN section_code VARCHAR(20) NULL;
---
--- ALTER TABLE parents
---     MODIFY COLUMN family_name VARCHAR(255) NULL,
---     MODIFY COLUMN first_name VARCHAR(255) NULL,
---     MODIFY COLUMN middle_name VARCHAR(255) NULL,
---     MODIFY COLUMN birthdate DATE NULL,
---     MODIFY COLUMN occupation VARCHAR(255) NULL,
---     MODIFY COLUMN est_income DECIMAL(15,2) NULL,
---     MODIFY COLUMN contact_no VARCHAR(20) NULL,
---     MODIFY COLUMN email VARCHAR(255) NULL,
---     MODIFY COLUMN address VARCHAR(255) NULL;
---
--- ALTER TABLE other_guardians
---     MODIFY COLUMN relation VARCHAR(20) NULL,
---     MODIFY COLUMN last_name VARCHAR(255) NULL,
---     MODIFY COLUMN first_name VARCHAR(255) NULL,
---     MODIFY COLUMN middle_name VARCHAR(255) NULL,
---     MODIFY COLUMN birthdate DATE NULL,
---     MODIFY COLUMN address VARCHAR(255) NULL;
