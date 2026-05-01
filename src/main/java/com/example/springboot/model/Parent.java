@@ -22,7 +22,7 @@ public class Parent {
     private Integer parentId;
 
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
+    @JoinColumn(name = "student_id", referencedColumnName = "student_id", nullable = false)
     private StudentRecord student;
 
     @Column(name = "relation", nullable = false, length = 20)

@@ -21,7 +21,7 @@ public class OtherGuardian {
     private Integer guardianId;
 
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
+    @JoinColumn(name = "student_id", referencedColumnName = "student_id", nullable = false)
     private StudentRecord student;
 
     @Column(name = "relation", length = 20)
