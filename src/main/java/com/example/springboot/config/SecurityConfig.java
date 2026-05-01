@@ -53,8 +53,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/student-portal/**").permitAll()
                 .requestMatchers("/api/student/**").permitAll()
                 // Role-based access — HTML pages
-                .requestMatchers("/admin.html", "/student-records.html", "/subjects.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
-                .requestMatchers("/registrar.html").hasRole("REGISTRAR")
+                .requestMatchers("/admin.html", "/student-records.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
+                .requestMatchers("/registrar.html", "/subjects.html").hasRole("REGISTRAR")
                 .requestMatchers("/trainer.html").hasRole("TRAINER")
                 // Role-based access — API endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

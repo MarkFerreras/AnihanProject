@@ -1,10 +1,22 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Enrollment Flow Bug Fixes — Completed**
+**Registrar Navbar — Completed (2026-05-01)**
 
 ## Active Branch
 `fix/db-sync-username-unique`
+
+## Status (May 1, 2026)
+
+### Registrar Navbar Standardization (May 1, 2026)
+- **Task**: Add a navbar to all registrar pages matching the admin navbar pattern, with two links: Home and Subjects
+- **Files Changed**:
+  - `static/registrar.html` — replaced simple placeholder navbar with full Bootstrap-collapsible navbar (Home active, Subjects); added `class="dashboard-page"` to body
+  - `static/subjects.html` — rebranded from admin to registrar (role, title, navbar links, portal label, brand href to `registrar.html`)
+  - `config/SecurityConfig.java` — moved `subjects.html` from ADMIN matcher to REGISTRAR matcher
+- **CSS**: Reused existing `admin-navbar`, `admin-nav-link`, `portal-label` classes — no new CSS
+- **Subjects page content**: intentionally left as placeholder per user request (just heading + muted text)
+- **Decision recorded**: Subjects page is now REGISTRAR-only; Admin no longer has access
 
 ## Status (April 30, 2026)
 
@@ -39,5 +51,5 @@
 - Bug 5: AgeCalculator returns 0 instead of null
 - Bug 7: saveDraft architecture question (one-session design vs. crash recovery)
 - Tests not yet updated for student enrollment module (TD-1)
-- `student-records.html` and `subjects.html` still have old navbars (TD-2)
+- `student-records.html` still has old admin navbar (TD-2 — `subjects.html` resolved 2026-05-01 via registrar rebrand)
 - `spring.jpa.hibernate.ddl-auto=none` — all schema changes must be done via SQL manually

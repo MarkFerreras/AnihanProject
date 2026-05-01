@@ -1,5 +1,20 @@
 # Progress - Anihan SRMS
 
+## Registrar Navbar Standardization (Completed — May 1, 2026)
+- [x] `registrar.html` — replaced simple placeholder navbar with full Bootstrap-collapsible navbar matching admin pattern
+- [x] Navbar has two links: **Home** (active, → `registrar.html`) and **Subjects** (→ `subjects.html`)
+- [x] Added `class="dashboard-page"` to `<body>` to align with the dashboard page convention
+- [x] Reused `admin-navbar`, `admin-nav-link`, `portal-label` CSS — no new styles required
+- [x] `subjects.html` rebranded to registrar:
+  - `data-required-role` changed `ROLE_ADMIN` → `ROLE_REGISTRAR`
+  - `<title>` changed `Subjects — Admin` → `Subjects — Registrar`
+  - Old 4-link admin navbar replaced with 2-link registrar navbar (Home, Subjects active)
+  - Brand link (`navbar-brand`) now points to `registrar.html`
+  - Portal label changed `Admin Portal` → `Registrar Portal`
+  - Main content kept as placeholder (heading + muted text) per user request
+- [x] `SecurityConfig.java` — `subjects.html` moved from ADMIN matcher to REGISTRAR matcher
+- [x] Resolved one of the stale-navbar items flagged in `systemPatterns.md` (`subjects.html`)
+
 ## Current Status
 - **Tasks in Progress**: Browser-level revalidation of the repaired admin dashboard and edit-user flow after the front-end shell rebuild.
 - **Completed**: G2.1 Edit Personal Details (Sprint 4 completed). Database Schema migration to support distinct name fields (lastName, firstName, middleName) and birthdate.
