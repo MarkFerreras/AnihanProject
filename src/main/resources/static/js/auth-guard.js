@@ -80,6 +80,32 @@
         }
     }
 
+    function calculateAgeFromBirthdate(birthdateString) {
+        if (!birthdateString) {
+            return null;
+        }
+        const birth = new Date(birthdateString);
+        if (isNaN(birth.getTime())) {
+            return null;
+        }
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            age--;
+        }
+        return age >= 0 ? age : null;
+    }
+
+    function updateAgeDisplay(birthdateString) {
+        const ageDisplayEl = document.getElementById('ageDisplay');
+        if (!ageDisplayEl) {
+            return;
+        }
+        const age = calculateAgeFromBirthdate(birthdateString);
+        ageDisplayEl.textContent = age != null ? age : '-';
+    }
+
     function populatePersonalDetailsForm(data) {
         const lastNameEl = document.getElementById('lastName');
         const firstNameEl = document.getElementById('firstName');
@@ -105,6 +131,12 @@
 
         if (birthdateEl) {
             birthdateEl.value = data.birthdate || '';
+            if (!birthdateEl.dataset.ageListenerAttached) {
+                birthdateEl.addEventListener('change', function () {
+                    updateAgeDisplay(birthdateEl.value);
+                });
+                birthdateEl.dataset.ageListenerAttached = 'true';
+            }
         }
     }
 
@@ -259,6 +291,14 @@
                         age: data.age,
                         birthdate: data.birthdate
                     };
+                    const ageDisplayEl = document.getElementById('ageDisplay');
+                    if (ageDisplayEl) {
+                        ageDisplayEl.textContent = data.age != null ? data.age : '-';
+                    }
+                    const birthdateEl = document.getElementById('birthdate');
+                    if (birthdateEl && data.birthdate) {
+                        birthdateEl.value = data.birthdate;
+                    }
                 } else {
                     const errorMessage = data.errors
                         ? Object.values(data.errors).join('. ')

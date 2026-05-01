@@ -7,6 +7,7 @@
     <meta name="description" content="Anihan SRMS — Registrar Dashboard">
     <title>Registrar Dashboard — Anihan SRMS</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
@@ -75,7 +76,95 @@
         </nav>
     </header>
 
-    <main class="container my-5"></main>
+    <main class="dashboard-main">
+        <div class="container">
+            <section class="page-hero">
+                <div class="page-hero-grid">
+                    <div>
+                        <span class="page-eyebrow">Registrar Dashboard</span>
+                        <h1 class="page-title">Student Records</h1>
+                        <p class="page-subtitle">View and manage all student records in the system.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="surface-card">
+                <div class="surface-card-header">
+                    <div>
+                        <h2>All Student Records</h2>
+                        <p>Browse all student records and inspect their full profile details.</p>
+                    </div>
+                </div>
+                <div class="surface-card-body compact">
+                    <div class="table-responsive">
+                        <table id="studentRecordsTable" class="table admin-table align-middle mb-0 w-100">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Record ID</th>
+                                    <th scope="col">Student ID</th>
+                                    <th scope="col">Last Name</th>
+                                    <th scope="col">First Name</th>
+                                    <th scope="col">Batch</th>
+                                    <th scope="col">Course</th>
+                                    <th scope="col">Section</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-end">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- ===== STUDENT RECORD DETAILS MODAL ===== -->
+    <div class="modal fade detail-modal" id="studentRecordDetailsModal" tabindex="-1"
+         aria-labelledby="studentRecordDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="studentRecordDetailsModalLabel">Student Record Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="studentDetailsAlert" role="alert"></div>
+                    <div class="detail-grid">
+                        <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Student ID</span><p class="detail-value" id="detailsStudentId">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsLastName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFirstName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMiddleName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Civil Status</span><p class="detail-value" id="detailsCivilStatus">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Religion</span><p class="detail-value" id="detailsReligion">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Temporary Address</span><p class="detail-value" id="detailsTemporaryAddress">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Baptized</span><p class="detail-value" id="detailsBaptized">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Baptism Date</span><p class="detail-value" id="detailsBaptismDate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Baptism Place</span><p class="detail-value" id="detailsBaptismPlace">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Siblings</span><p class="detail-value" id="detailsSiblingCount">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Brothers</span><p class="detail-value" id="detailsBrotherCount">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Sisters</span><p class="detail-value" id="detailsSisterCount">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Batch</span><p class="detail-value" id="detailsBatchCode">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Course</span><p class="detail-value" id="detailsCourseCode">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Section</span><p class="detail-value" id="detailsSectionCode">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Enrollment Date</span><p class="detail-value" id="detailsEnrollmentDate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                    <a id="studentDetailsEditLink" href="#" class="btn btn-surface">Edit</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <footer class="login-footer mt-auto">
         <div class="container">
@@ -175,6 +264,9 @@
     </div>
 
     <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/jquery-4.0.0.min.js"></script>
+    <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/registrar-students.js"></script>
 </body>
 </html>

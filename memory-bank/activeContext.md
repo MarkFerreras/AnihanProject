@@ -1,7 +1,32 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Navbar — Completed (2026-05-01)**
+**Registrar Bulk Load Tests + H2 Isolation (2026-05-01 evening)**
+
+## Latest Session (May 1, 2026 — evening)
+- New endpoint: `GET /api/registrar/student-records?q=<query>` (optional query param, in-memory case-insensitive filter)
+- New JUnit tests:
+  - `RegistrarBulkLoadTest` (Mockito, 200 records, 3 tests covering list correctness, performance, and search)
+  - `RegistrarBulkLoadWebMvcTest` (WebMvc, 200 records, 2 tests including `?q=` parameter forwarding)
+  - `StudentRecordH2LoadTest` (`@DataJpaTest` + H2 in-memory in MySQL compatibility mode, 100 records via real JPA, fully isolated from the live MySQL)
+- New dependency: `testRuntimeOnly("com.h2database:h2")`
+- Spring Boot 4.0 reorganized test annotation packages — `DataJpaTest` and `AutoConfigureTestDatabase` are at new paths
+- Full suite: 79 tests, 0 failures
+
+## Latest Session (May 1, 2026 — afternoon)
+- New endpoints: `PUT /api/registrar/student-records/{recordId}`, `GET /api/lookup/batches`, `GET /api/lookup/courses`
+- New repositories: `BatchRepository`, `CourseRepository`
+- New DTO: `StudentRecordUpdateRequest`
+- New JS: `registrar-student-records-edit.js`
+- `student-records.html` now a full edit form with combined free-text + datalist dropdowns and admin-pattern unsaved-changes warning
+- DataTables built-in search confirmed sufficient for the registrar home table
+
+## Session Summary (May 1, 2026)
+- New API endpoints: `GET /api/registrar/student-records`, `GET /api/registrar/student-records/{recordId}` (REGISTRAR-only)
+- New DTO package: `dto/registrar/` with `StudentRecordSummaryResponse` and `StudentRecordDetailsResponse`
+- New service: `RegistrarService` (reuses existing `StudentRecordRepository`)
+- Registrar home now displays a DataTables-powered student records table with detail modal
+- `student-records.html` repurposed for registrar (placeholder page reachable from modal Edit button)
 
 ## Active Branch
 `fix/db-sync-username-unique`
