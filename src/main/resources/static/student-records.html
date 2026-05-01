@@ -7,11 +7,8 @@
     <meta name="description" content="Anihan SRMS — Registrar Student Records">
     <title>Student Records — Registrar</title>
 
-    <!-- Bootstrap 5.3 CSS (local) -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
-    <!-- Custom Common Styles -->
     <link rel="stylesheet" href="css/login.css">
-    <!-- Dashboard Shared Styles -->
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
         body {
@@ -82,9 +79,193 @@
     </header>
 
     <!-- ===== MAIN CONTENT ===== -->
-    <main class="container my-5">
-        <h2 class="fw-bold">Student Records</h2>
-        <p class="text-muted">Student Records will be shown here.</p>
+    <main class="dashboard-main">
+        <div class="container">
+            <section class="page-hero">
+                <div class="page-hero-grid">
+                    <div>
+                        <span class="page-eyebrow">Registrar</span>
+                        <h1 class="page-title">Edit Student Record</h1>
+                        <p class="page-subtitle">Update the student's personal, contact, family, and enrollment details.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="alert alert-warning d-none" id="unsavedNotice" role="alert">
+                You have unsaved changes. Use <strong>Save Changes</strong> to keep them or <strong>Cancel</strong> to discard.
+            </div>
+            <div class="alert d-none" id="recordEditAlert" role="alert"></div>
+
+            <section class="surface-card">
+                <div class="surface-card-header">
+                    <div>
+                        <h2>Student Record</h2>
+                        <p>All fields are editable except Record ID and Enrollment Date.</p>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a class="btn btn-surface-secondary" href="registrar.html" id="cancelEditLink">Cancel</a>
+                        <button class="btn btn-surface" id="saveRecordBtn" type="button">Save Changes</button>
+                    </div>
+                </div>
+                <div class="surface-card-body">
+                    <form id="editRecordForm" novalidate>
+                        <h6 class="section-title mt-2">Identifiers</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="editRecordId" class="form-label">Record ID</label>
+                                <input type="text" class="form-control" id="editRecordId" disabled readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentId" class="form-label">Student ID</label>
+                                <input type="text" class="form-control" id="editStudentId" maxlength="20" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentStatus" class="form-label">Status</label>
+                                <input type="text" class="form-control" id="editStudentStatus"
+                                    list="statusList" autocomplete="off" required>
+                                <datalist id="statusList">
+                                    <option value="Enrolling"></option>
+                                    <option value="Submitted"></option>
+                                    <option value="Active"></option>
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">Personal Details</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="editLastName" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="editLastName" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editFirstName" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="editFirstName" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editMiddleName" class="form-label">Middle Name</label>
+                                <input type="text" class="form-control" id="editMiddleName" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editBirthdate" class="form-label">Birthdate</label>
+                                <input type="date" class="form-control" id="editBirthdate">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Age</label>
+                                <p class="form-control-plaintext" id="editAgeDisplay">-</p>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editSex" class="form-label">Sex</label>
+                                <input type="text" class="form-control" id="editSex"
+                                    list="sexList" autocomplete="off">
+                                <datalist id="sexList">
+                                    <option value="Female"></option>
+                                    <option value="Male"></option>
+                                </datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editCivilStatus" class="form-label">Civil Status</label>
+                                <input type="text" class="form-control" id="editCivilStatus"
+                                    list="civilStatusList" autocomplete="off">
+                                <datalist id="civilStatusList">
+                                    <option value="Single"></option>
+                                    <option value="Married"></option>
+                                    <option value="Widowed"></option>
+                                    <option value="Separated"></option>
+                                </datalist>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editReligion" class="form-label">Religion</label>
+                                <input type="text" class="form-control" id="editReligion">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">Contact</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="editEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="editEmail">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editContactNo" class="form-label">Contact No</label>
+                                <input type="text" class="form-control" id="editContactNo">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editPermanentAddress" class="form-label">Permanent Address</label>
+                                <input type="text" class="form-control" id="editPermanentAddress">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editTemporaryAddress" class="form-label">Temporary Address</label>
+                                <input type="text" class="form-control" id="editTemporaryAddress">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">Family / Religion</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="editBaptized" class="form-label">Baptized</label>
+                                <select class="form-select" id="editBaptized">
+                                    <option value="false">No</option>
+                                    <option value="true">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editBaptismDate" class="form-label">Baptism Date</label>
+                                <input type="date" class="form-control" id="editBaptismDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editBaptismPlace" class="form-label">Baptism Place</label>
+                                <input type="text" class="form-control" id="editBaptismPlace">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editSiblingCount" class="form-label">Siblings</label>
+                                <input type="number" min="0" class="form-control" id="editSiblingCount">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editBrotherCount" class="form-label">Brothers</label>
+                                <input type="number" min="0" class="form-control" id="editBrotherCount">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editSisterCount" class="form-label">Sisters</label>
+                                <input type="number" min="0" class="form-control" id="editSisterCount">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">Enrollment</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="editBatchCode" class="form-label">Batch</label>
+                                <input type="text" class="form-control" id="editBatchCode"
+                                    list="batchList" autocomplete="off"
+                                    placeholder="Type or pick a batch code">
+                                <datalist id="batchList"></datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editCourseCode" class="form-label">Course</label>
+                                <input type="text" class="form-control" id="editCourseCode"
+                                    list="courseList" autocomplete="off"
+                                    placeholder="Type or pick a course code">
+                                <datalist id="courseList"></datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editSectionCode" class="form-label">Section</label>
+                                <input type="text" class="form-control" id="editSectionCode"
+                                    list="sectionList" autocomplete="off"
+                                    placeholder="Type or pick a section code">
+                                <datalist id="sectionList"></datalist>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="editEnrollmentDate" class="form-label">Enrollment Date</label>
+                                <input type="text" class="form-control" id="editEnrollmentDate" disabled readonly>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- ===== EDIT ACCOUNT MODAL ===== -->
@@ -101,93 +282,77 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="tab-personal" data-bs-toggle="tab"
                                 data-bs-target="#pane-personal" type="button" role="tab"
-                                aria-controls="pane-personal" aria-selected="true">
-                                Personal Details
-                            </button>
+                                aria-controls="pane-personal" aria-selected="true">Personal Details</button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="tab-account" data-bs-toggle="tab"
                                 data-bs-target="#pane-account" type="button" role="tab"
-                                aria-controls="pane-account" aria-selected="false">
-                                Account Settings
-                            </button>
+                                aria-controls="pane-account" aria-selected="false">Account Settings</button>
                         </li>
                     </ul>
-
                     <div class="tab-content" id="editAccountTabContent">
-                        <div class="tab-pane fade show active" id="pane-personal" role="tabpanel"
-                            aria-labelledby="tab-personal">
+                        <div class="tab-pane fade show active" id="pane-personal" role="tabpanel" aria-labelledby="tab-personal">
                             <div class="alert d-none" id="personalDetailsAlert" role="alert"></div>
                             <form id="personalDetailsForm">
                                 <div>
                                     <label for="lastName" class="form-label">Last Name</label>
-                                    <input type="text" class="form-control" id="lastName"
-                                        placeholder="Enter last name" autocomplete="family-name">
+                                    <input type="text" class="form-control" id="lastName" autocomplete="family-name">
                                 </div>
                                 <div class="mt-3">
                                     <label for="firstName" class="form-label">First Name</label>
-                                    <input type="text" class="form-control" id="firstName"
-                                        placeholder="Enter first name" autocomplete="given-name">
+                                    <input type="text" class="form-control" id="firstName" autocomplete="given-name">
                                 </div>
                                 <div class="mt-3">
                                     <label for="middleName" class="form-label">Middle Name</label>
-                                    <input type="text" class="form-control" id="middleName"
-                                        placeholder="Enter middle name" autocomplete="additional-name">
+                                    <input type="text" class="form-control" id="middleName" autocomplete="additional-name">
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-6 mb-3 mb-md-0">
-                                        <label for="age" class="form-label">Age</label>
-                                        <input type="number" class="form-control" id="age" min="1" max="150"
-                                            placeholder="e.g. 30">
+                                        <label class="form-label">Age</label>
+                                        <p class="form-control-plaintext" id="ageDisplay">-</p>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="birthdate" class="form-label">Date of Birth</label>
                                         <input type="date" class="form-control" id="birthdate">
                                     </div>
                                 </div>
-
                                 <button type="submit" class="btn btn-save mt-3">Save Details</button>
                             </form>
                         </div>
-
-                        <div class="tab-pane fade" id="pane-account" role="tabpanel"
-                            aria-labelledby="tab-account">
+                        <div class="tab-pane fade" id="pane-account" role="tabpanel" aria-labelledby="tab-account">
                             <h6 class="section-title">Change Username</h6>
                             <div class="alert d-none" id="usernameChangeAlert" role="alert"></div>
                             <form id="usernameChangeForm">
                                 <div class="mb-3">
                                     <label for="newUsername" class="form-label">New Username</label>
-                                    <input type="text" class="form-control" id="newUsername"
-                                        placeholder="Enter new username" autocomplete="username" required>
+                                    <input type="text" class="form-control" id="newUsername" autocomplete="username" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="usernameCurrentPassword" class="form-label">Current Password</label>
                                     <input type="password" class="form-control" id="usernameCurrentPassword"
-                                        placeholder="Enter current password" autocomplete="current-password" required>
+                                        autocomplete="current-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Username</button>
                             </form>
-
                             <hr>
-
                             <h6 class="section-title">Change Password</h6>
                             <div class="alert d-none" id="passwordChangeAlert" role="alert"></div>
                             <form id="passwordChangeForm">
                                 <div class="mb-3">
                                     <label for="currentPassword" class="form-label">Current Password</label>
                                     <input type="password" class="form-control" id="currentPassword"
-                                        placeholder="Enter current password" autocomplete="current-password" required>
+                                        autocomplete="current-password" minlength="8" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="changeNewPassword" class="form-label">New Password</label>
                                     <input type="password" class="form-control" id="changeNewPassword"
-                                        placeholder="Enter new password" autocomplete="new-password" minlength="8" required>
+                                        autocomplete="new-password" minlength="8" required>
                                     <div class="form-text">Min 8 characters, with uppercase, lowercase, number, and special character.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
                                     <input type="password" class="form-control" id="confirmNewPassword"
-                                        placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                                        autocomplete="new-password" minlength="8" required>
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>
@@ -205,12 +370,10 @@
         </div>
     </footer>
 
-    <!-- Bootstrap 5.3 JS Bundle (local) -->
     <script src="js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery 4.0 (local) -->
     <script src="js/jquery-4.0.0.min.js"></script>
-    <!-- Auth Guard (session protection + account dropdown logic) -->
     <script src="js/auth-guard.js"></script>
+    <script src="js/registrar-student-records-edit.js"></script>
 
 </body>
 

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.springboot.repository.BatchRepository;
+import com.example.springboot.repository.CourseRepository;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.SubjectRepository;
 
@@ -22,10 +24,17 @@ public class LookupController {
 
     private final SubjectRepository subjectRepository;
     private final SectionRepository sectionRepository;
+    private final BatchRepository batchRepository;
+    private final CourseRepository courseRepository;
 
-    public LookupController(SubjectRepository subjectRepository, SectionRepository sectionRepository) {
+    public LookupController(SubjectRepository subjectRepository,
+                            SectionRepository sectionRepository,
+                            BatchRepository batchRepository,
+                            CourseRepository courseRepository) {
         this.subjectRepository = subjectRepository;
         this.sectionRepository = sectionRepository;
+        this.batchRepository = batchRepository;
+        this.courseRepository = courseRepository;
     }
 
     /**
@@ -58,5 +67,37 @@ public class LookupController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(sections);
+    }
+
+    /**
+     * GET /api/lookup/batches
+     * Returns all batches as [{code, name}] where name is the year.
+     */
+    @GetMapping("/batches")
+    public ResponseEntity<List<Map<String, String>>> getBatches() {
+        List<Map<String, String>> batches = batchRepository.findAll().stream()
+                .map(b -> Map.of(
+                        "code", b.getBatchCode(),
+                        "name", String.valueOf(b.getBatchYear())
+                ))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(batches);
+    }
+
+    /**
+     * GET /api/lookup/courses
+     * Returns all courses as [{code, name}].
+     */
+    @GetMapping("/courses")
+    public ResponseEntity<List<Map<String, String>>> getCourses() {
+        List<Map<String, String>> courses = courseRepository.findAll().stream()
+                .map(c -> Map.of(
+                        "code", c.getCourseCode(),
+                        "name", c.getCourseName()
+                ))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(courses);
     }
 }

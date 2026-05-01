@@ -1,5 +1,27 @@
 # Progress - Anihan SRMS
 
+## Registrar Bulk Load Tests + H2 Isolation + Server-Side Search (Completed — May 1, 2026)
+- [x] Added `getAllRecords(String query)` overload to `RegistrarService` with case-insensitive in-memory filter
+- [x] `GET /api/registrar/student-records?q=<query>` now supported (optional param)
+- [x] Created `RegistrarBulkLoadTest` (3 Mockito service tests for 200 records: correctness, performance, search across 9 fields)
+- [x] Created `RegistrarBulkLoadWebMvcTest` (2 WebMvc tests: 200-record JSON serialization, ?q= query forwarding)
+- [x] Created `StudentRecordH2LoadTest` (H2 in-memory integration test, 100 records via real JPA, fully isolated from live MySQL)
+- [x] Added `com.h2database:h2` as `testRuntimeOnly` in build.gradle.kts
+- [x] Documented Spring Boot 4.0 test-autoconfigure package reorganization (DataJpaTest moved to `org.springframework.boot.data.jpa.test.autoconfigure`; AutoConfigureTestDatabase moved to `org.springframework.boot.jdbc.test.autoconfigure`)
+- [x] `./gradlew test` → BUILD SUCCESSFUL — 79 tests across 15 classes, 0 failures, 0 skipped
+
+## Registrar Edit Student Record + Search + Unsaved Notifications (Completed — May 1, 2026)
+- [x] Search bar: DataTables 2 default search input is already rendered on the registrar home table — searches across all 8 columns
+- [x] Created `BatchRepository` and `CourseRepository` (previously missing)
+- [x] Extended `LookupController` with `GET /api/lookup/batches` and `GET /api/lookup/courses`
+- [x] Created `StudentRecordUpdateRequest` DTO with `@NotBlank`/`@PastOrPresent` validation
+- [x] Added `RegistrarService.updateRecord()` — FK resolution, studentId-uniqueness, age recalc via `AgeCalculator`, blank-to-null mapping
+- [x] Added `PUT /api/registrar/student-records/{recordId}` to `RegistrarController` with `SystemLogService.logAction()`
+- [x] Built full edit form in `student-records.html` (recordId + enrollmentDate read-only; rest editable)
+- [x] Batch/Course/Section/Status/Sex/Civil Status use `<input list>` + `<datalist>` for combined dropdown + free-text
+- [x] Created `js/registrar-student-records-edit.js` with dirty-tracking, `beforeunload` + nav-intercept confirm dialog, lookup loading, save handler
+- [x] `./gradlew compileJava` → BUILD SUCCESSFUL
+
 ## Registrar Home: Student Records Table & Detail Modal (Completed — May 1, 2026)
 - [x] Created `RegistrarController` with `GET /api/registrar/student-records` (list) and `GET /api/registrar/student-records/{recordId}` (full details)
 - [x] Created `RegistrarService` reusing `StudentRecordRepository.findAll()` and `findById(Integer)`

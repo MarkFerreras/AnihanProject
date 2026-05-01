@@ -1,0 +1,156 @@
+package com.example.springboot.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
+import com.example.springboot.model.Batch;
+import com.example.springboot.model.Course;
+import com.example.springboot.model.Section;
+import com.example.springboot.model.StudentRecord;
+import com.example.springboot.repository.BatchRepository;
+import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.SectionRepository;
+import com.example.springboot.repository.StudentRecordRepository;
+
+/**
+ * Bulk load tests for the Registrar Student Records dashboard.
+ *
+ * Verifies that {@link RegistrarService#getAllRecords()} can handle 200
+ * student records correctly — DTO mapping, free-text search filtering,
+ * and the 5-second non-functional performance requirement.
+ *
+ * All record data is generated programmatically in JVM memory via Mockito
+ * mocks. No real database is touched and no hard-coded dummy records are
+ * persisted anywhere.
+ */
+@ExtendWith(MockitoExtension.class)
+class RegistrarBulkLoadTest {
+
+    @Mock
+    private StudentRecordRepository studentRecordRepository;
+
+    @Mock
+    private BatchRepository batchRepository;
+
+    @Mock
+    private CourseRepository courseRepository;
+
+    @Mock
+    private SectionRepository sectionRepository;
+
+    @InjectMocks
+    private RegistrarService registrarService;
+
+    @Test
+    void getAllRecordsReturnsTwoHundredRecords() {
+        when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
+
+        List<StudentRecordSummaryResponse> result = registrarService.getAllRecords();
+
+        assertEquals(200, result.size(),
+                "getAllRecords should return exactly 200 student record DTOs");
+        assertEquals("STU-0", result.get(0).studentId());
+        assertEquals("STU-199", result.get(199).studentId());
+        // Spot-check that FK relations were flattened to codes correctly
+        assertEquals("BATCH-0", result.get(0).batchCode());
+        assertEquals("CARS", result.get(0).courseCode());
+        assertEquals("SEC-0", result.get(0).sectionCode());
+    }
+
+    @Test
+    void getAllRecordsCompletesWithinPerformanceBound() {
+        when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
+
+        long startMs = System.currentTimeMillis();
+        List<StudentRecordSummaryResponse> result = registrarService.getAllRecords();
+        long elapsedMs = System.currentTimeMillis() - startMs;
+
+        assertEquals(200, result.size());
+        // Non-functional requirement: record retrieval < 5 seconds
+        assertTrue(elapsedMs < 5000,
+                "Retrieving 200 student records took " + elapsedMs
+                        + "ms — exceeds 5-second limit");
+    }
+
+    @Test
+    void searchByQueryFiltersAcrossAllSearchableFields() {
+        when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
+
+        // Last name match — every record has lastName "Last_<i>", so "Last_42" is unique
+        List<StudentRecordSummaryResponse> byName = registrarService.getAllRecords("Last_42");
+        assertEquals(1, byName.size(), "Expected one match for 'Last_42'");
+        assertEquals("STU-42", byName.get(0).studentId());
+
+        // Student ID match — case-insensitive
+        List<StudentRecordSummaryResponse> byStudentId = registrarService.getAllRecords("stu-99");
+        assertTrue(byStudentId.stream().anyMatch(r -> "STU-99".equals(r.studentId())),
+                "Expected case-insensitive match on studentId");
+
+        // Status match — every 7th record is "Active"
+        List<StudentRecordSummaryResponse> byStatus = registrarService.getAllRecords("Active");
+        assertTrue(byStatus.size() > 0, "Expected at least one 'Active' record");
+        assertTrue(byStatus.stream().allMatch(r -> "Active".equals(r.studentStatus())),
+                "Every result must have Active status when filtering by 'Active'");
+
+        // Course code match
+        List<StudentRecordSummaryResponse> byCourse = registrarService.getAllRecords("CARS");
+        assertEquals(200, byCourse.size(),
+                "All 200 records share course code 'CARS'");
+
+        // No matches — query that does not appear anywhere
+        List<StudentRecordSummaryResponse> none = registrarService.getAllRecords("zzznomatchzzz");
+        assertEquals(0, none.size(),
+                "Expected no matches for unseen query string");
+
+        // Blank query returns everything
+        List<StudentRecordSummaryResponse> all = registrarService.getAllRecords("   ");
+        assertEquals(200, all.size(),
+                "Blank query should return all records");
+    }
+
+    /**
+     * Generates a list of unique StudentRecord objects for bulk testing.
+     * All data lives only in JVM memory — nothing is persisted to any database.
+     * Every record gets a deterministic studentId, names, batch/course/section,
+     * and a status that cycles through "Enrolling" / "Submitted" / "Active".
+     */
+    private List<StudentRecord> buildRecordList(int count) {
+        String[] statuses = {"Enrolling", "Submitted", "Active"};
+        Course sharedCourse = new Course("CARS", "Culinary Arts and Restaurant Services");
+        List<StudentRecord> records = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            StudentRecord r = new StudentRecord();
+            r.setRecordId(i + 1);
+            r.setStudentId("STU-" + i);
+            r.setLastName("Last_" + i);
+            r.setFirstName("First_" + i);
+            r.setMiddleName("Middle_" + i);
+            r.setStudentStatus(statuses[i % statuses.length]);
+
+            Batch b = new Batch();
+            b.setBatchCode("BATCH-" + i);
+            b.setBatchYear((short) (2026 + (i % 5)));
+            r.setBatch(b);
+
+            r.setCourse(sharedCourse);
+
+            Section s = new Section();
+            s.setSectionCode("SEC-" + i);
+            r.setSection(s);
+
+            records.add(r);
+        }
+        return records;
+    }
+}

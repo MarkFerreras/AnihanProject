@@ -231,6 +231,44 @@ The following tests were updated to remove `age` from DTO constructors/payloads 
 - [x] `./gradlew test` → BUILD SUCCESSFUL
 - [x] 73 tests, 0 failures, 0 skipped
 
+## Registrar Bulk Load + H2 Isolation Tests (May 1, 2026)
+Tests verify that the Registrar Student Records list and search work correctly under bulk load,
+and that 100 dummy records can be persisted via real JPA in a fully-isolated H2 database.
+
+### RegistrarBulkLoadTest (3 tests) — `service/RegistrarBulkLoadTest.java`
+Mockito-only unit tests on `RegistrarService`. No DB connection at all.
+- [x] `getAllRecordsReturnsTwoHundredRecords` — mocks 200 `StudentRecord` entities; verifies DTO size and FK flattening (batch/course/section codes)
+- [x] `getAllRecordsCompletesWithinPerformanceBound` — bulk fetch finishes in < 5s (actual: ~0.255s)
+- [x] `searchByQueryFiltersAcrossAllSearchableFields` — verifies in-memory search filters by lastName, studentId (case-insensitive), studentStatus, courseCode, returns empty for unseen query, and treats blank query as "return all"
+
+### RegistrarBulkLoadWebMvcTest (2 tests) — `controller/RegistrarBulkLoadWebMvcTest.java`
+- [x] `getRecordsReturnsTwoHundredRecordsAsJson` — `GET /api/registrar/student-records` → 200 with 200 JSON entries; performance < 5s; spot-check first/last studentId and FK fields
+- [x] `searchEndpointForwardsQueryParamToService` — `GET /api/registrar/student-records?q=Last_42` → 200 with 1 entry; verifies controller forwards the query parameter to the service
+
+### StudentRecordH2LoadTest (1 test) — `integration/StudentRecordH2LoadTest.java`
+H2-isolated integration test using `@DataJpaTest` with H2 in MySQL compatibility mode. The live MySQL is never touched.
+- [x] `canPersistAndLoadOneHundredStudentRecords` — saves 100 unique records via `saveAll`, retrieves via `findAll`, asserts:
+  - All 100 entities returned
+  - `recordId` auto-generated (IDENTITY) for every row
+  - All non-null business keys (studentId, lastName, firstName, middleName) round-trip correctly
+  - All 100 `studentId` values are unique
+  - Persist + load completes in < 5s (actual: ~1.5s)
+
+### Test Results Summary (May 1, 2026)
+| Test Class | Tests | Failures | Skipped | Time | Success Rate |
+|---|---|---|---|---|---|
+| RegistrarBulkLoadTest | 3 | 0 | 0 | 0.255s | 100% |
+| RegistrarBulkLoadWebMvcTest | 2 | 0 | 0 | 0.506s | 100% |
+| StudentRecordH2LoadTest | 1 | 0 | 0 | 1.504s | 100% |
+| **Full Suite (15 classes)** | **79** | **0** | **0** | **~18s** | **100%** |
+
+### Environment Notes
+- All Mockito-based bulk records generated programmatically in JVM memory — no hard-coded dummy rows
+- H2 test runs in a completely isolated `jdbc:h2:mem:studentRecordsTestDb;MODE=MySQL` database; schema built via Hibernate `ddl-auto=create-drop`; dropped at end
+- Spring Boot 4.0 paths used: `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest` and `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`
+
+---
+
 ## Age Calculation & DB Persistence Tests (April 19, 2026 — Round 2)
 
 ### New Test File: AgeCalculatorTest.java

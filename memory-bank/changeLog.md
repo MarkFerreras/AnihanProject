@@ -1,5 +1,107 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-01 - Registrar Bulk Load Tests + Server-Side Search + H2 Isolation
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+1. Cover the registrar student-records list and search functionality with JUnit tests using 200 dummy records.
+2. Add an H2-isolated integration test that persists 100 dummy student records through the real JPA stack — completely separated from the live MySQL.
+3. Add a backend search endpoint so the search functionality is testable as a unit.
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `test/service/RegistrarBulkLoadTest.java` | 3 Mockito tests on `RegistrarService`: returns 200 records correctly, < 5s performance, search filters across all 9 searchable fields |
+| `test/controller/RegistrarBulkLoadWebMvcTest.java` | 2 WebMvc tests: GET `/api/registrar/student-records` serializes 200 records as JSON in < 5s; `?q=` query param is forwarded to service correctly |
+| `test/integration/StudentRecordH2LoadTest.java` | 1 H2-isolated integration test (`@DataJpaTest`) persisting 100 unique `StudentRecord` rows via real Hibernate/JPA in an in-memory H2 database (MySQL compatibility mode). Verifies count, auto-generated IDs, studentId uniqueness, and 5s performance bound |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `service/RegistrarService.java` | Added `getAllRecords(String query)` overload with case-insensitive in-memory filtering across recordId, studentId, lastName, firstName, middleName, studentStatus, batchCode, courseCode, sectionCode |
+| `controller/RegistrarController.java` | `GET /api/registrar/student-records` now accepts optional `?q=<query>` parameter (forwarded to the new service method) |
+| `build.gradle.kts` | Added `testRuntimeOnly("com.h2database:h2")` for the isolated integration test |
+
+### Spring Boot 4.0 Test Annotation Paths
+Spring Boot 4.0 reorganized the test autoconfigure packages. Confirmed for future reference:
+- `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest`
+- `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase`
+
+(Older Spring Boot 3.x paths `org.springframework.boot.test.autoconfigure.orm.jpa.*` and `org.springframework.boot.autoconfigure.jdbc.*` no longer resolve.)
+
+### Frontend
+No frontend changes. The DataTables built-in client-side search is unchanged — the new server-side endpoint is parallel infrastructure to support unit testing and potential future use.
+
+### H2 Isolation Strategy
+- `@DataJpaTest` slices the Spring context to JPA components only.
+- `@AutoConfigureTestDatabase(replace = Replace.ANY)` forces the test database, ignoring any production datasource.
+- `@TestPropertySource` overrides the JDBC URL to `jdbc:h2:mem:studentRecordsTestDb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1`. The `MODE=MySQL` URL parameter makes H2 accept MySQL-style column types (such as `MEDIUMBLOB` on `StudentRecord.profilePicture`). Hibernate uses the H2Dialect for query generation.
+- Hibernate runs `ddl-auto=create-drop`, so the schema is built from entity metadata and dropped at the end. The live MySQL database is never connected to.
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL.
+- 6 new tests across 3 files, all passing.
+- Full suite: 15 test classes, 79 tests, 0 failures, 0 skipped.
+
+| Test Class | Tests | Time | Result |
+|---|---|---|---|
+| RegistrarBulkLoadTest | 3 | 0.255s | ✅ |
+| RegistrarBulkLoadWebMvcTest | 2 | 0.506s | ✅ |
+| StudentRecordH2LoadTest | 1 | 1.504s | ✅ |
+| Full suite | 79 | ~18s | ✅ |
+
+---
+
+## 2026-05-01 - Registrar Edit Student Record + Search Bar + Unsaved-Changes Notification
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Three additions to the registrar workflow:
+1. Searchable registrar home table (across name, record ID, student ID, batch, course, section, status)
+2. `student-records.html` becomes a fully-editable form for the record selected via the modal Edit button
+3. Notifications when the registrar tries to leave with unsaved changes (admin pattern)
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `repository/BatchRepository.java` | New `JpaRepository<Batch, String>` for batch dropdown lookups |
+| `repository/CourseRepository.java` | New `JpaRepository<Course, String>` for course dropdown lookups |
+| `dto/registrar/StudentRecordUpdateRequest.java` | Validated DTO for the `PUT /api/registrar/student-records/{recordId}` payload |
+| `static/js/registrar-student-records-edit.js` | Loads record by `?id=`, populates form, attaches dirty-tracking + `beforeunload` + nav-intercept confirm dialog, saves via PUT |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `controller/LookupController.java` | Added `GET /api/lookup/batches` and `GET /api/lookup/courses` (any authenticated user). Constructor extended with `BatchRepository` and `CourseRepository`. |
+| `service/RegistrarService.java` | Added `updateRecord(Integer, StudentRecordUpdateRequest)` with FK resolution (batch/course/section), studentId-uniqueness check, age recalculation via `AgeCalculator`, and null-safe blank-to-null mapping. Constructor extended with the three lookup repositories. |
+| `controller/RegistrarController.java` | Added `PUT /{recordId}` endpoint with `@Valid` body and `SystemLogService.logAction()` call. Constructor extended with `SystemLogService` and `UserRepository`. |
+| `static/student-records.html` | Replaced placeholder content with a full edit form (Identifiers, Personal Details, Contact, Family/Religion, Enrollment sections). Record ID and Enrollment Date are read-only; Batch/Course/Section/Status/Sex/Civil Status use `<input list>` + `<datalist>` so users can either pick a code or type free text. Added unsaved-changes alert banner and inline result alert. New script tag for `registrar-student-records-edit.js`. |
+
+### Search Bar (Task 1)
+DataTables 2 already renders a built-in search input by default (top-right of the table) since neither admin-users.js nor registrar-students.js sets a custom `dom` option. The input filters across all visible columns — meeting the requirement (name, record ID, student ID, batch, course, section, status). No code change required for this task.
+
+### Unsaved-Changes Notifications (Task 3)
+Mirrors the admin `edit-user.html` pattern:
+- Any input/change to the form triggers `markDirty()` → shows the yellow warning banner.
+- `beforeunload` event handler triggers the browser's native "Leave site?" prompt on refresh/close/external nav.
+- Click handlers on `.admin-nav-link`, `.navbar-brand`, `#cancelEditLink`, `#logoutBtn`, `#editAccountBtn` show a JS `confirm('You have unsaved changes. Leave this page?')` and abort navigation if cancelled.
+- Successful save clears the dirty state and hides the banner.
+
+### Datalist Pattern (Combined Free-Text + Dropdown)
+Per user request, Batch, Course, Section, Status, Sex, and Civil Status use `<input list="...">` paired with a `<datalist>`. This produces a free-text input that also offers an autocomplete dropdown — users can type a value not in the list, or pick from the list.
+
+### Backend Validation
+- `studentId`, `lastName`, `firstName`, `middleName`, `studentStatus` are `@NotBlank`.
+- `birthdate` and `baptismDate` allow null but must be `@PastOrPresent`.
+- Service layer: studentId uniqueness checked when changed; FK codes (batch/course/section), if non-blank, must exist or `IllegalArgumentException` is thrown (caught by `GlobalExceptionHandler` → 400).
+- Age is recalculated from birthdate via `AgeCalculator` (existing utility).
+
+### Verification
+- `./gradlew compileJava` → BUILD SUCCESSFUL.
+- Manual browser testing deferred to user (login as registrar → use search → click Open Details → click Edit → form populates → modify a field → confirm warning banner appears → try to leave → confirm prompt shows → save → success alert).
+
+---
+
 ## 2026-05-01 - Registrar Home: Student Records Table & Detail Modal
 **Branch:** `fix/db-sync-username-unique`
 
