@@ -1,7 +1,14 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Navbar — Completed (2026-05-01)**
+**Registrar Home — Student Records Dashboard (2026-05-01) + Live Age Recalc (2026-05-01) + Registrar Navbar (2026-05-01)**
+
+## Session Summary (May 1, 2026)
+- New API endpoints: `GET /api/registrar/student-records`, `GET /api/registrar/student-records/{recordId}` (REGISTRAR-only)
+- New DTO package: `dto/registrar/` with `StudentRecordSummaryResponse` and `StudentRecordDetailsResponse`
+- New service: `RegistrarService` (reuses existing `StudentRecordRepository`)
+- Registrar home now displays a DataTables-powered student records table with detail modal
+- `student-records.html` repurposed for registrar (placeholder page reachable from modal Edit button)
 
 ## Active Branch
 `fix/db-sync-username-unique`

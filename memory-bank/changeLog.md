@@ -1,5 +1,62 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-01 - Registrar Home: Student Records Table & Detail Modal
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Build the registrar home page as a student-records dashboard mirroring the admin user dashboard. Add a DataTables table, a detail modal showing the full record, and an Edit button that links to `student-records.html` (now repurposed as a registrar-side placeholder).
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `dto/registrar/StudentRecordSummaryResponse.java` | 8-field record DTO for table rows (recordId, studentId, lastName, firstName, batchCode, courseCode, sectionCode, studentStatus) — flattens FK relations to codes |
+| `dto/registrar/StudentRecordDetailsResponse.java` | Full-record DTO (excludes BLOB profilePicture) — 25 fields, FK relations flattened to codes |
+| `service/RegistrarService.java` | `getAllRecords()` and `getRecordById(Integer)` — uses `StudentRecordRepository.findAll()` / `findById(Integer)` (already existing). Throws `NoSuchElementException` on miss (handled by `GlobalExceptionHandler` → 404). |
+| `controller/RegistrarController.java` | `GET /api/registrar/student-records` and `GET /api/registrar/student-records/{recordId}` |
+| `static/js/registrar-students.js` | DataTables 2 init, AJAX from `/api/registrar/student-records`, click-to-load detail modal, renders `'null'` for empty/null values |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/registrar.html` | Added `datatables.min.css`. Replaced empty `<main>` with `page-hero` + `surface-card` containing `#studentRecordsTable` (9 columns: Record ID, Student ID, Last Name, First Name, Batch, Course, Section, Status, Details button). Added `#studentRecordDetailsModal` with all 25 fields + Edit/Close buttons. Added jQuery, DataTables JS, and `registrar-students.js` script tags. |
+| `static/student-records.html` | Repurposed for registrar: title → "Student Records — Registrar"; `data-required-role` ADMIN → REGISTRAR; navbar swapped from 4-link admin nav to 2-link registrar nav (Home, Subjects); brand href → `registrar.html`; portal label → "Registrar Portal". Main content kept as placeholder per user instruction. |
+| `config/SecurityConfig.java` | Moved `/student-records.html` from ADMIN to REGISTRAR matcher. `/api/registrar/**` already covers the new endpoints. |
+
+### Behavior
+- Null/empty fields render the literal text `"null"` in the table and detail modal (per user instruction).
+- Status badge maps "Active"/"Submitted" → green active badge; everything else → grey/disabled badge.
+- Edit button in modal links to `student-records.html?id={recordId}` (placeholder page reachable; no edit logic yet).
+
+### Verification
+- `./gradlew compileJava` → BUILD SUCCESSFUL.
+- Manual verification deferred to user (login as registrar → table populates, click Open Details → modal opens, click Edit → navigates to `student-records.html?id=...`).
+
+---
+
+## 2026-05-01 - Live Age Recalculation in Edit Account Modal
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Ensure the Age field in the Edit Account modal is non-editable and auto-calculated from the Birthdate field on the registrar and trainer sides, matching admin behavior.
+
+### Audit Result
+- `registrar.html`, `trainer.html`, and `admin.html` all already render Age as a read-only `<p id="ageDisplay">` (no editable input) and Birthdate as `<input type="date" id="birthdate">`. All three load the shared `auth-guard.js`.
+- However, `auth-guard.js` only set `ageDisplay` once on initial load. If the user changed the birthdate, the age stayed stale until page reload. After a successful save, the form did not refresh either.
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/js/auth-guard.js` | Added `calculateAgeFromBirthdate()` and `updateAgeDisplay()` helpers. Attached a `change` listener to `#birthdate` (idempotent via `dataset.ageListenerAttached`) so `#ageDisplay` updates live. Added explicit refresh of `#ageDisplay` and `#birthdate` from the server response in the personal-details save success branch. |
+
+### Effect
+- Admin, registrar, and trainer all benefit from the same live recalculation behavior since they share `auth-guard.js`.
+- Age remains server-authoritative on persistence (the backend `AgeCalculator` still runs on save and read); the client-side calc is purely a UI preview.
+
+### Verification
+- Manual test plan: open Edit Account modal → change birthdate → age display updates immediately → click Save → success alert + age remains consistent with server.
+
+---
+
 ## 2026-05-01 - Registrar Navbar Standardization
 **Branch:** `fix/db-sync-username-unique`
 

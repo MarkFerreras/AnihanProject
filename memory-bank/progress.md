@@ -1,5 +1,22 @@
 # Progress - Anihan SRMS
 
+## Registrar Home: Student Records Table & Detail Modal (Completed — May 1, 2026)
+- [x] Created `RegistrarController` with `GET /api/registrar/student-records` (list) and `GET /api/registrar/student-records/{recordId}` (full details)
+- [x] Created `RegistrarService` reusing `StudentRecordRepository.findAll()` and `findById(Integer)`
+- [x] Created two DTOs in new `dto/registrar/` package: `StudentRecordSummaryResponse` (8 fields) and `StudentRecordDetailsResponse` (25 fields, FK relations flattened to codes, BLOB excluded)
+- [x] Built `registrar.html` student records dashboard: page-hero, surface-card with 9-column DataTable, full detail modal (all fields), Edit link goes to `student-records.html?id={recordId}`
+- [x] Created `js/registrar-students.js` (DataTables init + modal AJAX + null-rendering logic)
+- [x] Repurposed `student-records.html` for the registrar (REGISTRAR role, registrar navbar, placeholder content kept)
+- [x] `SecurityConfig`: moved `/student-records.html` from ADMIN to REGISTRAR
+- [x] `./gradlew compileJava` → BUILD SUCCESSFUL
+
+## Live Age Recalculation in Edit Account Modal (Completed — May 1, 2026)
+- [x] Added `calculateAgeFromBirthdate()` and `updateAgeDisplay()` helpers to `auth-guard.js`
+- [x] Birthdate `<input>` now triggers live recalculation of `#ageDisplay` on `change`
+- [x] Personal-details save success now refreshes `#ageDisplay` and `#birthdate` from the server response
+- [x] All three role pages (admin, registrar, trainer) benefit since they share `auth-guard.js`
+- [x] Confirmed registrar.html and trainer.html already had the correct read-only `<p id="ageDisplay">` markup (no editable age input)
+
 ## Registrar Navbar Standardization (Completed — May 1, 2026)
 - [x] `registrar.html` — replaced simple placeholder navbar with full Bootstrap-collapsible navbar matching admin pattern
 - [x] Navbar has two links: **Home** (active, → `registrar.html`) and **Subjects** (→ `subjects.html`)
