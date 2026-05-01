@@ -1,5 +1,27 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-01 - Registrar Navbar Standardization
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+Add a navbar to all registrar pages matching the admin navbar pattern, with two links: Home and Subjects. Subjects page becomes REGISTRAR-only (Admin loses access).
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/registrar.html` | Replaced simple placeholder navbar (logo + label + dropdown) with full `navbar-expand-lg login-navbar admin-navbar` collapsible navbar containing Home (active) and Subjects nav links + Registrar Portal label + account dropdown. Added `class="dashboard-page"` to `<body>`. |
+| `static/subjects.html` | Rebranded from admin to registrar: `<title>` → `Subjects — Registrar`; `data-required-role` → `ROLE_REGISTRAR`; navbar reduced from 4 admin links to 2 registrar links (Home, Subjects active); `navbar-brand` href → `registrar.html`; collapse target id → `registrarNavbar`; portal label → `Registrar Portal`. Main content kept as placeholder. |
+| `config/SecurityConfig.java` | Moved `/subjects.html` out of the ADMIN `requestMatchers` and into the REGISTRAR matcher alongside `/registrar.html`. |
+
+### CSS / JS
+- No CSS or JS changes — reused `admin-navbar`, `admin-nav-link`, `portal-label`, `account-dropdown` from `dashboard.css`.
+
+### Verification
+- Code review: navbar markup matches admin pattern; nav links resolve to existing pages.
+- `SecurityConfig` change keeps role isolation intact (admin → admin pages; registrar → registrar.html + subjects.html).
+
+---
+
 ## 2026-04-30 - Enrollment Flow Bug Audit & Fixes
 **Branch:** `fix/db-sync-username-unique`
 

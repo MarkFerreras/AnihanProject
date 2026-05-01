@@ -38,10 +38,22 @@ Every admin page **must** include:
 8. Nav links: **Home | Logs** — with `active` class on current page
 
 > **⚠️ CRITICAL WARNING — STALE NAVBARS:**
-> `student-records.html` and `subjects.html` still contain the OLD 4-link navbar (Home | Student Records | Subjects | Logs).
-> These pages were intentionally left unchanged when Student Records and Subjects were removed from the active admin navbar.
-> **Before re-adding these pages to the admin navbar, you MUST update their internal navbars to match the current pattern above.**
+> `student-records.html` still contains the OLD 4-link admin navbar (Home | Student Records | Subjects | Logs).
+> This page was intentionally left unchanged when Student Records and Subjects were removed from the active admin navbar.
+> **Before re-adding it to the admin navbar, you MUST update its internal navbar to match the current pattern above.**
 > Failure to do so will create an inconsistent navigation experience across admin pages.
+>
+> Note: `subjects.html` was rebranded to the **registrar** side on 2026-05-01 (see changeLog) and now uses the registrar 2-link navbar (Home | Subjects). It is no longer accessible to admins.
+
+## Registrar Page Pattern
+Every registrar page must include:
+1. `<body class="dashboard-page" data-required-role="ROLE_REGISTRAR">`
+2. The same shared CSS (`bootstrap.min.css`, `login.css`, `dashboard.css`)
+3. Navbar: `navbar-expand-lg login-navbar admin-navbar` with collapse id `registrarNavbar`
+4. Nav links: **Home** (`registrar.html`) | **Subjects** (`subjects.html`) — `active` class on the current page
+5. Portal label: `Registrar Portal`
+6. Account dropdown + Edit Account modal (same shared markup as admin)
+7. `js/auth-guard.js` for session protection
 
 ## Student Portal Page Pattern (Public — No Auth)
 Student portal pages share the **login page** visual design (`login.css`) but are standalone (no `auth-guard.js`, no account dropdown).

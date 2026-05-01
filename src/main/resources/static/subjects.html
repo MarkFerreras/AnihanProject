@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Admin Subjects">
-    <title>Subjects — Admin</title>
+    <meta name="description" content="Anihan SRMS — Registrar Subjects">
+    <title>Subjects — Registrar</title>
 
     <!-- Bootstrap 5.3 CSS (local) -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
@@ -27,39 +27,34 @@
     </style>
 </head>
 
-<body class="dashboard-page" data-required-role="ROLE_ADMIN">
+<body class="dashboard-page" data-required-role="ROLE_REGISTRAR">
 
     <!-- ===== HEADER ===== -->
     <header>
         <nav class="navbar navbar-expand-lg login-navbar admin-navbar">
             <div class="container">
-                <a class="navbar-brand" href="admin.html">
+                <a class="navbar-brand" href="registrar.html">
                     <span class="brand-mark">
                         <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
                     </span>
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
-                    aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#registrarNavbar" aria-controls="registrarNavbar"
+                    aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse navbar-collapse" id="adminNavbar">
+                <div class="collapse navbar-collapse" id="registrarNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="admin.html">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="student-records.html">Student Records</a>
+                            <a class="nav-link admin-nav-link" href="registrar.html">Home</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link active" aria-current="page"
                                 href="subjects.html">Subjects</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="logs.html">Logs</a>
-                        </li>
                     </ul>
                     <div class="d-flex align-items-center gap-3 ms-lg-3">
-                        <span class="portal-label">Admin Portal</span>
+                        <span class="portal-label">Registrar Portal</span>
                         <div class="account-dropdown dropdown">
                             <button class="account-icon-btn dropdown-toggle" type="button" id="accountDropdownBtn"
                                 data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
