@@ -161,23 +161,19 @@
             order: [[0, 'asc']],
             language: {
                 emptyTable: 'No student records found.'
-            },
-            initComplete: function () {
-                const filterBar = document.getElementById('batchFilterBar');
-                if (!filterBar) return;
-                const wrapper = this.table().container();
-                // Works for DataTables 2 (.dt-search) and DT1 compat (.dataTables_filter)
-                const searchCell = wrapper.querySelector('.dt-search')
-                                || wrapper.querySelector('.dataTables_filter');
-                if (!searchCell) return;
-                const row = searchCell.parentNode;
-                row.insertBefore(filterBar, searchCell);
-                // DT1 compat: the parent may use floats; force flex so items share a row
-                if (!row.classList.contains('dt-layout-row')) {
-                    row.style.cssText += ';display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;';
-                }
             }
         });
+
+        // DataTable init is synchronous — .dt-search is in the DOM right now.
+        // Move the batch year filter into the same row as the search input.
+        (function () {
+            var filterBar = document.getElementById('batchFilterBar');
+            var searchCell = document.querySelector('.dt-search')
+                          || document.querySelector('.dataTables_filter');
+            if (filterBar && searchCell) {
+                searchCell.parentNode.insertBefore(filterBar, searchCell);
+            }
+        }());
 
         window.jQuery('#studentRecordsTable tbody').on('click', 'button[data-record-id]', async function () {
             try {
