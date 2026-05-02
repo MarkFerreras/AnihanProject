@@ -581,6 +581,31 @@ body.dashboard-page {
     padding: 0.35rem 0.7rem;
 }
 
+/* Wider search box for the registrar's student records table */
+#studentRecordsTable_wrapper .dataTables_filter input,
+#studentRecordsTable_wrapper .dt-search input {
+    min-width: 320px;
+    padding: 0.45rem 1rem;
+}
+
+/* Compact batch year number fields — prevent form-control 100% stretch */
+#batchFromYear,
+#batchToYear {
+    width: 90px;
+    max-width: 90px;
+    flex: 0 0 auto;
+}
+
+/* Strip card styling when batch filter is relocated into the DT controls row */
+#studentRecordsTable_wrapper #batchFilterBar {
+    margin-bottom: 0;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
 .dataTables_wrapper .dataTables_paginate .paginate_button {
     border-radius: 999px !important;
     margin: 0 0.15rem;

@@ -291,3 +291,76 @@ INSERT INTO users (username, password, lastname, firstname, middlename, birthdat
 ('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'juan.delacruz@example.com', 'ROLE_ADMIN',     1, NULL),
 ('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'maria.reyes@example.com',   'ROLE_REGISTRAR', 1, NULL),
 ('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'carlos.santos@example.com', 'ROLE_TRAINER',   1, NULL);
+
+-- ============================================================
+-- SEED DATA: Lookup Tables (course, batches, sections)
+-- Required as foreign-key targets for the dummy student records below.
+-- ============================================================
+INSERT INTO courses (course_code, course_name) VALUES
+('CARS', 'Culinary Arts and Restaurant Services');
+
+INSERT INTO batches (batch_code, batch_year) VALUES
+('B2024A', 2024),
+('B2025A', 2025),
+('B2026A', 2026);
+
+INSERT INTO sections (section_code, section, batch_code, course_code) VALUES
+('SEC-A24', 'Section A 2024', 'B2024A', 'CARS'),
+('SEC-A25', 'Section A 2025', 'B2025A', 'CARS'),
+('SEC-A26', 'Section A 2026', 'B2026A', 'CARS');
+
+-- ============================================================
+-- SEED DATA: 5 Dummy Student Records — All Columns Populated
+-- profile_picture is intentionally an empty BLOB (X'') as a placeholder;
+-- replace with a real image upload once the registrar adds one.
+-- Image assets for the SRMS live at:
+--   src/main/resources/static/images/
+-- ============================================================
+INSERT INTO student_records (
+    student_id, last_name, first_name, middle_name,
+    birthdate, age, sex, civil_status,
+    permanent_address, temporary_address, email, contact_no, religion,
+    baptized, baptism_date, baptism_place,
+    sibling_count, brother_count, sister_count,
+    batch_code, course_code, section_code,
+    profile_picture, enrollment_date, student_status
+) VALUES
+('STU-2024-001', 'Reyes',     'Anna',     'Cruz',
+    '2003-04-12', 22, 'Female', 'Single',
+    '123 Mabini St, Quezon City',  '45 Aurora Blvd, Manila',  'anna.reyes@example.com',     '09171234001', 'Roman Catholic',
+    1, '2003-06-20', 'San Pedro Parish, Manila',
+    2, 1, 1,
+    'B2024A', 'CARS', 'SEC-A24',
+    X'', '2024-06-03', 'Active'),
+
+('STU-2024-002', 'Santos',    'Bea',      'Lim',
+    '2002-09-30', 23, 'Female', 'Single',
+    '88 Roxas Ave, Pasig',         '12 EDSA, Mandaluyong',    'bea.santos@example.com',     '09171234002', 'Iglesia ni Cristo',
+    1, '2003-01-15', 'INC Central Temple, Quezon City',
+    3, 2, 1,
+    'B2024A', 'CARS', 'SEC-A24',
+    X'', '2024-06-03', 'Active'),
+
+('STU-2025-001', 'Cruz',      'Carla',    'Mendoza',
+    '2004-01-18', 22, 'Female', 'Single',
+    '7 Bonifacio St, Makati',      '7 Bonifacio St, Makati',  'carla.cruz@example.com',     '09171234003', 'Christian',
+    1, '2004-05-10', 'Christ Fellowship Church, Makati',
+    1, 0, 1,
+    'B2025A', 'CARS', 'SEC-A25',
+    X'', '2025-06-02', 'Active'),
+
+('STU-2025-002', 'Garcia',    'Diana',    'Reyes',
+    '2003-12-05', 22, 'Female', 'Single',
+    '256 Espana Blvd, Manila',     '256 Espana Blvd, Manila', 'diana.garcia@example.com',   '09171234004', 'Roman Catholic',
+    1, '2004-02-28', 'Sto. Domingo Church, Manila',
+    4, 2, 2,
+    'B2025A', 'CARS', 'SEC-A25',
+    X'', '2025-06-02', 'Active'),
+
+('STU-2026-001', 'Lopez',     'Elise',    'Tan',
+    '2005-07-22', 20, 'Female', 'Single',
+    '19 Katipunan Ave, Quezon City','19 Katipunan Ave, Quezon City','elise.lopez@example.com', '09171234005', 'Roman Catholic',
+    1, '2005-10-14', 'Mary Immaculate Parish, Quezon City',
+    2, 0, 2,
+    'B2026A', 'CARS', 'SEC-A26',
+    X'', '2026-06-01', 'Active');

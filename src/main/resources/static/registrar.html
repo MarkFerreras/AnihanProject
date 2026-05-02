@@ -95,6 +95,22 @@
                         <p>Browse all student records and inspect their full profile details.</p>
                     </div>
                 </div>
+
+                <div class="logs-filter-bar" id="batchFilterBar">
+                    <div class="logs-filter-section logs-filter-custom">
+                        <span class="filter-label">Batch Year</span>
+                        <label for="batchFromYear" class="filter-label">From</label>
+                        <input type="number" class="form-control form-control-sm" id="batchFromYear"
+                               min="1980" max="2100" placeholder="e.g. 2024">
+                        <label for="batchToYear" class="filter-label">To</label>
+                        <input type="number" class="form-control form-control-sm" id="batchToYear"
+                               min="1980" max="2100" placeholder="e.g. 2026">
+                        <button class="btn btn-filter-apply" id="batchFilterApplyBtn" type="button">Apply</button>
+                        <button class="btn btn-filter-reset" id="batchFilterResetBtn" type="button">Reset</button>
+                    </div>
+                    <span class="logs-filter-feedback" id="batchFilterFeedback"></span>
+                </div>
+
                 <div class="surface-card-body compact">
                     <div class="table-responsive">
                         <table id="studentRecordsTable" class="table admin-table align-middle mb-0 w-100">

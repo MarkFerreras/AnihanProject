@@ -36,25 +36,34 @@ public class RegistrarService {
     }
 
     public List<StudentRecordSummaryResponse> getAllRecords() {
-        return getAllRecords(null);
+        return getAllRecords(null, null, null);
+    }
+
+    public List<StudentRecordSummaryResponse> getAllRecords(String query) {
+        return getAllRecords(query, null, null);
     }
 
     /**
-     * Returns all student records, optionally filtered by a free-text query.
-     * The query is matched case-insensitively against: recordId, studentId,
-     * lastName, firstName, middleName, studentStatus, batchCode, courseCode,
-     * and sectionCode.
+     * Returns all student records, optionally filtered by a free-text query
+     * and a batch year range. When both filters are provided, a record must
+     * satisfy both to appear in the result.
+     *
+     * <p>The text query is matched case-insensitively against: recordId,
+     * studentId, lastName, firstName, middleName, studentStatus, batchCode,
+     * courseCode, and sectionCode.</p>
+     *
+     * <p>The year range filters by `record.batch.batchYear`. When either
+     * fromYear or toYear is provided, records without a batch are excluded
+     * (they cannot satisfy the year filter).</p>
      */
-    public List<StudentRecordSummaryResponse> getAllRecords(String query) {
+    public List<StudentRecordSummaryResponse> getAllRecords(String query, Integer fromYear, Integer toYear) {
         List<StudentRecord> records = studentRecordRepository.findAll();
-        if (query == null || query.isBlank()) {
-            return records.stream()
-                    .map(StudentRecordSummaryResponse::from)
-                    .toList();
-        }
-        String q = query.toLowerCase().trim();
+        String q = (query == null || query.isBlank()) ? null : query.toLowerCase().trim();
+        boolean yearFilterActive = fromYear != null || toYear != null;
+
         return records.stream()
-                .filter(r -> matchesQuery(r, q))
+                .filter(r -> q == null || matchesQuery(r, q))
+                .filter(r -> !yearFilterActive || matchesYearRange(r, fromYear, toYear))
                 .map(StudentRecordSummaryResponse::from)
                 .toList();
     }
@@ -69,6 +78,20 @@ public class RegistrarService {
                 || (r.getBatch() != null && contains(r.getBatch().getBatchCode(), q))
                 || (r.getCourse() != null && contains(r.getCourse().getCourseCode(), q))
                 || (r.getSection() != null && contains(r.getSection().getSectionCode(), q));
+    }
+
+    private boolean matchesYearRange(StudentRecord r, Integer fromYear, Integer toYear) {
+        if (r.getBatch() == null || r.getBatch().getBatchYear() == null) {
+            return false;
+        }
+        int year = r.getBatch().getBatchYear().intValue();
+        if (fromYear != null && year < fromYear) {
+            return false;
+        }
+        if (toYear != null && year > toYear) {
+            return false;
+        }
+        return true;
     }
 
     private boolean contains(String value, String q) {

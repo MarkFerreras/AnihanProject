@@ -1,5 +1,63 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-02 - Fix Search Bar Selector, Filter Input Width, DataSeeder
+**Branch:** `registrar-retry`
+
+### Task
+1. DataTables search input was not widening — CSS selector `.dataTables_filter input` does not match DataTables 2's `.dt-search` class.
+2. Batch year From/To filter inputs appeared too wide — Bootstrap `form-control` defaults to `width: 100%` in a flex container.
+3. Seed data from `schema.sql` did not auto-apply to the running Docker MySQL — replaced with a Spring `CommandLineRunner` component.
+
+### Files Modified / Created
+| File | Change |
+|---|---|
+| `static/css/dashboard.css` | Added `.dt-search input` to the search bar selector (dual selector covers DataTables 1 + 2). Added `#batchFromYear, #batchToYear { width: 90px; max-width: 90px; flex: 0 0 auto; }` to constrain the year filter inputs. |
+| `config/DataSeeder.java` | **Created** — `@Component CommandLineRunner` that idempotently seeds: CARS course, B2024A/B2025A/B2026A batches, SEC-A24/SEC-A25/SEC-A26 sections, and 5 student records (STU-2024-001 through STU-2026-001). Uses `existsById` / `findByStudentId().isEmpty()` before each insert. Runs on every app startup; safe to re-run. |
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL — 82 tests, 0 failures (DataSeeder not triggered by any test slice)
+
+---
+
+## 2026-05-02 - Registrar Search Bar Width + Batch Year Filter + Dummy Seed Data
+**Branch:** `fix/db-sync-username-unique`
+
+### Task
+1. Widen the DataTables search input on the registrar student-records table.
+2. Add a Batch Year From/To filter above the table (mirrors the system logs filter pattern).
+3. Add 5 fully-populated dummy student records to `schema.sql` (with seeded lookup rows for batch/course/section).
+
+### Files Modified
+| File | Change |
+|---|---|
+| `service/RegistrarService.java` | Added `getAllRecords(String query, Integer fromYear, Integer toYear)` overload. Existing `getAllRecords(String)` and `getAllRecords()` now delegate to the new method. Year filter uses `record.batch.batchYear` and excludes records with no batch when a year is supplied. |
+| `controller/RegistrarController.java` | `GET /api/registrar/student-records` now accepts `fromYear` and `toYear` query params. Validates `fromYear <= toYear` and throws `IllegalArgumentException` (→ 400) otherwise. |
+| `static/css/dashboard.css` | Added scoped `#studentRecordsTable_wrapper .dataTables_filter input { min-width: 320px; padding: 0.45rem 1rem; }` so the registrar's search input is wider without affecting other tables. |
+| `static/registrar.html` | Added a `.logs-filter-bar` block above the table with "Batch Year" From/To number inputs, Apply, and Reset buttons (re-uses the existing system-logs filter CSS classes). |
+| `static/js/registrar-students.js` | Stored the DataTable instance, added `buildAjaxUrl()` to assemble `?fromYear/&toYear` params, attached Apply/Reset click handlers that call `dataTable.ajax.url(...).load(...)` and update a feedback span. Also validates From ≤ To client-side. |
+| `src/main/sql/schema.sql` | Added seed rows: 1 course (CARS), 3 batches (B2024A/B2025A/B2026A), 3 sections (one per batch), and 5 fully-populated student records spanning batch years 2024–2026. All non-null columns populated; `profile_picture` uses `X''` placeholder per user request (real images to be uploaded later). |
+| `test/service/RegistrarBulkLoadTest.java` | Added `batchYearRangeFilterRestrictsResults` test covering closed range, open-ended range, no-match range, and combined query+year filter. |
+| `test/controller/RegistrarBulkLoadWebMvcTest.java` | Updated existing mocks to the new 3-arg `getAllRecords` signature; added two tests: filter forwards `fromYear/toYear` params, and `fromYear > toYear` returns HTTP 400. |
+
+### Image Folder Reminder
+The user asked where logos/images live so they can upload a real student profile image to replace the placeholder BLOBs. Image assets are at:
+`src/main/resources/static/images/`
+The placeholder seed data uses `X''` (zero-byte BLOB) which the user explicitly chose to leave empty for now.
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL.
+- 4 new tests added: 1 service + 3 WebMvc (year filter forwarding, validation rejection).
+- Full suite: 15 test classes, 82 tests, 0 failures, 0 skipped.
+
+| Test Class | Tests | Failures |
+|---|---|---|
+| RegistrarBulkLoadTest | 4 | 0 |
+| RegistrarBulkLoadWebMvcTest | 4 | 0 |
+| StudentRecordH2LoadTest | 1 | 0 |
+| Full suite | 82 | 0 |
+
+---
+
 ## 2026-05-01 - Registrar Bulk Load Tests + Server-Side Search + H2 Isolation
 **Branch:** `fix/db-sync-username-unique`
 
