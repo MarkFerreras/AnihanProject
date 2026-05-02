@@ -43,9 +43,14 @@ public class RegistrarController {
 
     @GetMapping
     public ResponseEntity<List<StudentRecordSummaryResponse>> list(
-            @RequestParam(value = "q", required = false) String query
+            @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "fromYear", required = false) Integer fromYear,
+            @RequestParam(value = "toYear", required = false) Integer toYear
     ) {
-        return ResponseEntity.ok(registrarService.getAllRecords(query));
+        if (fromYear != null && toYear != null && fromYear > toYear) {
+            throw new IllegalArgumentException("fromYear must not be greater than toYear");
+        }
+        return ResponseEntity.ok(registrarService.getAllRecords(query, fromYear, toYear));
     }
 
     @GetMapping("/{recordId}")

@@ -1,5 +1,21 @@
 # Progress - Anihan SRMS
 
+## Fix Search Bar Selector + Filter Input Width + DataSeeder (Completed — May 2, 2026)
+- [x] Fixed search bar CSS: dual selector covers `.dataTables_filter input` (DataTables 1) and `.dt-search input` (DataTables 2)
+- [x] Fixed batch year filter inputs: `width: 90px; max-width: 90px; flex: 0 0 auto` on `#batchFromYear, #batchToYear`
+- [x] Created `DataSeeder.java` — `@Component CommandLineRunner`, idempotent, seeds CARS + 3 batches + 3 sections + 5 student records on startup
+- [x] `./gradlew test` → BUILD SUCCESSFUL — 82 tests, 0 failures
+
+## Registrar Search Bar Width + Batch Year Filter + Dummy Seed Data (Completed — May 2, 2026)
+- [x] Wider DataTables search input on the registrar student-records table (320px min-width, scoped to `#studentRecordsTable_wrapper`)
+- [x] Batch Year filter UI: From/To number inputs + Apply + Reset buttons mirroring the system-logs filter pattern
+- [x] Server-side: `getAllRecords(query, fromYear, toYear)` overload + new `?fromYear=&toYear=` query params on `GET /api/registrar/student-records`
+- [x] Validation: `fromYear > toYear` → HTTP 400
+- [x] schema.sql now self-contained: 1 course + 3 batches + 3 sections + 5 fully-populated dummy student records (batch years 2024–2026)
+- [x] `profile_picture` uses `X''` placeholder BLOB (user requested empty for now; images folder reminded: `static/images/`)
+- [x] 4 new tests (1 service + 3 WebMvc); existing tests updated for the new 3-arg signature
+- [x] `./gradlew test` → BUILD SUCCESSFUL — 82 tests across 15 classes, 0 failures
+
 ## Registrar Bulk Load Tests + H2 Isolation + Server-Side Search (Completed — May 1, 2026)
 - [x] Added `getAllRecords(String query)` overload to `RegistrarService` with case-insensitive in-memory filter
 - [x] `GET /api/registrar/student-records?q=<query>` now supported (optional param)

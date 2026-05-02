@@ -1,7 +1,20 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Bulk Load Tests + H2 Isolation (2026-05-01 evening)**
+**Search Bar + Filter Input Fix + DataSeeder (2026-05-02)**
+
+## Latest Session (May 2, 2026 — session 2)
+- Fixed search bar CSS: added `.dt-search input` selector alongside `.dataTables_filter input` to cover DataTables 2's class structure
+- Fixed batch year filter inputs: added `width: 90px; max-width: 90px; flex: 0 0 auto` to `#batchFromYear, #batchToYear` to prevent Bootstrap `form-control` 100% stretch
+- Created `DataSeeder.java` (`@Component CommandLineRunner`) — idempotent; seeds CARS course, 3 batches, 3 sections, 5 student records on app startup; skips records that already exist
+- `./gradlew test` → BUILD SUCCESSFUL — 82 tests, 0 failures
+- **Open follow-up**: replace empty `profilePicture` byte[0] with real images. Image folder is `src/main/resources/static/images/`
+
+## Previous Session (May 2, 2026 — session 1)
+- Wider search input scoped to `#studentRecordsTable_wrapper`
+- New Batch Year From/To filter on registrar home (server-side via `?fromYear/&toYear`)
+- `schema.sql` now seeds 1 course + 3 batches + 3 sections + 5 dummy student records (years 2024–2026)
+- 4 new tests (1 service + 3 WebMvc), full suite: 82 tests, 0 failures
 
 ## Latest Session (May 1, 2026 — evening)
 - New endpoint: `GET /api/registrar/student-records?q=<query>` (optional query param, in-memory case-insensitive filter)
@@ -29,7 +42,7 @@
 - `student-records.html` repurposed for registrar (placeholder page reachable from modal Edit button)
 
 ## Active Branch
-`fix/db-sync-username-unique`
+`registrar-retry`
 
 ## Status (May 1, 2026)
 

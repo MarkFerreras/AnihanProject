@@ -104,6 +104,23 @@
         detailsModal.show();
     }
 
+    function buildAjaxUrl() {
+        const params = new URLSearchParams();
+        const fromYear = (document.getElementById('batchFromYear') || {}).value || '';
+        const toYear = (document.getElementById('batchToYear') || {}).value || '';
+        if (fromYear) params.set('fromYear', fromYear);
+        if (toYear) params.set('toYear', toYear);
+        const qs = params.toString();
+        return '/api/registrar/student-records' + (qs ? '?' + qs : '');
+    }
+
+    function setFeedback(message, type) {
+        const el = document.getElementById('batchFilterFeedback');
+        if (!el) return;
+        el.textContent = message || '';
+        el.style.color = type === 'danger' ? '#b02a37' : '';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const tableElement = document.getElementById('studentRecordsTable');
         if (!tableElement || !window.jQuery || !window.bootstrap) {
@@ -112,7 +129,7 @@
 
         detailsModal = new bootstrap.Modal(document.getElementById('studentRecordDetailsModal'));
 
-        window.jQuery('#studentRecordsTable').DataTable({
+        const dataTable = window.jQuery('#studentRecordsTable').DataTable({
             ajax: {
                 url: '/api/registrar/student-records',
                 dataSrc: ''
@@ -147,6 +164,17 @@
             }
         });
 
+        // DataTable init is synchronous — .dt-search is in the DOM right now.
+        // Move the batch year filter into the same row as the search input.
+        (function () {
+            var filterBar = document.getElementById('batchFilterBar');
+            var searchCell = document.querySelector('.dt-search')
+                          || document.querySelector('.dataTables_filter');
+            if (filterBar && searchCell) {
+                searchCell.parentNode.insertBefore(filterBar, searchCell);
+            }
+        }());
+
         window.jQuery('#studentRecordsTable tbody').on('click', 'button[data-record-id]', async function () {
             try {
                 await loadRecordDetails(this.getAttribute('data-record-id'));
@@ -154,5 +182,39 @@
                 window.alert('Unable to load the selected student record right now.');
             }
         });
+
+        const applyBtn = document.getElementById('batchFilterApplyBtn');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function () {
+                const fromYear = document.getElementById('batchFromYear').value;
+                const toYear = document.getElementById('batchToYear').value;
+                if (fromYear && toYear && Number(fromYear) > Number(toYear)) {
+                    setFeedback('"From" year must not be greater than "To" year.', 'danger');
+                    return;
+                }
+                const url = buildAjaxUrl();
+                dataTable.ajax.url(url).load(function (json) {
+                    const count = Array.isArray(json) ? json.length : 0;
+                    if (fromYear || toYear) {
+                        const range = (fromYear || '?') + ' – ' + (toYear || '?');
+                        setFeedback('Showing ' + count + ' record(s) for batch year ' + range + '.', 'info');
+                    } else {
+                        setFeedback('Showing ' + count + ' record(s).', 'info');
+                    }
+                });
+            });
+        }
+
+        const resetBtn = document.getElementById('batchFilterResetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+                document.getElementById('batchFromYear').value = '';
+                document.getElementById('batchToYear').value = '';
+                dataTable.ajax.url('/api/registrar/student-records').load(function (json) {
+                    const count = Array.isArray(json) ? json.length : 0;
+                    setFeedback('Filter cleared. Showing all ' + count + ' record(s).', 'info');
+                });
+            });
+        }
     });
 })();

@@ -84,6 +84,35 @@ class RegistrarBulkLoadTest {
     }
 
     @Test
+    void batchYearRangeFilterRestrictsResults() {
+        when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
+
+        // The dummy data assigns each record a batchYear of 2026 + (i % 5),
+        // so years cycle through 2026, 2027, 2028, 2029, 2030.
+
+        // Range that includes only 2027 + 2028
+        List<StudentRecordSummaryResponse> mid = registrarService.getAllRecords(null, 2027, 2028);
+        assertTrue(mid.size() > 0, "Expected at least one record in 2027–2028 range");
+        assertTrue(mid.size() < 200, "Year filter must reduce the full set");
+
+        // Open-ended fromYear (>= 2030) — only the year-2030 batch
+        List<StudentRecordSummaryResponse> tail = registrarService.getAllRecords(null, 2030, null);
+        assertTrue(tail.stream().allMatch(r -> r.batchCode() != null),
+                "Year-filtered results must always have a batch");
+
+        // Range that excludes everything
+        List<StudentRecordSummaryResponse> none = registrarService.getAllRecords(null, 1900, 1901);
+        assertEquals(0, none.size(), "Year range with no matching batches should yield empty list");
+
+        // Combined text query + year filter — both must match
+        List<StudentRecordSummaryResponse> combined =
+                registrarService.getAllRecords("Last_42", 2024, 2030);
+        // batch year for index 42 is 2026 + (42 % 5) = 2028, which is inside the range
+        assertEquals(1, combined.size(), "Expected one record matching both name and year range");
+        assertEquals("STU-42", combined.get(0).studentId());
+    }
+
+    @Test
     void searchByQueryFiltersAcrossAllSearchableFields() {
         when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
 

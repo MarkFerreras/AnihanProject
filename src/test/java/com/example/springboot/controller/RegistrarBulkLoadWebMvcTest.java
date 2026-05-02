@@ -60,7 +60,8 @@ class RegistrarBulkLoadWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void getRecordsReturnsTwoHundredRecordsAsJson() throws Exception {
-        when(registrarService.getAllRecords(isNull())).thenReturn(buildSummaryList(200));
+        when(registrarService.getAllRecords(isNull(), isNull(), isNull()))
+                .thenReturn(buildSummaryList(200));
 
         long startMs = System.currentTimeMillis();
         mockMvc.perform(get("/api/registrar/student-records"))
@@ -87,7 +88,8 @@ class RegistrarBulkLoadWebMvcTest {
                 new StudentRecordSummaryResponse(43, "STU-42", "Last_42", "First_42",
                         "BATCH-42", "CARS", "SEC-42", "Active")
         );
-        when(registrarService.getAllRecords(eq("Last_42"))).thenReturn(filtered);
+        when(registrarService.getAllRecords(eq("Last_42"), isNull(), isNull()))
+                .thenReturn(filtered);
 
         mockMvc.perform(get("/api/registrar/student-records").param("q", "Last_42"))
                 .andExpect(status().isOk())
@@ -95,6 +97,29 @@ class RegistrarBulkLoadWebMvcTest {
                 .andExpect(jsonPath("$[0].studentId").value("STU-42"))
                 .andExpect(jsonPath("$[0].lastName").value("Last_42"))
                 .andExpect(jsonPath("$[0].studentStatus").value("Active"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void batchYearRangeFilterForwardsParamsToService() throws Exception {
+        List<StudentRecordSummaryResponse> filtered = buildSummaryList(50);
+        when(registrarService.getAllRecords(isNull(), eq(2024), eq(2026)))
+                .thenReturn(filtered);
+
+        mockMvc.perform(get("/api/registrar/student-records")
+                        .param("fromYear", "2024")
+                        .param("toYear", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(50));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void batchYearRangeFilterRejectsInvalidRange() throws Exception {
+        mockMvc.perform(get("/api/registrar/student-records")
+                        .param("fromYear", "2030")
+                        .param("toYear", "2020"))
+                .andExpect(status().isBadRequest());
     }
 
     private List<StudentRecordSummaryResponse> buildSummaryList(int count) {
