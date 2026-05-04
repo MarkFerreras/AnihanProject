@@ -1,9 +1,15 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Search Bar + Filter Input Fix + DataSeeder (2026-05-02)**
+**Student Status Dropdown + Badge Colors (2026-05-04)**
 
-## Latest Session (May 2, 2026 — session 2)
+## Latest Session (May 4, 2026)
+- Replaced `<input list>` + `<datalist>` for Status on `student-records.html` with a `<select>` dropdown — 3 options: Enrolling, Active, Graduated. "Submitted" removed as an option (transitional state only).
+- Rewrote `renderStatusBadge()` in `registrar-students.js` — 4-way logic: Active → green, Enrolling/Submitted → grey (`.status-badge-enrolling`), Graduated → blue (`.status-badge-graduated`), unknown → red.
+- Added `.status-badge-enrolling` and `.status-badge-graduated` CSS classes to `dashboard.css`.
+- Verified by Chapter 3 FR 3.1: exactly 3 official registrar-managed statuses (Enrolling, Active, Graduated); Submitted is portal-set transitional state.
+
+## Previous Session (May 2, 2026 — session 2)
 - Fixed search bar CSS: added `.dt-search input` selector alongside `.dataTables_filter input` to cover DataTables 2's class structure
 - Fixed batch year filter inputs: added `width: 90px; max-width: 90px; flex: 0 0 auto` to `#batchFromYear, #batchToYear` to prevent Bootstrap `form-control` 100% stretch
 - Created `DataSeeder.java` (`@Component CommandLineRunner`) — idempotent; seeds CARS course, 3 batches, 3 sections, 5 student records on app startup; skips records that already exist
