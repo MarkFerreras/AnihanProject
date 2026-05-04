@@ -257,7 +257,7 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Civil Status</label>
+                        <label class="form-label">Civil Status *</label>
                         <select class="form-select" id="civilStatus">
                             <option value="">— Select —</option>
                             <option value="Single">Single</option>
@@ -302,6 +302,7 @@
 
             <!-- ========== STEP 2: Religion & Documents ========== -->
             <div class="wizard-step" id="step2">
+                <p class="required-note">Fields marked * are required before submitting.</p>
                 <div class="section-heading">Religion</div>
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -316,11 +317,11 @@
                     </div>
                     <div id="baptismFields" class="col-12 row g-3" style="display:none!important">
                         <div class="col-md-4">
-                            <label class="form-label">Baptism Date</label>
+                            <label class="form-label">Baptism Date *</label>
                             <input type="date" class="form-control" id="baptismDate">
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label">Baptism Place</label>
+                            <label class="form-label">Baptism Place *</label>
                             <input type="text" class="form-control" id="baptismPlace"
                                 placeholder="Church name and address">
                         </div>
@@ -330,7 +331,7 @@
                 <div class="section-heading">Document Uploads</div>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label">ID Photo <span class="text-muted fw-normal">(JPEG/PNG/WebP, max 2
+                        <label class="form-label">ID Photo * <span class="text-muted fw-normal">(JPEG/PNG/WebP, max 2
                                 MB)</span></label>
                         <input type="file" class="form-control" id="idPhotoFile"
                             accept="image/jpeg,image/png,image/gif,image/webp">
@@ -350,14 +351,15 @@
 
             <!-- ========== STEP 3: Family ========== -->
             <div class="wizard-step" id="step3">
+                <p class="required-note">Fields marked * are required before submitting.</p>
                 <div class="section-heading">Father's Information</div>
                 <div class="row g-2">
                     <div class="col-md-4">
-                        <label class="form-label">Family Name</label>
+                        <label class="form-label">Family Name *</label>
                         <input type="text" class="form-control" id="fatherFamilyName">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">First Name</label>
+                        <label class="form-label">First Name *</label>
                         <input type="text" class="form-control" id="fatherFirstName">
                     </div>
                     <div class="col-md-4">
@@ -365,11 +367,11 @@
                         <input type="text" class="form-control" id="fatherMiddleName">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Birthdate</label>
+                        <label class="form-label">Birthdate *</label>
                         <input type="date" class="form-control" id="fatherBirthdate">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Occupation</label>
+                        <label class="form-label">Occupation *</label>
                         <input type="text" class="form-control" id="fatherOccupation">
                     </div>
                     <div class="col-md-3">
@@ -378,7 +380,7 @@
                             placeholder="0.00">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Contact No.</label>
+                        <label class="form-label">Contact No. *</label>
                         <input type="tel" class="form-control" id="fatherContactNo">
                     </div>
                     <div class="col-md-4">
@@ -386,7 +388,7 @@
                         <input type="email" class="form-control" id="fatherEmail">
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label">Address</label>
+                        <label class="form-label">Address *</label>
                         <input type="text" class="form-control" id="fatherAddress">
                     </div>
                 </div>
@@ -394,11 +396,11 @@
                 <div class="section-heading">Mother's Information</div>
                 <div class="row g-2">
                     <div class="col-md-4">
-                        <label class="form-label">Family Name</label>
+                        <label class="form-label">Family Name *</label>
                         <input type="text" class="form-control" id="motherFamilyName">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">First Name</label>
+                        <label class="form-label">First Name *</label>
                         <input type="text" class="form-control" id="motherFirstName">
                     </div>
                     <div class="col-md-4">
@@ -406,11 +408,11 @@
                         <input type="text" class="form-control" id="motherMiddleName">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Birthdate</label>
+                        <label class="form-label">Birthdate *</label>
                         <input type="date" class="form-control" id="motherBirthdate">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Occupation</label>
+                        <label class="form-label">Occupation *</label>
                         <input type="text" class="form-control" id="motherOccupation">
                     </div>
                     <div class="col-md-3">
@@ -419,7 +421,7 @@
                             placeholder="0.00">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Contact No.</label>
+                        <label class="form-label">Contact No. *</label>
                         <input type="tel" class="form-control" id="motherContactNo">
                     </div>
                     <div class="col-md-4">
@@ -427,7 +429,7 @@
                         <input type="email" class="form-control" id="motherEmail">
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label">Address</label>
+                        <label class="form-label">Address *</label>
                         <input type="text" class="form-control" id="motherAddress">
                     </div>
                 </div>
@@ -596,7 +598,7 @@
     </footer>
 
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/student-details.js?v=2"></script>
+    <script src="js/student-details.js?v=3"></script>
 </body>
 
 </html>

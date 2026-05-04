@@ -1,9 +1,36 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Search Bar + Filter Input Fix + DataSeeder (2026-05-02)**
+**Student Portal — Mandatory Field Validation (2026-05-03)**
 
-## Latest Session (May 2, 2026 — session 2)
+## Latest Session (May 3, 2026)
+- Added mandatory field validation across enrollment wizard Steps 1–3
+- Step 1: Civil Status now required (added to `STEP_REQUIRED`)
+- Step 2: ID Photo upload always required; Baptism Date, Baptism Place, and Baptismal Certificate conditionally required when "Baptized" checkbox is checked
+- Step 3: Father and Mother core fields required (Family Name, First Name, Occupation, Contact No., Address); Guardian fields remain optional
+- Added `STEP_CUSTOM_VALIDATORS` pattern for runtime-dependent validation (file uploads, conditional fields)
+- Updated `validateStep()`, `validateAll()`, `clearValidation()` to merge custom validators
+- Added `*` asterisk markers to all newly-required field labels in HTML
+- Added "Fields marked * are required" note to Steps 2 and 3 (Step 1 already had it)
+- Bumped JS cache version v=2 → v=3
+- `./gradlew test` → BUILD SUCCESSFUL
+- **Branch:** `feature/student-field-validation`
+
+## Previous Session (May 2, 2026 — session 3)
+- Full database cross-check: live `AnihanSRMS` vs `AnihanSRMS.sql` + `schema.sql`
+- Dropped 4 legacy empty tables: `classess`, `log`, `previous_school`, `qualification_assessment`
+- Changed `student_records` PK from `student_id` → `record_id` (matching SQL files + JPA entity)
+- Added missing `civil_status` column to `student_records`
+- Fixed nullability on `student_records` (12 columns NOT NULL → NULL)
+- Fixed nullability on `parents` (9 columns NOT NULL → NULL)
+- Fixed nullability on `other_guardians` (6 columns NOT NULL → NULL)
+- Fixed `documents.upload_date` type from TIMESTAMP → DATETIME
+- Inserted seed data: 1 course (CARS), 3 batches, 3 sections
+- Kept existing user accounts (user_id 2, 3, 4) — not overwritten
+- `./gradlew test` → BUILD SUCCESSFUL — all tests pass
+- Database now has exactly 17 tables matching both SQL files
+
+## Previous Session (May 2, 2026 — session 2)
 - Fixed search bar CSS: added `.dt-search input` selector alongside `.dataTables_filter input` to cover DataTables 2's class structure
 - Fixed batch year filter inputs: added `width: 90px; max-width: 90px; flex: 0 0 auto` to `#batchFromYear, #batchToYear` to prevent Bootstrap `form-control` 100% stretch
 - Created `DataSeeder.java` (`@Component CommandLineRunner`) — idempotent; seeds CARS course, 3 batches, 3 sections, 5 student records on app startup; skips records that already exist

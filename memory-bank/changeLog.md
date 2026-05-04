@@ -1,5 +1,40 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-02 - Database Sync Migration (Live DB → SQL File Alignment)
+**Branch:** `feature/student-field-validation`
+
+### Task
+Full cross-check of the live `AnihanSRMS` database against `AnihanSRMS.sql` and `schema.sql`. Identified and resolved all structural discrepancies to bring the live DB into full alignment with both SQL files.
+
+### Migrations Applied (8 Phases)
+| Phase | SQL Applied | Detail |
+|---|---|---|
+| 1 | `DROP TABLE classess, log, previous_school, qualification_assessment` | 4 legacy empty tables not in SQL files |
+| 2 | `ALTER TABLE student_records ADD COLUMN civil_status VARCHAR(50) NULL AFTER sex` | Missing column |
+| 3 | `ALTER TABLE student_records MODIFY COLUMN ...` (12 columns) | Changed NOT NULL → NULL on birthdate, age, sex, permanent_address, email, contact_no, religion, baptism_place, sibling_count, batch_code, course_code, section_code |
+| 4 | PK swap on `student_records` | Dropped child FKs → changed PK from `student_id` to `record_id` → added `UNIQUE KEY idx_student_id` → re-added child FKs |
+| 5 | `ALTER TABLE parents MODIFY COLUMN ...` (9 columns) | Changed NOT NULL → NULL on family_name, first_name, middle_name, birthdate, occupation, est_income, contact_no, email, address |
+| 6 | `ALTER TABLE other_guardians MODIFY COLUMN ...` (6 columns) | Changed NOT NULL → NULL on relation, last_name, first_name, middle_name, birthdate, address |
+| 7 | `ALTER TABLE documents MODIFY COLUMN upload_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` | Changed TIMESTAMP → DATETIME |
+| 8 | `INSERT IGNORE INTO courses/batches/sections` | 1 course (CARS), 3 batches (B2024A/B2025A/B2026A), 3 sections |
+
+### User Decisions
+- Keep existing user accounts (user_id 2, 3, 4) — not overwritten
+- Drop all 4 legacy tables (all had 0 rows)
+- Change PK to match SQL files (`record_id` as PK)
+- Insert seed data for lookup tables
+
+### Verification
+- `SHOW TABLES` → 17 tables (legacy tables gone)
+- `SHOW CREATE TABLE student_records\G` → PK is `record_id`, `UNIQUE KEY idx_student_id` present, `civil_status` column exists
+- `SHOW CREATE TABLE parents\G` → all 9 columns nullable
+- `SHOW CREATE TABLE other_guardians\G` → all 6 columns nullable
+- `SHOW CREATE TABLE documents\G` → `upload_date` is DATETIME
+- Seed data confirmed: 1 course, 3 batches, 3 sections
+- `./gradlew test` → BUILD SUCCESSFUL — all tests pass
+
+---
+
 ## 2026-05-02 - Fix Search Bar Selector, Filter Input Width, DataSeeder
 **Branch:** `registrar-retry`
 
