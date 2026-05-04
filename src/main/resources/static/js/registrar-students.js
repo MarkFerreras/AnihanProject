@@ -27,9 +27,16 @@
         if (isBlank(status)) {
             return '<span class="status-badge status-badge-disabled">null</span>';
         }
-        const cls = (status === 'Active' || status === 'Submitted')
-            ? 'status-badge-active'
-            : 'status-badge-disabled';
+        let cls;
+        if (status === 'Active') {
+            cls = 'status-badge-active';
+        } else if (status === 'Enrolling' || status === 'Submitted') {
+            cls = 'status-badge-enrolling';
+        } else if (status === 'Graduated') {
+            cls = 'status-badge-graduated';
+        } else {
+            cls = 'status-badge-disabled';
+        }
         return '<span class="status-badge ' + cls + '">' + escapeHtml(status) + '</span>';
     }
 
@@ -40,13 +47,6 @@
         }
     }
 
-    function setAlert(id, message, type) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.className = 'alert alert-' + type + ' mt-3';
-        el.textContent = message;
-        el.classList.remove('d-none');
-    }
 
     function hideAlert(id) {
         const el = document.getElementById(id);
@@ -122,6 +122,14 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        if (new URLSearchParams(window.location.search).get('updated') === 'true') {
+            const successAlert = document.getElementById('recordUpdatedAlert');
+            if (successAlert) {
+                successAlert.classList.remove('d-none');
+            }
+            history.replaceState(null, '', window.location.pathname);
+        }
+
         const tableElement = document.getElementById('studentRecordsTable');
         if (!tableElement || !window.jQuery || !window.bootstrap) {
             return;
@@ -152,7 +160,7 @@
                     data: null,
                     orderable: false,
                     className: 'text-end',
-                    render: function (data, type, row) {
+                    render: function (_data, _type, row) {
                         return '<button class="btn btn-surface-secondary btn-sm" data-record-id="' +
                             escapeHtml(row.recordId) + '">Open Details</button>';
                     }
