@@ -1,5 +1,54 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-05 - Student Portal Enrollment Flow Fix
+**Branch:** `fix/student-portal-flow`
+
+### Task
+Fix 5 root-cause bugs in the student enrollment flow (student-portal → student-details wizard → submit). Scope: student-facing code only — no Registrar/Trainer changes.
+
+### Root Causes Fixed
+| RC | Severity | Description |
+|----|----------|-------------|
+| RC-1 | 🔴 Critical | `startOrResume()` created full student record on portal start. Now creates name+status only (minimal for upload FK). |
+| RC-2 | 🔴 Critical | `saveDraft()` persisted to DB on every "Next" click. Removed — data stays in browser until final submit. |
+| RC-3 | 🟡 Medium | `submitEnrollment()` replaces old two-step saveDraft/submit with a single `@Transactional` block that persists record + parents + guardian + education + school years atomically. |
+| RC-4 | 🟡 Medium | OJT/TESDA removed from student-facing flow (HTML, JS, DTOs, service). Entities/repos kept for Registrar. |
+| RC-5 | 🟢 Low | `AgeCalculator` returns `Integer null` instead of `int 0` for null birthdate. |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `test/service/StudentDetailsServiceTest.java` | 7 Mockito unit tests: start (minimal record), resume, submit (all data), double-submit guard, load, invalid ID |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `service/StudentDetailsService.java` | Rewrote: removed `saveDraft()` and old `submit()`; added `submitEnrollment()` with full `@Transactional` persistence; removed OJT/TESDA handling |
+| `controller/StudentDetailsController.java` | Removed PUT saveDraft endpoint; new `POST /{studentId}/submit` accepts full `StudentDetailsRequest` body |
+| `dto/student/StudentDetailsRequest.java` | Added `lastName`, `firstName`, `middleName` fields; removed `ojt` and `tesdaQualifications` |
+| `dto/student/StudentDetailsResponse.java` | Removed `ojt` and `tesdaQualifications` |
+| `static/js/student-details.js` | Removed `saveDraft()` function and all calls; removed OJT/TESDA from `buildPayload()`/`populateForm()`; submit sends full payload as POST body |
+| `static/student-details.html` | Removed OJT/TESDA HTML sections (20 lines); bumped JS cache `v=3` → `v=4` |
+| `service/AgeCalculator.java` | Return type `int` → `Integer`; null birthdate → `null` instead of `0` |
+| `test/service/AgeCalculatorTest.java` | Updated: `assertEquals(0)` → `assertNull`; added `assertNull` import |
+| `memory-bank/activeContext.md` | Updated with enrollment flow fix session |
+| `memory-bank/progress.md` | Added completed enrollment flow fix section |
+| `memory-bank/changeLog.md` | This entry |
+
+### Scope Boundary (NOT Changed)
+- All Registrar/Trainer controllers, services, HTML, JS — untouched
+- `StudentOjt.java`, `StudentTesdaQualification.java` entities — kept for Registrar use
+- `StudentOjtRepository.java`, `StudentTesdaQualificationRepository.java` — kept
+- `AdminService.java`, `RegistrarService.java`, `AccountService.java` — untouched
+
+### Verification
+- `./gradlew test` → BUILD SUCCESSFUL — all tests pass, no regressions
+- New `StudentDetailsServiceTest`: 7/7 pass
+- Updated `AgeCalculatorTest`: 6/6 pass
+- No lint warnings
+
+---
+
 ## 2026-05-05 - Schema Drift Remediation + DataSeeder Removal
 **Branch:** `main` (uncommitted, per user instruction — no feature branch, no commit)
 

@@ -69,7 +69,6 @@ const ALL_REQUIRED = Object.entries(STEP_REQUIRED).flatMap(([step, fields]) =>
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    renderTesdaRows();
     renderSyRow();
     setupBaptismToggle();
     setupBirthdateAgeCalc();
@@ -146,7 +145,7 @@ function updateStepUI() {
 }
 
 function setupNavButtons() {
-    document.getElementById('btnNext').addEventListener('click', async () => {
+    document.getElementById('btnNext').addEventListener('click', () => {
         clearAlerts();
         const stepErrors = validateStep(currentStep);
         if (stepErrors.length > 0) {
@@ -154,7 +153,7 @@ function setupNavButtons() {
             return;
         }
         clearValidation();
-        await saveDraft();
+        // No saveDraft — data stays in browser until final submit
         if (currentStep < TOTAL_STEPS) {
             currentStep++;
             updateStepUI();
@@ -182,13 +181,6 @@ function setupNavButtons() {
             return;
         }
 
-        // Final save MUST succeed before we can submit
-        const saved = await saveDraft();
-        if (!saved) {
-            showAlert('Your data could not be saved. Please check your connection and try again.', 'danger');
-            return;
-        }
-
         await submitForm();
     });
 }
@@ -210,32 +202,18 @@ async function apiPost(url, body) {
     return res.json();
 }
 
-async function apiPut(url, body) {
-    const res = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`PUT ${url} → ${res.status}`);
-    return res.json();
-}
-
-// ─── Save draft ───────────────────────────────────────────────────────────────
-// Returns true if the save succeeded, false otherwise.
-async function saveDraft() {
-    if (!studentId) return false;
-    try {
-        await apiPut(`/api/student/${studentId}`, buildPayload());
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
 // ─── Submit ───────────────────────────────────────────────────────────────────
 async function submitForm() {
+    const submitBtn = document.getElementById('btnSubmit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
     try {
-        const res = await fetch(`/api/student/${studentId}/submit`, { method: 'POST' });
+        const res = await fetch(`/api/student/${studentId}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildPayload())
+        });
         if (res.status === 409) {
             showAlert('This enrollment has already been submitted.', 'danger');
             return;
@@ -248,6 +226,9 @@ async function submitForm() {
         sessionStorage.removeItem('studentId');
     } catch {
         showAlert('Submission failed. Check your connection.', 'danger');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit';
     }
 }
 
@@ -288,14 +269,6 @@ function buildPayload() {
         });
     });
 
-    const tesdaQualifications = [1, 2, 3].map(slot => ({
-        slot,
-        title:          document.getElementById(`tesdaTitle${slot}`)?.value.trim()  || null,
-        centerAddress:  document.getElementById(`tesdaCenter${slot}`)?.value.trim() || null,
-        assessmentDate: document.getElementById(`tesdaDate${slot}`)?.value          || null,
-        result:         document.getElementById(`tesdaResult${slot}`)?.value.trim() || null,
-    }));
-
     const baptized = document.getElementById('baptized').checked;
 
     const fatherHasData   = ['fatherFamilyName', 'fatherFirstName', 'fatherMiddleName'].some(id => val(id));
@@ -303,6 +276,9 @@ function buildPayload() {
     const guardianHasData = ['guardianLastName', 'guardianFirstName'].some(id => val(id));
 
     return {
+        lastName:         val('studentLastName'),
+        firstName:        val('studentFirstName'),
+        middleName:       val('studentMiddleName'),
         contactNo:        val('contactNo'),
         birthdate:        val('birthdate') || null,
         sex:              val('sex')       || null,
@@ -337,12 +313,6 @@ function buildPayload() {
         } : null,
         educationHistory,
         schoolYears,
-        ojt: {
-            companyName:    val('ojtCompany'),
-            companyAddress: val('ojtAddress'),
-            hoursRendered:  dec('ojtHours'),
-        },
-        tesdaQualifications,
     };
 }
 
@@ -430,23 +400,6 @@ function populateForm(data) {
         data.schoolYears.forEach(sy =>
             addSyRowData(sy.syStart, sy.semStart, sy.syEnd, sy.semEnd, sy.remarks));
     }
-
-    if (data.ojt) {
-        set('ojtCompany', data.ojt.companyName);
-        set('ojtAddress', data.ojt.companyAddress);
-        set('ojtHours',   data.ojt.hoursRendered);
-    }
-
-    if (data.tesdaQualifications) {
-        data.tesdaQualifications.forEach(q => {
-            if (q.slot >= 1 && q.slot <= 3) {
-                set(`tesdaTitle${q.slot}`,  q.title);
-                set(`tesdaCenter${q.slot}`, q.centerAddress);
-                set(`tesdaDate${q.slot}`,   q.assessmentDate);
-                set(`tesdaResult${q.slot}`, q.result);
-            }
-        });
-    }
 }
 
 // ─── Name pre-fill (from URL params or loaded data) ───────────────────────────
@@ -475,41 +428,6 @@ function addSyRowData(syStart, semStart, syEnd, semEnd, remarks) {
         <td><input type="text" class="form-control form-control-sm" value="${remarks  || ''}"></td>
     `;
     tbody.appendChild(tr);
-}
-
-function renderTesdaRows() {
-    const container = document.getElementById('tesdaRows');
-    [1, 2, 3].forEach(slot => {
-        const div = document.createElement('div');
-        div.className = 'row g-2 mb-3 align-items-end';
-        div.innerHTML = `
-            <div class="col-auto align-self-center">
-                <span class="badge bg-success rounded-pill">${slot}</span>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Qualification Title</label>
-                <input type="text" class="form-control" id="tesdaTitle${slot}">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Assessment Center</label>
-                <input type="text" class="form-control" id="tesdaCenter${slot}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Date</label>
-                <input type="date" class="form-control" id="tesdaDate${slot}">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label">Result</label>
-                <select class="form-select" id="tesdaResult${slot}">
-                    <option value="">—</option>
-                    <option value="Passed">Passed</option>
-                    <option value="Failed">Failed</option>
-                    <option value="NC">NC</option>
-                </select>
-            </div>
-        `;
-        container.appendChild(div);
-    });
 }
 
 // ─── Baptism toggle ───────────────────────────────────────────────────────────

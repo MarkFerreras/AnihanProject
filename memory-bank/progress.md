@@ -1,5 +1,16 @@
 # Progress - Anihan SRMS
 
+## Student Portal Enrollment Flow Fix (Completed — May 5, 2026)
+- [x] **RC-1 (CRITICAL):** Fixed premature DB persistence — `startOrResume()` now creates name+status only (minimal record for upload FK)
+- [x] **RC-2 (CRITICAL):** Removed `saveDraft()` on every Next click — data stays in browser until final submit
+- [x] **RC-3 (MEDIUM):** New `submitEnrollment()` persists student record + parents + guardian + education + school years in one `@Transactional` block
+- [x] **RC-4:** Removed OJT/TESDA from student-facing flow (HTML, JS, request DTO, response DTO, service layer); entities/repos kept for Registrar
+- [x] **RC-5 (LOW):** `AgeCalculator` returns `Integer null` instead of `int 0` for null birthdate
+- [x] Created `StudentDetailsServiceTest.java` — 7 tests covering start, resume, submit, double-submit guard, load, invalid ID
+- [x] Updated `AgeCalculatorTest.java` — null birthdate assertion changed from `assertEquals(0)` to `assertNull`
+- [x] `./gradlew test` → BUILD SUCCESSFUL (all tests pass, no regressions)
+- [x] Branch: `fix/student-portal-flow`
+
 ## Schema Drift Remediation + DataSeeder Removal (Completed — May 5, 2026)
 - [x] Diagnosed live `AnihanSRMS` DB against `schema.sql` / `AnihanSRMS.sql` and JPA entities — found `civil_status` missing on `student_records` and 27 columns over three tables locked as `NOT NULL` instead of `NULL`
 - [x] Reproduced single test failure: `SpringbootApplicationTests > contextLoads()` — "Unknown column 'sr1_0.civil_status' in 'field list'"

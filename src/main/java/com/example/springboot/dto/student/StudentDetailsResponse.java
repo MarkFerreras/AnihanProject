@@ -39,7 +39,5 @@ public record StudentDetailsResponse(
 
     // Education
     List<EducationItemDto> educationHistory,
-    List<SchoolYearDto> schoolYears,
-    OjtDto ojt,
-    List<TesdaQualDto> tesdaQualifications
+    List<SchoolYearDto> schoolYears
 ) {}

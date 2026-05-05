@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +41,11 @@ public class StudentDetailsController {
         this.uploadRepo = uploadRepo;
     }
 
+    /**
+     * Creates a minimal "Enrolling" student record (name + status only)
+     * so that uploads can reference the student_id FK.
+     * No substantive data is persisted at this stage.
+     */
     @PostMapping("/start")
     public ResponseEntity<StudentDetailsResponse> start(@RequestBody Map<String, String> body) {
         String lastName = body.getOrDefault("lastName", "").trim();
@@ -58,19 +62,6 @@ public class StudentDetailsController {
     public ResponseEntity<StudentDetailsResponse> load(@PathVariable String studentId) {
         try {
             return ResponseEntity.ok(studentDetailsService.load(studentId));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PutMapping("/{studentId}")
-    public ResponseEntity<StudentDetailsResponse> saveDraft(
-            @PathVariable String studentId,
-            @RequestBody StudentDetailsRequest req) {
-        try {
-            return ResponseEntity.ok(studentDetailsService.saveDraft(studentId, req));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -109,10 +100,17 @@ public class StudentDetailsController {
         }
     }
 
+    /**
+     * Final submit: accepts the full enrollment payload, persists all data
+     * (student record, parents, education) in one transaction, and sets
+     * status to "Submitted".
+     */
     @PostMapping("/{studentId}/submit")
-    public ResponseEntity<StudentDetailsResponse> submit(@PathVariable String studentId) {
+    public ResponseEntity<StudentDetailsResponse> submit(
+            @PathVariable String studentId,
+            @RequestBody StudentDetailsRequest req) {
         try {
-            return ResponseEntity.ok(studentDetailsService.submit(studentId));
+            return ResponseEntity.ok(studentDetailsService.submitEnrollment(studentId, req));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (IllegalArgumentException e) {

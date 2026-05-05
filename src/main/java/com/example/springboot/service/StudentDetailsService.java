@@ -8,28 +8,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.springboot.dto.student.EducationItemDto;
 import com.example.springboot.dto.student.GuardianDto;
-import com.example.springboot.dto.student.OjtDto;
 import com.example.springboot.dto.student.ParentDto;
 import com.example.springboot.dto.student.SchoolYearDto;
 import com.example.springboot.dto.student.StudentDetailsRequest;
 import com.example.springboot.dto.student.StudentDetailsResponse;
-import com.example.springboot.dto.student.TesdaQualDto;
 import com.example.springboot.dto.student.UploadRefDto;
 import com.example.springboot.model.OtherGuardian;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentEducation;
-import com.example.springboot.model.StudentOjt;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
-import com.example.springboot.model.StudentTesdaQualification;
 import com.example.springboot.model.StudentUpload;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
-import com.example.springboot.repository.StudentOjtRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
-import com.example.springboot.repository.StudentTesdaQualificationRepository;
 import com.example.springboot.repository.StudentUploadRepository;
 
 @Service
@@ -40,8 +34,6 @@ public class StudentDetailsService {
     private final OtherGuardianRepository guardianRepo;
     private final StudentEducationRepository educationRepo;
     private final StudentSchoolYearRepository schoolYearRepo;
-    private final StudentOjtRepository ojtRepo;
-    private final StudentTesdaQualificationRepository tesdaRepo;
     private final StudentUploadRepository uploadRepo;
 
     public StudentDetailsService(
@@ -50,19 +42,23 @@ public class StudentDetailsService {
             OtherGuardianRepository guardianRepo,
             StudentEducationRepository educationRepo,
             StudentSchoolYearRepository schoolYearRepo,
-            StudentOjtRepository ojtRepo,
-            StudentTesdaQualificationRepository tesdaRepo,
             StudentUploadRepository uploadRepo) {
         this.studentRecordRepo = studentRecordRepo;
         this.parentRepo = parentRepo;
         this.guardianRepo = guardianRepo;
         this.educationRepo = educationRepo;
         this.schoolYearRepo = schoolYearRepo;
-        this.ojtRepo = ojtRepo;
-        this.tesdaRepo = tesdaRepo;
         this.uploadRepo = uploadRepo;
     }
 
+    /**
+     * Creates a minimal "Enrolling" student record so that file uploads
+     * can reference student_id (FK constraint in student_uploads table).
+     * Only name + status are persisted at this point.
+     *
+     * If a record with the same name already exists and is still in an
+     * editable state (Enrolling/Draft), it is treated as a resume.
+     */
     @Transactional
     public StudentDetailsResponse startOrResume(String lastName, String firstName, String middleName) {
         var existing = studentRecordRepo
@@ -89,36 +85,31 @@ public class StudentDetailsService {
         return buildResponse(record);
     }
 
+    /**
+     * Final submit: applies ALL form data and sets status to "Submitted"
+     * in a single transaction. This is the only point at which substantive
+     * student data (personal details, family, education) is persisted.
+     *
+     * Replaces the old saveDraft + submit two-step flow.
+     */
     @Transactional
-    public StudentDetailsResponse saveDraft(String studentId, StudentDetailsRequest req) {
+    public StudentDetailsResponse submitEnrollment(String studentId, StudentDetailsRequest req) {
         StudentRecord record = findOrThrow(studentId);
 
         if ("Submitted".equals(record.getStudentStatus())) {
             throw new IllegalStateException("This enrollment has already been submitted.");
         }
 
+        // Apply all data in one transaction
         applyPersonal(record, req);
         applyReligion(record, req);
-        record.setStudentStatus("Draft");
+        record.setStudentStatus("Submitted");
         studentRecordRepo.save(record);
 
         applyFamily(record, req);
         applyEducation(studentId, req);
 
         return buildResponse(studentRecordRepo.findByStudentId(studentId).orElseThrow());
-    }
-
-    @Transactional
-    public StudentDetailsResponse submit(String studentId) {
-        StudentRecord record = findOrThrow(studentId);
-
-        if ("Submitted".equals(record.getStudentStatus())) {
-            throw new IllegalStateException("This enrollment has already been submitted.");
-        }
-
-        record.setStudentStatus("Submitted");
-        studentRecordRepo.save(record);
-        return buildResponse(record);
     }
 
     @Transactional
@@ -245,31 +236,6 @@ public class StudentDetailsService {
                 schoolYearRepo.save(existing);
             }
         }
-
-        if (req.ojt() != null) {
-            StudentOjt ojt = ojtRepo.findByStudentId(studentId).orElseGet(StudentOjt::new);
-            ojt.setStudentId(studentId);
-            ojt.setCompanyName(req.ojt().companyName());
-            ojt.setCompanyAddress(req.ojt().companyAddress());
-            ojt.setHoursRendered(req.ojt().hoursRendered());
-            ojtRepo.save(ojt);
-        }
-
-        if (req.tesdaQualifications() != null) {
-            for (TesdaQualDto dto : req.tesdaQualifications()) {
-                if (dto.slot() == null) continue;
-                var existing = tesdaRepo.findByStudentIdOrderBySlot(studentId)
-                        .stream().filter(q -> q.getSlot().equals(dto.slot())).findFirst()
-                        .orElseGet(StudentTesdaQualification::new);
-                existing.setStudentId(studentId);
-                existing.setSlot(dto.slot());
-                existing.setTitle(dto.title());
-                existing.setCenterAddress(dto.centerAddress());
-                existing.setAssessmentDate(dto.assessmentDate());
-                existing.setResult(dto.result());
-                tesdaRepo.save(existing);
-            }
-        }
     }
 
     private StudentDetailsResponse buildResponse(StudentRecord r) {
@@ -286,9 +252,6 @@ public class StudentDetailsService {
                 .stream().map(this::toEducationDto).toList();
         List<SchoolYearDto> schoolYears = schoolYearRepo.findByStudentIdOrderByRowIndex(sid)
                 .stream().map(this::toSchoolYearDto).toList();
-        OjtDto ojt = ojtRepo.findByStudentId(sid).map(this::toOjtDto).orElse(null);
-        List<TesdaQualDto> tesdaQuals = tesdaRepo.findByStudentIdOrderBySlot(sid)
-                .stream().map(this::toTesdaDto).toList();
 
         UploadRefDto idPhoto = uploadRepo.findByStudentIdAndKind(sid, "ID_PHOTO")
                 .map(this::toUploadRef).orElse(null);
@@ -303,7 +266,7 @@ public class StudentDetailsService {
                 r.getReligion(), r.getBaptized(), r.getBaptismDate(), r.getBaptismPlace(),
                 idPhoto, baptCert,
                 father, mother, guardian,
-                education, schoolYears, ojt, tesdaQuals
+                education, schoolYears
         );
     }
 
@@ -326,15 +289,6 @@ public class StudentDetailsService {
     private SchoolYearDto toSchoolYearDto(StudentSchoolYear s) {
         return new SchoolYearDto(s.getRowIndex(), s.getSyStart(), s.getSemStart(),
                 s.getSyEnd(), s.getSemEnd(), s.getRemarks());
-    }
-
-    private OjtDto toOjtDto(StudentOjt o) {
-        return new OjtDto(o.getCompanyName(), o.getCompanyAddress(), o.getHoursRendered());
-    }
-
-    private TesdaQualDto toTesdaDto(StudentTesdaQualification q) {
-        return new TesdaQualDto(q.getSlot(), q.getTitle(), q.getCenterAddress(),
-                q.getAssessmentDate(), q.getResult());
     }
 
     private UploadRefDto toUploadRef(StudentUpload u) {

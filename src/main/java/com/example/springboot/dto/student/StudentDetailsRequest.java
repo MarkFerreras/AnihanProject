@@ -5,6 +5,9 @@ import java.util.List;
 
 public record StudentDetailsRequest(
     // Step 1 — Personal
+    String lastName,
+    String firstName,
+    String middleName,
     String contactNo,
     LocalDate birthdate,
     String sex,
@@ -26,9 +29,7 @@ public record StudentDetailsRequest(
     ParentDto mother,
     GuardianDto guardian,
 
-    // Step 4 — Education & Training
+    // Step 4 — Education
     List<EducationItemDto> educationHistory,
-    List<SchoolYearDto> schoolYears,
-    OjtDto ojt,
-    List<TesdaQualDto> tesdaQualifications
+    List<SchoolYearDto> schoolYears
 ) {}

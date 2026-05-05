@@ -17,11 +17,11 @@ public final class AgeCalculator {
      * Calculates the age in completed years between the given birthdate and today.
      *
      * @param birthdate the date of birth; may be {@code null}
-     * @return the age in years, or {@code 0} if birthdate is {@code null}
+     * @return the age in years, or {@code null} if birthdate is {@code null}
      */
-    public static int calculateAge(LocalDate birthdate) {
+    public static Integer calculateAge(LocalDate birthdate) {
         if (birthdate == null) {
-            return 0;
+            return null;
         }
         return Period.between(birthdate, LocalDate.now()).getYears();
     }
