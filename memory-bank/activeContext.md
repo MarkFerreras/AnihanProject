@@ -29,6 +29,13 @@
 - Kept existing user accounts (user_id 2, 3, 4) — not overwritten
 - `./gradlew test` → BUILD SUCCESSFUL — all tests pass
 - Database now has exactly 17 tables matching both SQL files
+**Student Status Dropdown + Badge Colors (2026-05-04)**
+
+## Latest Session (May 4, 2026)
+- Replaced `<input list>` + `<datalist>` for Status on `student-records.html` with a `<select>` dropdown — 3 options: Enrolling, Active, Graduated. "Submitted" removed as an option (transitional state only).
+- Rewrote `renderStatusBadge()` in `registrar-students.js` — 4-way logic: Active → green, Enrolling/Submitted → grey (`.status-badge-enrolling`), Graduated → blue (`.status-badge-graduated`), unknown → red.
+- Added `.status-badge-enrolling` and `.status-badge-graduated` CSS classes to `dashboard.css`.
+- Verified by Chapter 3 FR 3.1: exactly 3 official registrar-managed statuses (Enrolling, Active, Graduated); Submitted is portal-set transitional state.
 
 ## Previous Session (May 2, 2026 — session 2)
 - Fixed search bar CSS: added `.dt-search input` selector alongside `.dataTables_filter input` to cover DataTables 2's class structure

@@ -253,12 +253,11 @@
                 throw new Error(message);
             }
 
-            populateForm(data);
             clearDirty();
-            setAlert('recordEditAlert', 'Student record saved successfully.', 'success');
+            allowNavigation = true;
+            window.location.href = 'registrar.html?updated=true';
         } catch (error) {
             setAlert('recordEditAlert', error.message || 'Unable to save the student record.', 'danger');
-        } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Changes';
         }

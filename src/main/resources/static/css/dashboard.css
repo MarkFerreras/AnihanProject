@@ -781,6 +781,16 @@ body.dashboard-page {
     color: #922b21;
 }
 
+.status-badge-enrolling {
+    background: rgba(255, 193, 7, 0.18);
+    color: #856404;
+}
+
+.status-badge-graduated {
+    background: rgba(13, 110, 253, 0.12);
+    color: #0a58ca;
+}
+
 /* --- Delete Confirmation Modal --- */
 .delete-confirm-modal .modal-content {
     border: none;

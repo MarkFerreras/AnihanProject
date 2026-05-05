@@ -32,6 +32,28 @@ Full cross-check of the live `AnihanSRMS` database against `AnihanSRMS.sql` and 
 - `SHOW CREATE TABLE documents\G` → `upload_date` is DATETIME
 - Seed data confirmed: 1 course, 3 batches, 3 sections
 - `./gradlew test` → BUILD SUCCESSFUL — all tests pass
+## 2026-05-04 - Student Status Dropdown + Badge Colors
+**Branch:** `registrar-retry`
+
+### Task
+1. Replace the free-text Status field on the edit student record form with a locked dropdown (Enrolling, Active, Graduated).
+2. Give each student status a distinct badge color in the registrar home table.
+
+### Files Modified
+| File | Change |
+|---|---|
+| `static/student-records.html` | Replaced `<input type="text" list="statusList">` + `<datalist>` (with Enrolling/Submitted/Active options) with `<select class="form-select" id="editStudentStatus" required>` containing 3 options: Enrolling, Active, Graduated. "Submitted" removed as a registrar-facing option (portal-set transitional state only). |
+| `static/js/registrar-students.js` | Rewrote `renderStatusBadge()` — 4-way logic: Active → `status-badge-active` (green), Enrolling/Submitted → `status-badge-enrolling` (grey), Graduated → `status-badge-graduated` (blue), unknown → `status-badge-disabled` (red). |
+| `static/css/dashboard.css` | Added `.status-badge-enrolling` (`rgba(108,117,125,0.14)` bg, `#495057` text) and `.status-badge-graduated` (`rgba(13,110,253,0.12)` bg, `#0a58ca` text) after the existing `.status-badge-disabled` block. |
+
+### Design Decisions
+- Chapter 3 FR 3.1 verified: only 3 registrar-managed statuses exist — Enrolling (default on enrollment), Active (after physical doc check), Graduated.
+- "Submitted" is set by the student portal wizard (transitional) and is not an option the registrar selects. Submitted shares the grey badge with Enrolling to signal a pre-active state.
+- If a record's DB status is "Submitted", the select renders with no option selected — forcing the registrar to actively move the student to a valid status.
+
+### Verification
+- Status dropdown on `student-records.html` shows 3 options only.
+- Badge colors on `registrar.html` table: Active=green, Enrolling/Submitted=grey, Graduated=blue, null/unknown=red.
 
 ---
 

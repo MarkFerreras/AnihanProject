@@ -121,13 +121,12 @@
                             </div>
                             <div class="col-md-4">
                                 <label for="editStudentStatus" class="form-label">Status</label>
-                                <input type="text" class="form-control" id="editStudentStatus"
-                                    list="statusList" autocomplete="off" required>
-                                <datalist id="statusList">
-                                    <option value="Enrolling"></option>
-                                    <option value="Submitted"></option>
-                                    <option value="Active"></option>
-                                </datalist>
+                                <select class="form-select" id="editStudentStatus" required>
+                                    <option value="">-- Select Status --</option>
+                                    <option value="Enrolling">Enrolling</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Graduated">Graduated</option>
+                                </select>
                             </div>
                         </div>
 
