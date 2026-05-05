@@ -12,11 +12,54 @@ const STEP_REQUIRED = {
         { id: 'contactNo',        label: 'Contact Number' },
         { id: 'birthdate',        label: 'Birthdate' },
         { id: 'sex',              label: 'Sex' },
+        { id: 'civilStatus',      label: 'Civil Status' },
         { id: 'permanentAddress', label: 'Permanent Address' },
     ],
     2: [{ id: 'religion', label: 'Religion' }],
-    3: [],
+    3: [
+        { id: 'fatherFamilyName', label: "Father's Family Name" },
+        { id: 'fatherFirstName',  label: "Father's First Name" },
+        { id: 'fatherBirthdate',  label: "Father's Birthdate" },
+        { id: 'fatherOccupation', label: "Father's Occupation" },
+        { id: 'fatherContactNo',  label: "Father's Contact No." },
+        { id: 'fatherAddress',    label: "Father's Address" },
+        { id: 'motherFamilyName', label: "Mother's Family Name" },
+        { id: 'motherFirstName',  label: "Mother's First Name" },
+        { id: 'motherBirthdate',  label: "Mother's Birthdate" },
+        { id: 'motherOccupation', label: "Mother's Occupation" },
+        { id: 'motherContactNo',  label: "Mother's Contact No." },
+        { id: 'motherAddress',    label: "Mother's Address" },
+    ],
     4: [],
+};
+
+// Custom validators for fields whose required status depends on runtime state
+// (file uploads, conditional fields). Each returns an array of error objects.
+const STEP_CUSTOM_VALIDATORS = {
+    2: () => {
+        const errors = [];
+        // ID Photo is always required
+        const idStatus = document.getElementById('idPhotoStatus')?.textContent || '';
+        if (!idStatus.startsWith('✓')) {
+            errors.push({ id: 'idPhotoFile', label: 'ID Photo', step: 2 });
+        }
+        // Baptism fields required only when checkbox is checked
+        if (document.getElementById('baptized').checked) {
+            const bDate = document.getElementById('baptismDate');
+            if (!bDate || !bDate.value) {
+                errors.push({ id: 'baptismDate', label: 'Baptism Date', step: 2 });
+            }
+            const bPlace = document.getElementById('baptismPlace');
+            if (!bPlace || !bPlace.value.trim()) {
+                errors.push({ id: 'baptismPlace', label: 'Baptism Place', step: 2 });
+            }
+            const certStatus = document.getElementById('baptCertStatus')?.textContent || '';
+            if (!certStatus.startsWith('✓')) {
+                errors.push({ id: 'baptCertFile', label: 'Baptismal Certificate', step: 2 });
+            }
+        }
+        return errors;
+    },
 };
 
 // Flat list with step numbers for submit-time full validation
@@ -570,19 +613,25 @@ function setupFileInput(inputId, previewId, statusId, kind) {
 
 // ─── Client-side validation ───────────────────────────────────────────────────
 function validateStep(step) {
-    return (STEP_REQUIRED[step] || []).filter(f => {
+    const fieldErrors = (STEP_REQUIRED[step] || []).filter(f => {
         const el = document.getElementById(f.id);
         if (!el) return false;
         return el.tagName === 'SELECT' ? !el.value : !el.value.trim();
     }).map(f => ({ ...f, step }));
+
+    const customErrors = STEP_CUSTOM_VALIDATORS[step] ? STEP_CUSTOM_VALIDATORS[step]() : [];
+    return [...fieldErrors, ...customErrors];
 }
 
 function validateAll() {
-    return ALL_REQUIRED.filter(f => {
+    const fieldErrors = ALL_REQUIRED.filter(f => {
         const el = document.getElementById(f.id);
         if (!el) return false;
         return el.tagName === 'SELECT' ? !el.value : !el.value.trim();
     });
+
+    const customErrors = Object.values(STEP_CUSTOM_VALIDATORS).flatMap(fn => fn());
+    return [...fieldErrors, ...customErrors];
 }
 
 function highlightErrors(errors) {
@@ -611,8 +660,12 @@ function highlightErrors(errors) {
     );
 }
 
+// IDs that may receive is-invalid from custom validators (uploads + conditional fields)
+const CUSTOM_VALIDATED_IDS = ['idPhotoFile', 'baptCertFile', 'baptismDate', 'baptismPlace'];
+
 function clearValidation() {
     ALL_REQUIRED.forEach(f => document.getElementById(f.id)?.classList.remove('is-invalid'));
+    CUSTOM_VALIDATED_IDS.forEach(id => document.getElementById(id)?.classList.remove('is-invalid'));
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────

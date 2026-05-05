@@ -1,5 +1,31 @@
 # Progress - Anihan SRMS
 
+## Student Portal — Mandatory Field Validation (Completed — May 3, 2026)
+- [x] Step 1: Added Civil Status as required field
+- [x] Step 2: Religion already required; added ID Photo upload as always-required
+- [x] Step 2: Baptism Date, Baptism Place, and Baptismal Certificate conditionally required when "Baptized" checkbox is checked
+- [x] Step 3: Father core fields required (Family Name, First Name, Occupation, Contact No., Address)
+- [x] Step 3: Mother core fields required (same 5 fields)
+- [x] Step 3: Guardian fields remain optional
+- [x] Added `STEP_CUSTOM_VALIDATORS` pattern for runtime-dependent validation (file uploads, conditional fields)
+- [x] Updated `validateStep()`, `validateAll()`, `clearValidation()` to merge custom validators
+- [x] Added `*` asterisk markers to all newly-required labels in HTML
+- [x] Added "Fields marked * are required" note to Steps 2 and 3
+- [x] Bumped JS cache version v=2 → v=3
+- [x] `./gradlew test` → BUILD SUCCESSFUL
+- [x] Branch: `feature/student-field-validation`
+
+## Database Sync Migration (Completed — May 2, 2026)
+- [x] Full cross-check of live DB against `AnihanSRMS.sql` + `schema.sql`
+- [x] Dropped 4 legacy tables: `classess`, `log`, `previous_school`, `qualification_assessment`
+- [x] Changed `student_records` PK from `student_id` → `record_id`
+- [x] Added missing `civil_status` column to `student_records`
+- [x] Fixed nullability on `student_records` (12 columns), `parents` (9 columns), `other_guardians` (6 columns)
+- [x] Fixed `documents.upload_date` type (TIMESTAMP → DATETIME)
+- [x] Inserted seed data: CARS course, 3 batches, 3 sections
+- [x] Kept existing user accounts intact
+- [x] `./gradlew test` → BUILD SUCCESSFUL — all tests pass
+- [x] Database now has exactly 17 tables matching both SQL files
 ## Student Status Dropdown + Badge Colors (Completed — May 4, 2026)
 - [x] Replaced `<input list>` + `<datalist>` for Status field on `student-records.html` with `<select>` (Enrolling, Active, Graduated only — "Submitted" removed as registrar-facing option)
 - [x] Rewrote `renderStatusBadge()` in `registrar-students.js` — Active=green, Enrolling/Submitted=grey, Graduated=blue, unknown=red
