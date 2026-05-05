@@ -1,9 +1,29 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Student Portal — Mandatory Field Validation (2026-05-03)**
+**Schema Drift Remediation + DataSeeder Removal (2026-05-05)**
 
-## Latest Session (May 3, 2026)
+## Active Branch
+`main` (working uncommitted per user instruction — no commit, no feature branch)
+
+## Latest Session (May 5, 2026)
+- Diagnosed live `AnihanSRMS` database vs. `schema.sql` / `AnihanSRMS.sql` and JPA entities
+- Found drift on three tables and a single failing test (`SpringbootApplicationTests > contextLoads()` — `Unknown column 'sr1_0.civil_status' in 'field list'`)
+- Wrote and applied migration `src/main/sql/migrations/2026-05-05-fix-schema-drift.sql`:
+  - Added `civil_status VARCHAR(50) NULL` to `student_records` (idempotent guard via `information_schema`)
+  - Relaxed 12 columns on `student_records` from `NOT NULL` → `NULL` to match `StudentRecord.java`
+  - Relaxed 9 columns on `parents` (incl. dropping `est_income DEFAULT 0.00`)
+  - Relaxed 6 columns on `other_guardians`
+- Deleted `src/main/java/com/example/springboot/config/DataSeeder.java` — application data must come from the database, not hard-coded startup seeding
+- Refreshed `schema.sql` and `AnihanSRMS.sql` headers (date + drift-migration cross-reference for other developers)
+- `./gradlew test` → BUILD SUCCESSFUL — 82/82 tests pass (previous run was 81/82)
+
+## Verified
+- Live DB now has all 17 tables, `civil_status` present, all column nullability matches JPA entities
+- `SpringbootApplicationTests > contextLoads()` passes against the real MySQL container
+- No remaining references to `DataSeeder` outside memory-bank historical notes
+
+## Previous Session (May 3, 2026)
 - Added mandatory field validation across enrollment wizard Steps 1–3
 - Step 1: Civil Status now required (added to `STEP_REQUIRED`)
 - Step 2: ID Photo upload always required; Baptism Date, Baptism Place, and Baptismal Certificate conditionally required when "Baptized" checkbox is checked
@@ -74,9 +94,6 @@
 - New service: `RegistrarService` (reuses existing `StudentRecordRepository`)
 - Registrar home now displays a DataTables-powered student records table with detail modal
 - `student-records.html` repurposed for registrar (placeholder page reachable from modal Edit button)
-
-## Active Branch
-`registrar-retry`
 
 ## Status (May 1, 2026)
 

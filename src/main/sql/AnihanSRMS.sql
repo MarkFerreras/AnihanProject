@@ -1,8 +1,17 @@
 -- ============================================================
 -- AnihanSRMS.sql — Full Database Schema + Accounts
--- Updated: 2026-04-29 (synced with live database)
+-- Updated: 2026-05-05 (post schema-drift remediation)
 -- Purpose: Clone the AnihanSRMS database to a new device.
 --          Includes DDL for all 17 tables and 3 user accounts.
+--
+-- For fresh installs prefer src/main/sql/schema.sql, which also
+-- seeds 5 sample student records and the lookup data (course,
+-- batches, sections) needed for the registrar/student flows.
+--
+-- Existing databases that predate 2026-05-05 should run the
+-- one-shot migration src/main/sql/migrations/2026-05-05-fix-schema-drift.sql
+-- to add student_records.civil_status and relax the column nullability
+-- on student_records / parents / other_guardians.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS

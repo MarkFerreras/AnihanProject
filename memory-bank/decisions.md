@@ -1,5 +1,27 @@
 # Decisions - Anihan SRMS
 
+## 2026-05-05 - Application Data Lives in the Database, Not in `DataSeeder`
+
+**Decision**: Delete `DataSeeder.java` for good. Use `schema.sql` for one-shot fresh-install seeding (lookup data + 3 user accounts + sample students) and rely on the live database for everything thereafter. The application must not re-seed sample data on every startup.
+
+**Alternatives considered**:
+1. Keep `DataSeeder` and make it idempotent — what was already there. Worked, but it duplicated `schema.sql` seeds, ran on every startup, and was the proximate trigger of the `contextLoads()` failure when the live DB drifted (`Unknown column 'civil_status'` thrown from inside the seeder).
+2. Delete `DataSeeder` and seed nothing — clean, but a fresh-install dev would have an unusable empty DB.
+3. Delete `DataSeeder` and keep `schema.sql` as the canonical seed — explicit, single-pass, gives developers control over whether to seed sample students.
+
+**Why chosen**: Option 3 matches the user's directive "make sure that the data all comes from the database." `schema.sql` is the documented, version-controlled seed source. Removing the runtime seeder also removes a class of bugs where the JPA entity and the live DB go out of sync silently.
+
+## 2026-05-05 - Drift Migration as a Separate File, Not a Schema Rewrite
+
+**Decision**: Apply the schema-drift fix as `src/main/sql/migrations/2026-05-05-fix-schema-drift.sql` rather than trying to push the changes into `schema.sql` itself.
+
+**Alternatives considered**:
+1. Add `ALTER TABLE` statements after the `CREATE TABLE IF NOT EXISTS` block in `schema.sql` — bloats the canonical file with one-off remediation forever; future fresh installs run no-op `ALTER`s
+2. Drop and recreate the affected tables in `schema.sql` — destroys data on existing installs
+3. Separate timestamped migration file referenced from `schema.sql` and `AnihanSRMS.sql` headers — keeps `schema.sql` as the canonical fresh-install schema; gives operators a clear, idempotent path to fix older databases
+
+**Why chosen**: Option 3. `schema.sql` already has the correct structure for fresh installs — the live DB drift was an artifact of `CREATE TABLE IF NOT EXISTS` running over older tables. The canonical schema file should describe the target state, not the migration path.
+
 ## 2026-04-26 - No Database Insert on Student Portal Welcome Page
 
 **Decision**: Do not insert a row into `student_records` when the student submits their name on the welcome page. Instead, pass the 3 names to the next page via URL query parameters and only insert into the database when all required details are collected.

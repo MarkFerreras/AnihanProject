@@ -1,5 +1,18 @@
 # Progress - Anihan SRMS
 
+## Schema Drift Remediation + DataSeeder Removal (Completed — May 5, 2026)
+- [x] Diagnosed live `AnihanSRMS` DB against `schema.sql` / `AnihanSRMS.sql` and JPA entities — found `civil_status` missing on `student_records` and 27 columns over three tables locked as `NOT NULL` instead of `NULL`
+- [x] Reproduced single test failure: `SpringbootApplicationTests > contextLoads()` — "Unknown column 'sr1_0.civil_status' in 'field list'"
+- [x] Created `src/main/sql/migrations/2026-05-05-fix-schema-drift.sql` (idempotent for `civil_status` via `information_schema` guard)
+- [x] Applied migration to live DB:
+  - `student_records`: added `civil_status`, relaxed 12 columns to NULL
+  - `parents`: relaxed 9 columns to NULL, dropped `est_income DEFAULT 0.00`
+  - `other_guardians`: relaxed 6 columns to NULL
+- [x] Deleted `src/main/java/com/example/springboot/config/DataSeeder.java` — application data must come from the database, not from a `CommandLineRunner` seeding fake students every startup
+- [x] Refreshed headers on `schema.sql` and `AnihanSRMS.sql` so other developers know the migration file exists for legacy DBs
+- [x] `./gradlew test` → BUILD SUCCESSFUL — 82 tests, 0 failures (was 81/82 before)
+- [x] Working uncommitted on `main` per user instruction (no branch, no commit)
+
 ## Student Portal — Mandatory Field Validation (Completed — May 3, 2026)
 - [x] Step 1: Added Civil Status as required field
 - [x] Step 2: Religion already required; added ID Photo upload as always-required

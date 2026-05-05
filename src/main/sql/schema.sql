@@ -1,10 +1,17 @@
 -- ============================================================
--- schema.sql — Clean Schema + Dummy Seed Accounts
--- Updated: 2026-04-29 (synced with live database)
--- Purpose: Set up a fresh AnihanSRMS database with 3 test
---          accounts (admin, registrar, trainer).
---          No system log or student data is included.
+-- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-05-05 (post schema-drift remediation)
+-- Purpose: Set up a fresh AnihanSRMS database with:
+--            * 3 test accounts (admin, registrar, trainer)
+--            * lookup data (1 course, 3 batches, 3 sections)
+--            * 5 sample student records for development/testing
+--          No system log data is included.
 -- Tables: 17
+--
+-- Existing databases that predate the 2026-05-05 schema-drift fix
+-- should also run src/main/sql/migrations/2026-05-05-fix-schema-drift.sql
+-- once to align student_records / parents / other_guardians with the
+-- canonical column nullability and pick up student_records.civil_status.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
