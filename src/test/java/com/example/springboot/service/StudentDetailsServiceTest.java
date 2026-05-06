@@ -35,6 +35,7 @@ import com.example.springboot.dto.student.StudentDetailsResponse;
 import com.example.springboot.model.OtherGuardian;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentRecord;
+import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
@@ -51,6 +52,7 @@ class StudentDetailsServiceTest {
     @Mock private StudentEducationRepository educationRepo;
     @Mock private StudentSchoolYearRepository schoolYearRepo;
     @Mock private StudentUploadRepository uploadRepo;
+    @Mock private BatchRepository batchRepo;
 
     @InjectMocks
     private StudentDetailsService service;

@@ -20,8 +20,12 @@ import com.example.springboot.model.Section;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.OtherGuardianRepository;
+import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.SectionRepository;
+import com.example.springboot.repository.StudentEducationRepository;
 import com.example.springboot.repository.StudentRecordRepository;
+import com.example.springboot.repository.StudentUploadRepository;
 
 /**
  * Bulk load tests for the Registrar Student Records dashboard.
@@ -57,6 +61,21 @@ class RegistrarBulkLoadTest {
 
     @Mock
     private com.example.springboot.repository.StudentSchoolYearRepository schoolYearRepository;
+
+    @Mock
+    private ParentRepository parentRepository;
+
+    @Mock
+    private OtherGuardianRepository guardianRepository;
+
+    @Mock
+    private StudentEducationRepository educationRepository;
+
+    @Mock
+    private StudentUploadRepository uploadRepository;
+
+    @Mock
+    private com.example.springboot.service.StorageService storageService;
 
     @InjectMocks
     private RegistrarService registrarService;

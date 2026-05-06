@@ -2,6 +2,7 @@
     'use strict';
 
     let detailsModal = null;
+    let currentRecordId = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -18,14 +19,14 @@
 
     function renderNullable(value) {
         if (isBlank(value)) {
-            return 'null';
+            return '<span class="text-muted fst-italic">Not Available</span>';
         }
         return escapeHtml(value);
     }
 
     function renderStatusBadge(status) {
         if (isBlank(status)) {
-            return '<span class="status-badge status-badge-disabled">null</span>';
+            return '<span class="status-badge status-badge-disabled">Not Available</span>';
         }
         let cls;
         if (status === 'Active') {
@@ -43,7 +44,7 @@
     function setText(id, value) {
         const el = document.getElementById(id);
         if (el) {
-            el.textContent = isBlank(value) ? 'null' : value;
+            el.textContent = isBlank(value) ? 'Not Available' : value;
         }
     }
 
@@ -95,6 +96,38 @@
         setText('detailsSectionCode', r.sectionCode);
         setText('detailsEnrollmentDate', r.enrollmentDate);
         setText('detailsStudentStatus', r.studentStatus);
+
+        const f = r.father || {};
+        setText('detailsFatherFamilyName', f.familyName);
+        setText('detailsFatherFirstName',  f.firstName);
+        setText('detailsFatherMiddleName', f.middleName);
+        setText('detailsFatherBirthdate',  f.birthdate);
+        setText('detailsFatherOccupation', f.occupation);
+        setText('detailsFatherEstIncome',  f.estIncome);
+        setText('detailsFatherContactNo',  f.contactNo);
+        setText('detailsFatherEmail',      f.email);
+        setText('detailsFatherAddress',    f.address);
+
+        const m = r.mother || {};
+        setText('detailsMotherFamilyName', m.familyName);
+        setText('detailsMotherFirstName',  m.firstName);
+        setText('detailsMotherMiddleName', m.middleName);
+        setText('detailsMotherBirthdate',  m.birthdate);
+        setText('detailsMotherOccupation', m.occupation);
+        setText('detailsMotherEstIncome',  m.estIncome);
+        setText('detailsMotherContactNo',  m.contactNo);
+        setText('detailsMotherEmail',      m.email);
+        setText('detailsMotherAddress',    m.address);
+
+        const g = r.guardian || {};
+        setText('detailsGuardianRelation',   g.relation);
+        setText('detailsGuardianLastName',   g.lastName);
+        setText('detailsGuardianFirstName',  g.firstName);
+        setText('detailsGuardianMiddleName', g.middleName);
+        setText('detailsGuardianBirthdate',  g.birthdate);
+        setText('detailsGuardianAddress',    g.address);
+
+        currentRecordId = r.recordId;
 
         const editLink = document.getElementById('studentDetailsEditLink');
         if (editLink) {
@@ -226,6 +259,29 @@
                     const count = Array.isArray(json) ? json.length : 0;
                     setFeedback('Filter cleared. Showing all ' + count + ' record(s).', 'info');
                 });
+            });
+        }
+
+        const deleteBtn = document.getElementById('deleteRecordBtn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async function () {
+                if (!currentRecordId) return;
+                if (!window.confirm('Permanently delete this student record and all associated data? This cannot be undone.')) return;
+                try {
+                    const res = await fetch('/api/registrar/student-records/' + encodeURIComponent(currentRecordId), {
+                        method: 'DELETE',
+                        credentials: 'same-origin'
+                    });
+                    if (!res.ok) {
+                        const msg = await res.text().catch(() => 'Delete failed.');
+                        window.alert('Error: ' + msg);
+                        return;
+                    }
+                    detailsModal.hide();
+                    dataTable.ajax.reload(null, false);
+                } catch {
+                    window.alert('Network error. Could not delete the record.');
+                }
             });
         }
     });

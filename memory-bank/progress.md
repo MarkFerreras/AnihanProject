@@ -1,5 +1,18 @@
 # Progress - Anihan SRMS
 
+## Bugs & Registrar Features — Parents/Guardian, Delete, Deferred Uploads (Completed — May 7, 2026)
+- [x] **Feature 2**: "Not Available" replaces literal "null" in registrar table and modal (`renderNullable`, `renderStatusBadge`, `setText`)
+- [x] **Bug 3**: ID Photo no longer a required field — asterisk removed from label, validator removed
+- [x] **Bug 2 Backend**: `StudentRecordDetailsResponse` + `StudentRecordUpdateRequest` gained `father`, `mother`, `guardian` fields; `RegistrarService` loads/saves parents and guardian
+- [x] **Bug 2 Frontend View**: Father/Mother/Guardian detail-grid sections in `registrar.html` modal; `registrar-students.js` populates all sub-fields
+- [x] **Bug 2 Frontend Edit**: Father/Mother/Guardian form sections in `student-records.html`; `registrar-student-records-edit.js` populates and saves them
+- [x] **Feature 1 Backend**: `RegistrarService.deleteRecord()` deletes child rows in FK order + physical uploads; `RegistrarController` exposes `DELETE /{recordId}`
+- [x] **Feature 1 Frontend**: Delete button in modal footer; `registrar-students.js` confirm → DELETE API → reload table
+- [x] **Feature 3**: `BatchRepository.findFirstByBatchYear(Short)` added; `StudentDetailsService.submitEnrollment()` auto-assigns current-year batch
+- [x] **Bug 1**: `setupFileInput()` defers file selection to pending JS variables; `submitForm()` uploads after JSON submit succeeds; baptism cert validator accepts pending file
+- [x] `./gradlew test` → BUILD SUCCESSFUL — all tests pass, no regressions
+- [x] Branch: `feature/registrar-fix`
+
 ## Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears Edit Form (Completed — May 6, 2026)
 - [x] Status filter (`<select>`) added to registrar home filter bar — All / Enrolling / Submitted / Active / Graduated
 - [x] `RegistrarService.getAllRecords` 4-arg overload with case-insensitive status filter; older overloads delegate to it

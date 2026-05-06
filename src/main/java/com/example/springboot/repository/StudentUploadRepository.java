@@ -12,4 +12,6 @@ public interface StudentUploadRepository extends JpaRepository<StudentUpload, In
     Optional<StudentUpload> findByStudentIdAndKind(String studentId, String kind);
 
     List<StudentUpload> findByStudentId(String studentId);
+
+    void deleteByStudentId(String studentId);
 }

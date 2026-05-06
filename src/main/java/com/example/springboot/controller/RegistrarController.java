@@ -6,12 +6,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
@@ -75,6 +78,21 @@ public class RegistrarController {
                 ipAddress);
 
         return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{recordId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Integer recordId, HttpServletRequest httpRequest) {
+        StudentRecordDetailsResponse details = registrarService.getRecordById(recordId);
+        String studentName = details.lastName() + ", " + details.firstName();
+        String studentId = details.studentId();
+
+        registrarService.deleteRecord(recordId);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Deleted student record: " + studentName + " (ID: " + studentId + ")",
+                httpRequest.getRemoteAddr());
     }
 
     private LogContext getLogContext() {

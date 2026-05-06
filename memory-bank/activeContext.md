@@ -1,12 +1,51 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears on Edit Form (2026-05-06)**
+**Bugs & Registrar Features — Parents/Guardian, Deferred Uploads, Delete, Not Available (2026-05-07)**
 
 ## Active Branch
-`feature/registrar-fixes`
+`feature/registrar-fix`
 
-## Latest Session (May 6, 2026 — Registrar Enhancements)
+## Latest Session (May 7, 2026 — Bugs & Registrar Features)
+
+### Items Completed
+1. **Feature 2 — "Not Available" instead of literal "null"** — `renderNullable()`, `renderStatusBadge()` null case, and `setText()` in `registrar-students.js` all show the styled italic "Not Available" span.
+
+2. **Bug 3 — Remove ID Photo as required field** — Removed asterisk from label in `student-details.html`; removed the ID photo required check from `STEP_CUSTOM_VALIDATORS`.
+
+3. **Bug 2 — Parents/Guardian in Registrar view and edit** — Backend: `StudentRecordDetailsResponse` and `StudentRecordUpdateRequest` each gained `father`, `mother`, `guardian` fields. `RegistrarService.buildDetailsResponse()` loads parent/guardian rows from repos. `updateRecord()` calls `saveParents()` and `saveGuardian()`. Frontend view: Father/Mother/Guardian detail-grid sections added to `registrar.html` modal; `registrar-students.js` populates all 24 sub-fields in `loadRecordDetails()`. Frontend edit: Father/Mother/Guardian form sections added to `student-records.html`; `registrar-student-records-edit.js` `populateForm()` and `buildPayload()` updated.
+
+4. **Feature 1 — Delete student record** — Backend: `RegistrarService.deleteRecord()` deletes uploads (physical + DB), all child rows in FK order, then the parent row. `RegistrarController` exposes `DELETE /{recordId}`. Frontend: Delete button added to modal footer in `registrar.html`; `registrar-students.js` shows `window.confirm()`, calls DELETE API, hides modal, reloads table.
+
+5. **Feature 3 — Auto-assign batch on submit** — `BatchRepository.findFirstByBatchYear(Short)` added. `StudentDetailsService.submitEnrollment()` auto-assigns the current-year batch if none is set.
+
+6. **Bug 1 — Defer file uploads to submit** — `setupFileInput()` rewritten to store `File` in `pendingIdPhoto`/`pendingBaptCert`, show local FileReader preview, and display "Selected: filename" status without any network request. `submitForm()` uploads pending files after the JSON submit succeeds. Baptism cert validator updated: accepts `pendingBaptCert !== null` as sufficient.
+
+### Files Changed (this session)
+| File | Change |
+|------|--------|
+| `dto/registrar/StudentRecordDetailsResponse.java` | Added `father`, `mother`, `guardian` fields; new 7-arg `from()` factory; 4-arg and 1-arg delegates |
+| `dto/registrar/StudentRecordUpdateRequest.java` | Added `father`, `mother`, `guardian` optional fields |
+| `service/RegistrarService.java` | Constructor expanded to 12-arg (+parent/guardian/education/upload repos + StorageService); `buildDetailsResponse()` loads parents/guardian; `updateRecord()` calls `saveParents`/`saveGuardian`; new `deleteRecord()` with full FK cascade deletion |
+| `controller/RegistrarController.java` | Added `DELETE /{recordId}` endpoint with system log |
+| `repository/StudentUploadRepository.java` | Added `findByStudentId()` and `deleteByStudentId()` |
+| `repository/StudentRecordRepository.java` | Added native `deleteDocumentsByStudentId()` and `deleteGradesByStudentId()` |
+| `repository/BatchRepository.java` | Added `findFirstByBatchYear(Short)` |
+| `service/StudentDetailsService.java` | Constructor +`BatchRepository`; `submitEnrollment()` auto-assigns current-year batch |
+| `test/service/StudentDetailsServiceTest.java` | Added `@Mock BatchRepository batchRepo` |
+| `test/service/RegistrarBulkLoadTest.java` | Added 5 new `@Mock` fields for expanded 12-arg constructor |
+| `static/registrar.html` | Father/Mother/Guardian detail-grid sections in modal; Delete button in footer |
+| `static/js/registrar-students.js` | `currentRecordId` state; `loadRecordDetails()` populates 24 parent/guardian fields; delete button handler |
+| `static/student-records.html` | Father/Mother/Guardian form sections added; JS cache bumped to `?v=3` |
+| `static/js/registrar-student-records-edit.js` | `populateForm()` fills parent/guardian fields; `buildParent()`/`buildGuardian()` helpers; `buildPayload()` includes them |
+| `static/js/student-details.js` | `setupFileInput()` defers to pending vars; `submitForm()` uploads after JSON submit; baptism cert validator accepts `pendingBaptCert` |
+| `static/student-details.html` | Removed `*` from ID Photo label |
+
+### Verified
+- `./gradlew test` → BUILD SUCCESSFUL (all tests pass, no regressions)
+- Branch: `feature/registrar-fix`
+
+## Previous Session (May 6, 2026 — Registrar Enhancements)
 
 ### Features Implemented
 1. **Status filter on `registrar.html`** — new `<select id="studentStatusFilter">` in the filter bar (All / Enrolling / Submitted / Active / Graduated). `buildAjaxUrl()` appends `?status=` when non-empty; Reset clears the select. Backend: `RegistrarController` forwards `status` param; `RegistrarService.getAllRecords` gains a 4-arg overload with case-insensitive status filter. Older 2-arg and 3-arg overloads delegate to the new one.

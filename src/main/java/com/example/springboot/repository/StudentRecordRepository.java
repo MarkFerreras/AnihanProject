@@ -3,6 +3,7 @@ package com.example.springboot.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,4 +21,12 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
 
     @Query("SELECT COUNT(s) FROM StudentRecord s WHERE s.studentId LIKE :prefix%")
     long countByStudentIdStartingWith(@Param("prefix") String prefix);
+
+    @Modifying
+    @Query(value = "DELETE FROM documents WHERE student_id = :studentId", nativeQuery = true)
+    void deleteDocumentsByStudentId(@Param("studentId") String studentId);
+
+    @Modifying
+    @Query(value = "DELETE FROM grades WHERE student_id = :studentId", nativeQuery = true)
+    void deleteGradesByStudentId(@Param("studentId") String studentId);
 }

@@ -3,7 +3,9 @@ package com.example.springboot.dto.registrar;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.example.springboot.dto.student.GuardianDto;
 import com.example.springboot.dto.student.OjtDto;
+import com.example.springboot.dto.student.ParentDto;
 import com.example.springboot.dto.student.SchoolYearDto;
 import com.example.springboot.dto.student.TesdaQualDto;
 
@@ -49,6 +51,9 @@ public record StudentRecordUpdateRequest(
 
         OjtDto ojt,
         List<TesdaQualDto> tesdaQualifications,
-        List<SchoolYearDto> schoolYears
+        List<SchoolYearDto> schoolYears,
+        ParentDto father,
+        ParentDto mother,
+        GuardianDto guardian
 ) {
 }

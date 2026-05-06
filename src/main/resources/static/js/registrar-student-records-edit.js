@@ -264,6 +264,39 @@
                 syBody.appendChild(createSchoolYearRow(sy));
             });
         }
+
+        // Father
+        const fa = r.father || {};
+        setVal('editFatherFamilyName', fa.familyName);
+        setVal('editFatherFirstName',  fa.firstName);
+        setVal('editFatherMiddleName', fa.middleName);
+        setVal('editFatherBirthdate',  fa.birthdate || '');
+        setVal('editFatherOccupation', fa.occupation);
+        setVal('editFatherEstIncome',  fa.estIncome !== null && fa.estIncome !== undefined ? fa.estIncome : '');
+        setVal('editFatherContactNo',  fa.contactNo);
+        setVal('editFatherEmail',      fa.email);
+        setVal('editFatherAddress',    fa.address);
+
+        // Mother
+        const mo = r.mother || {};
+        setVal('editMotherFamilyName', mo.familyName);
+        setVal('editMotherFirstName',  mo.firstName);
+        setVal('editMotherMiddleName', mo.middleName);
+        setVal('editMotherBirthdate',  mo.birthdate || '');
+        setVal('editMotherOccupation', mo.occupation);
+        setVal('editMotherEstIncome',  mo.estIncome !== null && mo.estIncome !== undefined ? mo.estIncome : '');
+        setVal('editMotherContactNo',  mo.contactNo);
+        setVal('editMotherEmail',      mo.email);
+        setVal('editMotherAddress',    mo.address);
+
+        // Guardian
+        const gu = r.guardian || {};
+        setVal('editGuardianRelation',   gu.relation);
+        setVal('editGuardianLastName',   gu.lastName);
+        setVal('editGuardianFirstName',  gu.firstName);
+        setVal('editGuardianMiddleName', gu.middleName);
+        setVal('editGuardianBirthdate',  gu.birthdate || '');
+        setVal('editGuardianAddress',    gu.address);
     }
 
     // ----- Payload builder -----
@@ -312,6 +345,49 @@
         return rows;
     }
 
+    function buildParent(prefix) {
+        const familyName = getTrimmed('edit' + prefix + 'FamilyName');
+        const firstName  = getTrimmed('edit' + prefix + 'FirstName');
+        const middleName = getTrimmed('edit' + prefix + 'MiddleName');
+        const birthdate  = getNullableDate('edit' + prefix + 'Birthdate');
+        const occupation = getTrimmed('edit' + prefix + 'Occupation');
+        const incomeStr  = getTrimmed('edit' + prefix + 'EstIncome');
+        const contactNo  = getTrimmed('edit' + prefix + 'ContactNo');
+        const email      = getTrimmed('edit' + prefix + 'Email');
+        const address    = getTrimmed('edit' + prefix + 'Address');
+        if (!familyName && !firstName && !middleName && !birthdate && !occupation &&
+                !incomeStr && !contactNo && !email && !address) return null;
+        return {
+            familyName: familyName || null,
+            firstName:  firstName  || null,
+            middleName: middleName || null,
+            birthdate:  birthdate,
+            occupation: occupation || null,
+            estIncome:  incomeStr !== '' ? Number(incomeStr) : null,
+            contactNo:  contactNo || null,
+            email:      email     || null,
+            address:    address   || null
+        };
+    }
+
+    function buildGuardian() {
+        const relation   = getTrimmed('editGuardianRelation');
+        const lastName   = getTrimmed('editGuardianLastName');
+        const firstName  = getTrimmed('editGuardianFirstName');
+        const middleName = getTrimmed('editGuardianMiddleName');
+        const birthdate  = getNullableDate('editGuardianBirthdate');
+        const address    = getTrimmed('editGuardianAddress');
+        if (!relation && !lastName && !firstName && !middleName && !birthdate && !address) return null;
+        return {
+            relation:   relation   || null,
+            lastName:   lastName   || null,
+            firstName:  firstName  || null,
+            middleName: middleName || null,
+            birthdate:  birthdate,
+            address:    address    || null
+        };
+    }
+
     function buildPayload() {
         return {
             studentId: getTrimmed('editStudentId'),
@@ -338,7 +414,10 @@
             studentStatus: getTrimmed('editStudentStatus'),
             ojt: buildOjt(),
             tesdaQualifications: [1, 2, 3].map(buildTesdaSlot).filter(function (s) { return s !== null; }),
-            schoolYears: buildSchoolYearRows()
+            schoolYears: buildSchoolYearRows(),
+            father:   buildParent('Father'),
+            mother:   buildParent('Mother'),
+            guardian: buildGuardian()
         };
     }
 
