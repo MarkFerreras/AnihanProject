@@ -1,5 +1,38 @@
 # Progress - Anihan SRMS
 
+## Strict Type-to-Confirm Delete Modals (Completed — May 7, 2026)
+- [x] **Registrar — `deleteRecordConfirmModal`**: New Bootstrap modal in `registrar.html` requiring the user to type `delete` before the Permanently Delete button is enabled; replaces `window.confirm()` and `window.alert()` in `registrar-students.js`.
+- [x] **Registrar — modal lifecycle**: Reset input + button state on `hidden.bs.modal`; show identifier (Student ID + last/first name) inside the modal.
+- [x] **Admin — `permanentDeleteConfirmModal`**: New typing-confirm modal in `admin.html` alongside the existing soft/hard chooser; opens when **Permanently Delete** is clicked.
+- [x] **Admin — wiring**: `admin-users.js` now hides `deleteConfirmModal` and opens `permanentDeleteConfirmModal` instead of using `window.confirm()`. Soft delete (deactivate) flow unchanged.
+- [x] **Admin — modal lifecycle**: Reset input + button state on `hidden.bs.modal`; show username inside the modal.
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
+- [x] Branch: `feature/registrar-fix`
+
+## Emoji Cleanup Across Static Frontend (Completed — May 7, 2026)
+- [x] `registrar.html`: removed `✏️` and `🚪` glyphs (and the wrapping `<span class="dropdown-icon">`) from Edit Account and Log Out dropdown items.
+- [x] `trainer.html`: same removals as registrar.html.
+- [x] `index.html`: removed leading `✅ ` from the logout notification text.
+- [x] `student-portal.html`: removed leading `⚠️ ` from the duplicate-record alert.
+- [x] `student-details.js`: replaced `✓` upload-status prefix with the literal word `Uploaded:` in three render sites; updated the `startsWith('✓')` validator check to `startsWith('Uploaded:')` so the gating logic is preserved.
+- [x] No CSS classes were referencing the removed `dropdown-icon` span — confirmed by grep across `static/css/` and `static/js/`.
+- [x] Vendored DataTables library (`datatables.min.js`, `datatables.min.css`) intentionally untouched.
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
+- [x] Branch: `feature/registrar-fix`
+
+## Bugs & Registrar Features — Parents/Guardian, Delete, Deferred Uploads (Completed — May 7, 2026)
+- [x] **Feature 2**: "Not Available" replaces literal "null" in registrar table and modal (`renderNullable`, `renderStatusBadge`, `setText`)
+- [x] **Bug 3**: ID Photo no longer a required field — asterisk removed from label, validator removed
+- [x] **Bug 2 Backend**: `StudentRecordDetailsResponse` + `StudentRecordUpdateRequest` gained `father`, `mother`, `guardian` fields; `RegistrarService` loads/saves parents and guardian
+- [x] **Bug 2 Frontend View**: Father/Mother/Guardian detail-grid sections in `registrar.html` modal; `registrar-students.js` populates all sub-fields
+- [x] **Bug 2 Frontend Edit**: Father/Mother/Guardian form sections in `student-records.html`; `registrar-student-records-edit.js` populates and saves them
+- [x] **Feature 1 Backend**: `RegistrarService.deleteRecord()` deletes child rows in FK order + physical uploads; `RegistrarController` exposes `DELETE /{recordId}`
+- [x] **Feature 1 Frontend**: Delete button in modal footer; `registrar-students.js` confirm → DELETE API → reload table
+- [x] **Feature 3**: `BatchRepository.findFirstByBatchYear(Short)` added; `StudentDetailsService.submitEnrollment()` auto-assigns current-year batch
+- [x] **Bug 1**: `setupFileInput()` defers file selection to pending JS variables; `submitForm()` uploads after JSON submit succeeds; baptism cert validator accepts pending file
+- [x] `./gradlew test` → BUILD SUCCESSFUL — all tests pass, no regressions
+- [x] Branch: `feature/registrar-fix`
+
 ## Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears Edit Form (Completed — May 6, 2026)
 - [x] Status filter (`<select>`) added to registrar home filter bar — All / Enrolling / Submitted / Active / Graduated
 - [x] `RegistrarService.getAllRecords` 4-arg overload with case-insensitive status filter; older overloads delegate to it

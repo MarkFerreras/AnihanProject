@@ -3,7 +3,9 @@ package com.example.springboot.dto.registrar;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.example.springboot.dto.student.GuardianDto;
 import com.example.springboot.dto.student.OjtDto;
+import com.example.springboot.dto.student.ParentDto;
 import com.example.springboot.dto.student.SchoolYearDto;
 import com.example.springboot.dto.student.TesdaQualDto;
 import com.example.springboot.model.StudentRecord;
@@ -36,13 +38,19 @@ public record StudentRecordDetailsResponse(
         String studentStatus,
         OjtDto ojt,
         List<TesdaQualDto> tesdaQualifications,
-        List<SchoolYearDto> schoolYears
+        List<SchoolYearDto> schoolYears,
+        ParentDto father,
+        ParentDto mother,
+        GuardianDto guardian
 ) {
 
     public static StudentRecordDetailsResponse from(StudentRecord r,
                                                     OjtDto ojt,
                                                     List<TesdaQualDto> tesdaQualifications,
-                                                    List<SchoolYearDto> schoolYears) {
+                                                    List<SchoolYearDto> schoolYears,
+                                                    ParentDto father,
+                                                    ParentDto mother,
+                                                    GuardianDto guardian) {
         return new StudentRecordDetailsResponse(
                 r.getRecordId(),
                 r.getStudentId(),
@@ -71,11 +79,21 @@ public record StudentRecordDetailsResponse(
                 r.getStudentStatus(),
                 ojt,
                 tesdaQualifications != null ? tesdaQualifications : List.of(),
-                schoolYears != null ? schoolYears : List.of()
+                schoolYears != null ? schoolYears : List.of(),
+                father,
+                mother,
+                guardian
         );
     }
 
+    public static StudentRecordDetailsResponse from(StudentRecord r,
+                                                    OjtDto ojt,
+                                                    List<TesdaQualDto> tesdaQualifications,
+                                                    List<SchoolYearDto> schoolYears) {
+        return from(r, ojt, tesdaQualifications, schoolYears, null, null, null);
+    }
+
     public static StudentRecordDetailsResponse from(StudentRecord r) {
-        return from(r, null, List.of(), List.of());
+        return from(r, null, List.of(), List.of(), null, null, null);
     }
 }

@@ -58,15 +58,11 @@
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item" href="#" id="editAccountBtn"
-                                        data-bs-toggle="modal" data-bs-target="#editAccountModal">
-                                        <span class="dropdown-icon">✏️</span> Edit Account
-                                    </a>
+                                        data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit Account</a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">
-                                        <span class="dropdown-icon">🚪</span> Log Out
-                                    </a>
+                                    <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a>
                                 </li>
                             </ul>
                         </div>
@@ -186,10 +182,85 @@
                         <article class="detail-card"><span class="detail-label">Enrollment Date</span><p class="detail-value" id="detailsEnrollmentDate">null</p></article>
                         <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
                     </div>
+
+                    <h6 class="mt-4 mb-2 fw-semibold">Father</h6>
+                    <div class="detail-grid">
+                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsFatherFamilyName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFatherFirstName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsFatherMiddleName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsFatherBirthdate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsFatherOccupation">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsFatherEstIncome">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsFatherContactNo">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsFatherEmail">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsFatherAddress">null</p></article>
+                    </div>
+
+                    <h6 class="mt-4 mb-2 fw-semibold">Mother</h6>
+                    <div class="detail-grid">
+                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsMotherFamilyName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsMotherFirstName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMotherMiddleName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsMotherBirthdate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsMotherOccupation">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsMotherEstIncome">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsMotherContactNo">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsMotherEmail">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsMotherAddress">null</p></article>
+                    </div>
+
+                    <h6 class="mt-4 mb-2 fw-semibold">Guardian</h6>
+                    <div class="detail-grid">
+                        <article class="detail-card"><span class="detail-label">Relation</span><p class="detail-value" id="detailsGuardianRelation">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsGuardianLastName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsGuardianFirstName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsGuardianMiddleName">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsGuardianBirthdate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsGuardianAddress">null</p></article>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger-surface" id="deleteRecordBtn" style="margin-right:auto;">Delete</button>
                     <a id="studentDetailsEditLink" href="#" class="btn btn-surface">Edit</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DELETE RECORD CONFIRMATION MODAL ===== -->
+    <div class="modal fade delete-confirm-modal" id="deleteRecordConfirmModal" tabindex="-1"
+         aria-labelledby="deleteRecordConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteRecordConfirmModalLabel">Permanently Delete Student Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">
+                        You are about to permanently delete student record
+                        <strong id="deleteRecordIdentifier">this record</strong> and all associated data
+                        (parents, guardian, education history, school years, OJT, TESDA qualifications,
+                        documents, grades, and uploads).
+                    </p>
+                    <div class="danger-zone">
+                        <p><strong>This action cannot be undone.</strong> Once deleted, the record cannot be recovered.</p>
+                    </div>
+                    <div class="mt-3">
+                        <label for="deleteRecordConfirmInput" class="form-label">
+                            To confirm, type <strong>delete</strong> below:
+                        </label>
+                        <input type="text" class="form-control" id="deleteRecordConfirmInput"
+                               placeholder="Type 'delete' to enable the button" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="alert d-none mt-3" id="deleteRecordResultAlert" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-permanent-delete" id="confirmDeleteRecordBtn" disabled>
+                        Permanently Delete
+                    </button>
                 </div>
             </div>
         </div>

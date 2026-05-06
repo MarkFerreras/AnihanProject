@@ -8,8 +8,10 @@
     };
 
     let currentDeleteUserId = null;
+    let currentDeleteUserName = null;
     let detailsModal = null;
     let deleteConfirmModal = null;
+    let permanentDeleteConfirmModal = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -120,6 +122,7 @@
 
         // Store the user ID for delete and set the display name
         currentDeleteUserId = user.userId;
+        currentDeleteUserName = user.username;
         const deleteUserNameEl = document.getElementById('deleteUserName');
         if (deleteUserNameEl) {
             deleteUserNameEl.textContent = user.username;
@@ -203,32 +206,11 @@
         }
 
         if (confirmHardDeleteBtn) {
-            confirmHardDeleteBtn.addEventListener('click', async function () {
-                // Extra confirmation for permanent deletion
-                if (!window.confirm('This action is PERMANENT and cannot be undone. Are you absolutely sure?')) {
-                    return;
-                }
-
-                confirmHardDeleteBtn.disabled = true;
-                confirmHardDeleteBtn.textContent = 'Deleting...';
-                hideAlert('deleteResultAlert');
-
-                try {
-                    await deleteUser(currentDeleteUserId, true);
-                    setAlert('deleteResultAlert', 'Account permanently deleted.', 'success');
-                    confirmSoftDeleteBtn.style.display = 'none';
-                    confirmHardDeleteBtn.style.display = 'none';
-
-                    window.setTimeout(function () {
-                        deleteConfirmModal.hide();
-                        dataTable.ajax.reload(null, false);
-                    }, 1200);
-                } catch (error) {
-                    setAlert('deleteResultAlert', error.message, 'danger');
-                } finally {
-                    confirmHardDeleteBtn.disabled = false;
-                    confirmHardDeleteBtn.textContent = 'Permanently Delete';
-                }
+            confirmHardDeleteBtn.addEventListener('click', function () {
+                // Open the strict typing-confirm modal instead of doing the delete here
+                if (!permanentDeleteConfirmModal) return;
+                deleteConfirmModal.hide();
+                openPermanentDeleteModal();
             });
         }
 
@@ -271,6 +253,10 @@
 
         detailsModal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
         deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        const permanentDeleteEl = document.getElementById('permanentDeleteConfirmModal');
+        if (permanentDeleteEl) {
+            permanentDeleteConfirmModal = new bootstrap.Modal(permanentDeleteEl);
+        }
 
         var dataTable = window.jQuery('#usersTable').DataTable({
             ajax: {
@@ -329,6 +315,7 @@
         });
 
         setupDeleteHandlers(dataTable);
+        setupPermanentDeleteFlow(dataTable);
         setupReEnableHandler(dataTable);
 
         window.jQuery('#usersTable tbody').on('click', 'button[data-user-id]', async function () {
@@ -339,6 +326,67 @@
             }
         });
     });
+
+    function openPermanentDeleteModal() {
+        const nameEl = document.getElementById('permanentDeleteUserName');
+        const input = document.getElementById('permanentDeleteConfirmInput');
+        const btn = document.getElementById('confirmPermanentDeleteBtn');
+
+        if (nameEl) {
+            nameEl.textContent = currentDeleteUserName || 'this user';
+        }
+        if (input) {
+            input.value = '';
+        }
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Permanently Delete';
+        }
+        hideAlert('permanentDeleteResultAlert');
+        permanentDeleteConfirmModal.show();
+    }
+
+    function setupPermanentDeleteFlow(dataTable) {
+        const input = document.getElementById('permanentDeleteConfirmInput');
+        const btn = document.getElementById('confirmPermanentDeleteBtn');
+        const modalEl = document.getElementById('permanentDeleteConfirmModal');
+
+        if (!input || !btn || !modalEl || !permanentDeleteConfirmModal) return;
+
+        input.addEventListener('input', function () {
+            btn.disabled = input.value.trim().toLowerCase() !== 'delete';
+        });
+
+        btn.addEventListener('click', async function () {
+            if (!currentDeleteUserId) return;
+            if (input.value.trim().toLowerCase() !== 'delete') return;
+
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+            hideAlert('permanentDeleteResultAlert');
+
+            try {
+                await deleteUser(currentDeleteUserId, true);
+                setAlert('permanentDeleteResultAlert', 'Account permanently deleted.', 'success');
+
+                window.setTimeout(function () {
+                    permanentDeleteConfirmModal.hide();
+                    dataTable.ajax.reload(null, false);
+                }, 1200);
+            } catch (error) {
+                setAlert('permanentDeleteResultAlert', error.message, 'danger');
+                btn.disabled = false;
+                btn.textContent = 'Permanently Delete';
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            input.value = '';
+            btn.disabled = true;
+            btn.textContent = 'Permanently Delete';
+            hideAlert('permanentDeleteResultAlert');
+        });
+    }
 
     function setupReEnableHandler(dataTable) {
         var reEnableBtn = document.getElementById('detailsReEnableBtn');

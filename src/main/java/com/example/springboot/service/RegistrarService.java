@@ -9,23 +9,32 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
+import com.example.springboot.dto.student.GuardianDto;
 import com.example.springboot.dto.student.OjtDto;
+import com.example.springboot.dto.student.ParentDto;
 import com.example.springboot.dto.student.SchoolYearDto;
 import com.example.springboot.dto.student.TesdaQualDto;
 import com.example.springboot.model.Batch;
 import com.example.springboot.model.Course;
+import com.example.springboot.model.OtherGuardian;
+import com.example.springboot.model.Parent;
 import com.example.springboot.model.Section;
 import com.example.springboot.model.StudentOjt;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
 import com.example.springboot.model.StudentTesdaQualification;
+import com.example.springboot.model.StudentUpload;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.OtherGuardianRepository;
+import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.SectionRepository;
+import com.example.springboot.repository.StudentEducationRepository;
 import com.example.springboot.repository.StudentOjtRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
 import com.example.springboot.repository.StudentTesdaQualificationRepository;
+import com.example.springboot.repository.StudentUploadRepository;
 
 @Service
 public class RegistrarService {
@@ -37,6 +46,11 @@ public class RegistrarService {
     private final StudentOjtRepository studentOjtRepository;
     private final StudentTesdaQualificationRepository tesdaQualRepository;
     private final StudentSchoolYearRepository schoolYearRepository;
+    private final ParentRepository parentRepository;
+    private final OtherGuardianRepository guardianRepository;
+    private final StudentEducationRepository educationRepository;
+    private final StudentUploadRepository uploadRepository;
+    private final StorageService storageService;
 
     public RegistrarService(StudentRecordRepository studentRecordRepository,
                             BatchRepository batchRepository,
@@ -44,7 +58,12 @@ public class RegistrarService {
                             SectionRepository sectionRepository,
                             StudentOjtRepository studentOjtRepository,
                             StudentTesdaQualificationRepository tesdaQualRepository,
-                            StudentSchoolYearRepository schoolYearRepository) {
+                            StudentSchoolYearRepository schoolYearRepository,
+                            ParentRepository parentRepository,
+                            OtherGuardianRepository guardianRepository,
+                            StudentEducationRepository educationRepository,
+                            StudentUploadRepository uploadRepository,
+                            StorageService storageService) {
         this.studentRecordRepository = studentRecordRepository;
         this.batchRepository = batchRepository;
         this.courseRepository = courseRepository;
@@ -52,6 +71,11 @@ public class RegistrarService {
         this.studentOjtRepository = studentOjtRepository;
         this.tesdaQualRepository = tesdaQualRepository;
         this.schoolYearRepository = schoolYearRepository;
+        this.parentRepository = parentRepository;
+        this.guardianRepository = guardianRepository;
+        this.educationRepository = educationRepository;
+        this.uploadRepository = uploadRepository;
+        this.storageService = storageService;
     }
 
     public List<StudentRecordSummaryResponse> getAllRecords() {
@@ -170,6 +194,8 @@ public class RegistrarService {
         saveOjt(oldStudentId, newStudentId, request.ojt());
         saveTesda(oldStudentId, newStudentId, request.tesdaQualifications());
         saveSchoolYears(oldStudentId, newStudentId, request.schoolYears());
+        saveParents(saved, request.father(), request.mother());
+        saveGuardian(saved, request.guardian());
 
         return buildDetailsResponse(saved);
     }
@@ -273,7 +299,90 @@ public class RegistrarService {
                         e.getSyEnd(), e.getSemEnd(), e.getRemarks()))
                 .toList();
 
-        return StudentRecordDetailsResponse.from(record, ojt, tesda, schoolYears);
+        ParentDto father = parentRepository.findByStudentStudentIdAndRelation(studentId, "FATHER")
+                .map(this::toParentDto).orElse(null);
+        ParentDto mother = parentRepository.findByStudentStudentIdAndRelation(studentId, "MOTHER")
+                .map(this::toParentDto).orElse(null);
+        GuardianDto guardian = guardianRepository.findByStudentStudentId(studentId).stream()
+                .findFirst().map(this::toGuardianDto).orElse(null);
+
+        return StudentRecordDetailsResponse.from(record, ojt, tesda, schoolYears, father, mother, guardian);
+    }
+
+    // ----- Parents / Guardian -----
+
+    private void saveParents(StudentRecord record, ParentDto fatherDto, ParentDto motherDto) {
+        if (fatherDto != null) upsertParent(record, "FATHER", fatherDto);
+        if (motherDto != null) upsertParent(record, "MOTHER", motherDto);
+    }
+
+    private void upsertParent(StudentRecord record, String relation, ParentDto dto) {
+        Parent parent = parentRepository.findByStudentStudentIdAndRelation(record.getStudentId(), relation)
+                .orElseGet(Parent::new);
+        parent.setStudent(record);
+        parent.setRelation(relation);
+        parent.setFamilyName(emptyToNull(dto.familyName()));
+        parent.setFirstName(emptyToNull(dto.firstName()));
+        parent.setMiddleName(emptyToNull(dto.middleName()));
+        parent.setBirthdate(dto.birthdate());
+        parent.setOccupation(emptyToNull(dto.occupation()));
+        parent.setEstIncome(dto.estIncome());
+        parent.setContactNo(emptyToNull(dto.contactNo()));
+        parent.setEmail(emptyToNull(dto.email()));
+        parent.setAddress(emptyToNull(dto.address()));
+        parentRepository.save(parent);
+    }
+
+    private void saveGuardian(StudentRecord record, GuardianDto dto) {
+        if (dto == null) return;
+        List<OtherGuardian> existing = guardianRepository.findByStudentStudentId(record.getStudentId());
+        OtherGuardian guardian = existing.isEmpty() ? new OtherGuardian() : existing.get(0);
+        guardian.setStudent(record);
+        guardian.setRelation(dto.relation());
+        guardian.setLastName(emptyToNull(dto.lastName()));
+        guardian.setFirstName(emptyToNull(dto.firstName()));
+        guardian.setMiddleName(emptyToNull(dto.middleName()));
+        guardian.setBirthdate(dto.birthdate());
+        guardian.setAddress(emptyToNull(dto.address()));
+        guardianRepository.save(guardian);
+    }
+
+    private ParentDto toParentDto(Parent p) {
+        return new ParentDto(p.getFamilyName(), p.getFirstName(), p.getMiddleName(),
+                p.getBirthdate(), p.getOccupation(), p.getEstIncome(),
+                p.getContactNo(), p.getEmail(), p.getAddress());
+    }
+
+    private GuardianDto toGuardianDto(OtherGuardian g) {
+        return new GuardianDto(g.getRelation(), g.getLastName(), g.getFirstName(),
+                g.getMiddleName(), g.getBirthdate(), g.getAddress());
+    }
+
+    // ----- Delete -----
+
+    @Transactional
+    public void deleteRecord(Integer recordId) {
+        StudentRecord record = studentRecordRepository.findById(recordId)
+                .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
+
+        String studentId = record.getStudentId();
+
+        // Delete physical files before removing DB rows
+        List<StudentUpload> uploads = uploadRepository.findByStudentId(studentId);
+        uploads.forEach(storageService::delete);
+
+        // Delete child rows in FK dependency order
+        uploadRepository.deleteByStudentId(studentId);
+        parentRepository.deleteByStudentStudentId(studentId);
+        guardianRepository.deleteByStudentStudentId(studentId);
+        educationRepository.deleteByStudentId(studentId);
+        schoolYearRepository.deleteByStudentId(studentId);
+        tesdaQualRepository.deleteByStudentId(studentId);
+        studentOjtRepository.deleteByStudentId(studentId);
+        studentRecordRepository.deleteDocumentsByStudentId(studentId);
+        studentRecordRepository.deleteGradesByStudentId(studentId);
+
+        studentRecordRepository.deleteById(recordId);
     }
 
     // ----- FK resolvers -----

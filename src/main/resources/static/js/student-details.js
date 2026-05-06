@@ -3,6 +3,8 @@
 // ─── State ──────────────────────────────────────────────────────────────────
 let studentId = null;
 let currentStep = 1;
+let pendingIdPhoto = null;
+let pendingBaptCert = null;
 const TOTAL_STEPS = 4;
 const REDIRECT_DELAY_MS = 5000;
 
@@ -38,11 +40,6 @@ const STEP_REQUIRED = {
 const STEP_CUSTOM_VALIDATORS = {
     2: () => {
         const errors = [];
-        // ID Photo is always required
-        const idStatus = document.getElementById('idPhotoStatus')?.textContent || '';
-        if (!idStatus.startsWith('✓')) {
-            errors.push({ id: 'idPhotoFile', label: 'ID Photo', step: 2 });
-        }
         // Baptism fields required only when checkbox is checked
         if (document.getElementById('baptized').checked) {
             const bDate = document.getElementById('baptismDate');
@@ -54,7 +51,7 @@ const STEP_CUSTOM_VALIDATORS = {
                 errors.push({ id: 'baptismPlace', label: 'Baptism Place', step: 2 });
             }
             const certStatus = document.getElementById('baptCertStatus')?.textContent || '';
-            if (!certStatus.startsWith('✓')) {
+            if (!certStatus.startsWith('Uploaded:') && pendingBaptCert === null) {
                 errors.push({ id: 'baptCertFile', label: 'Baptismal Certificate', step: 2 });
             }
         }
@@ -222,6 +219,20 @@ async function submitForm() {
             showAlert('Submission failed. Please try again.', 'danger');
             return;
         }
+
+        // Upload any files selected before submit
+        if (pendingIdPhoto || pendingBaptCert) {
+            submitBtn.textContent = 'Uploading files…';
+            if (pendingIdPhoto) {
+                await uploadPendingFile(pendingIdPhoto, 'ID_PHOTO', 'idPhotoStatus');
+                pendingIdPhoto = null;
+            }
+            if (pendingBaptCert) {
+                await uploadPendingFile(pendingBaptCert, 'BAPTISMAL_CERT', 'baptCertStatus');
+                pendingBaptCert = null;
+            }
+        }
+
         showSubmittedBanner(studentId);
         sessionStorage.removeItem('studentId');
     } catch {
@@ -229,6 +240,27 @@ async function submitForm() {
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit';
+    }
+}
+
+async function uploadPendingFile(file, kind, statusId) {
+    const statusEl = document.getElementById(statusId);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        const res = await fetch(`/api/student/${studentId}/upload?kind=${kind}`, {
+            method: 'POST',
+            body: fd
+        });
+        if (!res.ok) {
+            const msg = await res.text().catch(() => 'Upload failed.');
+            if (statusEl) statusEl.textContent = `Error: ${msg}`;
+            return;
+        }
+        const ref = await res.json();
+        if (statusEl) statusEl.textContent = `Uploaded: ${ref.originalName}`;
+    } catch {
+        if (statusEl) statusEl.textContent = 'Upload error.';
     }
 }
 
@@ -346,13 +378,13 @@ function populateForm(data) {
     }
 
     if (data.idPhotoRef) {
-        document.getElementById('idPhotoStatus').textContent = `✓ ${data.idPhotoRef.originalName}`;
+        document.getElementById('idPhotoStatus').textContent = `Uploaded: ${data.idPhotoRef.originalName}`;
         const img = document.getElementById('idPhotoPreview');
         img.src = `/api/student/files/${data.idPhotoRef.uploadId}`;
         img.classList.add('show');
     }
     if (data.baptismalCertRef) {
-        document.getElementById('baptCertStatus').textContent = `✓ ${data.baptismalCertRef.originalName}`;
+        document.getElementById('baptCertStatus').textContent = `Uploaded: ${data.baptismalCertRef.originalName}`;
         if (data.baptismalCertRef.mimeType !== 'application/pdf') {
             const img = document.getElementById('baptCertPreview');
             img.src = `/api/student/files/${data.baptismalCertRef.uploadId}`;
@@ -488,43 +520,28 @@ function setupFileUploads() {
 }
 
 function setupFileInput(inputId, previewId, statusId, kind) {
-    document.getElementById(inputId).addEventListener('change', async function () {
-        if (!this.files.length || !studentId) return;
-        const file     = this.files[0];
-        const statusEl = document.getElementById(statusId);
+    document.getElementById(inputId).addEventListener('change', function () {
+        if (!this.files.length) return;
+        const file      = this.files[0];
+        const statusEl  = document.getElementById(statusId);
         const previewEl = document.getElementById(previewId);
 
-        statusEl.textContent = 'Uploading…';
+        // Store for deferred upload on final submit
+        if (kind === 'ID_PHOTO')        pendingIdPhoto  = file;
+        else if (kind === 'BAPTISMAL_CERT') pendingBaptCert = file;
 
-        const fd = new FormData();
-        fd.append('file', file);
+        statusEl.textContent = `Selected: ${file.name}`;
 
-        try {
-            const res = await fetch(`/api/student/${studentId}/upload?kind=${kind}`, {
-                method: 'POST',
-                body: fd
-            });
-            if (!res.ok) {
-                const msg = await res.text().catch(() => 'Upload failed.');
-                statusEl.textContent = `Error: ${msg}`;
-                return;
-            }
-            const ref = await res.json();
-            statusEl.textContent = `✓ ${ref.originalName}`;
-
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    previewEl.src = e.target.result;
-                    previewEl.classList.add('show');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                previewEl.classList.remove('show');
-                statusEl.textContent += ' (PDF)';
-            }
-        } catch {
-            statusEl.textContent = 'Upload error. Try again.';
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                previewEl.src = e.target.result;
+                previewEl.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewEl.classList.remove('show');
+            statusEl.textContent += ' (PDF)';
         }
     });
 }

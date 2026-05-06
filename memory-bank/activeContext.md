@@ -1,12 +1,87 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears on Edit Form (2026-05-06)**
+**Strict Type-to-Confirm Delete Modals (2026-05-07)**
 
 ## Active Branch
-`feature/registrar-fixes`
+`feature/registrar-fix`
 
-## Latest Session (May 6, 2026 — Registrar Enhancements)
+## Latest Session (May 7, 2026 — Strict Type-to-Confirm Delete Modals)
+
+### Items Completed
+1. **Registrar — Strict delete confirmation modal** — Replaced the `window.confirm()` alert in the student record delete flow with a Bootstrap modal that requires the user to type the literal word `delete` (case-insensitive, trimmed) before the **Permanently Delete** button becomes enabled. The modal opens in place of the details modal, shows the student's identifier (Student ID + name), and surfaces success/error feedback inline instead of via `window.alert()`.
+
+2. **Admin — Strict permanent-delete confirmation modal** — Added a second confirmation modal (`#permanentDeleteConfirmModal`) on `admin.html` and rewired `admin-users.js` so that clicking **Permanently Delete** in the existing soft/hard chooser opens the new typing-confirm modal instead of the old `window.confirm()` JS alert. Soft-delete (Deactivate Account) is unchanged because it is reversible. The new modal echoes the username being removed, requires typing `delete`, and shows result feedback inline.
+
+### Files Changed (this session)
+| File | Change |
+|------|--------|
+| `static/registrar.html` | Added `#deleteRecordConfirmModal` typing-confirm modal above the footer. |
+| `static/js/registrar-students.js` | Added `deleteConfirmModal`, `currentRecordIdentifier` module state. Replaced inline delete handler with `setupDeleteRecordFlow()` that opens the new modal, gates the confirm button on `value.trim().toLowerCase() === 'delete'`, and calls the existing DELETE endpoint. Removed all `window.confirm()` / `window.alert()` calls. |
+| `static/admin.html` | Added `#permanentDeleteConfirmModal` typing-confirm modal alongside the existing `#deleteConfirmModal`. |
+| `static/js/admin-users.js` | Added `currentDeleteUserName`, `permanentDeleteConfirmModal` module state. `confirmHardDeleteBtn` click now hides the chooser and calls `openPermanentDeleteModal()`. New `setupPermanentDeleteFlow()` validates the typed input, calls `deleteUser(id, true)`, and reloads the table on success. Removed the `window.confirm()` extra prompt. |
+
+### Verified
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- Branch: `feature/registrar-fix`
+- No backend or DB changes; this is purely a stricter UX guardrail in front of the existing DELETE endpoints.
+
+### Items Completed (continued)
+3. **Emoji cleanup across the static frontend** — Removed visible emoji glyphs from user-facing pages and JS, leaving only the third-party `datatables.min.js` / `datatables.min.css` files (which are vendored libraries) untouched. Specifically:
+   - `registrar.html` and `trainer.html`: removed the `✏️` and `🚪` glyphs (and their wrapping `<span class="dropdown-icon">`) from the **Edit Account** and **Log Out** dropdown items.
+   - `index.html`: removed the `✅` from the post-logout notification banner.
+   - `student-portal.html`: removed the `⚠️` from the "Existing Record Found" alert title.
+   - `student-details.js`: replaced all `✓` checkmark prefixes used as upload-status markers with the literal word `Uploaded:`. The `startsWith('✓')` validator check on `baptCertStatus` was updated to `startsWith('Uploaded:')` so the gating logic is preserved.
+
+### Files Changed (continued)
+| File | Change |
+|------|--------|
+| `static/registrar.html` | Removed `<span class="dropdown-icon">✏️</span>` and `<span class="dropdown-icon">🚪</span>` from the account dropdown items. |
+| `static/trainer.html` | Same removals as registrar.html. |
+| `static/index.html` | Dropped `✅ ` prefix from the logout notification text. |
+| `static/student-portal.html` | Dropped `⚠️ ` prefix from the duplicate-record alert. |
+| `static/js/student-details.js` | Replaced 3 occurrences of `` `✓ ${...}` `` with `` `Uploaded: ${...}` ``; updated the `startsWith('✓')` check in the baptismal-cert validator to `startsWith('Uploaded:')` so the logic still detects an already-uploaded file. |
+
+## Previous Session (May 7, 2026 — Bugs & Registrar Features)
+
+### Items Completed
+1. **Feature 2 — "Not Available" instead of literal "null"** — `renderNullable()`, `renderStatusBadge()` null case, and `setText()` in `registrar-students.js` all show the styled italic "Not Available" span.
+
+2. **Bug 3 — Remove ID Photo as required field** — Removed asterisk from label in `student-details.html`; removed the ID photo required check from `STEP_CUSTOM_VALIDATORS`.
+
+3. **Bug 2 — Parents/Guardian in Registrar view and edit** — Backend: `StudentRecordDetailsResponse` and `StudentRecordUpdateRequest` each gained `father`, `mother`, `guardian` fields. `RegistrarService.buildDetailsResponse()` loads parent/guardian rows from repos. `updateRecord()` calls `saveParents()` and `saveGuardian()`. Frontend view: Father/Mother/Guardian detail-grid sections added to `registrar.html` modal; `registrar-students.js` populates all 24 sub-fields in `loadRecordDetails()`. Frontend edit: Father/Mother/Guardian form sections added to `student-records.html`; `registrar-student-records-edit.js` `populateForm()` and `buildPayload()` updated.
+
+4. **Feature 1 — Delete student record** — Backend: `RegistrarService.deleteRecord()` deletes uploads (physical + DB), all child rows in FK order, then the parent row. `RegistrarController` exposes `DELETE /{recordId}`. Frontend: Delete button added to modal footer in `registrar.html`; `registrar-students.js` shows `window.confirm()`, calls DELETE API, hides modal, reloads table.
+
+5. **Feature 3 — Auto-assign batch on submit** — `BatchRepository.findFirstByBatchYear(Short)` added. `StudentDetailsService.submitEnrollment()` auto-assigns the current-year batch if none is set.
+
+6. **Bug 1 — Defer file uploads to submit** — `setupFileInput()` rewritten to store `File` in `pendingIdPhoto`/`pendingBaptCert`, show local FileReader preview, and display "Selected: filename" status without any network request. `submitForm()` uploads pending files after the JSON submit succeeds. Baptism cert validator updated: accepts `pendingBaptCert !== null` as sufficient.
+
+### Files Changed (this session)
+| File | Change |
+|------|--------|
+| `dto/registrar/StudentRecordDetailsResponse.java` | Added `father`, `mother`, `guardian` fields; new 7-arg `from()` factory; 4-arg and 1-arg delegates |
+| `dto/registrar/StudentRecordUpdateRequest.java` | Added `father`, `mother`, `guardian` optional fields |
+| `service/RegistrarService.java` | Constructor expanded to 12-arg (+parent/guardian/education/upload repos + StorageService); `buildDetailsResponse()` loads parents/guardian; `updateRecord()` calls `saveParents`/`saveGuardian`; new `deleteRecord()` with full FK cascade deletion |
+| `controller/RegistrarController.java` | Added `DELETE /{recordId}` endpoint with system log |
+| `repository/StudentUploadRepository.java` | Added `findByStudentId()` and `deleteByStudentId()` |
+| `repository/StudentRecordRepository.java` | Added native `deleteDocumentsByStudentId()` and `deleteGradesByStudentId()` |
+| `repository/BatchRepository.java` | Added `findFirstByBatchYear(Short)` |
+| `service/StudentDetailsService.java` | Constructor +`BatchRepository`; `submitEnrollment()` auto-assigns current-year batch |
+| `test/service/StudentDetailsServiceTest.java` | Added `@Mock BatchRepository batchRepo` |
+| `test/service/RegistrarBulkLoadTest.java` | Added 5 new `@Mock` fields for expanded 12-arg constructor |
+| `static/registrar.html` | Father/Mother/Guardian detail-grid sections in modal; Delete button in footer |
+| `static/js/registrar-students.js` | `currentRecordId` state; `loadRecordDetails()` populates 24 parent/guardian fields; delete button handler |
+| `static/student-records.html` | Father/Mother/Guardian form sections added; JS cache bumped to `?v=3` |
+| `static/js/registrar-student-records-edit.js` | `populateForm()` fills parent/guardian fields; `buildParent()`/`buildGuardian()` helpers; `buildPayload()` includes them |
+| `static/js/student-details.js` | `setupFileInput()` defers to pending vars; `submitForm()` uploads after JSON submit; baptism cert validator accepts `pendingBaptCert` |
+| `static/student-details.html` | Removed `*` from ID Photo label |
+
+### Verified
+- `./gradlew test` → BUILD SUCCESSFUL (all tests pass, no regressions)
+- Branch: `feature/registrar-fix`
+
+## Previous Session (May 6, 2026 — Registrar Enhancements)
 
 ### Features Implemented
 1. **Status filter on `registrar.html`** — new `<select id="studentStatusFilter">` in the filter bar (All / Enrolling / Submitted / Active / Graduated). `buildAjaxUrl()` appends `?status=` when non-empty; Reset clears the select. Backend: `RegistrarController` forwards `status` param; `RegistrarService.getAllRecords` gains a 4-arg overload with case-insensitive status filter. Older 2-arg and 3-arg overloads delegate to the new one.

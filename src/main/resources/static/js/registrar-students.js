@@ -2,6 +2,9 @@
     'use strict';
 
     let detailsModal = null;
+    let deleteConfirmModal = null;
+    let currentRecordId = null;
+    let currentRecordIdentifier = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -18,14 +21,14 @@
 
     function renderNullable(value) {
         if (isBlank(value)) {
-            return 'null';
+            return '<span class="text-muted fst-italic">Not Available</span>';
         }
         return escapeHtml(value);
     }
 
     function renderStatusBadge(status) {
         if (isBlank(status)) {
-            return '<span class="status-badge status-badge-disabled">null</span>';
+            return '<span class="status-badge status-badge-disabled">Not Available</span>';
         }
         let cls;
         if (status === 'Active') {
@@ -43,7 +46,7 @@
     function setText(id, value) {
         const el = document.getElementById(id);
         if (el) {
-            el.textContent = isBlank(value) ? 'null' : value;
+            el.textContent = isBlank(value) ? 'Not Available' : value;
         }
     }
 
@@ -96,6 +99,41 @@
         setText('detailsEnrollmentDate', r.enrollmentDate);
         setText('detailsStudentStatus', r.studentStatus);
 
+        const f = r.father || {};
+        setText('detailsFatherFamilyName', f.familyName);
+        setText('detailsFatherFirstName',  f.firstName);
+        setText('detailsFatherMiddleName', f.middleName);
+        setText('detailsFatherBirthdate',  f.birthdate);
+        setText('detailsFatherOccupation', f.occupation);
+        setText('detailsFatherEstIncome',  f.estIncome);
+        setText('detailsFatherContactNo',  f.contactNo);
+        setText('detailsFatherEmail',      f.email);
+        setText('detailsFatherAddress',    f.address);
+
+        const m = r.mother || {};
+        setText('detailsMotherFamilyName', m.familyName);
+        setText('detailsMotherFirstName',  m.firstName);
+        setText('detailsMotherMiddleName', m.middleName);
+        setText('detailsMotherBirthdate',  m.birthdate);
+        setText('detailsMotherOccupation', m.occupation);
+        setText('detailsMotherEstIncome',  m.estIncome);
+        setText('detailsMotherContactNo',  m.contactNo);
+        setText('detailsMotherEmail',      m.email);
+        setText('detailsMotherAddress',    m.address);
+
+        const g = r.guardian || {};
+        setText('detailsGuardianRelation',   g.relation);
+        setText('detailsGuardianLastName',   g.lastName);
+        setText('detailsGuardianFirstName',  g.firstName);
+        setText('detailsGuardianMiddleName', g.middleName);
+        setText('detailsGuardianBirthdate',  g.birthdate);
+        setText('detailsGuardianAddress',    g.address);
+
+        currentRecordId = r.recordId;
+        currentRecordIdentifier = r.studentId
+            ? (r.studentId + ' (' + (r.lastName || '') + ', ' + (r.firstName || '') + ')')
+            : ('Record #' + r.recordId);
+
         const editLink = document.getElementById('studentDetailsEditLink');
         if (editLink) {
             editLink.href = 'student-records.html?id=' + encodeURIComponent(r.recordId);
@@ -138,6 +176,10 @@
         }
 
         detailsModal = new bootstrap.Modal(document.getElementById('studentRecordDetailsModal'));
+        const deleteConfirmEl = document.getElementById('deleteRecordConfirmModal');
+        if (deleteConfirmEl) {
+            deleteConfirmModal = new bootstrap.Modal(deleteConfirmEl);
+        }
 
         const dataTable = window.jQuery('#studentRecordsTable').DataTable({
             ajax: {
@@ -228,5 +270,93 @@
                 });
             });
         }
+
+        setupDeleteRecordFlow(dataTable);
     });
+
+    function setupDeleteRecordFlow(dataTable) {
+        const deleteBtn = document.getElementById('deleteRecordBtn');
+        const confirmInput = document.getElementById('deleteRecordConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteRecordBtn');
+        const identifierEl = document.getElementById('deleteRecordIdentifier');
+        const resultAlert = document.getElementById('deleteRecordResultAlert');
+        const modalEl = document.getElementById('deleteRecordConfirmModal');
+
+        if (!deleteBtn || !confirmInput || !confirmBtn || !deleteConfirmModal) return;
+
+        deleteBtn.addEventListener('click', function () {
+            if (!currentRecordId) return;
+            if (identifierEl) {
+                identifierEl.textContent = currentRecordIdentifier || ('Record #' + currentRecordId);
+            }
+            confirmInput.value = '';
+            confirmBtn.disabled = true;
+            if (resultAlert) {
+                resultAlert.classList.add('d-none');
+                resultAlert.textContent = '';
+            }
+            detailsModal.hide();
+            deleteConfirmModal.show();
+        });
+
+        confirmInput.addEventListener('input', function () {
+            confirmBtn.disabled = confirmInput.value.trim().toLowerCase() !== 'delete';
+        });
+
+        confirmBtn.addEventListener('click', async function () {
+            if (!currentRecordId) return;
+            if (confirmInput.value.trim().toLowerCase() !== 'delete') return;
+
+            confirmBtn.disabled = true;
+            const originalLabel = confirmBtn.textContent;
+            confirmBtn.textContent = 'Deleting...';
+
+            try {
+                const res = await fetch('/api/registrar/student-records/' + encodeURIComponent(currentRecordId), {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) {
+                    const msg = await res.text().catch(function () { return 'Delete failed.'; });
+                    if (resultAlert) {
+                        resultAlert.className = 'alert alert-danger mt-3';
+                        resultAlert.textContent = msg || 'Delete failed.';
+                        resultAlert.classList.remove('d-none');
+                    }
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = originalLabel;
+                    return;
+                }
+                if (resultAlert) {
+                    resultAlert.className = 'alert alert-success mt-3';
+                    resultAlert.textContent = 'Student record deleted successfully.';
+                    resultAlert.classList.remove('d-none');
+                }
+                window.setTimeout(function () {
+                    deleteConfirmModal.hide();
+                    dataTable.ajax.reload(null, false);
+                }, 900);
+            } catch (err) {
+                if (resultAlert) {
+                    resultAlert.className = 'alert alert-danger mt-3';
+                    resultAlert.textContent = 'Network error. Could not delete the record.';
+                    resultAlert.classList.remove('d-none');
+                }
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = originalLabel;
+            }
+        });
+
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                confirmInput.value = '';
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Permanently Delete';
+                if (resultAlert) {
+                    resultAlert.classList.add('d-none');
+                    resultAlert.textContent = '';
+                }
+            });
+        }
+    }
 })();

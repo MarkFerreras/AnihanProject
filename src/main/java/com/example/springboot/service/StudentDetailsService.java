@@ -19,6 +19,7 @@ import com.example.springboot.model.StudentEducation;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
 import com.example.springboot.model.StudentUpload;
+import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
@@ -35,6 +36,7 @@ public class StudentDetailsService {
     private final StudentEducationRepository educationRepo;
     private final StudentSchoolYearRepository schoolYearRepo;
     private final StudentUploadRepository uploadRepo;
+    private final BatchRepository batchRepo;
 
     public StudentDetailsService(
             StudentRecordRepository studentRecordRepo,
@@ -42,13 +44,15 @@ public class StudentDetailsService {
             OtherGuardianRepository guardianRepo,
             StudentEducationRepository educationRepo,
             StudentSchoolYearRepository schoolYearRepo,
-            StudentUploadRepository uploadRepo) {
+            StudentUploadRepository uploadRepo,
+            BatchRepository batchRepo) {
         this.studentRecordRepo = studentRecordRepo;
         this.parentRepo = parentRepo;
         this.guardianRepo = guardianRepo;
         this.educationRepo = educationRepo;
         this.schoolYearRepo = schoolYearRepo;
         this.uploadRepo = uploadRepo;
+        this.batchRepo = batchRepo;
     }
 
     /**
@@ -104,6 +108,13 @@ public class StudentDetailsService {
         applyPersonal(record, req);
         applyReligion(record, req);
         record.setStudentStatus("Submitted");
+
+        // Auto-assign batch for the current year if one exists and no batch is set
+        if (record.getBatch() == null) {
+            short currentYear = (short) LocalDate.now().getYear();
+            batchRepo.findFirstByBatchYear(currentYear).ifPresent(record::setBatch);
+        }
+
         studentRecordRepo.save(record);
 
         applyFamily(record, req);
