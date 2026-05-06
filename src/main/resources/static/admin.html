@@ -360,6 +360,43 @@
         </div>
     </div>
 
+    <!-- ===== PERMANENT DELETE TYPING CONFIRMATION MODAL ===== -->
+    <div class="modal fade delete-confirm-modal" id="permanentDeleteConfirmModal" tabindex="-1"
+        aria-labelledby="permanentDeleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="permanentDeleteConfirmModalLabel">Permanently Delete Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">
+                        You are about to permanently delete the account for
+                        <strong id="permanentDeleteUserName">this user</strong>, along with all associated
+                        records and history.
+                    </p>
+                    <div class="danger-zone">
+                        <p><strong>This action cannot be undone.</strong> Once deleted, the account cannot be recovered.</p>
+                    </div>
+                    <div class="mt-3">
+                        <label for="permanentDeleteConfirmInput" class="form-label">
+                            To confirm, type <strong>delete</strong> below:
+                        </label>
+                        <input type="text" class="form-control" id="permanentDeleteConfirmInput"
+                            placeholder="Type 'delete' to enable the button" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="alert d-none mt-3" id="permanentDeleteResultAlert" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-permanent-delete" id="confirmPermanentDeleteBtn" disabled>
+                        Permanently Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>

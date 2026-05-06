@@ -1,5 +1,14 @@
 # Progress - Anihan SRMS
 
+## Strict Type-to-Confirm Delete Modals (Completed — May 7, 2026)
+- [x] **Registrar — `deleteRecordConfirmModal`**: New Bootstrap modal in `registrar.html` requiring the user to type `delete` before the Permanently Delete button is enabled; replaces `window.confirm()` and `window.alert()` in `registrar-students.js`.
+- [x] **Registrar — modal lifecycle**: Reset input + button state on `hidden.bs.modal`; show identifier (Student ID + last/first name) inside the modal.
+- [x] **Admin — `permanentDeleteConfirmModal`**: New typing-confirm modal in `admin.html` alongside the existing soft/hard chooser; opens when **Permanently Delete** is clicked.
+- [x] **Admin — wiring**: `admin-users.js` now hides `deleteConfirmModal` and opens `permanentDeleteConfirmModal` instead of using `window.confirm()`. Soft delete (deactivate) flow unchanged.
+- [x] **Admin — modal lifecycle**: Reset input + button state on `hidden.bs.modal`; show username inside the modal.
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
+- [x] Branch: `feature/registrar-fix`
+
 ## Bugs & Registrar Features — Parents/Guardian, Delete, Deferred Uploads (Completed — May 7, 2026)
 - [x] **Feature 2**: "Not Available" replaces literal "null" in registrar table and modal (`renderNullable`, `renderStatusBadge`, `setText`)
 - [x] **Bug 3**: ID Photo no longer a required field — asterisk removed from label, validator removed

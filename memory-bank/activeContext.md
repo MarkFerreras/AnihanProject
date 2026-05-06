@@ -1,12 +1,32 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Bugs & Registrar Features — Parents/Guardian, Deferred Uploads, Delete, Not Available (2026-05-07)**
+**Strict Type-to-Confirm Delete Modals (2026-05-07)**
 
 ## Active Branch
 `feature/registrar-fix`
 
-## Latest Session (May 7, 2026 — Bugs & Registrar Features)
+## Latest Session (May 7, 2026 — Strict Type-to-Confirm Delete Modals)
+
+### Items Completed
+1. **Registrar — Strict delete confirmation modal** — Replaced the `window.confirm()` alert in the student record delete flow with a Bootstrap modal that requires the user to type the literal word `delete` (case-insensitive, trimmed) before the **Permanently Delete** button becomes enabled. The modal opens in place of the details modal, shows the student's identifier (Student ID + name), and surfaces success/error feedback inline instead of via `window.alert()`.
+
+2. **Admin — Strict permanent-delete confirmation modal** — Added a second confirmation modal (`#permanentDeleteConfirmModal`) on `admin.html` and rewired `admin-users.js` so that clicking **Permanently Delete** in the existing soft/hard chooser opens the new typing-confirm modal instead of the old `window.confirm()` JS alert. Soft-delete (Deactivate Account) is unchanged because it is reversible. The new modal echoes the username being removed, requires typing `delete`, and shows result feedback inline.
+
+### Files Changed (this session)
+| File | Change |
+|------|--------|
+| `static/registrar.html` | Added `#deleteRecordConfirmModal` typing-confirm modal above the footer. |
+| `static/js/registrar-students.js` | Added `deleteConfirmModal`, `currentRecordIdentifier` module state. Replaced inline delete handler with `setupDeleteRecordFlow()` that opens the new modal, gates the confirm button on `value.trim().toLowerCase() === 'delete'`, and calls the existing DELETE endpoint. Removed all `window.confirm()` / `window.alert()` calls. |
+| `static/admin.html` | Added `#permanentDeleteConfirmModal` typing-confirm modal alongside the existing `#deleteConfirmModal`. |
+| `static/js/admin-users.js` | Added `currentDeleteUserName`, `permanentDeleteConfirmModal` module state. `confirmHardDeleteBtn` click now hides the chooser and calls `openPermanentDeleteModal()`. New `setupPermanentDeleteFlow()` validates the typed input, calls `deleteUser(id, true)`, and reloads the table on success. Removed the `window.confirm()` extra prompt. |
+
+### Verified
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- Branch: `feature/registrar-fix`
+- No backend or DB changes; this is purely a stricter UX guardrail in front of the existing DELETE endpoints.
+
+## Previous Session (May 7, 2026 — Bugs & Registrar Features)
 
 ### Items Completed
 1. **Feature 2 — "Not Available" instead of literal "null"** — `renderNullable()`, `renderStatusBadge()` null case, and `setText()` in `registrar-students.js` all show the styled italic "Not Available" span.

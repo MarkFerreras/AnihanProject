@@ -2,7 +2,9 @@
     'use strict';
 
     let detailsModal = null;
+    let deleteConfirmModal = null;
     let currentRecordId = null;
+    let currentRecordIdentifier = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -128,6 +130,9 @@
         setText('detailsGuardianAddress',    g.address);
 
         currentRecordId = r.recordId;
+        currentRecordIdentifier = r.studentId
+            ? (r.studentId + ' (' + (r.lastName || '') + ', ' + (r.firstName || '') + ')')
+            : ('Record #' + r.recordId);
 
         const editLink = document.getElementById('studentDetailsEditLink');
         if (editLink) {
@@ -171,6 +176,10 @@
         }
 
         detailsModal = new bootstrap.Modal(document.getElementById('studentRecordDetailsModal'));
+        const deleteConfirmEl = document.getElementById('deleteRecordConfirmModal');
+        if (deleteConfirmEl) {
+            deleteConfirmModal = new bootstrap.Modal(deleteConfirmEl);
+        }
 
         const dataTable = window.jQuery('#studentRecordsTable').DataTable({
             ajax: {
@@ -262,27 +271,92 @@
             });
         }
 
+        setupDeleteRecordFlow(dataTable);
+    });
+
+    function setupDeleteRecordFlow(dataTable) {
         const deleteBtn = document.getElementById('deleteRecordBtn');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', async function () {
-                if (!currentRecordId) return;
-                if (!window.confirm('Permanently delete this student record and all associated data? This cannot be undone.')) return;
-                try {
-                    const res = await fetch('/api/registrar/student-records/' + encodeURIComponent(currentRecordId), {
-                        method: 'DELETE',
-                        credentials: 'same-origin'
-                    });
-                    if (!res.ok) {
-                        const msg = await res.text().catch(() => 'Delete failed.');
-                        window.alert('Error: ' + msg);
-                        return;
+        const confirmInput = document.getElementById('deleteRecordConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteRecordBtn');
+        const identifierEl = document.getElementById('deleteRecordIdentifier');
+        const resultAlert = document.getElementById('deleteRecordResultAlert');
+        const modalEl = document.getElementById('deleteRecordConfirmModal');
+
+        if (!deleteBtn || !confirmInput || !confirmBtn || !deleteConfirmModal) return;
+
+        deleteBtn.addEventListener('click', function () {
+            if (!currentRecordId) return;
+            if (identifierEl) {
+                identifierEl.textContent = currentRecordIdentifier || ('Record #' + currentRecordId);
+            }
+            confirmInput.value = '';
+            confirmBtn.disabled = true;
+            if (resultAlert) {
+                resultAlert.classList.add('d-none');
+                resultAlert.textContent = '';
+            }
+            detailsModal.hide();
+            deleteConfirmModal.show();
+        });
+
+        confirmInput.addEventListener('input', function () {
+            confirmBtn.disabled = confirmInput.value.trim().toLowerCase() !== 'delete';
+        });
+
+        confirmBtn.addEventListener('click', async function () {
+            if (!currentRecordId) return;
+            if (confirmInput.value.trim().toLowerCase() !== 'delete') return;
+
+            confirmBtn.disabled = true;
+            const originalLabel = confirmBtn.textContent;
+            confirmBtn.textContent = 'Deleting...';
+
+            try {
+                const res = await fetch('/api/registrar/student-records/' + encodeURIComponent(currentRecordId), {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) {
+                    const msg = await res.text().catch(function () { return 'Delete failed.'; });
+                    if (resultAlert) {
+                        resultAlert.className = 'alert alert-danger mt-3';
+                        resultAlert.textContent = msg || 'Delete failed.';
+                        resultAlert.classList.remove('d-none');
                     }
-                    detailsModal.hide();
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = originalLabel;
+                    return;
+                }
+                if (resultAlert) {
+                    resultAlert.className = 'alert alert-success mt-3';
+                    resultAlert.textContent = 'Student record deleted successfully.';
+                    resultAlert.classList.remove('d-none');
+                }
+                window.setTimeout(function () {
+                    deleteConfirmModal.hide();
                     dataTable.ajax.reload(null, false);
-                } catch {
-                    window.alert('Network error. Could not delete the record.');
+                }, 900);
+            } catch (err) {
+                if (resultAlert) {
+                    resultAlert.className = 'alert alert-danger mt-3';
+                    resultAlert.textContent = 'Network error. Could not delete the record.';
+                    resultAlert.classList.remove('d-none');
+                }
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = originalLabel;
+            }
+        });
+
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                confirmInput.value = '';
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Permanently Delete';
+                if (resultAlert) {
+                    resultAlert.classList.add('d-none');
+                    resultAlert.textContent = '';
                 }
             });
         }
-    });
+    }
 })();
