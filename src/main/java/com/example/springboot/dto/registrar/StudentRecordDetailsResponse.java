@@ -1,7 +1,11 @@
 package com.example.springboot.dto.registrar;
 
 import java.time.LocalDate;
+import java.util.List;
 
+import com.example.springboot.dto.student.OjtDto;
+import com.example.springboot.dto.student.SchoolYearDto;
+import com.example.springboot.dto.student.TesdaQualDto;
 import com.example.springboot.model.StudentRecord;
 
 public record StudentRecordDetailsResponse(
@@ -29,10 +33,16 @@ public record StudentRecordDetailsResponse(
         String courseCode,
         String sectionCode,
         LocalDate enrollmentDate,
-        String studentStatus
+        String studentStatus,
+        OjtDto ojt,
+        List<TesdaQualDto> tesdaQualifications,
+        List<SchoolYearDto> schoolYears
 ) {
 
-    public static StudentRecordDetailsResponse from(StudentRecord r) {
+    public static StudentRecordDetailsResponse from(StudentRecord r,
+                                                    OjtDto ojt,
+                                                    List<TesdaQualDto> tesdaQualifications,
+                                                    List<SchoolYearDto> schoolYears) {
         return new StudentRecordDetailsResponse(
                 r.getRecordId(),
                 r.getStudentId(),
@@ -58,7 +68,14 @@ public record StudentRecordDetailsResponse(
                 r.getCourse() != null ? r.getCourse().getCourseCode() : null,
                 r.getSection() != null ? r.getSection().getSectionCode() : null,
                 r.getEnrollmentDate(),
-                r.getStudentStatus()
+                r.getStudentStatus(),
+                ojt,
+                tesdaQualifications != null ? tesdaQualifications : List.of(),
+                schoolYears != null ? schoolYears : List.of()
         );
+    }
+
+    public static StudentRecordDetailsResponse from(StudentRecord r) {
+        return from(r, null, List.of(), List.of());
     }
 }

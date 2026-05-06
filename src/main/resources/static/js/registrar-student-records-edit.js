@@ -103,6 +103,10 @@
             field.addEventListener('change', markDirty);
         });
 
+        // Delegation covers dynamically-added school year rows
+        form.addEventListener('input', markDirty);
+        form.addEventListener('change', markDirty);
+
         window.addEventListener('beforeunload', function (event) {
             if (!isDirty || allowNavigation) return;
             event.preventDefault();
@@ -158,6 +162,53 @@
         ]);
     }
 
+    // ----- School year row management -----
+
+    function createSchoolYearRow(sy) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="text" class="form-control form-control-sm sy-start" value="' + esc(sy.syStart) + '" placeholder="e.g. 2024"></td>' +
+            '<td><input type="text" class="form-control form-control-sm sem-start" value="' + esc(sy.semStart) + '" placeholder="1st"></td>' +
+            '<td><input type="text" class="form-control form-control-sm sy-end" value="' + esc(sy.syEnd) + '" placeholder="e.g. 2025"></td>' +
+            '<td><input type="text" class="form-control form-control-sm sem-end" value="' + esc(sy.semEnd) + '" placeholder="2nd"></td>' +
+            '<td><input type="text" class="form-control form-control-sm sy-remarks" value="' + esc(sy.remarks) + '"></td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-sy-row">Remove</button></td>';
+        return tr;
+    }
+
+    function esc(v) {
+        if (v === null || v === undefined) return '';
+        return String(v)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function setupSchoolYearHandlers() {
+        const addBtn = document.getElementById('addSchoolYearRowBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', function () {
+                const body = document.getElementById('schoolYearsBody');
+                if (body) {
+                    body.appendChild(createSchoolYearRow({}));
+                    markDirty();
+                }
+            });
+        }
+
+        const body = document.getElementById('schoolYearsBody');
+        if (body) {
+            body.addEventListener('click', function (event) {
+                const btn = event.target.closest('.remove-sy-row');
+                if (btn) {
+                    btn.closest('tr').remove();
+                    markDirty();
+                }
+            });
+        }
+    }
+
     // ----- Form population -----
 
     function populateForm(r) {
@@ -187,6 +238,78 @@
         setVal('editSectionCode', r.sectionCode);
         setVal('editEnrollmentDate', r.enrollmentDate || 'Not set');
         updateAgeDisplay();
+
+        // OJT
+        const ojt = r.ojt || {};
+        setVal('editOjtCompanyName', ojt.companyName);
+        setVal('editOjtCompanyAddress', ojt.companyAddress);
+        setVal('editOjtHoursRendered', ojt.hoursRendered !== null && ojt.hoursRendered !== undefined ? ojt.hoursRendered : '');
+
+        // TESDA — 3 fixed slots, keyed by slot number
+        const tesdaBySlot = {};
+        (r.tesdaQualifications || []).forEach(function (q) { tesdaBySlot[q.slot] = q; });
+        [1, 2, 3].forEach(function (slot) {
+            const q = tesdaBySlot[slot] || {};
+            setVal('editTesdaTitle' + slot, q.title);
+            setVal('editTesdaCenter' + slot, q.centerAddress);
+            setVal('editTesdaDate' + slot, q.assessmentDate || '');
+            setVal('editTesdaResult' + slot, q.result);
+        });
+
+        // School Years — dynamic rows
+        const syBody = document.getElementById('schoolYearsBody');
+        if (syBody) {
+            syBody.innerHTML = '';
+            (r.schoolYears || []).forEach(function (sy) {
+                syBody.appendChild(createSchoolYearRow(sy));
+            });
+        }
+    }
+
+    // ----- Payload builder -----
+
+    function buildOjt() {
+        const companyName = getTrimmed('editOjtCompanyName');
+        const companyAddress = getTrimmed('editOjtCompanyAddress');
+        const hoursStr = getTrimmed('editOjtHoursRendered');
+        if (!companyName && !companyAddress && !hoursStr) return null;
+        return {
+            companyName: companyName || null,
+            companyAddress: companyAddress || null,
+            hoursRendered: hoursStr !== '' ? Number(hoursStr) : null
+        };
+    }
+
+    function buildTesdaSlot(slot) {
+        const title = getTrimmed('editTesdaTitle' + slot);
+        const center = getTrimmed('editTesdaCenter' + slot);
+        const date = getNullableDate('editTesdaDate' + slot);
+        const result = getTrimmed('editTesdaResult' + slot);
+        if (!title && !center && !date && !result) return null;
+        return { slot: slot, title: title || null, centerAddress: center || null, assessmentDate: date, result: result || null };
+    }
+
+    function buildSchoolYearRows() {
+        const rows = [];
+        const body = document.getElementById('schoolYearsBody');
+        if (!body) return rows;
+        body.querySelectorAll('tr').forEach(function (tr) {
+            const syStart = (tr.querySelector('.sy-start') || {}).value || '';
+            const semStart = (tr.querySelector('.sem-start') || {}).value || '';
+            const syEnd = (tr.querySelector('.sy-end') || {}).value || '';
+            const semEnd = (tr.querySelector('.sem-end') || {}).value || '';
+            const remarks = (tr.querySelector('.sy-remarks') || {}).value || '';
+            if (!syStart.trim() && !semStart.trim() && !syEnd.trim() && !semEnd.trim() && !remarks.trim()) return;
+            rows.push({
+                rowIndex: rows.length + 1,
+                syStart: syStart.trim() || null,
+                semStart: semStart.trim() || null,
+                syEnd: syEnd.trim() || null,
+                semEnd: semEnd.trim() || null,
+                remarks: remarks.trim() || null
+            });
+        });
+        return rows;
     }
 
     function buildPayload() {
@@ -212,7 +335,10 @@
             batchCode: getTrimmed('editBatchCode') || null,
             courseCode: getTrimmed('editCourseCode') || null,
             sectionCode: getTrimmed('editSectionCode') || null,
-            studentStatus: getTrimmed('editStudentStatus')
+            studentStatus: getTrimmed('editStudentStatus'),
+            ojt: buildOjt(),
+            tesdaQualifications: [1, 2, 3].map(buildTesdaSlot).filter(function (s) { return s !== null; }),
+            schoolYears: buildSchoolYearRows()
         };
     }
 
@@ -293,6 +419,7 @@
             return;
         }
 
+        setupSchoolYearHandlers();
         setupDirtyTracking();
 
         const saveBtn = document.getElementById('saveRecordBtn');

@@ -1,5 +1,19 @@
 # Progress - Anihan SRMS
 
+## Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears Edit Form (Completed — May 6, 2026)
+- [x] Status filter (`<select>`) added to registrar home filter bar — All / Enrolling / Submitted / Active / Graduated
+- [x] `RegistrarService.getAllRecords` 4-arg overload with case-insensitive status filter; older overloads delegate to it
+- [x] `RegistrarController` forwards `?status=` param to service
+- [x] `StudentRecordDetailsResponse` + `StudentRecordUpdateRequest` each gained `ojt`, `tesdaQualifications`, `schoolYears` fields
+- [x] `RegistrarService.updateRecord()` made `@Transactional`; persists OJT (upsert/delete), TESDA (delete+flush+insert), SchoolYears (delete+flush+insert with reassigned rowIndex)
+- [x] `getRecordById()` now loads OJT, TESDA, SchoolYears and returns them in the response
+- [x] `student-records.html` edit form: OJT section, 3-slot TESDA fieldsets, dynamic SchoolYears table with Add/Remove row
+- [x] `registrar-student-records-edit.js`: extended `populateForm`, `buildPayload`, school year row handlers, form-level dirty delegation for dynamic inputs
+- [x] `RegistrarBulkLoadTest`: 3 new `@Mock` repos, new `statusFilterRestrictsResultsByStudentStatus` test
+- [x] `RegistrarBulkLoadWebMvcTest`: all 3 stubs updated from 3-arg to 4-arg `getAllRecords`
+- [x] `./gradlew test` → BUILD SUCCESSFUL (all tests pass, no regressions)
+- [x] Branch: `feature/registrar-fixes`
+
 ## Student Portal Enrollment Flow Fix (Completed — May 5, 2026)
 - [x] **RC-1 (CRITICAL):** Fixed premature DB persistence — `startOrResume()` now creates name+status only (minimal record for upload FK)
 - [x] **RC-2 (CRITICAL):** Removed `saveDraft()` on every Next click — data stays in browser until final submit

@@ -1,6 +1,11 @@
 package com.example.springboot.dto.registrar;
 
 import java.time.LocalDate;
+import java.util.List;
+
+import com.example.springboot.dto.student.OjtDto;
+import com.example.springboot.dto.student.SchoolYearDto;
+import com.example.springboot.dto.student.TesdaQualDto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
@@ -40,6 +45,10 @@ public record StudentRecordUpdateRequest(
         String courseCode,
         String sectionCode,
         @NotBlank(message = "Status is required")
-        String studentStatus
+        String studentStatus,
+
+        OjtDto ojt,
+        List<TesdaQualDto> tesdaQualifications,
+        List<SchoolYearDto> schoolYears
 ) {
 }

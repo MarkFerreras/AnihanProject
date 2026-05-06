@@ -110,6 +110,14 @@
                         <label for="batchToYear" class="filter-label">To</label>
                         <input type="number" class="form-control form-control-sm" id="batchToYear"
                                min="1980" max="2100" placeholder="e.g. 2026">
+                        <label for="studentStatusFilter" class="filter-label">Status</label>
+                        <select class="form-select form-select-sm" id="studentStatusFilter" style="width:auto;">
+                            <option value="">All</option>
+                            <option value="Enrolling">Enrolling</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="Active">Active</option>
+                            <option value="Graduated">Graduated</option>
+                        </select>
                         <button class="btn btn-filter-apply" id="batchFilterApplyBtn" type="button">Apply</button>
                         <button class="btn btn-filter-reset" id="batchFilterResetBtn" type="button">Reset</button>
                     </div>

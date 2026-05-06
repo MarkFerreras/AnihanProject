@@ -60,7 +60,7 @@ class RegistrarBulkLoadWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void getRecordsReturnsTwoHundredRecordsAsJson() throws Exception {
-        when(registrarService.getAllRecords(isNull(), isNull(), isNull()))
+        when(registrarService.getAllRecords(isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(buildSummaryList(200));
 
         long startMs = System.currentTimeMillis();
@@ -88,7 +88,7 @@ class RegistrarBulkLoadWebMvcTest {
                 new StudentRecordSummaryResponse(43, "STU-42", "Last_42", "First_42",
                         "BATCH-42", "CARS", "SEC-42", "Active")
         );
-        when(registrarService.getAllRecords(eq("Last_42"), isNull(), isNull()))
+        when(registrarService.getAllRecords(eq("Last_42"), isNull(), isNull(), isNull()))
                 .thenReturn(filtered);
 
         mockMvc.perform(get("/api/registrar/student-records").param("q", "Last_42"))
@@ -103,7 +103,7 @@ class RegistrarBulkLoadWebMvcTest {
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void batchYearRangeFilterForwardsParamsToService() throws Exception {
         List<StudentRecordSummaryResponse> filtered = buildSummaryList(50);
-        when(registrarService.getAllRecords(isNull(), eq(2024), eq(2026)))
+        when(registrarService.getAllRecords(isNull(), eq(2024), eq(2026), isNull()))
                 .thenReturn(filtered);
 
         mockMvc.perform(get("/api/registrar/student-records")
