@@ -9,6 +9,17 @@
 - [x] `./gradlew build -x test` → BUILD SUCCESSFUL
 - [x] Branch: `feature/registrar-fix`
 
+## Emoji Cleanup Across Static Frontend (Completed — May 7, 2026)
+- [x] `registrar.html`: removed `✏️` and `🚪` glyphs (and the wrapping `<span class="dropdown-icon">`) from Edit Account and Log Out dropdown items.
+- [x] `trainer.html`: same removals as registrar.html.
+- [x] `index.html`: removed leading `✅ ` from the logout notification text.
+- [x] `student-portal.html`: removed leading `⚠️ ` from the duplicate-record alert.
+- [x] `student-details.js`: replaced `✓` upload-status prefix with the literal word `Uploaded:` in three render sites; updated the `startsWith('✓')` validator check to `startsWith('Uploaded:')` so the gating logic is preserved.
+- [x] No CSS classes were referencing the removed `dropdown-icon` span — confirmed by grep across `static/css/` and `static/js/`.
+- [x] Vendored DataTables library (`datatables.min.js`, `datatables.min.css`) intentionally untouched.
+- [x] `./gradlew build -x test` → BUILD SUCCESSFUL
+- [x] Branch: `feature/registrar-fix`
+
 ## Bugs & Registrar Features — Parents/Guardian, Delete, Deferred Uploads (Completed — May 7, 2026)
 - [x] **Feature 2**: "Not Available" replaces literal "null" in registrar table and modal (`renderNullable`, `renderStatusBadge`, `setText`)
 - [x] **Bug 3**: ID Photo no longer a required field — asterisk removed from label, validator removed

@@ -51,7 +51,7 @@ const STEP_CUSTOM_VALIDATORS = {
                 errors.push({ id: 'baptismPlace', label: 'Baptism Place', step: 2 });
             }
             const certStatus = document.getElementById('baptCertStatus')?.textContent || '';
-            if (!certStatus.startsWith('✓') && pendingBaptCert === null) {
+            if (!certStatus.startsWith('Uploaded:') && pendingBaptCert === null) {
                 errors.push({ id: 'baptCertFile', label: 'Baptismal Certificate', step: 2 });
             }
         }
@@ -258,7 +258,7 @@ async function uploadPendingFile(file, kind, statusId) {
             return;
         }
         const ref = await res.json();
-        if (statusEl) statusEl.textContent = `✓ ${ref.originalName}`;
+        if (statusEl) statusEl.textContent = `Uploaded: ${ref.originalName}`;
     } catch {
         if (statusEl) statusEl.textContent = 'Upload error.';
     }
@@ -378,13 +378,13 @@ function populateForm(data) {
     }
 
     if (data.idPhotoRef) {
-        document.getElementById('idPhotoStatus').textContent = `✓ ${data.idPhotoRef.originalName}`;
+        document.getElementById('idPhotoStatus').textContent = `Uploaded: ${data.idPhotoRef.originalName}`;
         const img = document.getElementById('idPhotoPreview');
         img.src = `/api/student/files/${data.idPhotoRef.uploadId}`;
         img.classList.add('show');
     }
     if (data.baptismalCertRef) {
-        document.getElementById('baptCertStatus').textContent = `✓ ${data.baptismalCertRef.originalName}`;
+        document.getElementById('baptCertStatus').textContent = `Uploaded: ${data.baptismalCertRef.originalName}`;
         if (data.baptismalCertRef.mimeType !== 'application/pdf') {
             const img = document.getElementById('baptCertPreview');
             img.src = `/api/student/files/${data.baptismalCertRef.uploadId}`;

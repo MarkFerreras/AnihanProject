@@ -26,6 +26,22 @@
 - Branch: `feature/registrar-fix`
 - No backend or DB changes; this is purely a stricter UX guardrail in front of the existing DELETE endpoints.
 
+### Items Completed (continued)
+3. **Emoji cleanup across the static frontend** — Removed visible emoji glyphs from user-facing pages and JS, leaving only the third-party `datatables.min.js` / `datatables.min.css` files (which are vendored libraries) untouched. Specifically:
+   - `registrar.html` and `trainer.html`: removed the `✏️` and `🚪` glyphs (and their wrapping `<span class="dropdown-icon">`) from the **Edit Account** and **Log Out** dropdown items.
+   - `index.html`: removed the `✅` from the post-logout notification banner.
+   - `student-portal.html`: removed the `⚠️` from the "Existing Record Found" alert title.
+   - `student-details.js`: replaced all `✓` checkmark prefixes used as upload-status markers with the literal word `Uploaded:`. The `startsWith('✓')` validator check on `baptCertStatus` was updated to `startsWith('Uploaded:')` so the gating logic is preserved.
+
+### Files Changed (continued)
+| File | Change |
+|------|--------|
+| `static/registrar.html` | Removed `<span class="dropdown-icon">✏️</span>` and `<span class="dropdown-icon">🚪</span>` from the account dropdown items. |
+| `static/trainer.html` | Same removals as registrar.html. |
+| `static/index.html` | Dropped `✅ ` prefix from the logout notification text. |
+| `static/student-portal.html` | Dropped `⚠️ ` prefix from the duplicate-record alert. |
+| `static/js/student-details.js` | Replaced 3 occurrences of `` `✓ ${...}` `` with `` `Uploaded: ${...}` ``; updated the `startsWith('✓')` check in the baptismal-cert validator to `startsWith('Uploaded:')` so the logic still detects an already-uploaded file. |
+
 ## Previous Session (May 7, 2026 — Bugs & Registrar Features)
 
 ### Items Completed

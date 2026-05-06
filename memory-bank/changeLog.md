@@ -1,5 +1,31 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-07 - Emoji Cleanup Across Static Frontend
+**Branch:** `feature/registrar-fix`
+
+### Task
+Remove visible emoji glyphs from user-facing pages and JS, keeping the third-party DataTables library (`datatables.min.js`, `datatables.min.css`) untouched.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/registrar.html` | Removed `<span class="dropdown-icon">✏️</span>` and `<span class="dropdown-icon">🚪</span>` from the Edit Account and Log Out dropdown items. |
+| `static/trainer.html` | Same removals as registrar.html. |
+| `static/index.html` | Dropped the `✅ ` prefix from the logout notification text. |
+| `static/student-portal.html` | Dropped the `⚠️ ` prefix from the duplicate-record alert title. |
+| `static/js/student-details.js` | Replaced 3 occurrences of `` `✓ ${...}` `` with `` `Uploaded: ${...}` ``; updated the baptismal-cert validator's `startsWith('✓')` check to `startsWith('Uploaded:')` so the logic still detects an already-uploaded file. |
+
+### Notes
+- Confirmed via `grep` over `static/css/` and `static/js/` that no CSS or JS code referenced the removed `dropdown-icon` span class — it was decorative only.
+- The character `—` (em dash) used in headers/labels is **not** an emoji and was kept where present.
+- Vendored DataTables library files (`datatables.min.js`, `datatables.min.css`) contain a few non-ASCII chars used internally and were intentionally left as-is.
+
+### Verification
+- `./gradlew build -x test` → BUILD SUCCESSFUL
+- No backend, DTO, or DB changes.
+
+---
+
 ## 2026-05-07 - Strict Type-to-Confirm Delete Modals (Registrar + Admin)
 **Branch:** `feature/registrar-fix`
 
