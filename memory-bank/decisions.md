@@ -1,5 +1,22 @@
 # Decisions - Anihan SRMS
 
+## 2026-05-06 - Delete-All-Then-Insert-New for Registrar Collection Fields (TESDA, SchoolYears)
+
+**Decision**: When the registrar saves OJT, TESDA qualifications, or School Years on the edit form, the persistence strategy for TESDA and SchoolYears is delete-all-then-insert-new (not a diff/merge).
+
+**Alternatives considered**:
+1. Diff existing rows against incoming rows by slot/rowIndex and issue targeted UPDATE/INSERT/DELETE — more efficient for large sets but significantly more complex code; the collections are small (max 3 TESDA slots, typically <10 SchoolYear rows).
+2. Delete-all-then-insert-new with explicit flush — simple, predictable "edit form replaces state" mental model for the registrar.
+3. Clear JPA entity graph and let Hibernate cascade — requires `@OneToMany` on `StudentRecord` and `CascadeType.ALL`, which would change the entity design substantially.
+
+**Why chosen**: Option 2. The registrar's mental model is "what I see on screen is what gets saved." Delete-all-then-insert-new matches this exactly. The collections are too small to make diffing worthwhile. Explicit `flush()` after delete prevents Hibernate from buffering the DELETE past the INSERT within the same `@Transactional`, which would violate the `(student_id, slot)` unique constraint on TESDA.
+
+## 2026-05-06 - OJT Upsert (Not Delete-All-Insert-New)
+
+**Decision**: OJT uses upsert logic — find the existing row by studentId and update in place; if none exists, create new. If all OJT fields are blank, delete the row.
+
+**Why chosen**: OJT is a 1:1 relationship. Upsert preserves the `ojt_id` PK, avoids unnecessary DELETE + INSERT round-trips, and maps cleanly to the "update or create" pattern. There is no unique-constraint concern since there is only ever one row per student.
+
 ## 2026-05-05 - Application Data Lives in the Database, Not in `DataSeeder`
 
 **Decision**: Delete `DataSeeder.java` for good. Use `schema.sql` for one-shot fresh-install seeding (lookup data + 3 user accounts + sample students) and rely on the live database for everything thereafter. The application must not re-seed sample data on every startup.

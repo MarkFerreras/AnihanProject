@@ -49,6 +49,15 @@ class RegistrarBulkLoadTest {
     @Mock
     private SectionRepository sectionRepository;
 
+    @Mock
+    private com.example.springboot.repository.StudentOjtRepository studentOjtRepository;
+
+    @Mock
+    private com.example.springboot.repository.StudentTesdaQualificationRepository tesdaQualRepository;
+
+    @Mock
+    private com.example.springboot.repository.StudentSchoolYearRepository schoolYearRepository;
+
     @InjectMocks
     private RegistrarService registrarService;
 
@@ -146,6 +155,36 @@ class RegistrarBulkLoadTest {
         List<StudentRecordSummaryResponse> all = registrarService.getAllRecords("   ");
         assertEquals(200, all.size(),
                 "Blank query should return all records");
+    }
+
+    @Test
+    void statusFilterRestrictsResultsByStudentStatus() {
+        when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
+
+        // Statuses cycle "Enrolling", "Submitted", "Active" — 200 records → ~67 each
+        List<StudentRecordSummaryResponse> active = registrarService.getAllRecords(null, null, null, "Active");
+        assertTrue(active.size() > 0, "Expected at least one Active record");
+        assertTrue(active.stream().allMatch(r -> "Active".equals(r.studentStatus())),
+                "Every result must have Active status when filtering by 'Active'");
+        assertTrue(active.size() < 200, "Status filter must reduce the full set");
+
+        // Case-insensitive match
+        List<StudentRecordSummaryResponse> enrollingLower = registrarService.getAllRecords(null, null, null, "enrolling");
+        assertTrue(enrollingLower.size() > 0, "Status filter should be case-insensitive");
+        assertTrue(enrollingLower.stream().allMatch(r -> "Enrolling".equals(r.studentStatus())),
+                "Case-insensitive filter 'enrolling' should match only Enrolling records");
+
+        // Null status returns everything
+        List<StudentRecordSummaryResponse> all = registrarService.getAllRecords(null, null, null, null);
+        assertEquals(200, all.size(), "Null status should return all records");
+
+        // Blank status returns everything
+        List<StudentRecordSummaryResponse> blank = registrarService.getAllRecords(null, null, null, "  ");
+        assertEquals(200, blank.size(), "Blank status should return all records");
+
+        // Unknown status returns nothing
+        List<StudentRecordSummaryResponse> none = registrarService.getAllRecords(null, null, null, "Graduated");
+        assertEquals(0, none.size(), "Unknown status should return empty list");
     }
 
     /**

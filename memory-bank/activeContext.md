@@ -1,12 +1,36 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Student Portal Enrollment Flow Fix (2026-05-05)**
+**Registrar Enhancements — Status Filter + OJT/TESDA/SchoolYears on Edit Form (2026-05-06)**
 
 ## Active Branch
-`fix/student-portal-flow` (created from `main`)
+`feature/registrar-fixes`
 
-## Latest Session (May 5, 2026 — Enrollment Flow Fix)
+## Latest Session (May 6, 2026 — Registrar Enhancements)
+
+### Features Implemented
+1. **Status filter on `registrar.html`** — new `<select id="studentStatusFilter">` in the filter bar (All / Enrolling / Submitted / Active / Graduated). `buildAjaxUrl()` appends `?status=` when non-empty; Reset clears the select. Backend: `RegistrarController` forwards `status` param; `RegistrarService.getAllRecords` gains a 4-arg overload with case-insensitive status filter. Older 2-arg and 3-arg overloads delegate to the new one.
+
+2. **OJT, TESDA, SchoolYears on `student-records.html` edit form** — three new sections added to the form. `RegistrarService.updateRecord()` is now `@Transactional` and persists OJT (upsert/delete), TESDA (delete-all-insert-new, with flush to avoid unique-constraint race), and SchoolYears (delete-all-insert-new with reassigned rowIndex). `getRecordById()` loads all three collections and passes them to the response factory. `StudentRecordDetailsResponse` and `StudentRecordUpdateRequest` each gained three new fields (`ojt`, `tesdaQualifications`, `schoolYears`).
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `dto/registrar/StudentRecordDetailsResponse.java` | Added 3 new fields; new 4-arg `from()` factory; old 1-arg `from()` delegates |
+| `dto/registrar/StudentRecordUpdateRequest.java` | Added `ojt`, `tesdaQualifications`, `schoolYears` fields (all optional) |
+| `service/RegistrarService.java` | New 7-arg constructor (+3 repos); 4-arg `getAllRecords`; `matchesStatus()`; `@Transactional` `updateRecord` with OJT/TESDA/SchoolYear helpers; `buildDetailsResponse()` helper |
+| `controller/RegistrarController.java` | Added `status` `@RequestParam` forwarded to service |
+| `test/service/RegistrarBulkLoadTest.java` | Added 3 new `@Mock` repos; added `statusFilterRestrictsResultsByStudentStatus` test |
+| `test/controller/RegistrarBulkLoadWebMvcTest.java` | Updated all 3 mock stubs from 3-arg to 4-arg `getAllRecords` |
+| `static/registrar.html` | Added status `<select>` to filter bar |
+| `static/js/registrar-students.js` | Extended `buildAjaxUrl()` + Reset handler for status |
+| `static/student-records.html` | Added OJT section, 3-slot TESDA fieldsets, SchoolYears dynamic table; bumped JS to `?v=2` |
+| `static/js/registrar-student-records-edit.js` | Added OJT/TESDA/SchoolYear `populateForm`, `buildPayload`, row handlers, `esc()`, `createSchoolYearRow()`, form-level dirty delegation |
+
+### Verified
+- `./gradlew test` → BUILD SUCCESSFUL (all tests pass, no regressions)
+
+## Previous Session (May 5, 2026 — Enrollment Flow Fix)
 Fixed 5 root-cause bugs in the student enrollment flow. All changes scoped strictly
 to student-portal and student-details (no Registrar/Trainer code touched).
 

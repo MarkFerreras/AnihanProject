@@ -108,8 +108,10 @@
         const params = new URLSearchParams();
         const fromYear = (document.getElementById('batchFromYear') || {}).value || '';
         const toYear = (document.getElementById('batchToYear') || {}).value || '';
+        const status = (document.getElementById('studentStatusFilter') || {}).value || '';
         if (fromYear) params.set('fromYear', fromYear);
         if (toYear) params.set('toYear', toYear);
+        if (status) params.set('status', status);
         const qs = params.toString();
         return '/api/registrar/student-records' + (qs ? '?' + qs : '');
     }
@@ -218,6 +220,8 @@
             resetBtn.addEventListener('click', function () {
                 document.getElementById('batchFromYear').value = '';
                 document.getElementById('batchToYear').value = '';
+                const statusEl = document.getElementById('studentStatusFilter');
+                if (statusEl) statusEl.value = '';
                 dataTable.ajax.url('/api/registrar/student-records').load(function (json) {
                     const count = Array.isArray(json) ? json.length : 0;
                     setFeedback('Filter cleared. Showing all ' + count + ' record(s).', 'info');

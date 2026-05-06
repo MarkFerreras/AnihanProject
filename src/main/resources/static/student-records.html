@@ -261,6 +261,111 @@
                                 <input type="text" class="form-control" id="editEnrollmentDate" disabled readonly>
                             </div>
                         </div>
+                        <hr class="my-4">
+                        <h6 class="section-title">On-the-Job Training (OJT)</h6>
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="editOjtCompanyName" class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="editOjtCompanyName">
+                            </div>
+                            <div class="col-md-5">
+                                <label for="editOjtCompanyAddress" class="form-label">Company Address</label>
+                                <input type="text" class="form-control" id="editOjtCompanyAddress">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="editOjtHoursRendered" class="form-label">Hours Rendered</label>
+                                <input type="number" step="0.01" min="0" class="form-control" id="editOjtHoursRendered">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">TESDA Qualifications</h6>
+                        <p class="text-muted small mb-3">Up to 3 slots. Leave all fields blank to skip a slot.</p>
+
+                        <fieldset class="mb-3 p-3 border rounded">
+                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 1</legend>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label for="editTesdaTitle1" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="editTesdaTitle1">
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="editTesdaCenter1" class="form-label">Center Address</label>
+                                    <input type="text" class="form-control" id="editTesdaCenter1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaDate1" class="form-label">Assessment Date</label>
+                                    <input type="date" class="form-control" id="editTesdaDate1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaResult1" class="form-label">Result</label>
+                                    <input type="text" class="form-control" id="editTesdaResult1">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="mb-3 p-3 border rounded">
+                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 2</legend>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label for="editTesdaTitle2" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="editTesdaTitle2">
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="editTesdaCenter2" class="form-label">Center Address</label>
+                                    <input type="text" class="form-control" id="editTesdaCenter2">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaDate2" class="form-label">Assessment Date</label>
+                                    <input type="date" class="form-control" id="editTesdaDate2">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaResult2" class="form-label">Result</label>
+                                    <input type="text" class="form-control" id="editTesdaResult2">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="mb-3 p-3 border rounded">
+                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 3</legend>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label for="editTesdaTitle3" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="editTesdaTitle3">
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="editTesdaCenter3" class="form-label">Center Address</label>
+                                    <input type="text" class="form-control" id="editTesdaCenter3">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaDate3" class="form-label">Assessment Date</label>
+                                    <input type="date" class="form-control" id="editTesdaDate3">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="editTesdaResult3" class="form-label">Result</label>
+                                    <input type="text" class="form-control" id="editTesdaResult3">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">School Years at Anihan</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2" id="schoolYearsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>SY Start</th>
+                                        <th>Sem Start</th>
+                                        <th>SY End</th>
+                                        <th>Sem End</th>
+                                        <th>Remarks</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="schoolYearsBody"></tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-surface-secondary btn-sm" id="addSchoolYearRowBtn">+ Add Row</button>
                     </form>
                 </div>
             </section>
@@ -372,7 +477,7 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js"></script>
+    <script src="js/registrar-student-records-edit.js?v=2"></script>
 
 </body>
 
