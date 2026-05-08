@@ -1,12 +1,49 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Strict Type-to-Confirm Delete Modals (2026-05-07)**
+**Registrar Subjects, Classes & Sections Management (2026-05-09)**
 
 ## Active Branch
-`feature/registrar-fix`
+`feature/class-assignment`
 
-## Latest Session (May 7, 2026 — Strict Type-to-Confirm Delete Modals)
+## Latest Session (May 9, 2026 — Registrar Subjects/Classes/Sections + Class Enrollment)
+
+### Items Completed
+1. **DB migration `2026-05-09-classes-and-trainers.sql`** — Idempotent migration that adds `subjects.trainer_id` (FK to `users.user_id`, ON DELETE SET NULL), creates the `classes` and `class_enrollments` tables, and seeds 2 qualifications (Cookery NC II, Bread and Pastry Production NC II) + 6 subjects (4 cookery + 2 bread/pastry). Applied to live MySQL via `docker exec`.
+
+2. **JPA entities** — `SchoolClass` (entity name avoids conflict with `java.lang.Class`) for the `classes` table, and `ClassEnrollment` for the `class_enrollments` table. `Subject.java` extended with optional `@ManyToOne User trainer` mapped to `trainer_id`.
+
+3. **Repositories** — `SchoolClassRepository` (with `findBySemester`, `existsBySectionSectionCodeAndSubjectSubjectCodeAndSemester`), `ClassEnrollmentRepository` (with `findBySchoolClassClassId`, `existsBySchoolClassClassIdAndStudentStudentId`, `countBySchoolClassClassId`). `SectionRepository` extended with `findByBatchBatchYear`. `UserRepository` extended with `findByRoleAndEnabledTrue`.
+
+4. **DTOs** — In `dto/registrar/`: `SubjectResponse`, `AssignTrainerRequest`, `ClassResponse` (includes `enrolledCount`), `CreateClassRequest`, `SectionResponse`, `CreateSectionRequest`, `TrainerResponse`, `EnrollStudentRequest`.
+
+5. **Service `ClassManagementService`** — Wraps Subjects (`getAllSubjects`, `assignTrainer`), Trainers lookup (`getActiveTrainers`), Classes (`getCurrentSemester`, `getClasses`, `createClass`), Class Enrollment (`getClassEnrollments`, `enrollStudent`, `unenrollStudent`, `getEligibleStudents`), and Sections (`getSections`, `createSection`, `deleteSection`). Validates trainer role + enabled flag, enforces `(section_code, subject_code, semester)` uniqueness on classes, eligible-student filter restricts to Active/Submitted students in the same section who aren't already enrolled.
+
+6. **Controller `ClassManagementController`** — Separate controller (instead of modifying `RegistrarController`) under `/api/registrar/`. Endpoints: `GET /subjects`, `PUT /subjects/{code}/trainer`, `GET /trainers`, `GET /classes`, `GET /classes/current-semester`, `POST /classes`, `GET /classes/{id}/enrollments`, `GET /classes/{id}/eligible-students`, `POST /classes/enroll`, `DELETE /enrollments/{id}`, `GET /sections`, `POST /sections`, `DELETE /sections/{code}`. Every state-changing call writes a `system_logs` row with the actor + IP.
+
+7. **SecurityConfig** — Registrar HTML matcher extended to include `/classes.html` and `/sections.html`.
+
+8. **Frontend pages**:
+   - `subjects.html` — DataTable of all subjects with "Assigned Trainer" column + "Assign Trainer" modal. 4-link registrar navbar.
+   - `classes.html` — DataTable of classes filtered by current semester (toggle to show all). "Create Class" modal (section/subject/trainer/semester). "Manage Students" modal opens per-class enrollment screen with currently-enrolled list and eligible-student dropdown.
+   - `sections.html` — DataTable of sections filtered by current semester. "Create Section" modal (code/name/batch/course). "Delete Section" confirm modal.
+   - `registrar.html` — navbar updated from 2-link to 4-link (Home / Subjects / Classes / Sections).
+
+9. **Frontend JS** — `registrar-subjects.js`, `registrar-classes.js` (drives both create-class and enrollment flows + auto-selects subject's default trainer when subject is picked), `registrar-sections.js`.
+
+10. **schema.sql refresh** — Added `subjects.trainer_id` column + FK, added `classes` and `class_enrollments` CREATE TABLE, added qualifications + subjects seed data so fresh installs match the migrated state. Header bumped to 2026-05-09 with table count 17 → 19.
+
+### Verified
+- `./gradlew compileJava` → BUILD SUCCESSFUL
+- `./gradlew test` → BUILD SUCCESSFUL (full suite)
+- `./gradlew bootRun` → Tomcat started on port 8080, Spring context loaded with 14 JPA repositories, no schema validation errors after live-DB migration
+- Live MySQL: `SHOW TABLES` reports `classes`, `class_enrollments`. `subjects.trainer_id` column present. Seeded 2 qualifications + 6 subjects.
+
+### Open Items
+- E2E browser smoke test of the three new pages and the create/enroll flows (deferred to user)
+- No unit tests written for `ClassManagementService` / `ClassManagementController` yet — follow-up ticket
+
+## Previous Session (May 7, 2026 — Strict Type-to-Confirm Delete Modals)
 
 ### Items Completed
 1. **Registrar — Strict delete confirmation modal** — Replaced the `window.confirm()` alert in the student record delete flow with a Bootstrap modal that requires the user to type the literal word `delete` (case-insensitive, trimmed) before the **Permanently Delete** button becomes enabled. The modal opens in place of the details modal, shows the student's identifier (Student ID + name), and surfaces success/error feedback inline instead of via `window.alert()`.
