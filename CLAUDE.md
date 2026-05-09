@@ -25,7 +25,6 @@ Anihan Technical School Student Records Management System (SRMS) — a Spring Bo
 @memory-bank/progress.md
 @memory-bank/changeLog.md
 @memory-bank/testing.md
-@memory-bank/add-account.md
 
 ## Memory Update Protocol
 
@@ -57,7 +56,7 @@ After completing any task:
 ./gradlew test --tests "com.example.springboot.SomeTest"
 ```
 
-**Database prerequisite:** MySQL must be running on `localhost:3306`, database `AnihanSRMS`, credentials `root / my_password` (see `application.properties`). Schema must be applied manually from `src/main/sql/schema.sql`.
+**Database prerequisite:** MySQL must be running on `localhost:3306`, database `AnihanSRMS`, credentials `root / my_password` (see `application.properties`). Schema must be applied manually from `src/main/sql/schema.sql` for fresh installs. For legacy databases predating recent changes, apply the dated files in `src/main/sql/migrations/` in order (idempotent — safe to re-run).
 
 **Seed accounts** (password: `password123`): `admin`, `registrar`, `trainer`.
 
@@ -72,25 +71,25 @@ Controller → Service → Repository → Model (JPA Entity)
 ```
 
 **Key packages** under `src/main/java/com/example/springboot/`:
-- `controller/` — REST endpoints + HTML page routing (Auth, Admin, Account, Lookup, SystemLog controllers)
-- `service/` — business logic including `AgeCalculator` (auto-computes age from birthdate on save and read)
+- `controller/` — REST endpoints + HTML page routing: Auth, Admin, Account, Lookup, SystemLog, Registrar, ClassManagement, StudentPortal, StudentDetails
+- `service/` — business logic including `AgeCalculator` (auto-computes age from birthdate; returns `Integer null` for null birthdate)
 - `repository/` — Spring Data JPA interfaces
-- `model/` — 11 JPA entities (User, StudentRecord, Batch, Course, Section, Subject, Grade, Parent, OtherGuardian, Document, SystemLog)
-- `dto/` — 8 DTOs for login, admin ops, log queries
+- `model/` — 19 JPA entities: User, StudentRecord, Batch, Course, Section, Subject, Qualification, Grade, Parent, OtherGuardian, Document, SystemLog, StudentEducation, StudentSchoolYear, StudentOjt, StudentTesdaQualification, StudentUpload, SchoolClass, ClassEnrollment
+- `dto/` — top-level DTOs (login, admin user CRUD, account updates, log queries) + sub-packages `dto/registrar/` (subjects, classes, sections, student record details) and `dto/student/` (enrollment wizard payloads)
 - `exception/` — `GlobalExceptionHandler` for centralized error responses
 - `config/SecurityConfig.java` — RBAC, session config, CSRF rules
 
 **Frontend** lives in `src/main/resources/static/`:
-- `*.html` — one page per role dashboard (admin.html, registrar.html, trainer.html, index.html)
-- `js/` — `auth-guard.js` (session protection included on every page), `admin-*.js`, `system-logs.js`
-- `css/` — Bootstrap, DataTables, `dashboard.css`
+- `*.html` — login (`index.html`), role dashboards (`admin.html`, `registrar.html`, `trainer.html`), admin pages (`edit-user.html`, `add-user.html`, `logs.html`), registrar pages (`subjects.html`, `classes.html`, `sections.html`, `student-records.html`), public student portal (`student-portal.html`, `student-details.html`)
+- `js/` — `auth-guard.js` (session protection included on every authenticated page), `admin-*.js`, `registrar-*.js`, `student-*.js`, `system-logs.js`
+- `css/` — Bootstrap, DataTables, `dashboard.css`, `login.css`
 
 ## Role-Based Access
 
 | Role | Access | Key Routes |
 |------|--------|-----------|
 | ADMIN | User account management, system logs export | `/admin.html`, `/api/admin/**`, `/api/logs/**` |
-| REGISTRAR | Student records, enrollment, documents | `/registrar.html`, `/api/registrar/**` |
+| REGISTRAR | Student records, enrollment, documents, subjects/classes/sections management, class enrollment | `/registrar.html`, `/subjects.html`, `/classes.html`, `/sections.html`, `/student-records.html`, `/api/registrar/**` |
 | TRAINER | View assigned subjects, input/lock grades | `/trainer.html`, `/api/trainer/**` |
 
 ## Key Conventions
@@ -111,6 +110,6 @@ Controller → Service → Repository → Model (JPA Entity)
 
 Schema source of truth: `src/main/sql/schema.sql` (and `AnihanSRMS.sql` at root for device transfer).
 
-Core tables: `users`, `student_records`, `batches`, `courses`, `sections`, `subjects`, `qualifications`, `parents`, `other_guardians`, `documents` (BLOB), `grades`, `system_logs`.
+Core tables (19 total): `users`, `student_records`, `batches`, `courses`, `sections`, `subjects` (with `trainer_id`), `qualifications`, `parents`, `other_guardians`, `documents` (BLOB), `grades`, `system_logs`, `student_education`, `student_school_years`, `student_ojt`, `student_tesda_qualifications`, `student_uploads`, `classes`, `class_enrollments`.
 
 `system_logs` has an index on `timestamp` — keep log queries range-filtered by timestamp when possible.
