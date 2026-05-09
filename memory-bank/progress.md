@@ -2,6 +2,17 @@
 
 ## Recent Sessions (detail)
 
+### DB Sync + Error-Handler Hardening + Section FK Pre-Check (Completed — May 9, 2026)
+- Audit revealed: live DB missing the May 9 migration (17/19 tables), `student_records.middle_name` still NOT NULL, `GlobalExceptionHandler` leaking SQL/exception internals, `deleteSection` had no FK pre-check, `getCurrentSemester` did in-memory max.
+- Re-applied `2026-05-09-classes-and-trainers.sql` — `classes` + `class_enrollments` created, `subjects.trainer_id` added, 2 qualifications + 6 subjects seeded.
+- New migration `2026-05-09-relax-middle-name.sql` applied — `student_records.middle_name` now nullable. `schema.sql` updated to match.
+- `GlobalExceptionHandler`: SLF4J logger added; new `DataIntegrityViolationException` handler (409); generic 500 returns sanitized `"An unexpected error occurred."`; full stack logged server-side.
+- `SchoolClassRepository.existsBySectionSectionCode()` and `BatchRepository.findTopByOrderByBatchYearDesc()` added.
+- `ClassManagementService.deleteSection()` pre-checks for class references → 400 with actionable message.
+- `ClassManagementService.getCurrentSemester()` now a single SQL query.
+- `./gradlew test` → **90 tests, 0 failures, 0 errors**. Live API smoke-tested: `/api/registrar/subjects` 200 (6 rows), `/api/registrar/classes` 200 `[]`, `/api/registrar/classes/current-semester` 200 `{"semester":"2026"}`.
+- Branch: `fix/db-sync-and-bugs`. Open: ClassManagement test coverage, N+1 in eligible-students/getClasses, move inner DTOs out.
+
 ### Registrar Subjects / Classes / Sections + Class Enrollment (Completed — May 9, 2026)
 - Migration `2026-05-09-classes-and-trainers.sql`: `subjects.trainer_id` + FK, `classes` + `class_enrollments` tables, 2 qualifications + 6 subjects seeded. Applied to live MySQL.
 - Entities `SchoolClass`, `ClassEnrollment`; `Subject` extended with `@ManyToOne User trainer`.

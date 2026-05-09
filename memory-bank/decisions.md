@@ -4,6 +4,18 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-05-09 - Generic 500 Body, Internals via SLF4J Only
+
+**Decision:** `GlobalExceptionHandler`'s catch-all `Exception` handler returns `"An unexpected error occurred. Please contact the administrator."` with HTTP 500. The exception class name, message, and stack trace are written via `log.error("Unhandled exception", ex)` — never serialized to the response body. A new `DataIntegrityViolationException` handler returns HTTP 409 with a generic conflict message.
+
+**Why:** The previous body `"Internal server error: <ExceptionClass> - <message>"` echoed raw SQL queries, table names, and column names to clients (audit caught this on `/api/registrar/classes` returning `select sc1_0.class_id,...`). On an on-premise LAN system handling student PII, that's an information-disclosure risk. Operators should look at server logs, not parse stack traces from the browser console. Pre-checks at the service layer (e.g., `deleteSection` FK guard) are the right place to surface friendly messages; the generic handler is for truly unexpected failures.
+
+## 2026-05-09 - Pre-Check FK References Before Delete (deleteSection)
+
+**Decision:** `ClassManagementService.deleteSection()` calls `classRepository.existsBySectionSectionCode()` before `deleteById()` and throws `IllegalArgumentException` if any class still references the section.
+
+**Why:** Letting MySQL's FK constraint reject the delete works, but the resulting exception now produces a vague generic 409 (after the handler hardening). A pre-check yields a 400 with an actionable message ("Cannot delete section: one or more classes still reference it. Remove those classes first.") which the registrar UI can render directly. The DB constraint stays as defense in depth.
+
 ## 2026-05-09 - SchoolClass Entity + Separate ClassManagementController
 
 **Decision:** Use the entity name `SchoolClass` for the `classes` table (avoids clash with `java.lang.Class`). Introduce a separate `ClassManagementController` under `/api/registrar/...` instead of expanding `RegistrarController`.

@@ -115,10 +115,8 @@ public class ClassManagementService {
     // -------------------------------------------------------
 
     public String getCurrentSemester() {
-        return batchRepository.findAll().stream()
-                .map(Batch::getBatchYear)
-                .max(Short::compareTo)
-                .map(String::valueOf)
+        return batchRepository.findTopByOrderByBatchYearDesc()
+                .map(b -> String.valueOf(b.getBatchYear()))
                 .orElse(String.valueOf(java.time.Year.now().getValue()));
     }
 
@@ -287,6 +285,10 @@ public class ClassManagementService {
     public void deleteSection(String sectionCode) {
         if (!sectionRepository.existsById(sectionCode)) {
             throw new IllegalArgumentException("Section not found: " + sectionCode);
+        }
+        if (classRepository.existsBySectionSectionCode(sectionCode)) {
+            throw new IllegalArgumentException(
+                    "Cannot delete section: one or more classes still reference it. Remove those classes first.");
         }
         sectionRepository.deleteById(sectionCode);
     }
