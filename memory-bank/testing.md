@@ -19,7 +19,16 @@
 | `StudentDetailsServiceTest` | Mockito | 7 | start (minimal record), resume, submit, double-submit guard, load |
 | `AgeCalculatorTest` | Pure unit | 6 | null/today/past/future/birthday-edge cases (returns `Integer null` for null birthdate) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — 82 tests, 0 failures, 0 skipped (May 9, 2026).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **90 tests, 0 failures, 0 errors** (May 9, 2026, after the DB-sync + handler-hardening session).
+
+## Manual Smoke Test — 2026-05-09 (post-fix)
+
+After re-applying the 2026-05-09 migration to the live MySQL DB:
+- `POST /api/auth/login` as `registrar` → 200
+- `GET /api/registrar/subjects` → 200 with 6 seeded subjects (was 500: "Unknown column 's1_0.trainer_id'")
+- `GET /api/registrar/classes` → 200 `[]` (was 500: "Table 'AnihanSRMS.classes' doesn't exist")
+- `GET /api/registrar/classes/current-semester` → 200 `{"semester":"2026"}`
+- Live MySQL: 19 tables, `subjects.trainer_id` present, qualifications + subjects seeded, `student_records.middle_name` `IS_NULLABLE = YES`.
 
 ## Coverage Gaps (open)
 

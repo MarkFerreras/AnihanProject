@@ -1,12 +1,47 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Registrar Subjects, Classes & Sections Management**
+**Audit-Driven Bugfix Sweep (DB sync, error-handler hardening, FK pre-check)**
 
 ## Active Branch
-`feature/class-assignment`
+`fix/db-sync-and-bugs`
 
-## Latest Session (May 9, 2026 — Registrar Subjects/Classes/Sections + Class Enrollment)
+## Latest Session (May 9, 2026 — DB Sync + Error-Handler Hardening + Section FK Pre-Check)
+
+### Audit Findings (read-only investigation phase)
+1. **CRITICAL:** Live MySQL had 17 tables, code expected 19. The `2026-05-09-classes-and-trainers.sql` migration had not been applied on this machine. `GET /api/registrar/classes` → 500 `Table 'AnihanSRMS.classes' doesn't exist`. `GET /api/registrar/subjects` → 500 `Unknown column 's1_0.trainer_id'`.
+2. **HIGH:** `student_records.middle_name` was still `NOT NULL` despite the JPA entity treating it as optional and the student-portal wizard allowing blank input. The 2026-05-05 drift migration relaxed 27 columns but missed this one.
+3. **HIGH:** `GlobalExceptionHandler` generic 500 handler returned `"Internal server error: <ExceptionClass> - <message>"` which leaked raw SQL, table names, and column names to clients.
+4. **MEDIUM:** `ClassManagementService.deleteSection` had no FK pre-check — relied on raw MySQL FK violation, which then leaked through the generic handler.
+5. **MEDIUM:** `getCurrentSemester` loaded all batches into memory just to compute a max.
+
+### Items Completed
+1. **Live DB migrated.** Re-applied `2026-05-09-classes-and-trainers.sql` (added `classes`, `class_enrollments`, `subjects.trainer_id`, seeded 2 qualifications + 6 subjects). Live tables: 17 → 19.
+2. **New migration `2026-05-09-relax-middle-name.sql`** — applied to live DB. `student_records.middle_name` now `NULL`.
+3. **`schema.sql` updated** — fresh-install schema matches live DB on the relaxed column.
+4. **`GlobalExceptionHandler` hardened** — added SLF4J logger; new `DataIntegrityViolationException` handler (HTTP 409); generic `Exception` handler logs server-side and returns sanitized `"An unexpected error occurred."`.
+5. **`SchoolClassRepository`** — added `existsBySectionSectionCode(String)`.
+6. **`BatchRepository`** — added `findTopByOrderByBatchYearDesc()`.
+7. **`ClassManagementService.deleteSection`** — pre-checks for class references and throws `IllegalArgumentException` (→ HTTP 400) with a clear actionable message.
+8. **`ClassManagementService.getCurrentSemester`** — replaced `findAll()` + in-memory max with a single repository call.
+
+### Verified
+- `./gradlew compileJava` → BUILD SUCCESSFUL
+- `./gradlew test` → **90 tests, 0 failures, 0 errors**
+- `./gradlew bootRun` → started cleanly. Authenticated as `registrar` and confirmed:
+  - `GET /api/registrar/subjects` → HTTP 200 with 6 seeded subjects
+  - `GET /api/registrar/classes` → HTTP 200 `[]`
+  - `GET /api/registrar/classes/current-semester` → HTTP 200 `{"semester":"2026"}`
+- Live MySQL: 19 tables, `subjects.trainer_id` present, qualifications + subjects seeded, `student_records.middle_name` nullable.
+
+### Open Items / Deferred
+- N+1 in `getEligibleStudents()` and `getClasses()` — acceptable at the ~160-student scale; revisit if perf issues surface.
+- Move `ClassEnrollmentResponse` and `StudentSummary` records from `ClassManagementService` into `dto/registrar/` (cosmetic).
+- Unit/WebMvc tests for `ClassManagementService` and `ClassManagementController` — would have caught the live-DB drift earlier; remains on the roadmap.
+
+---
+
+## Previous Session (May 9, 2026 — Registrar Subjects/Classes/Sections + Class Enrollment)
 
 ### Items Completed
 1. **DB migration `2026-05-09-classes-and-trainers.sql`** — Idempotent. Adds `subjects.trainer_id` (FK → `users.user_id`, ON DELETE SET NULL), creates `classes` + `class_enrollments`, seeds 2 qualifications (Cookery NC II, Bread and Pastry Production NC II) + 6 subjects. Applied to live MySQL via `docker exec`.

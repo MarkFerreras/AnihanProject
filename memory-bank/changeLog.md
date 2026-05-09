@@ -1,5 +1,52 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-09 - DB Sync + Error-Handler Hardening + Section FK Pre-Check
+**Branch:** `fix/db-sync-and-bugs`
+
+### Task
+Audit-driven bugfix sweep. Five issues addressed: (1) live MySQL was missing the May 9 migration so the registrar Classes/Subjects/Sections pages threw 500s; (2) `student_records.middle_name` was still `NOT NULL` despite the JPA entity treating it as optional; (3) `GlobalExceptionHandler` leaked SQL/exception internals to API clients; (4) `ClassManagementService.deleteSection` had no pre-check for FK references; (5) `getCurrentSemester` loaded all batches into memory just to find the max year.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-05-09-relax-middle-name.sql` | Idempotent migration relaxing `student_records.middle_name` to `NULL`. Companion fix to the 2026-05-05 drift migration which missed this column. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | `student_records.middle_name` declared `NULL` (was `NOT NULL`). Aligns fresh-install schema with the JPA entity and student-portal wizard which both treat middle name as optional. |
+| `src/main/java/com/example/springboot/exception/GlobalExceptionHandler.java` | Added SLF4J logger. New `@ExceptionHandler(DataIntegrityViolationException)` returns HTTP 409 with a generic conflict message. Generic `Exception` handler now logs server-side via `log.error` and returns a sanitized `"An unexpected error occurred."` instead of echoing `ex.getClass().getSimpleName() + " - " + ex.getMessage()` (which previously leaked raw SQL, table names, and column names to clients). |
+| `src/main/java/com/example/springboot/repository/SchoolClassRepository.java` | Added `boolean existsBySectionSectionCode(String sectionCode)` for the new pre-check. |
+| `src/main/java/com/example/springboot/repository/BatchRepository.java` | Added `Optional<Batch> findTopByOrderByBatchYearDesc()` so `getCurrentSemester()` can resolve the latest batch year in a single SQL query instead of `findAll()` + in-memory max. |
+| `src/main/java/com/example/springboot/service/ClassManagementService.java` | `getCurrentSemester()` now calls `batchRepository.findTopByOrderByBatchYearDesc()`. `deleteSection()` now calls `classRepository.existsBySectionSectionCode()` and throws `IllegalArgumentException("Cannot delete section: one or more classes still reference it. Remove those classes first.")` (mapped to HTTP 400 by `GlobalExceptionHandler`) instead of letting the FK violation bubble up as a generic 500. |
+
+### Database Migrations Applied (live `AnihanSRMS` on this machine)
+| Statement | Purpose |
+|-----------|---------|
+| `2026-05-09-classes-and-trainers.sql` | Re-applied — was previously not present on this machine despite memory-bank claim. Created `classes`, `class_enrollments`, added `subjects.trainer_id` FK, seeded 2 qualifications + 6 subjects. |
+| `ALTER TABLE student_records MODIFY COLUMN middle_name VARCHAR(255) NULL` | Relaxed the column to allow students with no middle name to save without a SQL constraint violation. |
+
+### Design Decisions
+- **Generic 500 message instead of exception details.** The previous `"Internal server error: <ExceptionClass> - <message>"` body leaked SQL queries, table names, and JPA internals — confirmed during the audit by hitting `/api/registrar/classes` and seeing the full SELECT echoed back. The new behavior logs the full stack trace via SLF4J (so it appears in operator logs) but returns only a generic message to the client. This matches the project's on-premise deployment context where stack traces should never leave the server.
+- **Pre-check, don't retry.** `deleteSection()` checks for class references *before* attempting the delete. The FK constraint stays as a defense in depth, but the pre-check converts a leaky 500 into a clean 400 with an actionable message.
+- **`findTopByOrderByBatchYearDesc()` over a custom `@Query`.** Spring Data derived queries are preferred for simple cases; the runtime SQL is `SELECT ... FROM batches ORDER BY batch_year DESC LIMIT 1`, which is what we want. Avoids the maintenance cost of an explicit JPQL string.
+
+### Verification
+- `./gradlew compileJava` → BUILD SUCCESSFUL
+- `./gradlew test` → BUILD SUCCESSFUL — 90 tests, 0 failures, 0 errors
+- `./gradlew bootRun` → started cleanly. Hit each previously-broken endpoint while authenticated as `registrar`:
+  - `GET /api/registrar/subjects` → HTTP 200, returns 6 seeded subjects with qualifications + trainer fields
+  - `GET /api/registrar/classes` → HTTP 200, `[]` (no classes yet — expected, no batches/courses/sections seeded; that's data the registrar enters via the UI)
+  - `GET /api/registrar/classes/current-semester` → HTTP 200, `{"semester":"2026"}`
+- Live MySQL `SHOW TABLES` → 19 tables (was 17). `subjects.trainer_id` present. 2 qualifications + 6 subjects rows present. `student_records.middle_name` `IS_NULLABLE = YES`.
+
+### Out of Scope (deferred to follow-up tickets)
+- N+1 in `getEligibleStudents()` and `getClasses()` — both still use `findAll()` + filter/count per row. Acceptable at the school's scale (~160 students); revisit if perf issues surface.
+- Move `ClassEnrollmentResponse` and `StudentSummary` records out of `ClassManagementService` into `dto/registrar/`. Cosmetic; doesn't affect behavior.
+- Unit/WebMvc tests for `ClassManagementService` and `ClassManagementController`. Existing audit caught the live-DB drift via integration probing rather than tests; tests would have caught a regression earlier and remain on the roadmap.
+
+---
+
 ## 2026-05-09 - Registrar Subjects / Classes / Sections + Class Enrollment
 **Branch:** `feature/class-assignment`
 

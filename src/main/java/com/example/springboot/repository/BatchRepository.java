@@ -9,4 +9,6 @@ import com.example.springboot.model.Batch;
 public interface BatchRepository extends JpaRepository<Batch, String> {
 
     Optional<Batch> findFirstByBatchYear(Short batchYear);
+
+    Optional<Batch> findTopByOrderByBatchYearDesc();
 }
