@@ -50,10 +50,7 @@ const STEP_CUSTOM_VALIDATORS = {
             if (!bPlace || !bPlace.value.trim()) {
                 errors.push({ id: 'baptismPlace', label: 'Baptism Place', step: 2 });
             }
-            const certStatus = document.getElementById('baptCertStatus')?.textContent || '';
-            if (!certStatus.startsWith('Uploaded:') && pendingBaptCert === null) {
-                errors.push({ id: 'baptCertFile', label: 'Baptismal Certificate', step: 2 });
-            }
+
         }
         return errors;
     },
@@ -66,12 +63,10 @@ const ALL_REQUIRED = Object.entries(STEP_REQUIRED).flatMap(([step, fields]) =>
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    renderSyRow();
     setupBaptismToggle();
     setupBirthdateAgeCalc();
     setupPhoneFormatting();
     setupFileUploads();
-    document.getElementById('addSyRow').addEventListener('click', () => renderSyRow());
 
     const params = new URLSearchParams(window.location.search);
     const lastName   = params.get('lastName')   || '';
@@ -283,23 +278,10 @@ function buildPayload() {
         level,
         schoolName:    document.querySelector(`.edu-school[data-level="${level}"]`)?.value.trim()   || null,
         schoolAddress: document.querySelector(`.edu-address[data-level="${level}"]`)?.value.trim()  || null,
-        gradeYear:     document.querySelector(`.edu-grade[data-level="${level}"]`)?.value.trim()    || null,
-        semester:      document.querySelector(`.edu-sem[data-level="${level}"]`)?.value.trim()      || null,
         endedYear:     document.querySelector(`.edu-ended[data-level="${level}"]`)?.value.trim()    || null,
     }));
 
     const schoolYears = [];
-    document.querySelectorAll('#syTableBody tr').forEach((tr, i) => {
-        const inputs = tr.querySelectorAll('input');
-        schoolYears.push({
-            rowIndex:  i + 1,
-            syStart:   inputs[0]?.value.trim() || null,
-            semStart:  inputs[1]?.value.trim() || null,
-            syEnd:     inputs[2]?.value.trim() || null,
-            semEnd:    inputs[3]?.value.trim() || null,
-            remarks:   inputs[4]?.value.trim() || null,
-        });
-    });
 
     const baptized = document.getElementById('baptized').checked;
 
@@ -421,17 +403,10 @@ function populateForm(data) {
             const q = sel => document.querySelector(`${sel}[data-level="${lvl}"]`);
             if (q('.edu-school'))   q('.edu-school').value   = e.schoolName    || '';
             if (q('.edu-address'))  q('.edu-address').value  = e.schoolAddress || '';
-            if (q('.edu-grade'))    q('.edu-grade').value    = e.gradeYear     || '';
-            if (q('.edu-sem'))      q('.edu-sem').value      = e.semester      || '';
             if (q('.edu-ended'))    q('.edu-ended').value    = e.endedYear     || '';
         });
     }
 
-    if (data.schoolYears && data.schoolYears.length > 0) {
-        document.getElementById('syTableBody').innerHTML = '';
-        data.schoolYears.forEach(sy =>
-            addSyRowData(sy.syStart, sy.semStart, sy.syEnd, sy.semEnd, sy.remarks));
-    }
 }
 
 // ─── Name pre-fill (from URL params or loaded data) ───────────────────────────
@@ -440,26 +415,6 @@ function prefillNameFields(lastName, firstName, middleName) {
     set('studentLastName',   lastName);
     set('studentFirstName',  firstName);
     set('studentMiddleName', middleName);
-}
-
-// ─── Dynamic rows ─────────────────────────────────────────────────────────────
-function renderSyRow() {
-    addSyRowData('', '', '', '', '');
-}
-
-function addSyRowData(syStart, semStart, syEnd, semEnd, remarks) {
-    const tbody    = document.getElementById('syTableBody');
-    const rowIndex = tbody.rows.length + 1;
-    const tr       = document.createElement('tr');
-    tr.innerHTML = `
-        <td class="text-center align-middle small text-muted">${rowIndex}</td>
-        <td><input type="text" class="form-control form-control-sm" value="${syStart  || ''}" placeholder="2025-2026"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${semStart || ''}" placeholder="1st"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${syEnd    || ''}" placeholder="2025-2026"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${semEnd   || ''}" placeholder="2nd"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${remarks  || ''}"></td>
-    `;
-    tbody.appendChild(tr);
 }
 
 // ─── Baptism toggle ───────────────────────────────────────────────────────────
