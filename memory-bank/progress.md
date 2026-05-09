@@ -2,6 +2,14 @@
 
 ## Recent Sessions (detail)
 
+### Student-Details Wizard Trim (Completed — May 9, 2026)
+- Baptismal Certificate upload made optional (Baptism Date + Place still required when Baptized is checked).
+- Educational Background table trimmed from 6 to 4 columns: removed `Grade/Year` and `Semester`; renamed `Year Ended` → `School Year`. JS payload/populateForm updated to match.
+- "School Years at Anihan" section removed from wizard entirely. `renderSyRow`/`addSyRowData` functions deleted; all DOM references (`syTable`, `syTableBody`, `addSyRow`) gone.
+- No backend/DTO/DB changes. `EducationItemDto.gradeYear`/`.semester` and DB columns retained; new submissions write `NULL`. Registrar manages school years on edit form independently.
+- JS cache-buster bumped `?v=4` → `?v=5`. `./gradlew test` → **90 tests, 0 failures, 0 errors**.
+- Branch: `fix/student-details-trim`.
+
 ### DB Sync + Error-Handler Hardening + Section FK Pre-Check (Completed — May 9, 2026)
 - Audit revealed: live DB missing the May 9 migration (17/19 tables), `student_records.middle_name` still NOT NULL, `GlobalExceptionHandler` leaking SQL/exception internals, `deleteSection` had no FK pre-check, `getCurrentSemester` did in-memory max.
 - Re-applied `2026-05-09-classes-and-trainers.sql` — `classes` + `class_enrollments` created, `subjects.trainer_id` added, 2 qualifications + 6 subjects seeded.

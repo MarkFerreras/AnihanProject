@@ -1,5 +1,28 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-09 - Student-Details Wizard Trim
+**Branch:** `fix/student-details-trim`
+
+### Task
+Shorten the student enrollment wizard: (1) make the Baptismal Certificate upload optional, (2) reduce the Educational Background table from 6 to 4 columns, (3) remove the "School Years at Anihan" section. Pure frontend change — no backend, DTO, entity, or DB migration required.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/resources/static/js/student-details.js` | Dropped `certStatus`/`pendingBaptCert` check from `STEP_CUSTOM_VALIDATORS[2]` (Baptism Date + Place still required when Baptized is checked; cert is now optional). Removed `renderSyRow()` DOMContentLoaded call and `addSyRow` click listener. Dropped `gradeYear`/`semester` from `educationHistory` map in `buildPayload`. Replaced 12-line `#syTableBody` forEach with `const schoolYears = []`. Removed `edu-grade`/`edu-sem` reads from `populateForm`. Removed `schoolYears` population block from `populateForm`. Deleted `renderSyRow()` and `addSyRowData()` functions. |
+| `src/main/resources/static/student-details.html` | Replaced 6-column `<thead>` with 4-column (`Grade/Year`/`Semester` removed; `Year Ended` → `School Year`). Removed `.edu-grade`/`.edu-sem` `<td>` cells from all 4 education rows. Deleted entire "School Years at Anihan" section (`#syTable`, `#syTableBody`, `#addSyRow`). Bumped JS cache-buster `?v=4` → `?v=5`. |
+
+### Design Decisions
+- Baptism cert file input stays in the UI — students can still upload voluntarily. Only the wizard-block is removed.
+- `EducationItemDto.gradeYear`/`.semester` and `student_education` columns kept — new submissions write `NULL`. No migration needed.
+- Registrar continues to own school-year history via `RegistrarService.saveSchoolYears`; newly enrolled students arrive with zero `student_school_years` rows.
+
+### Verification
+- `grep -nE "syTable|syTableBody|addSyRow|renderSyRow|addSyRowData|edu-grade|edu-sem"` on both files → empty.
+- `./gradlew test` → **BUILD SUCCESSFUL — 90 tests, 0 failures, 0 errors**.
+
+---
+
 ## 2026-05-09 - DB Sync + Error-Handler Hardening + Section FK Pre-Check
 **Branch:** `fix/db-sync-and-bugs`
 
