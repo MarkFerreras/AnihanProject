@@ -1,5 +1,72 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-09 - Registrar Subjects / Classes / Sections + Class Enrollment
+**Branch:** `feature/class-assignment`
+
+### Task
+Implement three registrar-facing features: (1) per-subject default trainer assignment, (2) per-class scheduling with optional trainer + student enrollment, (3) section creation/listing scoped to the current semester. Includes a brand-new `classes` and `class_enrollments` table, seeded qualifications + subjects, and three new dashboard pages.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-05-09-classes-and-trainers.sql` | Idempotent migration: adds `subjects.trainer_id` + FK, creates `classes` and `class_enrollments`, seeds 2 qualifications + 6 subjects |
+| `model/SchoolClass.java` | JPA entity for `classes` (named `SchoolClass` to avoid clash with `java.lang.Class`) |
+| `model/ClassEnrollment.java` | JPA entity for `class_enrollments` |
+| `repository/SchoolClassRepository.java` | `findBySemester`, `existsBySectionSectionCodeAndSubjectSubjectCodeAndSemester` |
+| `repository/ClassEnrollmentRepository.java` | `findBySchoolClassClassId`, `existsBySchoolClassClassIdAndStudentStudentId`, `countBySchoolClassClassId` |
+| `dto/registrar/SubjectResponse.java` | Subject DTO with flattened qualification name + trainer info |
+| `dto/registrar/AssignTrainerRequest.java` | Single optional `trainerId` (null to unassign) |
+| `dto/registrar/ClassResponse.java` | Class DTO including `enrolledCount` |
+| `dto/registrar/CreateClassRequest.java` | Validated create-class payload |
+| `dto/registrar/SectionResponse.java` | Section DTO with batch + course info |
+| `dto/registrar/CreateSectionRequest.java` | Validated create-section payload |
+| `dto/registrar/TrainerResponse.java` | Lightweight trainer-dropdown DTO |
+| `dto/registrar/EnrollStudentRequest.java` | Validated enrollment payload |
+| `service/ClassManagementService.java` | Subjects + Trainers + Classes + Class Enrollment + Sections business logic |
+| `controller/ClassManagementController.java` | New controller under `/api/registrar/...` (separate from `RegistrarController`); every state-changing call writes a `system_logs` row |
+| `static/classes.html` | Classes dashboard page with create + enrollment modals; 4-link registrar navbar |
+| `static/sections.html` | Sections dashboard page with create + delete modals; 4-link registrar navbar |
+| `static/js/registrar-subjects.js` | Subjects DataTable + Assign Trainer modal logic |
+| `static/js/registrar-classes.js` | Classes DataTable + create-class + enrollment management logic |
+| `static/js/registrar-sections.js` | Sections DataTable + create + delete logic |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `model/Subject.java` | Added `@ManyToOne User trainer` mapped to `trainer_id` (optional) |
+| `repository/SectionRepository.java` | Added `List<Section> findByBatchBatchYear(Short batchYear)` |
+| `repository/UserRepository.java` | Added `List<User> findByRoleAndEnabledTrue(String role)` |
+| `config/SecurityConfig.java` | REGISTRAR HTML matcher extended with `/classes.html` and `/sections.html` |
+| `static/registrar.html` | Navbar bumped from 2-link (Home / Subjects) to 4-link (Home / Subjects / Classes / Sections) |
+| `static/subjects.html` | Replaced placeholder with full DataTable + Assign Trainer modal; navbar bumped to 4 links |
+| `src/main/sql/schema.sql` | Added `subjects.trainer_id` column + FK, added `classes` + `class_enrollments` CREATE TABLE, added qualifications + subjects seed data; header bumped to 2026-05-09 with table count 17 → 19 |
+
+### Database Migrations Applied
+| Statement | Purpose |
+|-----------|---------|
+| `ALTER TABLE subjects ADD COLUMN trainer_id INT NULL` | Optional default trainer per subject |
+| `ALTER TABLE subjects ADD CONSTRAINT fk_subjects_trainer FOREIGN KEY (trainer_id) REFERENCES users(user_id) ON DELETE SET NULL` | FK keeps subjects intact when a trainer account is deleted |
+| `CREATE TABLE classes` | New table — section + subject + trainer + semester with `(section_code, subject_code, semester)` unique key |
+| `CREATE TABLE class_enrollments` | New table — student-to-class link with `(class_id, student_id)` unique key, `ON DELETE CASCADE` from classes |
+| `INSERT INTO qualifications` | Seeded `Cookery NC II` and `Bread and Pastry Production NC II` |
+| `INSERT INTO subjects` | Seeded 6 subjects (4 cookery + 2 bread/pastry) |
+
+### Design Decisions
+- **Two trainer touchpoints (subject and class).** A trainer can be assigned as a *default* on the Subject (via Subjects page) and again on a specific Class (per-section, per-semester). The class-level trainer is the authoritative teacher; the subject-level trainer is a convenience pre-fill on the Create Class modal (auto-selected when the subject changes).
+- **`SchoolClass` instead of `Class`.** `Class` would collide with `java.lang.Class`, so the JPA entity uses `SchoolClass` while the DB table is `classes`.
+- **Separate controller `ClassManagementController` instead of bloating `RegistrarController`.** Keeps endpoints organized and limits the cross-cutting impact on existing tests.
+- **Semester = batch year (string).** `getCurrentSemester()` reads `MAX(batch.batchYear)` and falls back to `Year.now()` if no batches exist. Filtering classes/sections uses this same value.
+- **Eligible-student filter** restricts to `Active` or `Submitted` students in the same `section_code` as the class who aren't already enrolled. Avoids enrolling students from a different section by accident.
+- **Delete a section** requires no linked classes — FK on `classes.section_code` blocks the delete and the frontend surfaces the DB error.
+
+### Verification
+- `./gradlew compileJava` → BUILD SUCCESSFUL
+- `./gradlew test` → BUILD SUCCESSFUL (no regressions)
+- `./gradlew bootRun` → Tomcat started on port 8080, Spring context loaded with no schema validation errors
+- Live MySQL: `SHOW TABLES` reports `classes` + `class_enrollments`; `DESCRIBE subjects` shows new `trainer_id` column; `SELECT COUNT(*)` returns 2 qualifications + 6 subjects.
+
+---
+
 ## 2026-05-07 - Emoji Cleanup Across Static Frontend
 **Branch:** `feature/registrar-fix`
 

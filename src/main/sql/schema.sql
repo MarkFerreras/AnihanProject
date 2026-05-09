@@ -1,17 +1,24 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
--- Updated: 2026-05-05 (post schema-drift remediation)
+-- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
+--                       seeded qualifications + subjects)
 -- Purpose: Set up a fresh AnihanSRMS database with:
 --            * 3 test accounts (admin, registrar, trainer)
---            * lookup data (1 course, 3 batches, 3 sections)
+--            * lookup data (1 course, 3 batches, 3 sections,
+--              2 qualifications, 6 subjects)
 --            * 5 sample student records for development/testing
 --          No system log data is included.
--- Tables: 17
+-- Tables: 19
 --
 -- Existing databases that predate the 2026-05-05 schema-drift fix
 -- should also run src/main/sql/migrations/2026-05-05-fix-schema-drift.sql
 -- once to align student_records / parents / other_guardians with the
 -- canonical column nullability and pick up student_records.civil_status.
+--
+-- Existing databases that predate 2026-05-09 should also run
+-- src/main/sql/migrations/2026-05-09-classes-and-trainers.sql to add
+-- the classes and class_enrollments tables and the subjects.trainer_id
+-- column.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
@@ -61,13 +68,16 @@ CREATE TABLE IF NOT EXISTS sections (
 
 -- ============================================================
 -- TABLE: subjects
+-- trainer_id is an optional default trainer for this subject.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS subjects (
     subject_code VARCHAR(20) NOT NULL PRIMARY KEY,
     subject_name VARCHAR(255) NOT NULL,
     qualification_code INT NOT NULL,
     units INT NOT NULL,
-    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code)
+    trainer_id INT NULL,
+    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code),
+    CONSTRAINT fk_subjects_trainer FOREIGN KEY (trainer_id) REFERENCES users (user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
@@ -287,6 +297,38 @@ CREATE TABLE IF NOT EXISTS student_uploads (
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- ============================================================
+-- TABLE: classes
+-- Pairs a section with a subject for a given semester (batch year),
+-- with an optional trainer assigned to teach the class.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS classes (
+    class_id     INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    section_code VARCHAR(20) NOT NULL,
+    subject_code VARCHAR(20) NOT NULL,
+    trainer_id   INT NULL,
+    semester     VARCHAR(20) NOT NULL,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_class (section_code, subject_code, semester),
+    FOREIGN KEY (section_code) REFERENCES sections(section_code),
+    FOREIGN KEY (subject_code) REFERENCES subjects(subject_code),
+    FOREIGN KEY (trainer_id)   REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: class_enrollments
+-- Links a student to a specific class (registrar-managed).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS class_enrollments (
+    enrollment_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    class_id      INT NOT NULL,
+    student_id    VARCHAR(20) NOT NULL,
+    enrolled_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_class_student (class_id, student_id),
+    FOREIGN KEY (class_id)   REFERENCES classes(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES student_records(student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
@@ -315,6 +357,21 @@ INSERT INTO sections (section_code, section, batch_code, course_code) VALUES
 ('SEC-A24', 'Section A 2024', 'B2024A', 'CARS'),
 ('SEC-A25', 'Section A 2025', 'B2025A', 'CARS'),
 ('SEC-A26', 'Section A 2026', 'B2026A', 'CARS');
+
+-- ============================================================
+-- SEED DATA: Qualifications + Subjects
+-- ============================================================
+INSERT INTO qualifications (qualification_name, qualification_description) VALUES
+('Cookery NC II', 'TESDA National Certificate II in Cookery'),
+('Bread and Pastry Production NC II', 'TESDA NC II in Bread and Pastry Production');
+
+INSERT INTO subjects (subject_code, subject_name, qualification_code, units, trainer_id) VALUES
+('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
+('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
+('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       5, NULL),
+('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       4, NULL),
+('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  3, NULL),
+('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  4, NULL);
 
 -- ============================================================
 -- SEED DATA: 5 Dummy Student Records — All Columns Populated

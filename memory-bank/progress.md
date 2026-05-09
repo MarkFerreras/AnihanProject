@@ -1,5 +1,21 @@
 # Progress - Anihan SRMS
 
+## Registrar Subjects / Classes / Sections + Class Enrollment (Completed — May 9, 2026)
+- [x] **DB migration** — `src/main/sql/migrations/2026-05-09-classes-and-trainers.sql`: idempotent ALTER TABLE for `subjects.trainer_id` + FK, CREATE TABLE for `classes` and `class_enrollments`, seeded 2 qualifications + 6 subjects.
+- [x] Migration applied to live MySQL (`docker exec`); verified table presence and seed counts.
+- [x] **Entities** — `SchoolClass`, `ClassEnrollment`; `Subject` extended with `@ManyToOne User trainer`.
+- [x] **Repositories** — `SchoolClassRepository`, `ClassEnrollmentRepository`; `SectionRepository.findByBatchBatchYear`; `UserRepository.findByRoleAndEnabledTrue`.
+- [x] **DTOs** — `SubjectResponse`, `AssignTrainerRequest`, `ClassResponse`, `CreateClassRequest`, `SectionResponse`, `CreateSectionRequest`, `TrainerResponse`, `EnrollStudentRequest`.
+- [x] **Service `ClassManagementService`** — full CRUD + lookup behavior for subjects/classes/sections + class enrollment, validates trainer role + enabled, enforces uniqueness on classes, eligible-student filter scoped to same section.
+- [x] **Controller `ClassManagementController`** — separate controller under `/api/registrar/...`; every state-changing call writes a `system_logs` row.
+- [x] **SecurityConfig** — `/classes.html` + `/sections.html` added to REGISTRAR matcher.
+- [x] **Frontend pages** — rebuilt `subjects.html`, new `classes.html` + `sections.html`, registrar navbar bumped from 2-link to 4-link (Home / Subjects / Classes / Sections).
+- [x] **Frontend JS** — `registrar-subjects.js`, `registrar-classes.js` (create + enrollment), `registrar-sections.js`.
+- [x] **schema.sql** — added `subjects.trainer_id`, `classes` + `class_enrollments` tables, qualifications + subjects seed data; header bumped to 2026-05-09; tables 17 → 19.
+- [x] `./gradlew test` → BUILD SUCCESSFUL (no regressions)
+- [x] `./gradlew bootRun` → started on port 8080, no schema validation errors
+- [x] Branch: `feature/class-assignment`
+
 ## Strict Type-to-Confirm Delete Modals (Completed — May 7, 2026)
 - [x] **Registrar — `deleteRecordConfirmModal`**: New Bootstrap modal in `registrar.html` requiring the user to type `delete` before the Permanently Delete button is enabled; replaces `window.confirm()` and `window.alert()` in `registrar-students.js`.
 - [x] **Registrar — modal lifecycle**: Reset input + button state on `hidden.bs.modal`; show identifier (Student ID + last/first name) inside the modal.

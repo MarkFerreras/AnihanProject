@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Registrar Subjects Management">
-    <title>Subjects — Registrar</title>
+    <meta name="description" content="Anihan SRMS — Registrar Sections Management">
+    <title>Sections — Registrar</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
@@ -38,14 +38,14 @@
                             <a class="nav-link admin-nav-link" href="registrar.html">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page"
-                                href="subjects.html">Subjects</a>
+                            <a class="nav-link admin-nav-link" href="subjects.html">Subjects</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="classes.html">Classes</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="sections.html">Sections</a>
+                            <a class="nav-link admin-nav-link active" aria-current="page"
+                                href="sections.html">Sections</a>
                         </li>
                     </ul>
                     <div class="d-flex align-items-center gap-3 ms-lg-3">
@@ -84,8 +84,8 @@
                 <div class="page-hero-grid">
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
-                        <h1 class="page-title">Subjects</h1>
-                        <p class="page-subtitle">View all subjects and assign trainers to each one.</p>
+                        <h1 class="page-title">Sections</h1>
+                        <p class="page-subtitle">View and manage sections by semester.</p>
                     </div>
                 </div>
             </section>
@@ -93,20 +93,32 @@
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>All Subjects</h2>
-                        <p>Click "Assign Trainer" to set a default trainer for any subject.</p>
+                        <h2>Sections</h2>
+                        <p>Current semester sections shown by default.</p>
+                    </div>
+                    <button class="btn btn-surface" id="createSectionBtn" data-bs-toggle="modal"
+                            data-bs-target="#createSectionModal">Create Section</button>
+                </div>
+
+                <div class="logs-filter-bar" id="sectionFilterBar">
+                    <div class="logs-filter-section">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="showAllSectionsToggle">
+                            <label class="form-check-label filter-label" for="showAllSectionsToggle">Show All Semesters</label>
+                        </div>
+                        <span class="filter-label ms-3" id="currentSemesterLabel">Semester: —</span>
                     </div>
                 </div>
+
                 <div class="surface-card-body compact">
                     <div class="table-responsive">
-                        <table id="subjectsTable" class="table admin-table align-middle mb-0 w-100">
+                        <table id="sectionsTable" class="table admin-table align-middle mb-0 w-100">
                             <thead class="table-light">
                                 <tr>
-                                    <th scope="col">Subject Code</th>
-                                    <th scope="col">Subject Name</th>
-                                    <th scope="col">Qualification</th>
-                                    <th scope="col">Units</th>
-                                    <th scope="col">Assigned Trainer</th>
+                                    <th scope="col">Section Code</th>
+                                    <th scope="col">Section Name</th>
+                                    <th scope="col">Batch Year</th>
+                                    <th scope="col">Course</th>
                                     <th scope="col" class="text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -118,28 +130,65 @@
         </div>
     </main>
 
-    <!-- ===== ASSIGN TRAINER MODAL ===== -->
-    <div class="modal fade detail-modal" id="assignTrainerModal" tabindex="-1"
-         aria-labelledby="assignTrainerModalLabel" aria-hidden="true">
+    <!-- ===== CREATE SECTION MODAL ===== -->
+    <div class="modal fade detail-modal" id="createSectionModal" tabindex="-1"
+         aria-labelledby="createSectionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="assignTrainerModalLabel">Assign Trainer</h5>
+                    <h5 class="modal-title" id="createSectionModalLabel">Create Section</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert d-none" id="assignTrainerAlert" role="alert"></div>
-                    <p>Subject: <strong id="assignTrainerSubjectName">—</strong></p>
+                    <div class="alert d-none" id="createSectionAlert" role="alert"></div>
                     <div class="mb-3">
-                        <label for="trainerSelect" class="form-label">Trainer</label>
-                        <select class="form-select" id="trainerSelect">
-                            <option value="">— No Trainer —</option>
+                        <label for="sectionCodeInput" class="form-label">Section Code *</label>
+                        <input type="text" class="form-control" id="sectionCodeInput" placeholder="e.g. SEC-B26" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sectionNameInput" class="form-label">Section Name *</label>
+                        <input type="text" class="form-control" id="sectionNameInput" placeholder="e.g. Section B 2026" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sectionBatchSelect" class="form-label">Batch *</label>
+                        <select class="form-select" id="sectionBatchSelect" required>
+                            <option value="">— Select Batch —</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sectionCourseSelect" class="form-label">Course *</label>
+                        <select class="form-select" id="sectionCourseSelect" required>
+                            <option value="">— Select Course —</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-surface" id="saveTrainerBtn">Save</button>
+                    <button type="button" class="btn btn-surface" id="saveSectionBtn">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DELETE SECTION CONFIRM MODAL ===== -->
+    <div class="modal fade delete-confirm-modal" id="deleteSectionConfirmModal" tabindex="-1"
+         aria-labelledby="deleteSectionConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteSectionConfirmModalLabel">Delete Section</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete section <strong id="deleteSectionName">—</strong>?</p>
+                    <div class="danger-zone">
+                        <p><strong>This action cannot be undone.</strong> Any classes linked to this section must be removed first.</p>
+                    </div>
+                    <div class="alert d-none mt-3" id="deleteSectionAlert" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-permanent-delete" id="confirmDeleteSectionBtn">Delete</button>
                 </div>
             </div>
         </div>
@@ -236,7 +285,6 @@
         </div>
     </div>
 
-    <!-- ===== FOOTER ===== -->
     <footer class="login-footer mt-auto">
         <div class="container">
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
@@ -247,7 +295,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-subjects.js"></script>
+    <script src="js/registrar-sections.js"></script>
 </body>
 
 </html>
