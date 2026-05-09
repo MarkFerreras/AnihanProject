@@ -1,12 +1,30 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Audit-Driven Bugfix Sweep (DB sync, error-handler hardening, FK pre-check)**
+**Student-Details Wizard Trim (baptismal cert optional, 4-col education table, remove school years)**
 
 ## Active Branch
-`fix/db-sync-and-bugs`
+`fix/student-details-trim`
 
-## Latest Session (May 9, 2026 — DB Sync + Error-Handler Hardening + Section FK Pre-Check)
+## Latest Session (May 9, 2026 — Student-Details Wizard Trim)
+
+### Items Completed
+1. **Baptismal Certificate optional.** Removed `certStatus`/`pendingBaptCert` guard from `STEP_CUSTOM_VALIDATORS[2]`. Baptism Date + Place remain required when "Baptized" is checked. File input retained — students can still upload voluntarily.
+2. **Educational Background → 4 columns.** Removed `Grade/Year` and `Semester` columns from `<thead>` and all 4 `<tbody>` rows. Renamed `Year Ended` → `School Year`. Dropped `.edu-grade`/`.edu-sem` reads from `buildPayload` and `populateForm`.
+3. **School Years at Anihan removed.** Deleted the entire `#syTable`/`#addSyRow` HTML block. Removed `renderSyRow()` DOMContentLoaded call, `addSyRow` listener, 12-line `#syTableBody` forEach in `buildPayload`, `schoolYears` population block in `populateForm`, and `renderSyRow()`/`addSyRowData()` functions. `const schoolYears = []` remains in payload for DTO compatibility.
+4. **JS cache-buster bumped** `?v=4` → `?v=5`.
+
+### Verified
+- `grep` for `syTable|syTableBody|addSyRow|renderSyRow|addSyRowData|edu-grade|edu-sem` → zero matches in both files.
+- `./gradlew test` → **90 tests, 0 failures, 0 errors**.
+
+### Open Items / Deferred
+- Manual browser smoke test of the updated wizard (Steps 2–4, baptism opt-out, education 4-col, submit).
+- Registrar regression: confirm school-year rows can still be added via the registrar edit form after a new student submits with zero `student_school_years` rows.
+
+---
+
+## Previous Session (May 9, 2026 — DB Sync + Error-Handler Hardening + Section FK Pre-Check)
 
 ### Audit Findings (read-only investigation phase)
 1. **CRITICAL:** Live MySQL had 17 tables, code expected 19. The `2026-05-09-classes-and-trainers.sql` migration had not been applied on this machine. `GET /api/registrar/classes` → 500 `Table 'AnihanSRMS.classes' doesn't exist`. `GET /api/registrar/subjects` → 500 `Unknown column 's1_0.trainer_id'`.
