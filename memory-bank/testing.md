@@ -23,6 +23,16 @@
 
 **Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **105 tests, 0 failures, 0 errors** (May 10, 2026, after Subjects CRUD session).
 
+## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
+
+User-verified in browser after Subjects CRUD implementation:
+- Create Subject → qualification dropdown loads, form saves, row appears in DataTable — **PASS**
+- Edit Subject → pre-populates name/qualification/units, saves correctly — **PASS**
+- Assign Trainer → trainer dropdown loads, assignment saves, badge updates — **PASS**
+- Delete Subject (type-to-confirm) → "delete" input gates button, row removed on confirm — **PASS**
+- `system_logs` rows for create/update/delete visible in `/logs.html` — **PASS**
+- No regressions observed.
+
 ## Manual Smoke Test — 2026-05-09 (post-fix)
 
 After re-applying the 2026-05-09 migration to the live MySQL DB:
@@ -50,8 +60,8 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 ## Pending Manual Checks
 
 - [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
-- [ ] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path; verify FK-block message when classes or grades reference the subject.
-- [ ] Verify `system_logs` rows for subject create/update/delete via `/logs.html`.
+- [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
+- [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).
 - [ ] Browser retest: registrar Subjects / Classes / Sections pages — assign trainer, create class, enroll/unenroll student, create/delete section.
 - [ ] Verify `(section_code, subject_code, semester)` uniqueness on classes via UI.
 - [ ] Verify section delete is blocked when classes reference it.
