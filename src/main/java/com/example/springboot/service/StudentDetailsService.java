@@ -109,10 +109,13 @@ public class StudentDetailsService {
         applyReligion(record, req);
         record.setStudentStatus("Submitted");
 
-        // Auto-assign batch for the current year if one exists and no batch is set
+        // Auto-assign batch for the current year; create one if none exists yet
         if (record.getBatch() == null) {
             short currentYear = (short) LocalDate.now().getYear();
-            batchRepo.findFirstByBatchYear(currentYear).ifPresent(record::setBatch);
+            com.example.springboot.model.Batch batch = batchRepo.findFirstByBatchYear(currentYear)
+                    .orElseGet(() -> batchRepo.save(
+                            new com.example.springboot.model.Batch("B" + currentYear + "A", currentYear)));
+            record.setBatch(batch);
         }
 
         studentRecordRepo.save(record);
