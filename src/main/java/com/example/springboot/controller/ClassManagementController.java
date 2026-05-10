@@ -29,6 +29,7 @@ import com.example.springboot.dto.registrar.QualificationResponse;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
+import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
 import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
@@ -169,6 +170,25 @@ public class ClassManagementController {
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @PutMapping("/classes/{classId}/trainer")
+    public ResponseEntity<ClassResponse> updateClassTrainer(
+            @PathVariable Integer classId,
+            @RequestBody UpdateClassTrainerRequest request,
+            HttpServletRequest httpRequest) {
+        ClassResponse result = classManagementService.updateClassTrainer(classId, request);
+
+        LogContext ctx = getLogContext();
+        String action = request.trainerId() != null
+                ? "Assigned trainer " + result.trainerName() + " to class #" + classId
+                        + " (" + result.subjectCode() + " / " + result.sectionCode() + ")"
+                : "Unassigned trainer from class #" + classId
+                        + " (" + result.subjectCode() + " / " + result.sectionCode() + ")";
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                action, httpRequest.getRemoteAddr());
+
+        return ResponseEntity.ok(result);
     }
 
     // -------------------------------------------------------

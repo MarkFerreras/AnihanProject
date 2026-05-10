@@ -1,5 +1,36 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-10 - Edit Class Trainer (AGILE-93 / AGILE-95)
+**Branch:** `feature/edit-class-trainer`
+
+### Task
+Allow a registrar to reassign (or unassign) the trainer on an existing class via a new `PUT /api/registrar/classes/{classId}/trainer` endpoint and an Edit Trainer modal on `classes.html`. Edit scope is trainer-only — section, subject, and semester remain immutable after class creation. No DB schema change needed (`classes.trainer_id` is already nullable with `ON DELETE SET NULL`).
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/java/com/example/springboot/dto/registrar/UpdateClassTrainerRequest.java` | Request DTO — single nullable `Integer trainerId` |
+| `src/test/java/com/example/springboot/service/ClassManagementServiceTest.java` | 6 Mockito service tests for `updateClassTrainer` |
+| `src/test/java/com/example/springboot/controller/ClassManagementControllerWebMvcTest.java` | 4 WebMvc controller tests for `PUT /classes/{id}/trainer` |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/java/com/example/springboot/service/ClassManagementService.java` | Added `UpdateClassTrainerRequest` import + `updateClassTrainer()` method (~25 LOC) |
+| `src/main/java/com/example/springboot/controller/ClassManagementController.java` | Added `UpdateClassTrainerRequest` import + `PUT /classes/{classId}/trainer` endpoint with `system_logs` |
+| `src/main/resources/static/classes.html` | Added `#editClassModal` (read-only context + trainer select + inline alert); cache-buster `?v=2` |
+| `src/main/resources/static/js/registrar-classes.js` | Actions column now emits two buttons; `currentEditClassData` state + `editClassModal` init; `setupEditClass()` + `openEditClassModal()`; `loadTrainersDropdown()` returns jQuery deferred |
+
+### Design Decisions
+- Trainer-only edit scope per user decision — changing section/subject/semester would break the `(section_code, subject_code, semester)` unique key and leave enrollments in invalid states.
+- `loadTrainersDropdown()` now returns the `$.ajax` deferred so `openEditClassModal()` can call `.done()` to pre-select the current trainer after the dropdown populates.
+- Validation mirrors `assignTrainer` exactly: role must be `ROLE_TRAINER`, `enabled` must be `true`.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 115 tests, 0 failures, 0 errors**.
+
+---
+
 ## 2026-05-10 - Subjects CRUD (Create / Edit / Delete)
 **Branch:** `feature/subjects-crud`
 

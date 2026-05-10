@@ -7,13 +7,16 @@
     let classesTable;
     let currentSemester = '';
     let currentClassId = null;
+    let currentEditClassData = null;
 
     const createClassModal = new bootstrap.Modal(document.getElementById('createClassModal'));
+    const editClassModal = new bootstrap.Modal(document.getElementById('editClassModal'));
     const enrollStudentModal = new bootstrap.Modal(document.getElementById('enrollStudentModal'));
 
     $(document).ready(function () {
         loadCurrentSemester();
         setupCreateClass();
+        setupEditClass();
         setupEnrollment();
     });
 
@@ -93,7 +96,16 @@
                     orderable: false,
                     className: 'text-end',
                     render: function (data) {
-                        return '<button class="btn btn-surface btn-sm enroll-btn" data-id="' + data.classId + '">Manage Students</button>';
+                        return '<div class="d-flex gap-2 justify-content-end">' +
+                            '<button class="btn btn-surface btn-sm edit-class-btn" ' +
+                                'data-id="' + data.classId + '" ' +
+                                'data-section="' + escapeHtml(data.sectionName) + ' (' + escapeHtml(data.sectionCode) + ')" ' +
+                                'data-subject="' + escapeHtml(data.subjectName) + ' (' + escapeHtml(data.subjectCode) + ')" ' +
+                                'data-semester="' + escapeHtml(data.semester) + '" ' +
+                                'data-trainer-id="' + (data.trainerId || '') + '">' +
+                                'Edit Trainer</button>' +
+                            '<button class="btn btn-surface btn-sm enroll-btn" data-id="' + data.classId + '">Manage Students</button>' +
+                            '</div>';
                     }
                 }
             ],
@@ -102,6 +114,18 @@
                 emptyTable: 'No classes found.',
                 zeroRecords: 'No matching classes.'
             }
+        });
+
+        // Delegate click for edit trainer
+        $('#classesTable').on('click', '.edit-class-btn', function () {
+            currentEditClassData = {
+                classId: parseInt($(this).data('id')),
+                section: $(this).data('section'),
+                subject: $(this).data('subject'),
+                semester: $(this).data('semester'),
+                trainerId: $(this).data('trainer-id') || null
+            };
+            openEditClassModal(currentEditClassData);
         });
 
         // Delegate click for enrollment
@@ -171,6 +195,53 @@
         });
     }
 
+    // -------------------------------------------------------
+    // Edit Class Trainer
+    // -------------------------------------------------------
+
+    function setupEditClass() {
+        $('#editClassModal').on('hidden.bs.modal', function () {
+            hideAlert('editClassAlert');
+            currentEditClassData = null;
+        });
+
+        $('#saveEditClassBtn').on('click', function () {
+            if (!currentEditClassData) return;
+
+            const trainerId = $('#editClassTrainerSelect').val()
+                ? parseInt($('#editClassTrainerSelect').val())
+                : null;
+
+            $.ajax({
+                url: '/api/registrar/classes/' + currentEditClassData.classId + '/trainer',
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ trainerId: trainerId }),
+                success: function () {
+                    editClassModal.hide();
+                    classesTable.ajax.reload(null, false);
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Failed to update trainer.';
+                    showAlert('editClassAlert', msg, 'danger');
+                }
+            });
+        });
+    }
+
+    function openEditClassModal(data) {
+        hideAlert('editClassAlert');
+        $('#editClassSection').text(data.section || '—');
+        $('#editClassSubject').text(data.subject || '—');
+        $('#editClassSemester').text(data.semester || '—');
+
+        loadTrainersDropdown('editClassTrainerSelect').done(function () {
+            $('#editClassTrainerSelect').val(data.trainerId ? String(data.trainerId) : '');
+        });
+
+        editClassModal.show();
+    }
+
     function loadSectionsDropdown() {
         $.ajax({
             url: '/api/registrar/sections?semester=' + currentSemester,
@@ -203,7 +274,7 @@
     }
 
     function loadTrainersDropdown(selectId) {
-        $.ajax({
+        return $.ajax({
             url: '/api/registrar/trainers',
             method: 'GET',
             success: function (data) {

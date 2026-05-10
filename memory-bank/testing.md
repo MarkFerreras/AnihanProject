@@ -20,8 +20,10 @@
 | `AgeCalculatorTest` | Pure unit | 6 | null/today/past/future/birthday-edge cases (returns `Integer null` for null birthdate) |
 | `ClassManagementSubjectServiceTest` | Mockito | 9 | createSubject/updateSubject/deleteSubject — FK pre-checks, duplicate code, unknown qualification |
 | `ClassManagementSubjectControllerWebMvcTest` | WebMvc | 6 | POST/PUT/DELETE subjects, GET qualifications, TRAINER forbidden |
+| `ClassManagementServiceTest` | Mockito | 6 | updateClassTrainer — assign, unassign, class not found, trainer not found, not-a-trainer, disabled |
+| `ClassManagementControllerWebMvcTest` | WebMvc | 4 | PUT /classes/{id}/trainer — 200 assign+log, 200 unassign+log, 403 TRAINER, 400 service throws |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **105 tests, 0 failures, 0 errors** (May 10, 2026, after Subjects CRUD session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **115 tests, 0 failures, 0 errors** (May 10, 2026, after Edit Class Trainer session).
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 
@@ -62,6 +64,7 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 - [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
 - [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
 - [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).
+- [ ] Browser smoke: Edit Class Trainer — click Edit Trainer on a class row, change trainer, verify row updates; unassign, verify "Unassigned" italic; confirm `/logs.html` has audit rows.
 - [ ] Browser retest: registrar Subjects / Classes / Sections pages — assign trainer, create class, enroll/unenroll student, create/delete section.
 - [ ] Verify `(section_code, subject_code, semester)` uniqueness on classes via UI.
 - [ ] Verify section delete is blocked when classes reference it.

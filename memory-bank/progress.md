@@ -2,6 +2,15 @@
 
 ## Recent Sessions (detail)
 
+### Edit Class Trainer — AGILE-93 / AGILE-95 (Completed — May 10, 2026)
+- `UpdateClassTrainerRequest` DTO created — nullable `Integer trainerId`; mirrors `AssignTrainerRequest`.
+- `ClassManagementService.updateClassTrainer()` added — validates trainer role + enabled; returns `ClassResponse` with live enrolled count.
+- `ClassManagementController`: `PUT /api/registrar/classes/{classId}/trainer` added. Writes `system_logs` assign/unassign messages.
+- `classes.html`: `#editClassModal` added (read-only Section/Subject/Semester + trainer select + inline alert). Cache-buster `?v=2`.
+- `registrar-classes.js`: Actions column updated to emit `Edit Trainer` + `Manage Students` buttons; `setupEditClass()` + `openEditClassModal()` added; `loadTrainersDropdown()` returns jQuery deferred for `.done()` chaining.
+- Tests: `ClassManagementServiceTest` (6) + `ClassManagementControllerWebMvcTest` (4). Full suite: **115 tests, 0 failures**.
+- Branch: `feature/edit-class-trainer`. Open: browser smoke test; Jira transitions for AGILE-93/95 (user handles).
+
 ### Subjects CRUD — Create / Edit / Delete (Completed — May 10, 2026)
 - `QualificationRepository`, `QualificationResponse`, `CreateSubjectRequest`, `UpdateSubjectRequest` created.
 - `SchoolClassRepository.existsBySubjectSubjectCode()` and `SubjectRepository.countGradesBySubjectCode()` added for FK pre-checks before delete.

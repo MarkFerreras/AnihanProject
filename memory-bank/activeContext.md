@@ -1,12 +1,29 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Subjects CRUD (AGILE-89, AGILE-90, AGILE-91) — Create / Edit / Delete on the Subjects page**
+**Edit Class Trainer (AGILE-93, AGILE-95) — Reassign/unassign trainer on an existing class**
 
 ## Active Branch
-`feature/subjects-crud`
+`feature/edit-class-trainer`
 
-## Latest Session (May 10, 2026 — Subjects CRUD: Create / Edit / Delete)
+## Latest Session (May 10, 2026 — Edit Class Trainer: AGILE-93 / AGILE-95)
+
+### Items Completed
+1. **UpdateClassTrainerRequest DTO** created — single nullable `Integer trainerId`; mirrors `AssignTrainerRequest`.
+2. **ClassManagementService** extended — `updateClassTrainer(Integer classId, UpdateClassTrainerRequest)` added. Validates trainer role + enabled (same as `assignTrainer`). Returns `ClassResponse` with live enrolled count.
+3. **ClassManagementController** extended — `PUT /api/registrar/classes/{classId}/trainer`. Writes `system_logs` row: "Assigned trainer X to class #N" or "Unassigned trainer from class #N".
+4. **classes.html** updated — `#editClassModal` inserted between Create Class and Enroll Student modals. Read-only Section/Subject/Semester display + trainer `<select>` + inline alert. Cache-buster `?v=2`.
+5. **registrar-classes.js** updated — Actions column now emits `Edit Trainer` + `Manage Students` buttons. `setupEditClass()` + `openEditClassModal()` added. `loadTrainersDropdown()` now returns jQuery deferred for `.done()` chaining. `currentEditClassData` module state added.
+6. **Tests** — `ClassManagementServiceTest` (6 tests) + `ClassManagementControllerWebMvcTest` (4 tests). Full suite: **115 tests, 0 failures, 0 errors**.
+
+### Open Items / Deferred
+- Manual browser smoke test: open `/classes.html`, click Edit Trainer, change trainer, verify row updates; unassign and verify "Unassigned" italic; check `/logs.html` for audit rows.
+- Jira: transition AGILE-93, AGILE-95 to Done after PR merges (user will handle).
+- Note for follow-up: `createClass` still missing the `enabled` trainer-account check (present in `assignTrainer` and new `updateClassTrainer`).
+
+---
+
+## Previous Session (May 10, 2026 — Subjects CRUD: Create / Edit / Delete)
 
 ### Items Completed
 1. **QualificationRepository** created — `JpaRepository<Qualification, Integer>`.

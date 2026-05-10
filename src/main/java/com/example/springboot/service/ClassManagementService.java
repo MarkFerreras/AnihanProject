@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
+import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
 import com.example.springboot.dto.registrar.EnrollStudentRequest;
 import com.example.springboot.dto.registrar.SectionResponse;
@@ -236,6 +237,29 @@ public class ClassManagementService {
 
         classRepository.save(schoolClass);
         return ClassResponse.from(schoolClass, 0);
+    }
+
+    @Transactional
+    public ClassResponse updateClassTrainer(Integer classId, UpdateClassTrainerRequest request) {
+        SchoolClass schoolClass = classRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
+
+        if (request.trainerId() == null) {
+            schoolClass.setTrainer(null);
+        } else {
+            User trainer = userRepository.findById(request.trainerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Trainer not found: " + request.trainerId()));
+            if (!"ROLE_TRAINER".equals(trainer.getRole())) {
+                throw new IllegalArgumentException("User is not a trainer: " + trainer.getUsername());
+            }
+            if (!Boolean.TRUE.equals(trainer.getEnabled())) {
+                throw new IllegalArgumentException("Trainer account is disabled: " + trainer.getUsername());
+            }
+            schoolClass.setTrainer(trainer);
+        }
+
+        classRepository.save(schoolClass);
+        return ClassResponse.from(schoolClass, enrollmentRepository.countBySchoolClassClassId(classId));
     }
 
     // -------------------------------------------------------
