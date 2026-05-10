@@ -14,4 +14,6 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Intege
             String sectionCode, String subjectCode, String semester);
 
     boolean existsBySectionSectionCode(String sectionCode);
+
+    boolean existsBySubjectSubjectCode(String subjectCode);
 }

@@ -24,9 +24,14 @@ import com.example.springboot.model.Section;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.Subject;
 import com.example.springboot.model.User;
+import com.example.springboot.dto.registrar.CreateSubjectRequest;
+import com.example.springboot.dto.registrar.QualificationResponse;
+import com.example.springboot.dto.registrar.UpdateSubjectRequest;
+import com.example.springboot.model.Qualification;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.ClassEnrollmentRepository;
 import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.QualificationRepository;
 import com.example.springboot.repository.SchoolClassRepository;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentRecordRepository;
@@ -48,6 +53,7 @@ public class ClassManagementService {
     private final BatchRepository batchRepository;
     private final CourseRepository courseRepository;
     private final StudentRecordRepository studentRecordRepository;
+    private final QualificationRepository qualificationRepository;
 
     public ClassManagementService(SubjectRepository subjectRepository,
                                   SectionRepository sectionRepository,
@@ -56,7 +62,8 @@ public class ClassManagementService {
                                   UserRepository userRepository,
                                   BatchRepository batchRepository,
                                   CourseRepository courseRepository,
-                                  StudentRecordRepository studentRecordRepository) {
+                                  StudentRecordRepository studentRecordRepository,
+                                  QualificationRepository qualificationRepository) {
         this.subjectRepository = subjectRepository;
         this.sectionRepository = sectionRepository;
         this.classRepository = classRepository;
@@ -65,6 +72,7 @@ public class ClassManagementService {
         this.batchRepository = batchRepository;
         this.courseRepository = courseRepository;
         this.studentRecordRepository = studentRecordRepository;
+        this.qualificationRepository = qualificationRepository;
     }
 
     // -------------------------------------------------------
@@ -75,6 +83,66 @@ public class ClassManagementService {
         return subjectRepository.findAll().stream()
                 .map(SubjectResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    public List<QualificationResponse> getAllQualifications() {
+        return qualificationRepository.findAll().stream()
+                .map(QualificationResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public SubjectResponse createSubject(CreateSubjectRequest request) {
+        String code = request.subjectCode().trim();
+        if (subjectRepository.existsById(code)) {
+            throw new IllegalArgumentException("Subject code already exists: " + code);
+        }
+        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Qualification not found: " + request.qualificationCode()));
+
+        Subject subject = new Subject();
+        subject.setSubjectCode(code);
+        subject.setSubjectName(request.subjectName().trim());
+        subject.setQualification(qualification);
+        subject.setUnits(request.units());
+
+        Subject saved = subjectRepository.save(subject);
+        return SubjectResponse.from(saved);
+    }
+
+    @Transactional
+    public SubjectResponse updateSubject(String subjectCode, UpdateSubjectRequest request) {
+        Subject subject = subjectRepository.findById(subjectCode)
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
+
+        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Qualification not found: " + request.qualificationCode()));
+
+        subject.setSubjectName(request.subjectName().trim());
+        subject.setQualification(qualification);
+        subject.setUnits(request.units());
+
+        Subject saved = subjectRepository.save(subject);
+        return SubjectResponse.from(saved);
+    }
+
+    @Transactional
+    public void deleteSubject(String subjectCode) {
+        if (!subjectRepository.existsById(subjectCode)) {
+            throw new IllegalArgumentException("Subject not found: " + subjectCode);
+        }
+        if (classRepository.existsBySubjectSubjectCode(subjectCode)) {
+            throw new IllegalArgumentException(
+                    "Cannot delete subject: one or more classes still reference it. "
+                            + "Remove those classes first.");
+        }
+        if (subjectRepository.countGradesBySubjectCode(subjectCode) > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete subject: grades have already been recorded under it.");
+        }
+        subjectRepository.deleteById(subjectCode);
     }
 
     @Transactional

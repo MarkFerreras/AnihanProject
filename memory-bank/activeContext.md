@@ -1,12 +1,33 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Student-Details Wizard Trim (baptismal cert optional, 4-col education table, remove school years)**
+**Subjects CRUD (AGILE-89, AGILE-90, AGILE-91) — Create / Edit / Delete on the Subjects page**
 
 ## Active Branch
-`fix/student-details-trim`
+`feature/subjects-crud`
 
-## Latest Session (May 9, 2026 — Student-Details Wizard Trim)
+## Latest Session (May 10, 2026 — Subjects CRUD: Create / Edit / Delete)
+
+### Items Completed
+1. **QualificationRepository** created — `JpaRepository<Qualification, Integer>`.
+2. **QualificationResponse DTO** created — used by `GET /api/registrar/qualifications` dropdown endpoint.
+3. **CreateSubjectRequest + UpdateSubjectRequest DTOs** created — Bean Validation on all fields; subject code read-only on update.
+4. **SchoolClassRepository** extended — added `existsBySubjectSubjectCode(String)` for FK pre-check.
+5. **SubjectRepository** extended — added `countGradesBySubjectCode` native query against `grades` table.
+6. **ClassManagementService** extended — `QualificationRepository` injected; `getAllQualifications()`, `createSubject()`, `updateSubject()`, `deleteSubject()` implemented. Delete has double FK pre-check (classes + grades).
+7. **ClassManagementController** extended — `GET /qualifications`, `POST /subjects`, `PUT /subjects/{code}`, `DELETE /subjects/{code}`. Every state-changing call writes a `system_logs` row.
+8. **subjects.html** updated — "Create Subject" button in page header; three new Bootstrap modals (`#createSubjectModal`, `#editSubjectModal`, `#deleteSubjectConfirmModal` with strict type-to-confirm); JS cache-buster `?v=2`.
+9. **registrar-subjects.js** rewritten — Actions column now returns Edit + Assign Trainer + Delete buttons; `loadQualificationsDropdown()`, `setupCreateSubject()`, `setupEditSubject()`, `setupDeleteSubject()` added.
+10. **Tests** — `ClassManagementSubjectServiceTest` (9 tests) + `ClassManagementSubjectControllerWebMvcTest` (6 tests). Full suite: **105 tests, 0 failures**.
+
+### Open Items / Deferred
+- Manual browser smoke test (Create → Edit → Assign Trainer → Delete happy path + FK-block path).
+- Verify `system_logs` rows for create/update/delete via `/logs.html`.
+- Jira: transition AGILE-89, AGILE-90, AGILE-91 to Done after PR merges.
+
+---
+
+## Previous Session (May 9, 2026 — Student-Details Wizard Trim)
 
 ### Items Completed
 1. **Baptismal Certificate optional.** Removed `certStatus`/`pendingBaptCert` guard from `STEP_CUSTOM_VALIDATORS[2]`. Baptism Date + Place remain required when "Baptized" is checked. File input retained — students can still upload voluntarily.

@@ -2,6 +2,16 @@
 
 ## Recent Sessions (detail)
 
+### Subjects CRUD — Create / Edit / Delete (Completed — May 10, 2026)
+- `QualificationRepository`, `QualificationResponse`, `CreateSubjectRequest`, `UpdateSubjectRequest` created.
+- `SchoolClassRepository.existsBySubjectSubjectCode()` and `SubjectRepository.countGradesBySubjectCode()` added for FK pre-checks before delete.
+- `ClassManagementService`: `getAllQualifications()`, `createSubject()`, `updateSubject()`, `deleteSubject()` implemented. Delete blocked if classes or grades reference the subject.
+- `ClassManagementController`: `GET /qualifications`, `POST /subjects`, `PUT /subjects/{code}`, `DELETE /subjects/{code}` added. All state-changing calls write `system_logs`.
+- `subjects.html`: "Create Subject" button + three modals (Create, Edit, Delete strict-confirm). JS cache-buster `?v=2`.
+- `registrar-subjects.js`: full rewrite — Actions column has Edit + Assign Trainer + Delete; `setupCreateSubject`, `setupEditSubject`, `setupDeleteSubject`, `loadQualificationsDropdown` added.
+- Tests: `ClassManagementSubjectServiceTest` (9) + `ClassManagementSubjectControllerWebMvcTest` (6). Full suite: **105 tests, 0 failures**.
+- Branch: `feature/subjects-crud`. Open: browser smoke test, Jira transitions for AGILE-89/90/91.
+
 ### Student-Details Wizard Trim (Completed — May 9, 2026)
 - Baptismal Certificate upload made optional (Baptism Date + Place still required when Baptized is checked).
 - Educational Background table trimmed from 6 to 4 columns: removed `Grade/Year` and `Semester`; renamed `Year Ended` → `School Year`. JS payload/populateForm updated to match.

@@ -85,16 +85,22 @@
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
                         <h1 class="page-title">Subjects</h1>
-                        <p class="page-subtitle">View all subjects and assign trainers to each one.</p>
+                        <p class="page-subtitle">Create, edit, and manage subjects. Assign trainers to each one.</p>
                     </div>
                 </div>
             </section>
 
             <section class="surface-card">
                 <div class="surface-card-header">
-                    <div>
-                        <h2>All Subjects</h2>
-                        <p>Click "Assign Trainer" to set a default trainer for any subject.</p>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <h2>All Subjects</h2>
+                            <p>Use the Actions column to edit, assign a trainer, or delete a subject.</p>
+                        </div>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#createSubjectModal">
+                            + Create Subject
+                        </button>
                     </div>
                 </div>
                 <div class="surface-card-body compact">
@@ -117,6 +123,111 @@
             </section>
         </div>
     </main>
+
+    <!-- ===== CREATE SUBJECT MODAL ===== -->
+    <div class="modal fade" id="createSubjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Subject</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="createSubjectAlert" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="createSubjectCode" class="form-label">Subject Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="createSubjectCode" maxlength="20" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="createSubjectName" class="form-label">Subject Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="createSubjectName" maxlength="255" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="createSubjectQualification" class="form-label">Qualification <span class="text-danger">*</span></label>
+                        <select class="form-select" id="createSubjectQualification"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="createSubjectUnits" class="form-label">Units <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="createSubjectUnits" min="1" value="3">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveCreateSubjectBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT SUBJECT MODAL ===== -->
+    <div class="modal fade" id="editSubjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Subject</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="editSubjectAlert" role="alert"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Subject Code</label>
+                        <input type="text" class="form-control" id="editSubjectCode" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSubjectName" class="form-label">Subject Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editSubjectName" maxlength="255" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSubjectQualification" class="form-label">Qualification <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editSubjectQualification"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSubjectUnits" class="form-label">Units <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="editSubjectUnits" min="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveEditSubjectBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DELETE SUBJECT CONFIRMATION MODAL ===== -->
+    <div class="modal fade delete-confirm-modal" id="deleteSubjectConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Permanently Delete Subject</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">
+                        You are about to permanently delete subject
+                        <strong id="deleteSubjectIdentifier">this subject</strong>.
+                    </p>
+                    <div class="danger-zone">
+                        <p><strong>This action cannot be undone.</strong> The subject cannot be deleted while classes or grades reference it.</p>
+                    </div>
+                    <div class="mt-3">
+                        <label for="deleteSubjectConfirmInput" class="form-label">
+                            To confirm, type <strong>delete</strong> below:
+                        </label>
+                        <input type="text" class="form-control" id="deleteSubjectConfirmInput"
+                               placeholder="Type 'delete' to enable the button" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="alert d-none mt-3" id="deleteSubjectResultAlert" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-permanent-delete" id="confirmDeleteSubjectBtn" disabled>
+                        Permanently Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== ASSIGN TRAINER MODAL ===== -->
     <div class="modal fade detail-modal" id="assignTrainerModal" tabindex="-1"
@@ -247,7 +358,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-subjects.js"></script>
+    <script src="js/registrar-subjects.js?v=2"></script>
 </body>
 
 </html>

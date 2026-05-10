@@ -1,5 +1,42 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-10 - Subjects CRUD (Create / Edit / Delete)
+**Branch:** `feature/subjects-crud`
+
+### Task
+Add Create, Edit, and Delete capabilities to the existing Subjects page (closes AGILE-89, AGILE-90, AGILE-91). Delete uses strict type-to-confirm modal. Existing Assign Trainer flow preserved unchanged. No schema changes — `subjects` table already supports all operations.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/java/com/example/springboot/repository/QualificationRepository.java` | `JpaRepository<Qualification, Integer>` |
+| `src/main/java/com/example/springboot/dto/registrar/QualificationResponse.java` | Response DTO for qualification dropdown |
+| `src/main/java/com/example/springboot/dto/registrar/CreateSubjectRequest.java` | POST body with Bean Validation |
+| `src/main/java/com/example/springboot/dto/registrar/UpdateSubjectRequest.java` | PUT body (code read-only) |
+| `src/test/java/com/example/springboot/service/ClassManagementSubjectServiceTest.java` | 9 Mockito service tests |
+| `src/test/java/com/example/springboot/controller/ClassManagementSubjectControllerWebMvcTest.java` | 6 WebMvc controller tests |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/java/com/example/springboot/repository/SchoolClassRepository.java` | Added `existsBySubjectSubjectCode(String)` FK pre-check |
+| `src/main/java/com/example/springboot/repository/SubjectRepository.java` | Added `countGradesBySubjectCode` native query |
+| `src/main/java/com/example/springboot/service/ClassManagementService.java` | Added `QualificationRepository` + 4 new methods: `getAllQualifications`, `createSubject`, `updateSubject`, `deleteSubject` |
+| `src/main/java/com/example/springboot/controller/ClassManagementController.java` | Added `GET /qualifications`, `POST /subjects`, `PUT /subjects/{code}`, `DELETE /subjects/{code}` with system_logs |
+| `src/main/resources/static/subjects.html` | Create button + 3 modals (Create, Edit, Delete strict-confirm); JS cache-buster `?v=2` |
+| `src/main/resources/static/js/registrar-subjects.js` | Full rewrite — 3-button Actions column; CRUD setup functions added |
+
+### Design Decisions
+- Subject code is read-only after creation (PK cascades across `classes`/`grades`).
+- Double FK pre-check on delete (classes then grades) yields actionable 400 messages instead of generic 409.
+- Assign Trainer modal kept separate per user preference; Edit modal handles only name, qualification, units.
+- `loadQualificationsDropdown()` returns a jQuery deferred so Edit can chain `.done()` to pre-select current qualification.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 105 tests, 0 failures, 0 errors**.
+
+---
+
 ## 2026-05-09 - Student-Details Wizard Trim
 **Branch:** `fix/student-details-trim`
 
