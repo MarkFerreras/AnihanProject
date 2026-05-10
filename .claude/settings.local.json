@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources"
     ]
   }
 }
