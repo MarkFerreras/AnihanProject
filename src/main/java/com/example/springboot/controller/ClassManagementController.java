@@ -23,10 +23,13 @@ import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
+import com.example.springboot.dto.registrar.CreateSubjectRequest;
 import com.example.springboot.dto.registrar.EnrollStudentRequest;
+import com.example.springboot.dto.registrar.QualificationResponse;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
+import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.ClassManagementService;
@@ -62,6 +65,53 @@ public class ClassManagementController {
     @GetMapping("/subjects")
     public ResponseEntity<List<SubjectResponse>> listSubjects() {
         return ResponseEntity.ok(classManagementService.getAllSubjects());
+    }
+
+    @GetMapping("/qualifications")
+    public ResponseEntity<List<QualificationResponse>> listQualifications() {
+        return ResponseEntity.ok(classManagementService.getAllQualifications());
+    }
+
+    @PostMapping("/subjects")
+    public ResponseEntity<SubjectResponse> createSubject(
+            @Valid @RequestBody CreateSubjectRequest request,
+            HttpServletRequest httpRequest) {
+        SubjectResponse result = classManagementService.createSubject(request);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Created subject " + result.subjectCode() + " (" + result.subjectName() + ")",
+                httpRequest.getRemoteAddr());
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/subjects/{code}")
+    public ResponseEntity<SubjectResponse> updateSubject(
+            @PathVariable String code,
+            @Valid @RequestBody UpdateSubjectRequest request,
+            HttpServletRequest httpRequest) {
+        SubjectResponse result = classManagementService.updateSubject(code, request);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Updated subject " + code,
+                httpRequest.getRemoteAddr());
+
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/subjects/{code}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSubject(
+            @PathVariable String code,
+            HttpServletRequest httpRequest) {
+        classManagementService.deleteSubject(code);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Deleted subject " + code,
+                httpRequest.getRemoteAddr());
     }
 
     @PutMapping("/subjects/{code}/trainer")

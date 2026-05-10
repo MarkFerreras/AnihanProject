@@ -18,8 +18,20 @@
 | `StudentRecordH2LoadTest` | `@DataJpaTest` (H2 in MySQL mode) | 1 | 100 records persist+load via real JPA, isolated from live MySQL |
 | `StudentDetailsServiceTest` | Mockito | 7 | start (minimal record), resume, submit, double-submit guard, load |
 | `AgeCalculatorTest` | Pure unit | 6 | null/today/past/future/birthday-edge cases (returns `Integer null` for null birthdate) |
+| `ClassManagementSubjectServiceTest` | Mockito | 9 | createSubject/updateSubject/deleteSubject — FK pre-checks, duplicate code, unknown qualification |
+| `ClassManagementSubjectControllerWebMvcTest` | WebMvc | 6 | POST/PUT/DELETE subjects, GET qualifications, TRAINER forbidden |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **90 tests, 0 failures, 0 errors** (May 9, 2026, after the DB-sync + handler-hardening session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **105 tests, 0 failures, 0 errors** (May 10, 2026, after Subjects CRUD session).
+
+## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
+
+User-verified in browser after Subjects CRUD implementation:
+- Create Subject → qualification dropdown loads, form saves, row appears in DataTable — **PASS**
+- Edit Subject → pre-populates name/qualification/units, saves correctly — **PASS**
+- Assign Trainer → trainer dropdown loads, assignment saves, badge updates — **PASS**
+- Delete Subject (type-to-confirm) → "delete" input gates button, row removed on confirm — **PASS**
+- `system_logs` rows for create/update/delete visible in `/logs.html` — **PASS**
+- No regressions observed.
 
 ## Manual Smoke Test — 2026-05-09 (post-fix)
 
@@ -33,8 +45,8 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 ## Coverage Gaps (open)
 
 - No tests for `StudentDetailsController`, `StudentPortalController`, `StorageService`
-- No tests for `ClassManagementService` / `ClassManagementController` (added 2026-05-09 — follow-up)
-- E2E browser smoke tests not yet executed for the May 9 Subjects/Classes/Sections pages
+- `ClassManagementService`/`ClassManagementController` subject CRUD covered (May 10). Classes, sections, trainer-assign, and enrollment endpoints still untested.
+- E2E browser smoke tests not yet executed for the May 9/10 Subjects/Classes/Sections pages
 
 ## Manual Verification Performed (historical)
 
@@ -48,6 +60,8 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 ## Pending Manual Checks
 
 - [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
+- [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
+- [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).
 - [ ] Browser retest: registrar Subjects / Classes / Sections pages — assign trainer, create class, enroll/unenroll student, create/delete section.
 - [ ] Verify `(section_code, subject_code, semester)` uniqueness on classes via UI.
 - [ ] Verify section delete is blocked when classes reference it.
