@@ -1,12 +1,26 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Edit Class Trainer (AGILE-93, AGILE-95) — Reassign/unassign trainer on an existing class**
+**Navbar Sync — `student-records.html` now exposes the 4-link registrar nav (Home / Subjects / Classes / Sections)**
 
 ## Active Branch
-`feature/edit-class-trainer`
+`feature/edit-class-trainer` (continuing — pure UI navbar sync, no backend change)
 
-## Latest Session (May 10, 2026 — Edit Class Trainer: AGILE-93 / AGILE-95)
+## Latest Session (May 10, 2026 — Navbar Sync on student-records.html)
+
+### Items Completed
+1. **`student-records.html` navbar updated** — added `Classes` and `Sections` `<li>` entries to match the canonical 4-link registrar nav from `registrar.html`. Previous state had only Home + Subjects (a stale 2-link pattern from before the May 9 registrar-pages rollout).
+2. Navbar markup style follows the existing pattern: `nav-link admin-nav-link` classes, no `active` modifier (the edit page is a subpage of Home, not a top-level nav target).
+
+### Verified
+- Visual diff against `registrar.html` confirms identical link order, hrefs, and Bootstrap classes.
+
+### Open Items
+- Manual browser smoke test on `/student-records.html?id={recordId}` — confirm all 4 links navigate correctly and the collapsible menu still works at mobile widths.
+
+---
+
+## Previous Session (May 10, 2026 — Edit Class Trainer: AGILE-93 / AGILE-95)
 
 ### Items Completed
 1. **UpdateClassTrainerRequest DTO** created — single nullable `Integer trainerId`; mirrors `AssignTrainerRequest`.
