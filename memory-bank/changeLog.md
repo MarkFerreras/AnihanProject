@@ -1,5 +1,30 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-10 - Navbar Sync on student-records.html
+**Branch:** `feature/edit-class-trainer`
+
+### Task
+Update the registrar's edit student record page navbar to expose the recently added registrar pages (`classes.html`, `sections.html`). The page had been stuck on the pre-May-9 2-link layout (Home + Subjects).
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/resources/static/student-records.html` | Added two `<li class="nav-item">` entries linking to `classes.html` and `sections.html` after the existing `Subjects` link. Link order, classes, and styling mirror `registrar.html` exactly. |
+
+### Design Decisions
+- No `active` class on any link — the edit page is a subpage of Home (reached via "Open Details → Edit" on the home table), not itself a top-level nav target.
+- Pure HTML change; no JS, CSS, or backend update needed.
+- Re-used existing `nav-link admin-nav-link` classes — no new styles.
+
+### Verification
+- Visual diff against `registrar.html` confirms identical 4-link structure.
+- No build needed; static asset change only.
+
+### Open Items
+- Manual browser check: open `/student-records.html?id={recordId}`, click each nav link, verify routing + Bootstrap collapse at mobile widths.
+
+---
+
 ## 2026-05-10 - Edit Class Trainer (AGILE-93 / AGILE-95)
 **Branch:** `feature/edit-class-trainer`
 

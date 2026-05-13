@@ -2,6 +2,13 @@
 
 ## Recent Sessions (detail)
 
+### Navbar Sync on student-records.html (Completed — May 10, 2026)
+- `student-records.html` registrar edit page navbar updated from 2-link (Home, Subjects) to canonical 4-link (Home, Subjects, Classes, Sections) to match `registrar.html`.
+- Pure HTML change — two `<li class="nav-item">` blocks appended; no JS, CSS, or backend touched.
+- No `active` class applied since the edit page is a Home subpage, not a top-level nav target.
+- Branch: `feature/edit-class-trainer` (no rebranch — trivial UI sync).
+- Open: manual browser smoke (4 links navigate; mobile collapse still works).
+
 ### Edit Class Trainer — AGILE-93 / AGILE-95 (Completed — May 10, 2026)
 - `UpdateClassTrainerRequest` DTO created — nullable `Integer trainerId`; mirrors `AssignTrainerRequest`.
 - `ClassManagementService.updateClassTrainer()` added — validates trainer role + enabled; returns `ClassResponse` with live enrolled count.
