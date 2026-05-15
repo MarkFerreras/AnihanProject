@@ -170,6 +170,120 @@
         </div>
     </div>
 
+    <!-- ===== EDIT SECTION MODAL ===== -->
+    <div class="modal fade detail-modal" id="editSectionModal" tabindex="-1"
+         aria-labelledby="editSectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editSectionModalLabel">Edit Section</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="editSectionAlert" role="alert"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Section Code</label>
+                        <p class="form-control-plaintext fw-semibold" id="editSectionCodeDisplay">—</p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSectionNameInput" class="form-label">Section Name *</label>
+                        <input type="text" class="form-control" id="editSectionNameInput" maxlength="25" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-surface" id="saveEditSectionBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MANAGE STUDENTS MODAL ===== -->
+    <div class="modal fade detail-modal" id="manageSectionModal" tabindex="-1"
+         aria-labelledby="manageSectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageSectionModalLabel">Manage Students</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="manageStudentAlert" role="alert"></div>
+                    <ul class="nav nav-tabs mb-3" id="manageSectionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-current-students" data-bs-toggle="tab"
+                                data-bs-target="#pane-current-students" type="button" role="tab"
+                                aria-controls="pane-current-students" aria-selected="true">
+                                Current Students (<span id="currentStudentCount">0</span>)
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-add-students" data-bs-toggle="tab"
+                                data-bs-target="#pane-add-students" type="button" role="tab"
+                                aria-controls="pane-add-students" aria-selected="false">Add Students</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="manageSectionTabContent">
+                        <div class="tab-pane fade show active" id="pane-current-students" role="tabpanel"
+                             aria-labelledby="tab-current-students">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Last Name</th>
+                                            <th>First Name</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="currentStudentsBody">
+                                        <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="pane-add-students" role="tabpanel"
+                             aria-labelledby="tab-add-students">
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <select class="form-select form-select-sm" id="eligibleBatchFilter">
+                                        <option value="">All Batches</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-6">
+                                    <select class="form-select form-select-sm" id="eligibleCourseFilter">
+                                        <option value="">All Courses</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Last Name</th>
+                                            <th>First Name</th>
+                                            <th>Batch</th>
+                                            <th>Course</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="eligibleStudentsBody">
+                                        <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== DELETE SECTION CONFIRM MODAL ===== -->
     <div class="modal fade delete-confirm-modal" id="deleteSectionConfirmModal" tabindex="-1"
          aria-labelledby="deleteSectionConfirmModalLabel" aria-hidden="true">
@@ -295,7 +409,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-sections.js"></script>
+    <script src="js/registrar-sections.js?v=3"></script>
 </body>
 
 </html>

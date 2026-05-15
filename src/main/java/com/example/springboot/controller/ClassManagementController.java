@@ -29,7 +29,13 @@ import com.example.springboot.dto.registrar.QualificationResponse;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
+import com.example.springboot.dto.registrar.AssignStudentsToSectionRequest;
+import com.example.springboot.dto.registrar.BulkEnrollSectionResponse;
+import com.example.springboot.dto.registrar.EligibleSectionStudentResponse;
+import com.example.springboot.dto.registrar.SectionAssignmentResultResponse;
+import com.example.springboot.dto.registrar.SectionStudentResponse;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
+import com.example.springboot.dto.registrar.UpdateSectionRequest;
 import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
@@ -221,6 +227,21 @@ public class ClassManagementController {
         return ResponseEntity.ok(Map.of("message", "Student enrolled successfully."));
     }
 
+    @PostMapping("/classes/{classId}/enroll-section")
+    public ResponseEntity<BulkEnrollSectionResponse> bulkEnrollSectionIntoClass(
+            @PathVariable Integer classId,
+            HttpServletRequest httpRequest) {
+        BulkEnrollSectionResponse result = classManagementService.bulkEnrollSectionIntoClass(classId);
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Bulk-enrolled section into class #" + classId + ": "
+                        + result.enrolledCount() + " enrolled, "
+                        + result.skippedAlreadyEnrolled() + " already enrolled, "
+                        + result.skippedIneligible() + " ineligible",
+                httpRequest.getRemoteAddr());
+        return ResponseEntity.ok(result);
+    }
+
     @DeleteMapping("/enrollments/{enrollmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unenrollStudent(@PathVariable Integer enrollmentId, HttpServletRequest httpRequest) {
@@ -254,6 +275,62 @@ public class ClassManagementController {
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @PutMapping("/sections/{sectionCode}")
+    public ResponseEntity<SectionResponse> updateSection(
+            @PathVariable String sectionCode,
+            @Valid @RequestBody UpdateSectionRequest request,
+            HttpServletRequest httpRequest) {
+        SectionResponse response = classManagementService.updateSection(sectionCode, request);
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Updated section " + sectionCode + " name to '" + response.sectionName() + "'",
+                httpRequest.getRemoteAddr());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/sections/eligible-students")
+    public ResponseEntity<List<EligibleSectionStudentResponse>> getEligibleStudentsForSection(
+            @RequestParam(value = "batchCode", required = false) String batchCode,
+            @RequestParam(value = "courseCode", required = false) String courseCode) {
+        return ResponseEntity.ok(classManagementService.getEligibleStudentsForSection(batchCode, courseCode));
+    }
+
+    @GetMapping("/sections/{sectionCode}/students")
+    public ResponseEntity<List<SectionStudentResponse>> getStudentsInSection(
+            @PathVariable String sectionCode) {
+        return ResponseEntity.ok(classManagementService.getStudentsInSection(sectionCode));
+    }
+
+    @PostMapping("/sections/{sectionCode}/students")
+    public ResponseEntity<SectionAssignmentResultResponse> assignStudentsToSection(
+            @PathVariable String sectionCode,
+            @Valid @RequestBody AssignStudentsToSectionRequest request,
+            HttpServletRequest httpRequest) {
+        SectionAssignmentResultResponse result =
+                classManagementService.assignStudentsToSection(sectionCode, request);
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Assigned " + result.assignedCount()
+                        + " students to section " + sectionCode
+                        + " (skipped " + result.skippedStudentIds().size() + ")",
+                httpRequest.getRemoteAddr());
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/sections/{sectionCode}/students/{studentId}")
+    public ResponseEntity<Void> removeStudentFromSection(
+            @PathVariable String sectionCode,
+            @PathVariable String studentId,
+            HttpServletRequest httpRequest) {
+        int cascaded = classManagementService.removeStudentFromSection(sectionCode, studentId);
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Removed student " + studentId + " from section " + sectionCode
+                        + " (cascaded " + cascaded + " class enrollment(s))",
+                httpRequest.getRemoteAddr());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/sections/{sectionCode}")

@@ -311,10 +311,38 @@
                 }
             });
         });
+
+        $('#enrollWholeSectionBtn').on('click', function () {
+            const btn = $(this);
+            btn.prop('disabled', true).text('Enrolling...');
+            hideAlert('enrollSectionAlert');
+
+            $.ajax({
+                url: '/api/registrar/classes/' + currentClassId + '/enroll-section',
+                method: 'POST',
+                success: function (result) {
+                    const msg = 'Enrolled: ' + result.enrolledCount +
+                        ' | Already enrolled: ' + result.skippedAlreadyEnrolled +
+                        ' | Ineligible: ' + result.skippedIneligible +
+                        ' | Total considered: ' + result.totalConsidered;
+                    showAlert('enrollSectionAlert', msg, 'success');
+                    refreshEnrollmentData(currentClassId);
+                    classesTable.ajax.reload(null, false);
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Failed to bulk-enroll section.';
+                    showAlert('enrollSectionAlert', msg, 'danger');
+                },
+                complete: function () {
+                    btn.prop('disabled', false).text('Enroll Whole Section');
+                }
+            });
+        });
     }
 
     function openEnrollmentModal(classId) {
         hideAlert('enrollAlert');
+        hideAlert('enrollSectionAlert');
         refreshEnrollmentData(classId);
         enrollStudentModal.show();
     }

@@ -1,12 +1,35 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Navbar Sync — `student-records.html` now exposes the 4-link registrar nav (Home / Subjects / Classes / Sections)**
+**Section Student Management + Bulk Class Enrollment (AGILE-164 / AGILE-165) — backend + frontend complete, pending browser smoke test**
 
 ## Active Branch
-`feature/edit-class-trainer` (continuing — pure UI navbar sync, no backend change)
+`feature/section-class-enrollment`
 
-## Latest Session (May 10, 2026 — Navbar Sync on student-records.html)
+## Latest Session (May 15, 2026 — Section CRUD + Bulk Class Enrollment)
+
+### Items Completed
+1. **6 new DTOs** — `UpdateSectionRequest`, `SectionStudentResponse`, `EligibleSectionStudentResponse`, `AssignStudentsToSectionRequest`, `SectionAssignmentResultResponse`, `BulkEnrollSectionResponse`.
+2. **`StudentRecordRepository`** extended — 5 new finder methods for section filtering (null section, status, batch, course combinations).
+3. **`ClassEnrollmentRepository`** extended — `deleteByStudentAndSectionCode` JPQL bulk-delete query.
+4. **`ClassManagementService`** extended — 6 new methods: `updateSection`, `getStudentsInSection`, `getEligibleStudentsForSection`, `assignStudentsToSection`, `removeStudentFromSection`, `bulkEnrollSectionIntoClass`.
+5. **`ClassManagementController`** extended — 6 new endpoints: `PUT /sections/{code}`, `GET /sections/eligible-students`, `GET /sections/{code}/students`, `POST /sections/{code}/students`, `DELETE /sections/{code}/students/{studentId}`, `POST /classes/{classId}/enroll-section`.
+6. **`ClassManagementSectionServiceTest`** — 13 Mockito tests for all 6 service methods.
+7. **`ClassManagementSectionControllerWebMvcTest`** — 7 WebMvc tests. Full suite: **135 tests, 0 failures**.
+8. **`sections.html`** — added `#editSectionModal` and `#manageSectionModal` (tabbed: Current Students + Add Students with batch/course filters); cache-buster `?v=3`.
+9. **`registrar-sections.js`** — rewritten Actions column (Edit / Manage Students / Delete); added `setupEditSection()`, `setupManageStudents()`, `refreshCurrentStudents()`, `refreshEligibleStudents()`, `loadFilterDropdowns()`.
+10. **`classes.html`** — added Bulk Enrollment section (`#enrollWholeSectionBtn` + `#enrollSectionAlert`) in `#enrollStudentModal`; cache-buster `?v=3`.
+11. **`registrar-classes.js`** — wired `#enrollWholeSectionBtn` in `setupEnrollment()`; `openEnrollmentModal()` now clears `#enrollSectionAlert` on re-open.
+
+### Verified
+- `./gradlew test` → **BUILD SUCCESSFUL — 135 tests, 0 failures, 0 errors**.
+- 3 commits on `feature/section-class-enrollment`.
+
+### Open Items
+- Manual browser smoke test: sections page Edit + Manage Students flows, classes page Enroll Whole Section button.
+- PR to main (user approval required).
+
+## Previous Session (May 10, 2026 — Navbar Sync on student-records.html)
 
 ### Items Completed
 1. **`student-records.html` navbar updated** — added `Classes` and `Sections` `<li>` entries to match the canonical 4-link registrar nav from `registrar.html`. Previous state had only Home + Subjects (a stale 2-link pattern from before the May 9 registrar-pages rollout).
