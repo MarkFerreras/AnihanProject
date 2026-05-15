@@ -30,6 +30,7 @@ import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
+import com.example.springboot.dto.registrar.UpdateSectionRequest;
 import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
@@ -254,6 +255,19 @@ public class ClassManagementController {
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @PutMapping("/sections/{sectionCode}")
+    public ResponseEntity<SectionResponse> updateSection(
+            @PathVariable String sectionCode,
+            @Valid @RequestBody UpdateSectionRequest request,
+            HttpServletRequest httpRequest) {
+        SectionResponse response = classManagementService.updateSection(sectionCode, request);
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Updated section " + sectionCode + " name to '" + response.sectionName() + "'",
+                httpRequest.getRemoteAddr());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/sections/{sectionCode}")
