@@ -27,6 +27,11 @@ import com.example.springboot.model.Subject;
 import com.example.springboot.model.User;
 import com.example.springboot.dto.registrar.CreateSubjectRequest;
 import com.example.springboot.dto.registrar.QualificationResponse;
+import com.example.springboot.dto.registrar.AssignStudentsToSectionRequest;
+import com.example.springboot.dto.registrar.BulkEnrollSectionResponse;
+import com.example.springboot.dto.registrar.EligibleSectionStudentResponse;
+import com.example.springboot.dto.registrar.SectionAssignmentResultResponse;
+import com.example.springboot.dto.registrar.SectionStudentResponse;
 import com.example.springboot.dto.registrar.UpdateSectionRequest;
 import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.Qualification;
@@ -381,6 +386,145 @@ public class ClassManagementService {
         section.setSection(request.sectionName());
         sectionRepository.save(section);
         return SectionResponse.from(section);
+    }
+
+    public List<SectionStudentResponse> getStudentsInSection(String sectionCode) {
+        if (!sectionRepository.existsById(sectionCode)) {
+            throw new IllegalArgumentException("Section not found: " + sectionCode);
+        }
+        return studentRecordRepository.findBySectionSectionCode(sectionCode).stream()
+                .sorted(Comparator
+                        .comparing(StudentRecord::getLastName,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(StudentRecord::getFirstName,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(SectionStudentResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    public List<EligibleSectionStudentResponse> getEligibleStudentsForSection(
+            String batchCode, String courseCode) {
+        boolean hasBatch = batchCode != null && !batchCode.isBlank();
+        boolean hasCourse = courseCode != null && !courseCode.isBlank();
+
+        List<StudentRecord> students;
+        if (hasBatch && hasCourse) {
+            students = studentRecordRepository
+                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCodeAndCourseCourseCode(
+                            "Submitted", batchCode, courseCode);
+        } else if (hasBatch) {
+            students = studentRecordRepository
+                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCode("Submitted", batchCode);
+        } else if (hasCourse) {
+            students = studentRecordRepository
+                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndCourseCourseCode("Submitted", courseCode);
+        } else {
+            students = studentRecordRepository.findBySectionIsNullAndStudentStatusIgnoreCase("Submitted");
+        }
+
+        return students.stream()
+                .sorted(Comparator
+                        .comparing(StudentRecord::getLastName,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(StudentRecord::getFirstName,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .map(EligibleSectionStudentResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public SectionAssignmentResultResponse assignStudentsToSection(
+            String sectionCode, AssignStudentsToSectionRequest request) {
+        Section section = sectionRepository.findById(sectionCode)
+                .orElseThrow(() -> new IllegalArgumentException("Section not found: " + sectionCode));
+
+        int assigned = 0;
+        List<String> skipped = new java.util.ArrayList<>();
+        List<String> reasons = new java.util.ArrayList<>();
+
+        for (String studentId : request.studentIds()) {
+            var maybeStudent = studentRecordRepository.findByStudentId(studentId);
+            if (maybeStudent.isEmpty()) {
+                skipped.add(studentId);
+                reasons.add(studentId + ": student not found");
+                continue;
+            }
+            var student = maybeStudent.get();
+            if (student.getSection() != null) {
+                skipped.add(studentId);
+                reasons.add(studentId + ": already assigned to section "
+                        + student.getSection().getSectionCode());
+                continue;
+            }
+            if (!"Submitted".equalsIgnoreCase(student.getStudentStatus())) {
+                skipped.add(studentId);
+                reasons.add(studentId + ": status is '" + student.getStudentStatus()
+                        + "' (must be Submitted)");
+                continue;
+            }
+            student.setSection(section);
+            student.setStudentStatus("Active");
+            studentRecordRepository.save(student);
+            assigned++;
+        }
+
+        return new SectionAssignmentResultResponse(assigned, skipped, reasons);
+    }
+
+    @Transactional
+    public int removeStudentFromSection(String sectionCode, String studentId) {
+        if (!sectionRepository.existsById(sectionCode)) {
+            throw new IllegalArgumentException("Section not found: " + sectionCode);
+        }
+        var student = studentRecordRepository.findByStudentId(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found: " + studentId));
+        if (student.getSection() == null
+                || !sectionCode.equals(student.getSection().getSectionCode())) {
+            throw new IllegalArgumentException(
+                    "Student " + studentId + " is not assigned to section " + sectionCode);
+        }
+
+        int cascadedEnrollments = enrollmentRepository.deleteByStudentAndSectionCode(studentId, sectionCode);
+        student.setSection(null);
+        student.setStudentStatus("Submitted");
+        studentRecordRepository.save(student);
+        return cascadedEnrollments;
+    }
+
+    @Transactional
+    public BulkEnrollSectionResponse bulkEnrollSectionIntoClass(Integer classId) {
+        SchoolClass schoolClass = classRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
+        String sectionCode = schoolClass.getSection().getSectionCode();
+
+        List<StudentRecord> students = studentRecordRepository.findBySectionSectionCode(sectionCode);
+
+        int enrolled = 0;
+        int skippedAlready = 0;
+        int skippedIneligible = 0;
+
+        for (var student : students) {
+            String status = student.getStudentStatus();
+            boolean eligible = "Active".equalsIgnoreCase(status)
+                    || "Submitted".equalsIgnoreCase(status);
+            if (!eligible) {
+                skippedIneligible++;
+                continue;
+            }
+            if (enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(
+                    classId, student.getStudentId())) {
+                skippedAlready++;
+                continue;
+            }
+            ClassEnrollment enrollment = new ClassEnrollment();
+            enrollment.setSchoolClass(schoolClass);
+            enrollment.setStudent(student);
+            enrollment.setEnrolledAt(LocalDateTime.now());
+            enrollmentRepository.save(enrollment);
+            enrolled++;
+        }
+
+        return new BulkEnrollSectionResponse(enrolled, skippedAlready, skippedIneligible, students.size());
     }
 
     @Transactional
