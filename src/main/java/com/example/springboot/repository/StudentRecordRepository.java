@@ -29,4 +29,15 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
     @Modifying
     @Query(value = "DELETE FROM grades WHERE student_id = :studentId", nativeQuery = true)
     void deleteGradesByStudentId(@Param("studentId") String studentId);
+
+    java.util.List<StudentRecord> findBySectionSectionCode(String sectionCode);
+
+    java.util.List<StudentRecord> findBySectionIsNullAndStudentStatusIgnoreCase(String status);
+
+    java.util.List<StudentRecord> findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCode(String status, String batchCode);
+
+    java.util.List<StudentRecord> findBySectionIsNullAndStudentStatusIgnoreCaseAndCourseCourseCode(String status, String courseCode);
+
+    java.util.List<StudentRecord> findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCodeAndCourseCourseCode(
+            String status, String batchCode, String courseCode);
 }
