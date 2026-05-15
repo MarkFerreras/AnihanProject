@@ -22,8 +22,10 @@
 | `ClassManagementSubjectControllerWebMvcTest` | WebMvc | 6 | POST/PUT/DELETE subjects, GET qualifications, TRAINER forbidden |
 | `ClassManagementServiceTest` | Mockito | 6 | updateClassTrainer — assign, unassign, class not found, trainer not found, not-a-trainer, disabled |
 | `ClassManagementControllerWebMvcTest` | WebMvc | 4 | PUT /classes/{id}/trainer — 200 assign+log, 200 unassign+log, 403 TRAINER, 400 service throws |
+| `ClassManagementSectionServiceTest` | Mockito | 13 | updateSection, getStudentsInSection, getEligibleStudentsForSection, assignStudentsToSection, removeStudentFromSection, bulkEnrollSectionIntoClass |
+| `ClassManagementSectionControllerWebMvcTest` | WebMvc | 7 | PUT/GET/POST/DELETE section-student endpoints, POST enroll-section — RBAC + log verify |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **115 tests, 0 failures, 0 errors** (May 10, 2026, after Edit Class Trainer session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **135 tests, 0 failures, 0 errors** (May 15, 2026, after Section Student Management + Bulk Enrollment session).
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 
@@ -68,6 +70,8 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 - [ ] Browser retest: registrar Subjects / Classes / Sections pages — assign trainer, create class, enroll/unenroll student, create/delete section.
 - [ ] Verify `(section_code, subject_code, semester)` uniqueness on classes via UI.
 - [ ] Verify section delete is blocked when classes reference it.
+- [ ] Browser smoke: sections.html — Edit section name, Manage Students (assign eligible + remove), verify status transitions (Submitted→Active on assign, Active→Submitted on remove).
+- [ ] Browser smoke: classes.html — Enroll Whole Section button, verify counts in success alert, confirm `system_logs` bulk-enroll row.
 
 ## Test Environment Notes
 

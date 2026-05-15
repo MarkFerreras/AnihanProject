@@ -1,5 +1,44 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-15 - Section Student Management + Bulk Class Enrollment (AGILE-164 / AGILE-165)
+**Branch:** `feature/section-class-enrollment`
+
+### Task
+Implement section-level student management (assign/remove students from sections) and bulk enrollment of a whole section into a class. No schema changes required — uses existing `student_records.section_code` FK and `student_status` column.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `dto/registrar/UpdateSectionRequest.java` | `@NotBlank @Size(max=25) String sectionName` — PUT body for section rename |
+| `dto/registrar/SectionStudentResponse.java` | Roster DTO: `studentId`, `lastName`, `firstName`, `middleName`, `studentStatus` |
+| `dto/registrar/EligibleSectionStudentResponse.java` | Picker DTO: `studentId`, `lastName`, `firstName`, `batchCode`, `batchYear`, `courseCode`, `courseName` |
+| `dto/registrar/AssignStudentsToSectionRequest.java` | `@NotEmpty List<@NotBlank String> studentIds` |
+| `dto/registrar/SectionAssignmentResultResponse.java` | `int assignedCount`, `List<String> skippedStudentIds`, `List<String> reasons` |
+| `dto/registrar/BulkEnrollSectionResponse.java` | `int enrolledCount`, `int skippedAlreadyEnrolled`, `int skippedIneligible`, `int totalConsidered` |
+| `test/.../ClassManagementSectionServiceTest.java` | 13 Mockito service tests for all 6 new service methods |
+| `test/.../ClassManagementSectionControllerWebMvcTest.java` | 7 WebMvc controller tests |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `repository/StudentRecordRepository.java` | Added 5 derived finders: `findBySectionSectionCode`, `findBySectionIsNullAndStudentStatusIgnoreCase`, and 3 variants adding batch/course filters |
+| `repository/ClassEnrollmentRepository.java` | Added `deleteByStudentAndSectionCode` JPQL `@Modifying @Transactional @Query` |
+| `service/ClassManagementService.java` | Added 6 methods: `updateSection`, `getStudentsInSection`, `getEligibleStudentsForSection`, `assignStudentsToSection`, `removeStudentFromSection`, `bulkEnrollSectionIntoClass` |
+| `controller/ClassManagementController.java` | Added 6 endpoints: `PUT /sections/{code}`, `GET /sections/eligible-students`, `GET /sections/{code}/students`, `POST /sections/{code}/students`, `DELETE /sections/{code}/students/{studentId}`, `POST /classes/{classId}/enroll-section` — all write `system_logs` |
+| `static/sections.html` | Added `#editSectionModal` and `#manageSectionModal` (tabbed: current roster + eligible picker with batch/course filters); cache-buster `?v=3` |
+| `static/js/registrar-sections.js` | Full rewrite: 3-button Actions column; `setupEditSection()`, `setupManageStudents()`, `refreshCurrentStudents()`, `refreshEligibleStudents()`, `loadFilterDropdowns()` |
+| `static/classes.html` | Added Bulk Enrollment block (`#enrollWholeSectionBtn` + `#enrollSectionAlert`) in `#enrollStudentModal`; cache-buster `?v=3` |
+| `static/js/registrar-classes.js` | `setupEnrollment()` wires `#enrollWholeSectionBtn`; `openEnrollmentModal()` clears `#enrollSectionAlert` |
+
+### Design Decisions
+- `assignStudentsToSection` promotes `Submitted` → `Active`; skips students already in any section.
+- `removeStudentFromSection` cascades via `deleteByStudentAndSectionCode`, reverts status to `Submitted`, clears section FK.
+- `bulkEnrollSectionIntoClass` is idempotent: skips already-enrolled and non-Active students; returns counts for UI feedback.
+- `GET /sections/eligible-students` registered before `GET /sections/{sectionCode}/students` to avoid path-variable capture.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 135 tests, 0 failures, 0 errors**.
+
 ## 2026-05-10 - Navbar Sync on student-records.html
 **Branch:** `feature/edit-class-trainer`
 

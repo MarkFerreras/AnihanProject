@@ -2,6 +2,20 @@
 
 ## Recent Sessions (detail)
 
+### Section Student Management + Bulk Class Enrollment — AGILE-164 / AGILE-165 (Completed — May 15, 2026)
+- 6 new DTOs in `dto/registrar/`: `UpdateSectionRequest`, `SectionStudentResponse`, `EligibleSectionStudentResponse`, `AssignStudentsToSectionRequest`, `SectionAssignmentResultResponse`, `BulkEnrollSectionResponse`.
+- `StudentRecordRepository`: 5 new derived finders for null-section + status + batch/course filter combinations.
+- `ClassEnrollmentRepository`: `deleteByStudentAndSectionCode` JPQL bulk-delete with `@Modifying @Transactional`.
+- `ClassManagementService`: 6 new methods — section rename, roster listing, eligible-student query (4 repo variants), assign (Submitted→Active promotion), remove (cascade class enrollments + revert to Submitted), bulk-enroll whole section into class.
+- `ClassManagementController`: 6 new endpoints under `/api/registrar/` — all write `system_logs`.
+- `ClassManagementSectionServiceTest`: 13 Mockito tests. `ClassManagementSectionControllerWebMvcTest`: 7 WebMvc tests.
+- Full suite: **135 tests, 0 failures, 0 errors**.
+- `sections.html`: `#editSectionModal` + `#manageSectionModal` (tabbed); cache-buster `?v=3`.
+- `registrar-sections.js`: full rewrite — 3-button Actions column; Edit, Manage Students (current roster + assign eligible), Delete flows.
+- `classes.html`: Bulk Enrollment block (`#enrollWholeSectionBtn` + `#enrollSectionAlert`) in `#enrollStudentModal`; cache-buster `?v=3`.
+- `registrar-classes.js`: `#enrollWholeSectionBtn` handler in `setupEnrollment()`; alert cleared on modal re-open.
+- Branch: `feature/section-class-enrollment`. Open: browser smoke test; PR to main (user approval required).
+
 ### Navbar Sync on student-records.html (Completed — May 10, 2026)
 - `student-records.html` registrar edit page navbar updated from 2-link (Home, Subjects) to canonical 4-link (Home, Subjects, Classes, Sections) to match `registrar.html`.
 - Pure HTML change — two `<li class="nav-item">` blocks appended; no JS, CSS, or backend touched.
