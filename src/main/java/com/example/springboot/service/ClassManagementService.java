@@ -27,6 +27,7 @@ import com.example.springboot.model.Subject;
 import com.example.springboot.model.User;
 import com.example.springboot.dto.registrar.CreateSubjectRequest;
 import com.example.springboot.dto.registrar.QualificationResponse;
+import com.example.springboot.dto.registrar.UpdateSectionRequest;
 import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.Qualification;
 import com.example.springboot.repository.BatchRepository;
@@ -369,6 +370,15 @@ public class ClassManagementService {
         section.setBatch(batch);
         section.setCourse(course);
 
+        sectionRepository.save(section);
+        return SectionResponse.from(section);
+    }
+
+    @Transactional
+    public SectionResponse updateSection(String sectionCode, UpdateSectionRequest request) {
+        Section section = sectionRepository.findById(sectionCode)
+                .orElseThrow(() -> new IllegalArgumentException("Section not found: " + sectionCode));
+        section.setSection(request.sectionName());
         sectionRepository.save(section);
         return SectionResponse.from(section);
     }
