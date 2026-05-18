@@ -1,12 +1,32 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Section Student Management + Bulk Class Enrollment (AGILE-164 / AGILE-165) — backend + frontend complete, pending browser smoke test**
+**Trainer Read-Only Views (AGILE-123 / AGILE-124) — backend + frontend complete, pending browser smoke test**
 
 ## Active Branch
-`feature/section-class-enrollment`
+`feature/trainer-view-subjects-classes`
 
-## Latest Session (May 15, 2026 — Section CRUD + Bulk Class Enrollment)
+## Latest Session (May 18, 2026 — Trainer Subject & Class Views)
+
+### Items Completed
+1. **`SchoolClassRepository`** extended — `findByTrainerUserId(Integer)` and `findByTrainerUserIdAndSubjectSubjectCode(Integer, String)`.
+2. **4 new DTOs** in `dto/trainer/` — `TrainerSubjectResponse`, `TrainerSubjectStudentResponse`, `TrainerClassResponse`, `TrainerClassStudentResponse`.
+3. **`TrainerService`** created — `resolveCurrentTrainerId()`, `getMyAssignedSubjects()`, `getStudentsForSubject()`, `getMyClasses()`, `getStudentsForClass()`.
+4. **`TrainerController`** created — 4 GET endpoints under `/api/trainer/`.
+5. **`TrainerServiceTest`** — 12 Mockito tests. **`TrainerControllerWebMvcTest`** — 9 WebMvc tests (RBAC + 401/403/400 edge cases).
+6. **`SecurityConfig.java`** — trainer matcher extended to include `/trainer-subjects.html` and `/trainer-classes.html`.
+7. **`trainer.html`** — upgraded to full dashboard pattern: `navbar-expand-lg` with 3 nav links, welcome hero, quick-link cards, jQuery import.
+8. **`trainer-subjects.html`** — new page: subjects DataTable + inline student roster panel.
+9. **`trainer-subjects.js`** — subjects DataTable with click-to-load roster; `GET /api/trainer/subjects` + `GET /api/trainer/subjects/{code}/students`.
+10. **`trainer-classes.html`** — new page: classes DataTable + inline student roster panel.
+11. **`trainer-classes.js`** — classes DataTable with click-to-load roster; `GET /api/trainer/classes` + `GET /api/trainer/classes/{classId}/students`.
+12. **Full suite: 156 tests, 0 failures, 0 errors.**
+
+### Open Items
+- Manual browser smoke test: log in as `trainer`, verify My Subjects and My Classes pages load, click a row to expand student roster.
+- PR to main (user approval required).
+
+## Previous Session (May 15, 2026 — Section CRUD + Bulk Class Enrollment)
 
 ### Items Completed
 1. **6 new DTOs** — `UpdateSectionRequest`, `SectionStudentResponse`, `EligibleSectionStudentResponse`, `AssignStudentsToSectionRequest`, `SectionAssignmentResultResponse`, `BulkEnrollSectionResponse`.

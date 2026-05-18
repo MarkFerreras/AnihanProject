@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Trainer Dashboard">
-    <title>Trainer Dashboard — Anihan SRMS</title>
+    <meta name="description" content="Anihan SRMS — My Classes">
+    <title>My Classes — Anihan SRMS</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
@@ -33,13 +34,13 @@
                 <div class="collapse navbar-collapse" id="trainerNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page" href="trainer.html">Home</a>
+                            <a class="nav-link admin-nav-link" href="trainer.html">Home</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="trainer-subjects.html">My Subjects</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="trainer-classes.html">My Classes</a>
+                            <a class="nav-link admin-nav-link active" aria-current="page" href="trainer-classes.html">My Classes</a>
                         </li>
                     </ul>
                     <div class="d-flex align-items-center gap-3 ms-lg-3">
@@ -76,9 +77,9 @@
             <section class="page-hero">
                 <div class="page-hero-grid">
                     <div>
-                        <span class="page-eyebrow">Trainer Dashboard</span>
-                        <h1 class="page-title">Welcome, Trainer</h1>
-                        <p class="page-subtitle">View the subjects you have been assigned to and the classes you are teaching.</p>
+                        <span class="page-eyebrow">Trainer Portal</span>
+                        <h1 class="page-title">My Classes</h1>
+                        <p class="page-subtitle">Classes you are currently teaching.</p>
                     </div>
                 </div>
             </section>
@@ -86,19 +87,26 @@
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>Quick Links</h2>
-                        <p>Jump to your teaching responsibilities.</p>
+                        <h2>Class List</h2>
+                        <p>Use the <strong>Actions</strong> button to view enrolled students for a class.</p>
                     </div>
                 </div>
                 <div class="surface-card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <a href="trainer-subjects.html" class="btn btn-surface w-100 py-3">My Subjects</a>
-                        </div>
-                        <div class="col-md-6">
-                            <a href="trainer-classes.html" class="btn btn-surface w-100 py-3">My Classes</a>
-                        </div>
-                    </div>
+                    <table id="classesTable" class="table table-hover w-100">
+                        <thead>
+                            <tr>
+                                <th>Semester</th>
+                                <th>Section Code</th>
+                                <th>Section</th>
+                                <th>Subject Code</th>
+                                <th>Subject Name</th>
+                                <th>Course</th>
+                                <th>Enrolled</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </section>
         </div>
@@ -109,6 +117,36 @@
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
+
+    <!-- ===== CLASS ROSTER MODAL ===== -->
+    <div class="modal fade" id="classRosterModal" tabindex="-1"
+         aria-labelledby="classRosterModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="classRosterModalLabel">Enrolled Students</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3" id="classRosterSubtitle"></p>
+                    <table id="classRosterTable" class="table table-hover w-100">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== EDIT ACCOUNT MODAL (Tabbed) ===== -->
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
@@ -203,6 +241,8 @@
 
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
+    <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/trainer-classes.js?v=2"></script>
 </body>
 </html>
