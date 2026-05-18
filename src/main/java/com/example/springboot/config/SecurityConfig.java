@@ -55,7 +55,7 @@ public class SecurityConfig {
                 // Role-based access — HTML pages
                 .requestMatchers("/admin.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
                 .requestMatchers("/registrar.html", "/subjects.html", "/student-records.html", "/classes.html", "/sections.html").hasRole("REGISTRAR")
-                .requestMatchers("/trainer.html").hasRole("TRAINER")
+                .requestMatchers("/trainer.html", "/trainer-subjects.html", "/trainer-classes.html").hasRole("TRAINER")
                 // Role-based access — API endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/logs/**").hasRole("ADMIN")
