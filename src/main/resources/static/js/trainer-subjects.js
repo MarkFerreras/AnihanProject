@@ -3,7 +3,7 @@ $(function () {
 
     let subjectsTable;
     let rosterTable;
-    let currentSubjectCode = null;
+    const subjectRosterModal = new bootstrap.Modal(document.getElementById('subjectRosterModal'));
 
     subjectsTable = $('#subjectsTable').DataTable({
         ajax: {
@@ -25,6 +25,13 @@ $(function () {
             {
                 data: 'sectionNames',
                 render: val => Array.isArray(val) && val.length ? val.join(', ') : '<em class="text-muted">None</em>'
+            },
+            {
+                data: null,
+                orderable: false,
+                render: function () {
+                    return '<button class="btn btn-sm btn-surface-secondary view-students-btn">View Students</button>';
+                }
             }
         ],
         order: [[0, 'asc']],
@@ -32,7 +39,8 @@ $(function () {
         language: { emptyTable: 'No subjects assigned.' }
     });
 
-    rosterTable = $('#rosterTable').DataTable({
+    rosterTable = $('#subjectRosterTable').DataTable({
+        autoWidth: false,
         columns: [
             { data: 'studentId' },
             { data: 'lastName' },
@@ -49,23 +57,21 @@ $(function () {
         language: { emptyTable: 'No students enrolled.' }
     });
 
-    $('#subjectsTable tbody').on('click', 'tr', function () {
-        const data = subjectsTable.row(this).data();
-        if (!data) return;
-        openRoster(data.subjectCode, data.subjectName);
+    $('#subjectsTable tbody').on('click', '.view-students-btn', function () {
+        const row = subjectsTable.row($(this).closest('tr')).data();
+        if (!row) return;
+        openRoster(row.subjectCode, row.subjectName);
     });
 
-    $('#closeRosterBtn').on('click', function () {
-        $('#studentRosterPanel').addClass('d-none');
-        currentSubjectCode = null;
+    $('#subjectRosterModal').on('shown.bs.modal', function () {
+        rosterTable.columns.adjust().draw();
     });
 
     function openRoster(subjectCode, subjectName) {
-        currentSubjectCode = subjectCode;
-        $('#rosterSubjectTitle').text('Students — ' + subjectName);
-        $('#rosterSubjectSubtitle').text('Subject Code: ' + subjectCode);
+        $('#subjectRosterModalLabel').text('Enrolled Students — ' + subjectName);
+        $('#subjectRosterSubtitle').text('Subject Code: ' + subjectCode);
         rosterTable.clear().draw();
-        $('#studentRosterPanel').removeClass('d-none');
+        subjectRosterModal.show();
 
         $.ajax({
             url: '/api/trainer/subjects/' + encodeURIComponent(subjectCode) + '/students',

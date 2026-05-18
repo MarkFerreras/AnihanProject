@@ -88,7 +88,7 @@
                 <div class="surface-card-header">
                     <div>
                         <h2>Class List</h2>
-                        <p>Click a row to view the enrolled students for that class.</p>
+                        <p>Use the <strong>Actions</strong> button to view enrolled students for a class.</p>
                     </div>
                 </div>
                 <div class="surface-card-body">
@@ -102,32 +102,7 @@
                                 <th>Subject Name</th>
                                 <th>Course</th>
                                 <th>Enrolled</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Student Roster Panel -->
-            <section class="surface-card d-none" id="studentRosterPanel">
-                <div class="surface-card-header">
-                    <div>
-                        <h2 id="rosterClassTitle">Students</h2>
-                        <p id="rosterClassSubtitle"></p>
-                    </div>
-                    <div>
-                        <button class="btn btn-surface-secondary" id="closeRosterBtn">Close</button>
-                    </div>
-                </div>
-                <div class="surface-card-body">
-                    <table id="rosterTable" class="table table-hover w-100">
-                        <thead>
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Last Name</th>
-                                <th>First Name</th>
-                                <th>Middle Name</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -142,6 +117,36 @@
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
         </div>
     </footer>
+
+    <!-- ===== CLASS ROSTER MODAL ===== -->
+    <div class="modal fade" id="classRosterModal" tabindex="-1"
+         aria-labelledby="classRosterModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="classRosterModalLabel">Enrolled Students</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3" id="classRosterSubtitle"></p>
+                    <table id="classRosterTable" class="table table-hover w-100">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Last Name</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== EDIT ACCOUNT MODAL (Tabbed) ===== -->
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
@@ -238,6 +243,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/trainer-classes.js?v=1"></script>
+    <script src="js/trainer-classes.js?v=2"></script>
 </body>
 </html>
