@@ -15,44 +15,94 @@
     </style>
 </head>
 
-<body data-required-role="ROLE_TRAINER">
+<body class="dashboard-page" data-required-role="ROLE_TRAINER">
 
-    <!-- ===== HEADER ===== -->
     <header>
-        <nav class="navbar login-navbar">
-            <div class="container d-flex justify-content-between align-items-center">
-                <span class="navbar-brand mb-0 h1">
-                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
-                </span>
-                <span class="text-white fw-bold">Trainer Portal</span>
-
-                <div class="account-dropdown dropdown">
-                    <button class="account-icon-btn dropdown-toggle" type="button"
-                            id="accountDropdownBtn" data-bs-toggle="dropdown"
-                            aria-expanded="false" aria-label="Account menu">
-                        <span id="accountInitial">—</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdownBtn">
-                        <li class="account-dropdown-header">
-                            <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
-                            <p class="account-dropdown-role" id="accountDropdownRole">—</p>
+        <nav class="navbar navbar-expand-lg login-navbar admin-navbar">
+            <div class="container">
+                <a class="navbar-brand" href="trainer.html">
+                    <span class="brand-mark">
+                        <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                    </span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#trainerNavbar" aria-controls="trainerNavbar"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="trainerNavbar">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link active" aria-current="page" href="trainer.html">Home</a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="#" id="editAccountBtn"
-                               data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit Account</a>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="trainer-subjects.html">My Subjects</a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="trainer-classes.html">My Classes</a>
                         </li>
                     </ul>
+                    <div class="d-flex align-items-center gap-3 ms-lg-3">
+                        <span class="portal-label">Trainer Portal</span>
+                        <div class="account-dropdown dropdown">
+                            <button class="account-icon-btn dropdown-toggle" type="button" id="accountDropdownBtn"
+                                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                                <span id="accountInitial">—</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdownBtn">
+                                <li class="account-dropdown-header">
+                                    <p class="account-dropdown-name" id="accountDropdownName">Loading...</p>
+                                    <p class="account-dropdown-role" id="accountDropdownRole">—</p>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="editAccountBtn"
+                                       data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit Account</a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item dropdown-item-logout" href="#" id="logoutBtn">Log Out</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
 
-    <main class="container my-5"></main>
+    <main class="dashboard-main">
+        <div class="container">
+            <section class="page-hero">
+                <div class="page-hero-grid">
+                    <div>
+                        <span class="page-eyebrow">Trainer Dashboard</span>
+                        <h1 class="page-title">Welcome, Trainer</h1>
+                        <p class="page-subtitle">View the subjects you have been assigned to and the classes you are teaching.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="surface-card">
+                <div class="surface-card-header">
+                    <div>
+                        <h2>Quick Links</h2>
+                        <p>Jump to your teaching responsibilities.</p>
+                    </div>
+                </div>
+                <div class="surface-card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="trainer-subjects.html" class="btn btn-surface w-100 py-3">My Subjects</a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="trainer-classes.html" class="btn btn-surface w-100 py-3">My Classes</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
 
     <footer class="login-footer mt-auto">
         <div class="container">
@@ -152,6 +202,7 @@
     </div>
 
     <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
 </body>
 </html>
