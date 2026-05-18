@@ -1,5 +1,46 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-18 - Trainer Read-Only Views (AGILE-123 / AGILE-124)
+**Branch:** `feature/trainer-view-subjects-classes`
+
+### Task
+Implement the trainer-facing read-only subject and class views. Trainers can see which subjects they are assigned to teach (with enrolled counts and section names), drill into the student roster per subject, view their class list, and drill into the roster per class. No DB schema changes — trainer assignment already exists on `classes.trainer_id`. No `system_logs` writes — all endpoints are read-only GETs.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `dto/trainer/TrainerSubjectResponse.java` | Subject summary: code, name, qualification, units, enrolledCount, sectionNames[], courseNames[] |
+| `dto/trainer/TrainerSubjectStudentResponse.java` | Per-subject student: studentId, lastName, firstName, middleName, sectionCode, sectionName |
+| `dto/trainer/TrainerClassResponse.java` | Class summary: classId, sectionCode, sectionName, subjectCode, subjectName, courseName, semester, enrolledCount |
+| `dto/trainer/TrainerClassStudentResponse.java` | Per-class student: studentId, lastName, firstName, middleName |
+| `service/TrainerService.java` | Business logic — resolveCurrentTrainerId(), getMyAssignedSubjects(), getStudentsForSubject(), getMyClasses(), getStudentsForClass() |
+| `controller/TrainerController.java` | 4 GET endpoints under `/api/trainer/` |
+| `test/.../TrainerServiceTest.java` | 12 Mockito service tests |
+| `test/.../TrainerControllerWebMvcTest.java` | 9 WebMvc controller tests |
+| `static/trainer-subjects.html` | Subjects DataTable page with inline student roster panel |
+| `static/js/trainer-subjects.js` | Subjects DataTable + click-to-load roster AJAX |
+| `static/trainer-classes.html` | Classes DataTable page with inline student roster panel |
+| `static/js/trainer-classes.js` | Classes DataTable + click-to-load roster AJAX |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `repository/SchoolClassRepository.java` | Added `findByTrainerUserId(Integer)` and `findByTrainerUserIdAndSubjectSubjectCode(Integer, String)` |
+| `config/SecurityConfig.java` | Trainer HTML matcher extended: `/trainer-subjects.html` and `/trainer-classes.html` added |
+| `static/trainer.html` | Upgraded to full dashboard pattern: `navbar-expand-lg` with 3-link nav (Home / My Subjects / My Classes), welcome hero section, quick-link cards, jQuery script import |
+
+### Design Decisions
+- **Trainer assignment is class-level only.** `Subject.trainer_id` is a registrar-side default and is not used to filter trainer views. The trainer sees only classes where `classes.trainer_id = currentUserId`.
+- **`resolveCurrentTrainerId()` is package-private** to allow `@WithMockUser` stubbing in WebMvc tests without exposing it as a public API.
+- **Subjects view groups by subjectCode** using `LinkedHashMap` to preserve insertion order, sums enrolled counts across all classes for that subject, and collects distinct section/course names.
+- **Ownership guard in `getStudentsForClass()`** throws `IllegalArgumentException` (→ HTTP 400) rather than returning an empty list silently.
+- **No `system_logs` writes** — all 4 endpoints are read-only views.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 156 tests, 0 failures, 0 errors**.
+
+---
+
 ## 2026-05-15 - Section Student Management + Bulk Class Enrollment (AGILE-164 / AGILE-165)
 **Branch:** `feature/section-class-enrollment`
 

@@ -2,6 +2,19 @@
 
 ## Recent Sessions (detail)
 
+### Trainer Read-Only Views — AGILE-123 / AGILE-124 (Completed — May 18, 2026)
+- `SchoolClassRepository`: added `findByTrainerUserId(Integer)` and `findByTrainerUserIdAndSubjectSubjectCode(Integer, String)`.
+- 4 new DTOs in `dto/trainer/`: `TrainerSubjectResponse`, `TrainerSubjectStudentResponse`, `TrainerClassResponse`, `TrainerClassStudentResponse`.
+- `TrainerService` created: `resolveCurrentTrainerId()` (reads SecurityContext → UserRepository), `getMyAssignedSubjects()` (groups classes by subjectCode, sums enrolled counts, collects distinct section/course names), `getStudentsForSubject()` (throws if trainer not assigned), `getMyClasses()`, `getStudentsForClass()` (ownership guard).
+- `TrainerController` created: 4 GET endpoints under `/api/trainer/` — no `system_logs` writes (read-only).
+- `TrainerServiceTest`: 12 Mockito tests. `TrainerControllerWebMvcTest`: 9 WebMvc tests (RBAC: 401 anon, 403 non-trainer, 400 on service throws).
+- `SecurityConfig.java`: trainer HTML matcher extended to include `/trainer-subjects.html` and `/trainer-classes.html`.
+- `trainer.html`: upgraded to full dashboard pattern with 3-link navbar, welcome hero, quick-link cards, jQuery import.
+- `trainer-subjects.html` + `trainer-subjects.js`: subjects DataTable, click-to-expand student roster panel.
+- `trainer-classes.html` + `trainer-classes.js`: classes DataTable, click-to-expand student roster panel.
+- Full suite: **156 tests, 0 failures, 0 errors**.
+- Branch: `feature/trainer-view-subjects-classes`. Open: browser smoke test; PR to main (user approval required).
+
 ### Section Student Management + Bulk Class Enrollment — AGILE-164 / AGILE-165 (Completed — May 15, 2026)
 - 6 new DTOs in `dto/registrar/`: `UpdateSectionRequest`, `SectionStudentResponse`, `EligibleSectionStudentResponse`, `AssignStudentsToSectionRequest`, `SectionAssignmentResultResponse`, `BulkEnrollSectionResponse`.
 - `StudentRecordRepository`: 5 new derived finders for null-section + status + batch/course filter combinations.
