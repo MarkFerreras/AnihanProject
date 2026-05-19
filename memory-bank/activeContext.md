@@ -1,12 +1,37 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Trainer Read-Only Views (AGILE-123 / AGILE-124) — backend + frontend complete, pending browser smoke test**
+**Trainer Grade Input (AGILE-126 / AGILE-127) — Save/Lock/Unlock fully functional, pending commit**
 
 ## Active Branch
-`feature/trainer-view-subjects-classes`
+`feature/trainer-grade-input`
 
-## Latest Session (May 18, 2026 — Trainer Subject & Class Views)
+## Latest Session (May 19, 2026 — Fix Save Grades Error + Button Styling)
+
+### Root Causes Found
+1. **`Grade.java` JoinColumn mapping** — `@JoinColumn(name = "student_id")` on the `StudentRecord` relationship was mapping to `StudentRecord.recordId` (the `@Id` auto-increment integer) instead of `StudentRecord.studentId` (the business key varchar). This caused `SQLIntegrityConstraintViolationException` on every INSERT because Hibernate wrote the integer record_id into the varchar student_id FK column.
+2. **`TrainerGradeController` empty error responses** — All catch blocks returned `ResponseEntity.badRequest().build()` with NO JSON body. The JS `xhr.responseJSON.message` then failed silently because `responseJSON` was `null`.
+3. **Button CSS classes** — `btn-surface-success` (Lock Grades) and `btn-save` (Save Grades) did not exist in `dashboard.css`. Only `.edit-account-modal .btn-save` was scoped to the account modal, not available globally.
+4. **JS sent all students** — `collectGradeUpdates()` included every table row (even empty ones), causing unnecessary save attempts for students with all-null fields.
+
+### Items Completed
+1. **`Grade.java`** — Added `referencedColumnName = "student_id"` to `@JoinColumn` to correctly join on the varchar business key.
+2. **`TrainerGradeController.java`** — All endpoints now return `Map.of("message", e.getMessage())` in error responses. Added SLF4J logging. Removed `@Valid` from save endpoint (not needed for manual grade input). Changed return types to `ResponseEntity<?>`.
+3. **`trainer-classes.html`** — Changed `btn-surface-success` → `btn-surface-secondary`, `btn-save` → `btn-surface`. Bumped JS cache-buster `?v=3` → `?v=4`.
+4. **`trainer-classes.js`** — `collectGradeUpdates()` now only includes rows with at least one filled grade field. `saveGrades()` shows warning when no data entered. After successful save, reloads grade data in modal instead of closing it.
+5. **DB cleanup** — Cleared stale failed INSERT artifacts from `grades` table, reset AUTO_INCREMENT.
+6. **Browser smoke test: PASSED** — Save → Lock → Unlock full flow verified. Grades persist in DB with correct FK values and computed final_grade.
+
+### Verified via Database
+```
+grade_id=1, student_id='SR20260007', subject_code='BPP-102', midterm_grade=2.00, finals_grade=3.00, final_grade=2.60, class_id=1, locked=0
+```
+
+### Open Items
+- Commit on `feature/trainer-grade-input`.
+- PR to main (user approval required).
+
+## Previous Session (May 18, 2026 — Trainer Subject & Class Views)
 
 ### Items Completed
 1. **`SchoolClassRepository`** extended — `findByTrainerUserId(Integer)` and `findByTrainerUserIdAndSubjectSubjectCode(Integer, String)`.

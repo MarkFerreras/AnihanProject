@@ -1,5 +1,6 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-05-19 (added grades restructure for trainer grading)
 -- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
 --                       seeded qualifications + subjects)
 -- Purpose: Set up a fresh AnihanSRMS database with:
@@ -19,6 +20,10 @@
 -- src/main/sql/migrations/2026-05-09-classes-and-trainers.sql to add
 -- the classes and class_enrollments tables and the subjects.trainer_id
 -- column.
+--
+-- Existing databases that predate 2026-05-19 should also run
+-- src/main/sql/migrations/2026-05-19-grades-restructure.sql to add
+-- class-scoped grading, midterm/finals split, locking, and GWA support.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
@@ -189,17 +194,25 @@ CREATE TABLE IF NOT EXISTS documents (
 
 -- ============================================================
 -- TABLE: grades
+-- Class-scoped grading with midterm/finals, locking, and GWA support.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS grades (
     grade_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     subject_code VARCHAR(20) NOT NULL,
-    final_grade DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+    class_id INT NULL,
+    midterm_grade DECIMAL(5, 2) NULL,
+    finals_grade DECIMAL(5, 2) NULL,
+    locked TINYINT(1) NOT NULL DEFAULT 0,
+    locked_at DATETIME NULL,
+    final_grade DECIMAL(5, 2) NULL,
     re_exam_grade DECIMAL(5, 2) NULL,
-    hours_studied DECIMAL(3, 2) NOT NULL,
-    remarks VARCHAR(255) NOT NULL,
+    hours_studied DECIMAL(5, 2) NULL,
+    remarks VARCHAR(255) NULL,
+    UNIQUE KEY uq_grade_student_class (class_id, student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
-    FOREIGN KEY (subject_code) REFERENCES subjects (subject_code)
+    FOREIGN KEY (subject_code) REFERENCES subjects (subject_code),
+    FOREIGN KEY (class_id) REFERENCES classes (class_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================

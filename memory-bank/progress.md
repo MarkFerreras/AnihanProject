@@ -2,6 +2,25 @@
 
 ## Recent Sessions (detail)
 
+### Save Grades Error + Button Styling Fix — AGILE-126 / AGILE-127 (Completed — May 19, 2026)
+- **Root cause 1:** `Grade.java` `@JoinColumn(name = "student_id")` mapped to `StudentRecord.recordId` (integer PK) instead of `StudentRecord.studentId` (varchar business key). Hibernate wrote integer record_id into varchar student_id FK → `SQLIntegrityConstraintViolationException`.
+- **Root cause 2:** `TrainerGradeController` catch blocks returned `ResponseEntity.badRequest().build()` with no JSON body → JS `xhr.responseJSON.message` failed silently.
+- **Root cause 3:** Button CSS classes `btn-surface-success` and `btn-save` did not exist in `dashboard.css` (only scoped to `.edit-account-modal`).
+- **Root cause 4:** JS `collectGradeUpdates()` sent all 5 student rows even when empty.
+- **Fix:** Added `referencedColumnName = "student_id"` to `Grade.java` JoinColumn. Controller now returns `Map.of("message", ...)` in all error paths with SLF4J logging. HTML buttons switched to `btn-surface` / `btn-surface-secondary`. JS filters empty rows and shows warning.
+- Browser smoke test: Save → Lock → Unlock full flow verified. DB row: `student_id='SR20260007', midterm=2.00, finals=3.00, final_grade=2.60`.
+- Branch: `feature/trainer-grade-input`. Open: commit + PR to main.
+
+### Grade Input Modal Fix — AGILE-126 / AGILE-127 (Completed — May 19, 2026)
+- **Root cause 1:** `TrainerGradeService.resolveCurrentTrainerId()` hardcoded to return `100` instead of DB lookup via `UserRepository`. Trainer user_id is `12`, so ownership checks always failed → HTTP 400 → "Failed to load grades."
+- **Root cause 2:** `getGradesForClass()` only queried the empty `grades` table, never consulted `class_enrollments` for enrolled students.
+- **Root cause 3:** `saveGrades()` expected pre-existing grade rows (`orElseThrow`), preventing grade creation for new students.
+- **Fix:** Injected `ClassEnrollmentRepository` + `UserRepository` into `TrainerGradeService`. `resolveCurrentTrainerId()` now does `UserRepository.findByUsername()` (same as `TrainerService`). `getGradesForClass()` now merges enrollments with existing grades. `saveGrades()` now does upsert.
+- `TrainerGradeServiceTest`: updated to 12 tests with new mocks + 2 new test cases.
+- Full suite: **166 tests, 0 failures, 0 errors**.
+- Browser smoke test: trainer logged in, Pastry Arts modal shows 5 enrolled students with editable grade inputs.
+- Branch: `feature/trainer-grade-input`. Open: commit + PR to main.
+
 ### Trainer Read-Only Views — AGILE-123 / AGILE-124 (Completed — May 18, 2026)
 - `SchoolClassRepository`: added `findByTrainerUserId(Integer)` and `findByTrainerUserIdAndSubjectSubjectCode(Integer, String)`.
 - 4 new DTOs in `dto/trainer/`: `TrainerSubjectResponse`, `TrainerSubjectStudentResponse`, `TrainerClassResponse`, `TrainerClassStudentResponse`.

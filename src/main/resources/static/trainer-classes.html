@@ -118,30 +118,40 @@
         </div>
     </footer>
 
-    <!-- ===== CLASS ROSTER MODAL ===== -->
+    <!-- ===== CLASS ROSTER & GRADE INPUT MODAL ===== -->
     <div class="modal fade" id="classRosterModal" tabindex="-1"
          aria-labelledby="classRosterModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="classRosterModalLabel">Enrolled Students</h5>
+                    <h5 class="modal-title" id="classRosterModalLabel">Grade Input</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-3" id="classRosterSubtitle"></p>
-                    <table id="classRosterTable" class="table table-hover w-100">
-                        <thead>
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Last Name</th>
-                                <th>First Name</th>
-                                <th>Middle Name</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="alert d-none" id="gradeInputAlert" role="alert"></div>
+                    <div class="table-responsive">
+                        <table id="gradeInputTable" class="table table-striped w-100">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Last Name</th>
+                                    <th>First Name</th>
+                                    <th>Midterm</th>
+                                    <th>Finals</th>
+                                    <th>Re-exam</th>
+                                    <th>Hours Studied</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" id="unlockGradesBtn">Unlock Grades</button>
+                    <button type="button" class="btn btn-surface-secondary" id="lockGradesBtn">Lock Grades</button>
+                    <button type="button" class="btn btn-surface" id="saveGradesBtn">Save Grades</button>
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -243,6 +253,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/trainer-classes.js?v=2"></script>
+    <script src="js/trainer-classes.js?v=4"></script>
 </body>
 </html>

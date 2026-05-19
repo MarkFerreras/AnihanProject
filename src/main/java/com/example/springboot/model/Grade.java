@@ -1,6 +1,7 @@
 package com.example.springboot.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,23 +22,39 @@ public class Grade {
     private Integer gradeId;
 
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
+    @JoinColumn(name = "student_id", referencedColumnName = "student_id", nullable = false)
     private StudentRecord student;
 
     @ManyToOne
     @JoinColumn(name = "subject_code", nullable = false)
     private Subject subject;
 
-    @Column(name = "final_grade", nullable = false, precision = 5, scale = 2)
-    private BigDecimal finalGrade = BigDecimal.ZERO;
+    @ManyToOne
+    @JoinColumn(name = "class_id")
+    private SchoolClass schoolClass;
+
+    @Column(name = "midterm_grade", precision = 5, scale = 2)
+    private BigDecimal midtermGrade;
+
+    @Column(name = "finals_grade", precision = 5, scale = 2)
+    private BigDecimal finalsGrade;
+
+    @Column(name = "locked")
+    private boolean locked = false;
+
+    @Column(name = "locked_at")
+    private LocalDateTime lockedAt;
+
+    @Column(name = "final_grade", precision = 5, scale = 2)
+    private BigDecimal finalGrade;
 
     @Column(name = "re_exam_grade", precision = 5, scale = 2)
     private BigDecimal reExamGrade;
 
-    @Column(name = "hours_studied", nullable = false, precision = 3, scale = 2)
+    @Column(name = "hours_studied", precision = 5, scale = 2)
     private BigDecimal hoursStudied;
 
-    @Column(name = "remarks", nullable = false)
+    @Column(name = "remarks")
     private String remarks;
 
     public Grade() {
@@ -99,5 +116,45 @@ public class Grade {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public SchoolClass getSchoolClass() {
+        return schoolClass;
+    }
+
+    public void setSchoolClass(SchoolClass schoolClass) {
+        this.schoolClass = schoolClass;
+    }
+
+    public BigDecimal getMidtermGrade() {
+        return midtermGrade;
+    }
+
+    public void setMidtermGrade(BigDecimal midtermGrade) {
+        this.midtermGrade = midtermGrade;
+    }
+
+    public BigDecimal getFinalsGrade() {
+        return finalsGrade;
+    }
+
+    public void setFinalsGrade(BigDecimal finalsGrade) {
+        this.finalsGrade = finalsGrade;
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
+    }
+
+    public LocalDateTime getLockedAt() {
+        return lockedAt;
+    }
+
+    public void setLockedAt(LocalDateTime lockedAt) {
+        this.lockedAt = lockedAt;
     }
 }
