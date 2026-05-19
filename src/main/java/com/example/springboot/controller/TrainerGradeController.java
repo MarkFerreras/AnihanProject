@@ -1,8 +1,10 @@
 package com.example.springboot.controller;
 
 import java.util.List;
+import java.util.Map;
 
-import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +27,8 @@ import jakarta.validation.Valid;
 @PreAuthorize("hasRole('TRAINER')")
 public class TrainerGradeController {
 
+    private static final Logger log = LoggerFactory.getLogger(TrainerGradeController.class);
+
     private final TrainerGradeService gradeService;
     private final SystemLogService systemLogService;
 
@@ -34,44 +38,52 @@ public class TrainerGradeController {
     }
 
     @GetMapping
-    public ResponseEntity<GradeSummaryResponse> getGrades(@PathVariable Integer classId) {
+    public ResponseEntity<?> getGrades(@PathVariable Integer classId) {
         try {
             GradeSummaryResponse response = gradeService.getGradesForClass(classId);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Failed to get grades for class {}: {}", classId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
     @PutMapping
-    public ResponseEntity<Void> saveGrades(
+    public ResponseEntity<?> saveGrades(
             @PathVariable Integer classId,
-            @Valid @RequestBody List<SaveGradeRequest> gradeUpdates) {
+            @RequestBody List<SaveGradeRequest> gradeUpdates) {
         try {
             gradeService.saveGrades(classId, gradeUpdates);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Failed to save grades for class {}: {}", classId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
     @PostMapping("/lock")
-    public ResponseEntity<Void> lockGrades(@PathVariable Integer classId) {
+    public ResponseEntity<?> lockGrades(@PathVariable Integer classId) {
         try {
             gradeService.lockGrades(classId);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Failed to lock grades for class {}: {}", classId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
     @PostMapping("/unlock")
-    public ResponseEntity<Void> unlockGrades(@PathVariable Integer classId) {
+    public ResponseEntity<?> unlockGrades(@PathVariable Integer classId) {
         try {
             gradeService.unlockGrades(classId);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Failed to unlock grades for class {}: {}", classId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 }

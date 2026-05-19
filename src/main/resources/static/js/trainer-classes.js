@@ -141,20 +141,27 @@ $(function () {
             const hoursStudied = row.find('[data-field="hoursStudied"]').val();
             const remarks = row.find('[data-field="remarks"]').val();
 
-            updates.push({
-                studentId: studentId,
-                midtermGrade: midtermGrade ? parseFloat(midtermGrade) : null,
-                finalsGrade: finalsGrade ? parseFloat(finalsGrade) : null,
-                reExamGrade: reExamGrade ? parseFloat(reExamGrade) : null,
-                hoursStudied: hoursStudied ? parseFloat(hoursStudied) : null,
-                remarks: remarks || null
-            });
+            // Only include rows where at least one grade field is filled
+            if (midtermGrade || finalsGrade || reExamGrade || hoursStudied || remarks) {
+                updates.push({
+                    studentId: studentId,
+                    midtermGrade: midtermGrade ? parseFloat(midtermGrade) : null,
+                    finalsGrade: finalsGrade ? parseFloat(finalsGrade) : null,
+                    reExamGrade: reExamGrade ? parseFloat(reExamGrade) : null,
+                    hoursStudied: hoursStudied ? parseFloat(hoursStudied) : null,
+                    remarks: remarks || null
+                });
+            }
         });
         return updates;
     }
 
     function saveGrades() {
         const updates = collectGradeUpdates();
+        if (updates.length === 0) {
+            showAlert('No grade data entered. Please fill in at least Midterm or Finals for one student.', 'warning');
+            return;
+        }
         $.ajax({
             url: '/api/trainer/classes/' + encodeURIComponent(currentClassId) + '/grades',
             method: 'PUT',
@@ -162,10 +169,17 @@ $(function () {
             data: JSON.stringify(updates),
             success: function () {
                 showAlert('Grades saved successfully.', 'success');
-                setTimeout(function () {
-                    classRosterModal.hide();
-                    classesTable.ajax.reload();
-                }, 1500);
+                // Reload grade data to show computed final grades
+                $.ajax({
+                    url: '/api/trainer/classes/' + encodeURIComponent(currentClassId) + '/grades',
+                    method: 'GET',
+                    success: function (response) {
+                        currentGrades = response.students || [];
+                        gradesLocked = response.locked || false;
+                        buildGradeInputTable();
+                        updateGradeActionButtons();
+                    }
+                });
             },
             error: function (xhr) {
                 const msg = xhr.responseJSON && xhr.responseJSON.message
