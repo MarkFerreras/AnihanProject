@@ -1,12 +1,44 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
+**Database Synchronization & Restructure Verification — Completed**
 **Trainer Grade Input (AGILE-126 / AGILE-127) — Save/Lock/Unlock fully functional, pending commit**
 
 ## Active Branch
-`feature/trainer-grade-input`
+`main` (kept on `main` per user's instruction)
 
-## Latest Session (May 19, 2026 — Fix Save Grades Error + Button Styling)
+## Latest Session (May 21, 2026 — Database Schema Sync & Grades Restructure)
+
+### Root Causes / Needs Identified
+1. **DB Column & Constraint Mismatches:** The live MySQL database had multiple column width and type mismatches compared to `schema.sql` (e.g. `batches.batch_year` as `smallint` instead of `year`, `student_school_years` string fields as `varchar(10)` instead of `varchar(20)`, etc.).
+2. **Grades Table Restructure Not Applied:** The live MySQL `grades` table was in its old structure, missing critical trainer grading columns (`class_id`, `midterm_grade`, `finals_grade`, `locked`, `locked_at`), unique constraints, and foreign key relations.
+3. **Empty Data State:** The database was missing seeded student records and class-scoped lookups.
+
+### Items Completed
+1. **Database Backup:** Took a full SQL dump of the live database (`AnihanSRMS`) to `src/main/sql/backup.sql`.
+2. **Fresh Schema Installation:** Dropped and recreated `AnihanSRMS` and successfully imported the canonical `src/main/sql/schema.sql` (which incorporates the full restructured grades schema, all tables, and seed lookup/users data).
+3. **Restructure Verification:** Ran the query portion of `src/main/sql/migrations/2026-05-19-grades-restructure.sql` to confirm that all restructured grades table columns (`class_id`, `midterm_grade`, `finals_grade`, `locked`, `locked_at`), nullable column properties, foreign key links, and unique constraints are fully in place.
+4. **Student Records Seeding:** Verified that the 5 sample student records and lookup data are fully seeded.
+5. **Testing Suite Validation:** Ran `./gradlew test` and verified that the entire suite of 166 tests passed successfully.
+
+### Verified via Database
+```
+Field            Type          Null   Key   Default  Extra
+grade_id         int           NO     PRI   NULL     auto_increment
+student_id       varchar(20)   NO     MUL   NULL     
+subject_code     varchar(20)   NO     MUL   NULL     
+class_id         int           YES    MUL   NULL     
+midterm_grade    decimal(5,2)  YES          NULL     
+finals_grade     decimal(5,2)  YES          NULL     
+locked           tinyint(1)    NO           0        
+locked_at        datetime      YES          NULL     
+final_grade      decimal(5,2)  YES          NULL     
+re_exam_grade    decimal(5,2)  YES          NULL     
+hours_studied    decimal(5,2)  YES          NULL     
+remarks          varchar(255)  YES          NULL     
+```
+
+## Previous Session (May 19, 2026 — Fix Save Grades Error + Button Styling)
 
 ### Root Causes Found
 1. **`Grade.java` JoinColumn mapping** — `@JoinColumn(name = "student_id")` on the `StudentRecord` relationship was mapping to `StudentRecord.recordId` (the `@Id` auto-increment integer) instead of `StudentRecord.studentId` (the business key varchar). This caused `SQLIntegrityConstraintViolationException` on every INSERT because Hibernate wrote the integer record_id into the varchar student_id FK column.

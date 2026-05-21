@@ -1,5 +1,36 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-21 - Database Schema Sync & Grades Restructure
+**Branch:** `main` (stayed on `main` per user's instruction)
+
+### Task
+Synchronize the live MySQL database (`AnihanSRMS`) running in Docker with the canonical `schema.sql` to resolve structural column mismatches, apply the `2026-05-19-grades-restructure.sql` schema verification, seed 5 dummy student records, and verify backend test suite integrity.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `memory-bank/activeContext.md` | Documented database sync items, verified grades table schema layout, and current branch state. |
+| `memory-bank/progress.md` | Added database sync details under Recent Sessions. |
+| `memory-bank/changeLog.md` | This entry. |
+
+### Database Schema Updates
+- **`AnihanSRMS` database dropped and recreated** to perform a clean, error-free reinstall of the schema.
+- **Imported `schema.sql`**, resolving all structural column mismatches:
+  - `batches.batch_year` changed from `smallint` to `year`.
+  - `student_school_years.sy_start`, `.sem_start`, `.sy_end`, `.sem_end` expanded from `varchar(10)` to `varchar(20)`.
+  - `student_tesda_qualifications.result` expanded from `varchar(25)` to `varchar(50)`.
+  - `student_uploads.kind` expanded from `varchar(20)` to `varchar(30)`, and `.file_path` shortened from `varchar(512)` to `varchar(500)`.
+  - `student_education.level` expanded from `varchar(10)` to `varchar(50)`, `.grade_year` shortened from `varchar(255)` to `varchar(50)`, `.semester` shortened from `varchar(255)` to `varchar(20)`, and `.ended_year` expanded from `varchar(7)` to `varchar(20)`.
+  - `student_ojt.hours_rendered` expanded from `decimal(6,2)` to `decimal(8,2)`.
+  - **`grades` restructured:** Incorporated `class_id`, `midterm_grade`, `finals_grade`, `locked`, `locked_at` columns, changed `hours_studied` to `decimal(5,2)` and `remarks` to nullable, and added the unique constraint `uq_grade_student_class` and foreign key constraint `fk_grades_class`.
+- **Seeded 5 dummy student records** and lookup/user data successfully.
+
+### Verification
+- Ran the query checks in `2026-05-19-grades-restructure.sql` to confirm that all restructured grades table columns, indexes, and constraints are in place.
+- `./gradlew test` → **BUILD SUCCESSFUL — 166 tests, 0 failures, 0 errors**.
+
+---
+
 ## 2026-05-18 - Trainer Read-Only Views (AGILE-123 / AGILE-124)
 **Branch:** `feature/trainer-view-subjects-classes`
 

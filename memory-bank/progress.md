@@ -2,6 +2,16 @@
 
 ## Recent Sessions (detail)
 
+### Database Schema Sync & Grades Restructure (Completed — May 21, 2026)
+- **Task:** Resolve all column type/width and constraint mismatches between the live MySQL database and the canonical `schema.sql`, apply the grades restructure migration `2026-05-19-grades-restructure.sql`, seed 5 test student records, and verify that the Spring Boot test suite compiles and runs cleanly against the refreshed schema.
+- **Action:**
+  - Backed up the live database to `src/main/sql/backup.sql`.
+  - Dropped and recreated the `AnihanSRMS` database, and imported the updated `schema.sql`.
+  - Verified that all tables and columns match the latest schema specifications, resolving all 7 structural table column type/width mismatches.
+  - Ran the query checks in `2026-05-19-grades-restructure.sql` to verify the class-scoped grading columns, indexes, and constraints.
+  - Ran `./gradlew test` and successfully passed the full suite of 166 backend tests.
+- **Active Branch:** `main` (stayed on `main` per user's instruction).
+
 ### Save Grades Error + Button Styling Fix — AGILE-126 / AGILE-127 (Completed — May 19, 2026)
 - **Root cause 1:** `Grade.java` `@JoinColumn(name = "student_id")` mapped to `StudentRecord.recordId` (integer PK) instead of `StudentRecord.studentId` (varchar business key). Hibernate wrote integer record_id into varchar student_id FK → `SQLIntegrityConstraintViolationException`.
 - **Root cause 2:** `TrainerGradeController` catch blocks returned `ResponseEntity.badRequest().build()` with no JSON body → JS `xhr.responseJSON.message` failed silently.
