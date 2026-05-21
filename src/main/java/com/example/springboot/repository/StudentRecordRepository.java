@@ -16,11 +16,8 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
 
     Optional<StudentRecord> findByStudentId(String studentId);
 
-    Optional<StudentRecord> findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
+    java.util.List<StudentRecord> findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
             String lastName, String firstName, String middleName);
-
-    @Query("SELECT COUNT(s) FROM StudentRecord s WHERE s.studentId LIKE :prefix%")
-    long countByStudentIdStartingWith(@Param("prefix") String prefix);
 
     @Modifying
     @Query(value = "DELETE FROM documents WHERE student_id = :studentId", nativeQuery = true)
@@ -29,6 +26,13 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
     @Modifying
     @Query(value = "DELETE FROM grades WHERE student_id = :studentId", nativeQuery = true)
     void deleteGradesByStudentId(@Param("studentId") String studentId);
+
+    @Modifying
+    @Query(value = "DELETE FROM class_enrollments WHERE student_id = :studentId", nativeQuery = true)
+    void deleteClassEnrollmentsByStudentId(@Param("studentId") String studentId);
+
+    @Query("SELECT MAX(s.studentId) FROM StudentRecord s WHERE s.studentId LIKE :prefix%")
+    java.util.Optional<String> findMaxStudentIdWithPrefix(@Param("prefix") String prefix);
 
     java.util.List<StudentRecord> findBySectionSectionCode(String sectionCode);
 

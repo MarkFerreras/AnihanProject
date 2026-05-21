@@ -102,7 +102,7 @@ Controller → Service → Repository → Model (JPA Entity)
 
 **System logs:** Every significant action (account creation, grade update, document upload) must be written to `system_logs` via `SystemLogService`. The table is append-only — never update or delete log rows. Logs include `user_id`, `username`, `role`, `action`, `ip_address`, and `timestamp`.
 
-**Security:** CSRF is disabled for `/api/**` endpoints and enabled for form submissions. Session timeout is 30 minutes; cookies are HTTP-only, SameSite=Lax.
+**Security:** CSRF protection is disabled globally — the app is entirely AJAX/JSON and has no server-rendered form posts. Session timeout is 30 minutes; cookies are HTTP-only, SameSite=Lax.
 
 **Name fields:** `users` table stores `last_name` and `first_name` as separate columns — do not collapse them into a single `full_name`.
 

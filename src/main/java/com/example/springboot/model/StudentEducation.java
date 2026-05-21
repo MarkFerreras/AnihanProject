@@ -21,7 +21,7 @@ public class StudentEducation {
     @Column(name = "student_id", length = 20, nullable = false)
     private String studentId;
 
-    @Column(name = "level", length = 10, nullable = false)
+    @Column(name = "level", length = 50, nullable = false)
     private String level;
 
     @Column(name = "school_name")
@@ -30,13 +30,13 @@ public class StudentEducation {
     @Column(name = "school_address")
     private String schoolAddress;
 
-    @Column(name = "grade_year")
+    @Column(name = "grade_year", length = 50)
     private String gradeYear;
 
-    @Column(name = "semester")
+    @Column(name = "semester", length = 20)
     private String semester;
 
-    @Column(name = "ended_year", length = 7)
+    @Column(name = "ended_year", length = 20)
     private String endedYear;
 
     public StudentEducation() {}

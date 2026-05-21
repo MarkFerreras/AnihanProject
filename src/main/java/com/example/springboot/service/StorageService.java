@@ -38,6 +38,9 @@ public class StorageService {
     }
 
     public StudentUpload store(String studentId, String kind, MultipartFile file) throws IOException {
+        if (studentId == null || !studentId.matches("[A-Za-z0-9_-]+")) {
+            throw new IllegalArgumentException("Invalid student identifier.");
+        }
         validateFile(kind, file);
 
         String mimeType = resolveMime(file);

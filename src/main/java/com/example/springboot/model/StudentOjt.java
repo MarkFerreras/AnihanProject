@@ -27,7 +27,7 @@ public class StudentOjt {
     @Column(name = "company_address")
     private String companyAddress;
 
-    @Column(name = "hours_rendered", precision = 6, scale = 2)
+    @Column(name = "hours_rendered", precision = 8, scale = 2)
     private BigDecimal hoursRendered;
 
     public StudentOjt() {}

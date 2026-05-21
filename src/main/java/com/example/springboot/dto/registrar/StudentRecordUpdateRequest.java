@@ -24,7 +24,6 @@ public record StudentRecordUpdateRequest(
         @NotBlank(message = "First name is required")
         String firstName,
 
-        @NotBlank(message = "Middle name is required")
         String middleName,
 
         @PastOrPresent(message = "Birthdate cannot be in the future")

@@ -2,6 +2,12 @@
 
 ## Recent Sessions (detail)
 
+### Bugfix Audit Remediation (Completed — May 21, 2026)
+- **Task:** Execute all 10 items from `docs/superpowers/plans/2026-05-21-bugfix-audit-remediation.md`.
+- **Result:** `./gradlew test` → **176 tests, 0 failures, 0 errors** (was 166; 10 new tests).
+- **Key fixes:** FK cascade on student delete (H1); Student ID locked readonly (H2); duplicate-name portal flow (M2-M4); grade range validation (M5-M6); entity `@Column` metadata sync (L1); middleName nullable (L2); `@EnableMethodSecurity` (L3); username-derived default email (L5); CSRF docs (L4); StorageService path-traversal guard (L6).
+- **Branch:** `main`.
+
 ### Database Schema Sync & Grades Restructure (Completed — May 21, 2026)
 - **Task:** Resolve all column type/width and constraint mismatches between the live MySQL database and the canonical `schema.sql`, apply the grades restructure migration `2026-05-19-grades-restructure.sql`, seed 5 test student records, and verify that the Spring Boot test suite compiles and runs cleanly against the refreshed schema.
 - **Action:**

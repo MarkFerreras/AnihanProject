@@ -1,7 +1,9 @@
 package com.example.springboot.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -174,6 +176,37 @@ class RegistrarBulkLoadTest {
         List<StudentRecordSummaryResponse> all = registrarService.getAllRecords("   ");
         assertEquals(200, all.size(),
                 "Blank query should return all records");
+    }
+
+    @Test
+    void deleteRecordAlsoRemovesClassEnrollments() {
+        StudentRecord record = new StudentRecord();
+        record.setRecordId(7);
+        record.setStudentId("STU-7");
+        when(studentRecordRepository.findById(7)).thenReturn(java.util.Optional.of(record));
+        when(uploadRepository.findByStudentId("STU-7")).thenReturn(java.util.Collections.emptyList());
+
+        registrarService.deleteRecord(7);
+
+        verify(studentRecordRepository).deleteClassEnrollmentsByStudentId("STU-7");
+        verify(studentRecordRepository).deleteById(7);
+    }
+
+    @Test
+    void updateRecordRejectsChangedStudentId() {
+        StudentRecord record = new StudentRecord();
+        record.setRecordId(5);
+        record.setStudentId("STU-ORIGINAL");
+        when(studentRecordRepository.findById(5)).thenReturn(java.util.Optional.of(record));
+
+        com.example.springboot.dto.registrar.StudentRecordUpdateRequest req =
+            new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
+                "STU-CHANGED", "Last", "First", "Middle", null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                "Active", null, null, null, null, null, null);
+
+        assertThrows(IllegalArgumentException.class,
+            () -> registrarService.updateRecord(5, req));
     }
 
     @Test

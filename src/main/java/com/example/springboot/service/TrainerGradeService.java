@@ -51,6 +51,19 @@ public class TrainerGradeService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
+    private void validateGradeRanges(SaveGradeRequest request) {
+        checkRange(request.midtermGrade(), "Midterm grade");
+        checkRange(request.finalsGrade(), "Finals grade");
+        checkRange(request.reExamGrade(), "Re-exam grade");
+    }
+
+    private void checkRange(BigDecimal value, String name) {
+        if (value == null) return;
+        if (value.compareTo(new BigDecimal("1.0")) < 0 || value.compareTo(new BigDecimal("5.0")) > 0) {
+            throw new IllegalArgumentException(name + " must be between 1.0 and 5.0, got: " + value);
+        }
+    }
+
     private BigDecimal getEffectiveGrade(BigDecimal finalGrade, BigDecimal reExamGrade) {
         if (finalGrade == null) {
             return null;
@@ -208,16 +221,14 @@ public class TrainerGradeService {
                 throw new IllegalArgumentException("Grade is locked and cannot be modified: " + request.studentId());
             }
 
+            validateGradeRanges(request);
+
             grade.setMidtermGrade(request.midtermGrade());
             grade.setFinalsGrade(request.finalsGrade());
             grade.setReExamGrade(request.reExamGrade());
             grade.setHoursStudied(request.hoursStudied());
             grade.setRemarks(request.remarks());
-
-            if (request.midtermGrade() != null && request.finalsGrade() != null) {
-                BigDecimal finalGrade = computeFinalGrade(request.midtermGrade(), request.finalsGrade());
-                grade.setFinalGrade(finalGrade);
-            }
+            grade.setFinalGrade(computeFinalGrade(request.midtermGrade(), request.finalsGrade()));
 
             gradeRepository.save(grade);
         }

@@ -125,8 +125,8 @@ class StudentDetailsServiceTest {
         @Test
         void createsMinimalRecordWhenNoExistingStudent() {
             when(studentRecordRepo.findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
-                    "Reyes", "Anna", "Cruz")).thenReturn(Optional.empty());
-            when(studentRecordRepo.countByStudentIdStartingWith(anyString())).thenReturn(0L);
+                    "Reyes", "Anna", "Cruz")).thenReturn(java.util.Collections.emptyList());
+            when(studentRecordRepo.findMaxStudentIdWithPrefix(anyString())).thenReturn(Optional.empty());
             when(studentRecordRepo.save(any(StudentRecord.class)))
                     .thenAnswer(inv -> inv.getArgument(0));
 
@@ -155,12 +155,37 @@ class StudentDetailsServiceTest {
         void resumesExistingRecordWithoutCreatingNew() {
             StudentRecord existing = buildMinimalRecord("SR20260001", "Enrolling");
             when(studentRecordRepo.findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
-                    "Reyes", "Anna", "Cruz")).thenReturn(Optional.of(existing));
+                    "Reyes", "Anna", "Cruz")).thenReturn(List.of(existing));
             stubRelationsLenient();
 
             StudentDetailsResponse result = service.startOrResume("Reyes", "Anna", "Cruz");
 
             assertEquals("SR20260001", result.studentId());
+            verify(studentRecordRepo, never()).save(any());
+        }
+
+        @Test
+        void rejectsResumeWhenMatchingRecordIsAlreadySubmitted() {
+            StudentRecord submitted = buildMinimalRecord("SR20260001", "Submitted");
+            when(studentRecordRepo.findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
+                    "Reyes", "Anna", "Cruz")).thenReturn(List.of(submitted));
+
+            assertThrows(IllegalStateException.class,
+                    () -> service.startOrResume("Reyes", "Anna", "Cruz"));
+            verify(studentRecordRepo, never()).save(any());
+        }
+
+        @Test
+        void resumesEnrollingRecordEvenWhenAnotherNamesakeExists() {
+            StudentRecord submitted = buildMinimalRecord("SR20260001", "Submitted");
+            StudentRecord enrolling = buildMinimalRecord("SR20260002", "Enrolling");
+            when(studentRecordRepo.findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
+                    "Reyes", "Anna", "Cruz")).thenReturn(List.of(submitted, enrolling));
+            stubRelationsLenient();
+
+            StudentDetailsResponse result = service.startOrResume("Reyes", "Anna", "Cruz");
+
+            assertEquals("SR20260002", result.studentId());
             verify(studentRecordRepo, never()).save(any());
         }
     }
@@ -276,6 +301,15 @@ class StudentDetailsServiceTest {
 
             assertThrows(IllegalArgumentException.class,
                     () -> service.load("INVALID"));
+        }
+
+        @Test
+        void throwsWhenRecordIsNoLongerEnrolling() {
+            StudentRecord record = buildMinimalRecord("SR20260001", "Submitted");
+            when(studentRecordRepo.findByStudentId("SR20260001")).thenReturn(Optional.of(record));
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.load("SR20260001"));
         }
     }
 }

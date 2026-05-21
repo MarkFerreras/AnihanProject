@@ -532,4 +532,74 @@ public class TrainerGradeServiceTest {
         // Since final_grade=3.2 > 3.0 and re_exam=2.5, effective=2.5 → GWA=2.5
         assertEquals(new BigDecimal("2.50"), response.students().get(0).gwa());
     }
+
+    @Test
+    void rejectsGradeOutsideValidRange() {
+        stubTrainerLookup();
+        Integer classId = 1;
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setClassId(classId);
+        schoolClass.setTrainer(trainerUser);
+
+        StudentRecord student = new StudentRecord();
+        student.setStudentId("STU001");
+
+        Grade grade = new Grade();
+        grade.setGradeId(1);
+        grade.setStudent(student);
+        grade.setLocked(false);
+
+        SaveGradeRequest request = new SaveGradeRequest(
+                "STU001",
+                new BigDecimal("0.5"),
+                new BigDecimal("3.5"),
+                null, null, null);
+
+        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
+        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
+                .thenReturn(Optional.of(grade));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(request)));
+    }
+
+    @Test
+    void computesFinalGradeUnconditionallyWhenOneGradeNull() {
+        stubTrainerLookup();
+        Integer classId = 1;
+
+        Subject subject = new Subject();
+        subject.setSubjectCode("CUL101");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setClassId(classId);
+        schoolClass.setTrainer(trainerUser);
+        schoolClass.setSubject(subject);
+
+        StudentRecord student = new StudentRecord();
+        student.setStudentId("STU001");
+
+        Grade grade = new Grade();
+        grade.setGradeId(1);
+        grade.setStudent(student);
+        grade.setLocked(false);
+
+        SaveGradeRequest request = new SaveGradeRequest(
+                "STU001",
+                new BigDecimal("3.0"),
+                null,
+                null, null, null);
+
+        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
+        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
+                .thenReturn(Optional.of(grade));
+        when(gradeRepository.save(any())).thenReturn(grade);
+
+        gradeService.saveGrades(classId, List.of(request));
+
+        assertNull(grade.getFinalGrade());
+    }
 }

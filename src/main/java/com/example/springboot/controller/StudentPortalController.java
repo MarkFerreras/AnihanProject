@@ -33,8 +33,9 @@ public class StudentPortalController {
         boolean blocked = studentRecordRepository
                 .findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
                         lastName.trim(), firstName.trim(), middleName.trim())
-                .map(r -> "Submitted".equals(r.getStudentStatus()) || "Active".equals(r.getStudentStatus()))
-                .orElse(false);
+                .stream()
+                .anyMatch(r -> "Submitted".equals(r.getStudentStatus())
+                        || "Active".equals(r.getStudentStatus()));
 
         return ResponseEntity.ok(Map.of("exists", blocked));
     }

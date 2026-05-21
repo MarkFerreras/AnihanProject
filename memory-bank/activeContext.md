@@ -1,13 +1,33 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Database Synchronization & Restructure Verification — Completed**
-**Trainer Grade Input (AGILE-126 / AGILE-127) — Save/Lock/Unlock fully functional, pending commit**
+**Bugfix Audit Remediation — All 10 tasks complete, pending commit**
 
 ## Active Branch
 `main` (kept on `main` per user's instruction)
 
-## Latest Session (May 21, 2026 — Database Schema Sync & Grades Restructure)
+## Latest Session (May 21, 2026 — Bugfix Audit Remediation)
+
+### Items Completed
+All 10 tasks from `2026-05-21-bugfix-audit-remediation.md` plan executed. Test suite: **176 tests, 0 failures, 0 errors** (was 166; 10 new tests added).
+
+| Task | Description | Status |
+|------|-------------|--------|
+| H1 | `deleteRecord()` now calls `deleteClassEnrollmentsByStudentId` before `deleteById` | Done |
+| H2 | Student ID locked `readonly` in HTML; server-side rejects changes in `updateRecord` | Done |
+| M2+M3+M4 | `startOrResume` handles namesake list properly; `load` guards non-Enrolling; `generateStudentId` uses MAX+1 | Done |
+| M5+M6 | Grade range [1.0–5.0] validation in `saveGrades`; finalGrade always recomputed | Done |
+| L1 | `@Column` lengths/nullable fixed in 5 entities (StudentUpload, StudentEducation, StudentSchoolYear, StudentTesdaQualification, StudentOjt) | Done |
+| L2 | `middleName` `nullable=false` removed from `StudentRecord`; `@NotBlank` removed from `StudentRecordUpdateRequest` | Done |
+| L3 | `@EnableMethodSecurity` added to `SecurityConfig` | Done |
+| L5 | Default email in `AdminService.createUser` now derives from username | Done |
+| L4 | CLAUDE.md CSRF statement corrected | Done |
+| L6 | `StorageService.store()` now validates studentId against `[A-Za-z0-9_-]+` whitelist | Done |
+
+### Open Items
+- Commit all changes to `main`
+
+## Previous Session (May 21, 2026 — Database Schema Sync & Grades Restructure)
 
 ### Root Causes / Needs Identified
 1. **DB Column & Constraint Mismatches:** The live MySQL database had multiple column width and type mismatches compared to `schema.sql` (e.g. `batches.batch_year` as `smallint` instead of `year`, `student_school_years` string fields as `varchar(10)` instead of `varchar(20)`, etc.).

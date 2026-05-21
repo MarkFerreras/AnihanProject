@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.example.springboot.dto.AdminCreateUserRequest;
 import com.example.springboot.dto.AdminUpdateUserRequest;
 import com.example.springboot.dto.AdminUserResponse;
 import com.example.springboot.model.User;
@@ -150,6 +151,26 @@ class AdminServiceTest {
                 assertEquals(25, response.age());
                 // Should NOT call save since no recalculation happened
                 verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        void createUserWithoutEmailDerivesUsernameBasedEmail() {
+                AdminCreateUserRequest request = new AdminCreateUserRequest(
+                                "newtrainer",
+                                "Pass1234!",
+                                "ROLE_TRAINER",
+                                null, null, null,
+                                null,
+                                LocalDate.of(2000, 1, 1));
+
+                when(userRepository.existsByUsername("newtrainer")).thenReturn(false);
+                when(userRepository.existsByEmail("newtrainer@anihan.local")).thenReturn(false);
+                when(passwordEncoder.encode("Pass1234!")).thenReturn("encoded");
+                when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+                AdminUserResponse response = adminService.createUser(request);
+
+                assertEquals("newtrainer@anihan.local", response.email());
         }
 
         private User buildUser(

@@ -21,19 +21,19 @@ public class StudentUpload {
     @Column(name = "student_id", length = 20, nullable = false)
     private String studentId;
 
-    @Column(name = "kind", length = 20, nullable = false)
+    @Column(name = "kind", length = 30, nullable = false)
     private String kind;
 
-    @Column(name = "file_path", length = 512, nullable = false)
+    @Column(name = "file_path", length = 500, nullable = false)
     private String filePath;
 
-    @Column(name = "original_name", nullable = false)
+    @Column(name = "original_name")
     private String originalName;
 
-    @Column(name = "mime_type", length = 100, nullable = false)
+    @Column(name = "mime_type", length = 100)
     private String mimeType;
 
-    @Column(name = "size_bytes", nullable = false)
+    @Column(name = "size_bytes")
     private Long sizeBytes;
 
     @Column(name = "uploaded_at", nullable = false)

@@ -153,20 +153,15 @@ public class RegistrarService {
         StudentRecord record = studentRecordRepository.findById(recordId)
                 .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
 
-        String oldStudentId = record.getStudentId();
+        String studentId = record.getStudentId();
 
-        if (!oldStudentId.equalsIgnoreCase(request.studentId())) {
-            studentRecordRepository.findByStudentId(request.studentId())
-                    .filter(other -> !other.getRecordId().equals(recordId))
-                    .ifPresent(other -> {
-                        throw new IllegalArgumentException("Student ID is already in use: " + request.studentId());
-                    });
-            record.setStudentId(request.studentId());
+        if (!studentId.equals(request.studentId())) {
+            throw new IllegalArgumentException("Student ID cannot be changed.");
         }
 
         record.setLastName(request.lastName());
         record.setFirstName(request.firstName());
-        record.setMiddleName(request.middleName());
+        record.setMiddleName(emptyToNull(request.middleName()));
         record.setBirthdate(request.birthdate());
         record.setAge(AgeCalculator.calculateAge(request.birthdate()));
         record.setSex(emptyToNull(request.sex()));
@@ -189,11 +184,10 @@ public class RegistrarService {
         record.setSection(resolveSection(request.sectionCode()));
 
         StudentRecord saved = studentRecordRepository.save(record);
-        String newStudentId = saved.getStudentId();
 
-        saveOjt(oldStudentId, newStudentId, request.ojt());
-        saveTesda(oldStudentId, newStudentId, request.tesdaQualifications());
-        saveSchoolYears(oldStudentId, newStudentId, request.schoolYears());
+        saveOjt(studentId, studentId, request.ojt());
+        saveTesda(studentId, studentId, request.tesdaQualifications());
+        saveSchoolYears(studentId, studentId, request.schoolYears());
         saveParents(saved, request.father(), request.mother());
         saveGuardian(saved, request.guardian());
 
@@ -381,6 +375,7 @@ public class RegistrarService {
         studentOjtRepository.deleteByStudentId(studentId);
         studentRecordRepository.deleteDocumentsByStudentId(studentId);
         studentRecordRepository.deleteGradesByStudentId(studentId);
+        studentRecordRepository.deleteClassEnrollmentsByStudentId(studentId);
 
         studentRecordRepository.deleteById(recordId);
     }

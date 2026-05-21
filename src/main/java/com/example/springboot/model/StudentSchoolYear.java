@@ -24,16 +24,16 @@ public class StudentSchoolYear {
     @Column(name = "row_index", nullable = false)
     private Integer rowIndex;
 
-    @Column(name = "sy_start", length = 10)
+    @Column(name = "sy_start", length = 20)
     private String syStart;
 
-    @Column(name = "sem_start", length = 10)
+    @Column(name = "sem_start", length = 20)
     private String semStart;
 
-    @Column(name = "sy_end", length = 10)
+    @Column(name = "sy_end", length = 20)
     private String syEnd;
 
-    @Column(name = "sem_end", length = 10)
+    @Column(name = "sem_end", length = 20)
     private String semEnd;
 
     @Column(name = "remarks")

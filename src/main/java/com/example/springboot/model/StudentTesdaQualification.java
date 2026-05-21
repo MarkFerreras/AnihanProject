@@ -35,7 +35,7 @@ public class StudentTesdaQualification {
     @Column(name = "assessment_date")
     private LocalDate assessmentDate;
 
-    @Column(name = "result", length = 25)
+    @Column(name = "result", length = 50)
     private String result;
 
     public StudentTesdaQualification() {}

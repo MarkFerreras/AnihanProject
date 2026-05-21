@@ -65,12 +65,21 @@ public class StudentDetailsService {
      */
     @Transactional
     public StudentDetailsResponse startOrResume(String lastName, String firstName, String middleName) {
-        var existing = studentRecordRepo
+        List<StudentRecord> matches = studentRecordRepo
                 .findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
                         lastName.trim(), firstName.trim(), middleName.trim());
 
-        if (existing.isPresent()) {
-            return buildResponse(existing.get());
+        // Resume only an in-progress (Enrolling) record; never expose a
+        // Submitted/Active/Graduated student's data through the public portal.
+        var enrolling = matches.stream()
+                .filter(r -> "Enrolling".equalsIgnoreCase(r.getStudentStatus()))
+                .findFirst();
+        if (enrolling.isPresent()) {
+            return buildResponse(enrolling.get());
+        }
+        if (!matches.isEmpty()) {
+            throw new IllegalStateException(
+                    "An enrollment already exists for this name. Please contact the registrar.");
         }
 
         StudentRecord record = new StudentRecord();
@@ -86,6 +95,9 @@ public class StudentDetailsService {
     @Transactional(readOnly = true)
     public StudentDetailsResponse load(String studentId) {
         StudentRecord record = findOrThrow(studentId);
+        if (!"Enrolling".equalsIgnoreCase(record.getStudentStatus())) {
+            throw new IllegalArgumentException("This enrollment is no longer editable.");
+        }
         return buildResponse(record);
     }
 
@@ -146,8 +158,10 @@ public class StudentDetailsService {
     private String generateStudentId() {
         int year = LocalDate.now().getYear();
         String prefix = "SR" + year;
-        long count = studentRecordRepo.countByStudentIdStartingWith(prefix);
-        return String.format("%s%04d", prefix, count + 1);
+        int next = studentRecordRepo.findMaxStudentIdWithPrefix(prefix)
+                .map(maxId -> Integer.parseInt(maxId.substring(prefix.length())) + 1)
+                .orElse(1);
+        return String.format("%s%04d", prefix, next);
     }
 
     private void applyPersonal(StudentRecord r, StudentDetailsRequest req) {

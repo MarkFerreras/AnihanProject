@@ -1,5 +1,42 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-21 - Bugfix Audit Remediation
+**Branch:** `main`
+
+### Task
+Execute all 10 items from `docs/superpowers/plans/2026-05-21-bugfix-audit-remediation.md`.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `repository/StudentRecordRepository.java` | List return on name-lookup; `deleteClassEnrollmentsByStudentId` native query; `findMaxStudentIdWithPrefix` |
+| `service/RegistrarService.java` | Delete cascades class enrollments; Student ID change rejected; middleName uses emptyToNull |
+| `service/StudentDetailsService.java` | startOrResume list+filter+throws; load guards non-Enrolling; generateStudentId uses MAX+1 |
+| `controller/StudentDetailsController.java` | start returns 409 on duplicate name |
+| `controller/StudentPortalController.java` | checkDuplicate uses stream on List |
+| `service/TrainerGradeService.java` | Grade range validation [1.0–5.0]; unconditional finalGrade |
+| `service/StorageService.java` | studentId whitelist guard before file I/O |
+| `service/AdminService.java` | Default email derives from username |
+| `config/SecurityConfig.java` | @EnableMethodSecurity added |
+| `model/StudentRecord.java` | middleName nullable=false removed |
+| `model/StudentUpload.java` | kind 20→30, file_path 512→500, optional columns relaxed |
+| `model/StudentEducation.java` | level/grade_year/semester/ended_year lengths corrected |
+| `model/StudentSchoolYear.java` | sy_start/sem_start/sy_end/sem_end 10→20 |
+| `model/StudentTesdaQualification.java` | result 25→50 |
+| `model/StudentOjt.java` | hours_rendered precision 6→8 |
+| `dto/registrar/StudentRecordUpdateRequest.java` | @NotBlank removed from middleName |
+| `static/student-records.html` | editStudentId readonly; editMiddleName required removed |
+| `CLAUDE.md` | CSRF statement corrected |
+| `test/.../RegistrarBulkLoadTest.java` | 2 new tests |
+| `test/.../StudentDetailsServiceTest.java` | 3 new tests + stub updates |
+| `test/.../TrainerGradeServiceTest.java` | 2 new tests |
+| `test/.../AdminServiceTest.java` | 1 new test + import |
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 176 tests, 0 failures, 0 errors**
+
+---
+
 ## 2026-05-21 - Database Schema Sync & Grades Restructure
 **Branch:** `main` (stayed on `main` per user's instruction)
 

@@ -47,15 +47,21 @@ public class StudentDetailsController {
      * No substantive data is persisted at this stage.
      */
     @PostMapping("/start")
-    public ResponseEntity<StudentDetailsResponse> start(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> start(@RequestBody Map<String, String> body) {
         String lastName = body.getOrDefault("lastName", "").trim();
         String firstName = body.getOrDefault("firstName", "").trim();
         String middleName = body.getOrDefault("middleName", "").trim();
         if (lastName.isBlank() || firstName.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        StudentDetailsResponse response = studentDetailsService.startOrResume(lastName, firstName, middleName);
-        return ResponseEntity.ok(response);
+        try {
+            StudentDetailsResponse response =
+                    studentDetailsService.startOrResume(lastName, firstName, middleName);
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", e.getMessage()));
+        }
     }
 
     @GetMapping("/{studentId}")

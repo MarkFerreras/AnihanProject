@@ -40,7 +40,7 @@ public class AdminService {
         // Derive effective email
         String email = (request.email() != null && !request.email().isBlank())
                 ? request.email().trim()
-                : "user@anihan.local";
+                : request.username().trim().toLowerCase() + "@anihan.local";
 
         // Check for duplicate email
         if (userRepository.existsByEmail(email)) {
