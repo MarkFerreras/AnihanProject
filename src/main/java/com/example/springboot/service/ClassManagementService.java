@@ -104,9 +104,7 @@ public class ClassManagementService {
         if (subjectRepository.existsById(code)) {
             throw new IllegalArgumentException("Subject code already exists: " + code);
         }
-        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Qualification not found: " + request.qualificationCode()));
+        Qualification qualification = resolveOrCreateQualification(request.qualificationName());
 
         Subject subject = new Subject();
         subject.setSubjectCode(code);
@@ -116,6 +114,18 @@ public class ClassManagementService {
 
         Subject saved = subjectRepository.save(subject);
         return SubjectResponse.from(saved);
+    }
+
+    /**
+     * Resolves a free-text qualification name to an existing {@link Qualification}
+     * (case-insensitive). If no qualification matches, a new one is created with
+     * its description defaulted to the trimmed name — the {@code qualifications}
+     * table requires a non-null description.
+     */
+    private Qualification resolveOrCreateQualification(String qualificationName) {
+        String name = qualificationName.trim();
+        return qualificationRepository.findByQualificationNameIgnoreCase(name)
+                .orElseGet(() -> qualificationRepository.save(new Qualification(name, name)));
     }
 
     @Transactional
@@ -402,6 +412,14 @@ public class ClassManagementService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Statuses a sectionless student may have and still be eligible to be added
+     * to a section. Stored lower-cased to match the case-insensitive JPQL `IN`
+     * query. Excludes "Graduated" — graduated students are not re-sectioned.
+     */
+    private static final java.util.Set<String> SECTION_ELIGIBLE_STATUSES =
+            java.util.Set.of("submitted", "enrolling", "active");
+
     public List<EligibleSectionStudentResponse> getEligibleStudentsForSection(
             String batchCode, String courseCode) {
         boolean hasBatch = batchCode != null && !batchCode.isBlank();
@@ -410,16 +428,16 @@ public class ClassManagementService {
         List<StudentRecord> students;
         if (hasBatch && hasCourse) {
             students = studentRecordRepository
-                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCodeAndCourseCourseCode(
-                            "Submitted", batchCode, courseCode);
+                    .findSectionlessByStatusesAndBatchAndCourse(
+                            SECTION_ELIGIBLE_STATUSES, batchCode, courseCode);
         } else if (hasBatch) {
             students = studentRecordRepository
-                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCode("Submitted", batchCode);
+                    .findSectionlessByStatusesAndBatch(SECTION_ELIGIBLE_STATUSES, batchCode);
         } else if (hasCourse) {
             students = studentRecordRepository
-                    .findBySectionIsNullAndStudentStatusIgnoreCaseAndCourseCourseCode("Submitted", courseCode);
+                    .findSectionlessByStatusesAndCourse(SECTION_ELIGIBLE_STATUSES, courseCode);
         } else {
-            students = studentRecordRepository.findBySectionIsNullAndStudentStatusIgnoreCase("Submitted");
+            students = studentRecordRepository.findSectionlessByStatuses(SECTION_ELIGIBLE_STATUSES);
         }
 
         return students.stream()
@@ -456,10 +474,12 @@ public class ClassManagementService {
                         + student.getSection().getSectionCode());
                 continue;
             }
-            if (!"Submitted".equalsIgnoreCase(student.getStudentStatus())) {
+            String status = student.getStudentStatus();
+            if (status == null
+                    || !SECTION_ELIGIBLE_STATUSES.contains(status.toLowerCase())) {
                 skipped.add(studentId);
-                reasons.add(studentId + ": status is '" + student.getStudentStatus()
-                        + "' (must be Submitted)");
+                reasons.add(studentId + ": status is '" + status
+                        + "' (must be Submitted, Enrolling, or Active)");
                 continue;
             }
             student.setSection(section);

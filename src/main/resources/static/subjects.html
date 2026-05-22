@@ -144,7 +144,10 @@
                     </div>
                     <div class="mb-3">
                         <label for="createSubjectQualification" class="form-label">Qualification <span class="text-danger">*</span></label>
-                        <select class="form-select" id="createSubjectQualification"></select>
+                        <input type="text" class="form-control" id="createSubjectQualification"
+                               maxlength="255" autocomplete="off"
+                               placeholder="e.g. Cookery NC II">
+                        <div class="form-text">A new qualification is created if the name does not already exist.</div>
                     </div>
                     <div class="mb-3">
                         <label for="createSubjectUnits" class="form-label">Units <span class="text-danger">*</span></label>
@@ -358,7 +361,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-subjects.js?v=2"></script>
+    <script src="js/registrar-subjects.js?v=3"></script>
 </body>
 
 </html>

@@ -44,4 +44,36 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
 
     java.util.List<StudentRecord> findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCodeAndCourseCourseCode(
             String status, String batchCode, String courseCode);
+
+    // ---- Sectionless-student finders accepting multiple eligible statuses ----
+    // Derived-name queries can't express a case-insensitive IN, so these use JPQL
+    // with LOWER(...) against a pre-lowercased status collection.
+
+    @Query("SELECT s FROM StudentRecord s WHERE s.section IS NULL "
+            + "AND LOWER(s.studentStatus) IN :statuses")
+    java.util.List<StudentRecord> findSectionlessByStatuses(
+            @Param("statuses") java.util.Collection<String> statuses);
+
+    @Query("SELECT s FROM StudentRecord s WHERE s.section IS NULL "
+            + "AND LOWER(s.studentStatus) IN :statuses "
+            + "AND s.batch.batchCode = :batchCode")
+    java.util.List<StudentRecord> findSectionlessByStatusesAndBatch(
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("batchCode") String batchCode);
+
+    @Query("SELECT s FROM StudentRecord s WHERE s.section IS NULL "
+            + "AND LOWER(s.studentStatus) IN :statuses "
+            + "AND s.course.courseCode = :courseCode")
+    java.util.List<StudentRecord> findSectionlessByStatusesAndCourse(
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("courseCode") String courseCode);
+
+    @Query("SELECT s FROM StudentRecord s WHERE s.section IS NULL "
+            + "AND LOWER(s.studentStatus) IN :statuses "
+            + "AND s.batch.batchCode = :batchCode "
+            + "AND s.course.courseCode = :courseCode")
+    java.util.List<StudentRecord> findSectionlessByStatusesAndBatchAndCourse(
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("batchCode") String batchCode,
+            @Param("courseCode") String courseCode);
 }

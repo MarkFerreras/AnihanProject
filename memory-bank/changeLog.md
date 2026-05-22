@@ -1,5 +1,49 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-22 - Fix: Registrar Cannot Add Students to a Section
+**Branch:** `main`
+
+### Task
+Fix a reported bug: the registrar could not add students to a section via the
+"Manage Students" function on `sections.html`. The "Add Students" tab only ever
+listed students with status `"Submitted"`, so sectionless students with status
+`"Enrolling"` or `"Active"` could never be added.
+
+### Root Cause
+`ClassManagementService.getEligibleStudentsForSection()` (all 4 query branches) and
+`assignStudentsToSection()` both hard-coded the literal `"Submitted"` as the only
+acceptable student status. A sectionless student can legitimately be `Enrolling`
+(mid-wizard) or `Active` (finalized but never sectioned), so those students were
+invisible in the eligible list and rejected by the assign guard.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `repository/StudentRecordRepository.java` | Added 4 JPQL `IN`-based finders: `findSectionlessByStatuses`, `findSectionlessByStatusesAndBatch`, `findSectionlessByStatusesAndCourse`, `findSectionlessByStatusesAndBatchAndCourse` — all use `WHERE s.section IS NULL AND LOWER(s.studentStatus) IN :statuses`. Old single-status derived finders left intact (no other callers changed). |
+| `service/ClassManagementService.java` | Added `SECTION_ELIGIBLE_STATUSES = {submitted, enrolling, active}` constant. `getEligibleStudentsForSection()` now calls the new `IN`-based finders with the status set. `assignStudentsToSection()` guard replaced `!"Submitted".equalsIgnoreCase(...)` with set-membership check; skip reason message updated to "must be Submitted, Enrolling, or Active". |
+| `test/.../ClassManagementSectionServiceTest.java` | 2 eligible-students tests re-mocked to the new finders (`anySet()`/`eq()` matchers); 1 new test `assignStudentsToSectionAcceptsEnrollingStudent`. |
+
+### Design Decisions
+- **Single constant for query + guard.** The original bug was that the eligibility
+  query and the assign-time guard each independently hard-coded `"Submitted"`.
+  A shared `SECTION_ELIGIBLE_STATUSES` set ensures they can never drift apart again.
+- **`Graduated` stays excluded.** Graduated students are not re-sectioned.
+- **Status set stored lower-cased** to pair with the case-insensitive `LOWER(...) IN`
+  JPQL; the assign guard lower-cases the student's status before the membership check.
+- **Old derived finders kept.** Removing them risked breaking unverified callers; they
+  are simply no longer used by the section-eligibility path.
+- **No DB schema or frontend change** — `registrar-sections.js` and `sections.html`
+  already consume the same endpoints; only the server-side filter widened.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 177 tests, 0 failures, 0 errors** (was 176).
+
+### Open Items
+- Manual browser smoke test: `sections.html` → Manage Students → Add Students tab —
+  confirm `Enrolling`/`Active` sectionless students appear and can be assigned.
+
+---
+
 ## 2026-05-21 - Bugfix Audit Remediation
 **Branch:** `main`
 

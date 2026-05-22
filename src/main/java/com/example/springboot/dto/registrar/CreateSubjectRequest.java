@@ -14,8 +14,12 @@ public record CreateSubjectRequest(
         @Size(max = 255, message = "Subject name must be at most 255 characters")
         String subjectName,
 
-        @NotNull(message = "Qualification is required")
-        Integer qualificationCode,
+        // Free-text qualification name. Resolved to an existing qualification
+        // (case-insensitive) by ClassManagementService.createSubject(), or a new
+        // qualifications row is auto-created if no match is found.
+        @NotBlank(message = "Qualification is required")
+        @Size(max = 255, message = "Qualification name must be at most 255 characters")
+        String qualificationName,
 
         @NotNull(message = "Units is required")
         @Min(value = 1, message = "Units must be at least 1")

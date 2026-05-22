@@ -2,6 +2,23 @@
 
 ## Recent Sessions (detail)
 
+### Create Subject: Qualification as Free-Text Field (Completed — May 22, 2026)
+- **Change:** The Qualification field in the Create Subject modal changed from a `<select>` dropdown to a free-text `<input>`. Edit Subject modal keeps the dropdown.
+- **Behavior:** Auto-create — typed name resolved to an existing `qualifications` row (case-insensitive); a new row is created if no match. `subjects.qualification_code` FK kept; no schema change.
+- **Backend:** `CreateSubjectRequest.qualificationCode` (Integer) → `qualificationName` (String). New `QualificationRepository.findByQualificationNameIgnoreCase`. `ClassManagementService.createSubject()` uses `resolveOrCreateQualification()`; auto-created qualification description defaults to its name (description column is NOT NULL).
+- **Frontend:** `subjects.html` Create modal text input + help text, cache-buster `?v=3`. `registrar-subjects.js` Create flow sends `qualificationName`.
+- **Tests:** `createSubjectRejectsUnknownQualification` replaced with `createSubjectAutoCreatesQualificationWhenNameIsNew`; WebMvc create payloads updated.
+- **Result:** `./gradlew test` → **177 tests, 0 failures, 0 errors**.
+- **Branch:** `main`. Open: browser smoke test; commit.
+
+### Fix: Registrar Cannot Add Students to a Section (Completed — May 22, 2026)
+- **Bug:** The "Manage Students → Add Students" tab on `sections.html` never showed students with status `Enrolling` or `Active`; only `Submitted` students could be added to a section.
+- **Root cause:** `ClassManagementService.getEligibleStudentsForSection()` and `assignStudentsToSection()` both hard-coded `"Submitted"` as the only eligible status. Sectionless students in any other status were invisible to the registrar and rejected on assign.
+- **Fix:** Added `SECTION_ELIGIBLE_STATUSES = {submitted, enrolling, active}` constant (single source of truth for query + guard; `Graduated` excluded). Added 4 JPQL `IN`-based finders to `StudentRecordRepository` (`findSectionlessByStatuses` + batch/course variants). Service now passes the status set; assign guard checks set membership. Status still set to `Active` on assignment.
+- **Tests:** 2 stale `ClassManagementSectionServiceTest` tests updated to mock the new finders; 1 new test (`assignStudentsToSectionAcceptsEnrollingStudent`).
+- **Result:** `./gradlew test` → **177 tests, 0 failures, 0 errors** (was 176).
+- **Branch:** `main`. Open: browser smoke test; commit.
+
 ### Bugfix Audit Remediation (Completed — May 21, 2026)
 - **Task:** Execute all 10 items from `docs/superpowers/plans/2026-05-21-bugfix-audit-remediation.md`.
 - **Result:** `./gradlew test` → **176 tests, 0 failures, 0 errors** (was 166; 10 new tests).

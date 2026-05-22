@@ -43,7 +43,7 @@ class ClassManagementSubjectControllerWebMvcTest {
         mvc.perform(post("/api/registrar/subjects").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","qualificationCode":1,"units":3}
+                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","qualificationName":"Cookery NC II","units":3}
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.subjectCode").value("CK-101"));
@@ -58,7 +58,7 @@ class ClassManagementSubjectControllerWebMvcTest {
         mvc.perform(post("/api/registrar/subjects").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"subjectCode":"","subjectName":"Basic Cookery","qualificationCode":1,"units":3}
+                        {"subjectCode":"","subjectName":"Basic Cookery","qualificationName":"Cookery NC II","units":3}
                         """))
                 .andExpect(status().isBadRequest());
     }

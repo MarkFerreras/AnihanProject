@@ -25,6 +25,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -102,8 +104,8 @@ class ClassManagementSectionServiceTest {
     @Test
     void getEligibleStudentsForSectionNoFilters() {
         com.example.springboot.model.StudentRecord a = new com.example.springboot.model.StudentRecord();
-        a.setStudentId("S0001"); a.setLastName("Cruz"); a.setFirstName("Ana"); a.setStudentStatus("Submitted");
-        when(studentRecordRepository.findBySectionIsNullAndStudentStatusIgnoreCase("Submitted"))
+        a.setStudentId("S0001"); a.setLastName("Cruz"); a.setFirstName("Ana"); a.setStudentStatus("Enrolling");
+        when(studentRecordRepository.findSectionlessByStatuses(anySet()))
                 .thenReturn(java.util.List.of(a));
 
         var result = service.getEligibleStudentsForSection(null, null);
@@ -115,13 +117,32 @@ class ClassManagementSectionServiceTest {
     @Test
     void getEligibleStudentsForSectionWithBothFilters() {
         when(studentRecordRepository
-                .findBySectionIsNullAndStudentStatusIgnoreCaseAndBatchBatchCodeAndCourseCourseCode(
-                        "Submitted", "B2026", "CARS"))
+                .findSectionlessByStatusesAndBatchAndCourse(anySet(), eq("B2026"), eq("CARS")))
                 .thenReturn(java.util.List.of());
 
         var result = service.getEligibleStudentsForSection("B2026", "CARS");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void assignStudentsToSectionAcceptsEnrollingStudent() {
+        Section s = sampleSection();
+        com.example.springboot.model.StudentRecord enrolling = new com.example.springboot.model.StudentRecord();
+        enrolling.setStudentId("S0003"); enrolling.setStudentStatus("Enrolling"); enrolling.setSection(null);
+
+        when(sectionRepository.findById("SEC-A")).thenReturn(Optional.of(s));
+        when(studentRecordRepository.findByStudentId("S0003")).thenReturn(Optional.of(enrolling));
+
+        var result = service.assignStudentsToSection("SEC-A",
+                new com.example.springboot.dto.registrar.AssignStudentsToSectionRequest(
+                        java.util.List.of("S0003")));
+
+        assertThat(result.assignedCount()).isEqualTo(1);
+        assertThat(result.skippedStudentIds()).isEmpty();
+        assertThat(enrolling.getStudentStatus()).isEqualTo("Active");
+        assertThat(enrolling.getSection()).isSameAs(s);
+        verify(studentRecordRepository).save(enrolling);
     }
 
     // Task 7: assignStudentsToSection

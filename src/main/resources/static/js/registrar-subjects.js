@@ -161,19 +161,19 @@
             hideAlert('createSubjectAlert');
             $('#createSubjectCode').val('');
             $('#createSubjectName').val('');
+            $('#createSubjectQualification').val('');
             $('#createSubjectUnits').val(3);
-            loadQualificationsDropdown('createSubjectQualification');
         });
 
         $('#saveCreateSubjectBtn').on('click', function () {
             const payload = {
                 subjectCode: $('#createSubjectCode').val().trim(),
                 subjectName: $('#createSubjectName').val().trim(),
-                qualificationCode: parseInt($('#createSubjectQualification').val(), 10) || null,
+                qualificationName: $('#createSubjectQualification').val().trim(),
                 units: parseInt($('#createSubjectUnits').val(), 10) || null
             };
 
-            if (!payload.subjectCode || !payload.subjectName || !payload.qualificationCode || !payload.units) {
+            if (!payload.subjectCode || !payload.subjectName || !payload.qualificationName || !payload.units) {
                 showAlert('createSubjectAlert', 'Please fill in all required fields.', 'danger');
                 return;
             }

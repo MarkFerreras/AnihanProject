@@ -1,12 +1,74 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Bugfix Audit Remediation — All 10 tasks complete, pending commit**
+**Section eligibility bugfix + Create Subject qualification text field — complete, pending commit**
 
 ## Active Branch
 `main` (kept on `main` per user's instruction)
 
-## Latest Session (May 21, 2026 — Bugfix Audit Remediation)
+## Latest Session (May 22, 2026 — Create Subject: Qualification as Free-Text Field)
+
+### Change
+The Qualification field in the **Create Subject** modal (`subjects.html`) was changed
+from a `<select>` dropdown to a free-text `<input>`. The **Edit Subject** modal still
+uses the dropdown (unchanged — only Create was requested).
+
+### Behavior
+Free-text with auto-create: the typed qualification name is resolved to an existing
+`qualifications` row case-insensitively; if no match exists, a new row is created.
+The `subjects.qualification_code` FK is kept intact — no schema change.
+
+### Files Modified
+- `dto/registrar/CreateSubjectRequest.java` — `Integer qualificationCode` → `String qualificationName` (`@NotBlank @Size(max=255)`).
+- `repository/QualificationRepository.java` — added `findByQualificationNameIgnoreCase`.
+- `service/ClassManagementService.java` — `createSubject()` calls new `resolveOrCreateQualification()` helper; auto-created qualification's description defaults to its name (`qualifications.qualification_description` is NOT NULL).
+- `static/subjects.html` — Create modal `<select>` → `<input type="text">` with help text; JS cache-buster `?v=2` → `?v=3`.
+- `static/js/registrar-subjects.js` — Create flow clears the text input on modal open and sends `qualificationName`. `loadQualificationsDropdown()` kept (Edit flow still uses it).
+- Tests: `ClassManagementSubjectServiceTest` — `createSubjectRejectsUnknownQualification` replaced with `createSubjectAutoCreatesQualificationWhenNameIsNew`; existing create test re-mocked to `findByQualificationNameIgnoreCase`. `ClassManagementSubjectControllerWebMvcTest` — 2 create payloads use `qualificationName`.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 177 tests, 0 failures, 0 errors**.
+
+### Open Items
+- Manual browser smoke test: Create Subject with (a) an existing qualification name and (b) a brand-new name; confirm both save and the new one appears as a qualification.
+- Commit changes to `main`.
+
+## Previous Session (May 22, 2026 — Fix: Registrar Cannot Add Students to a Section)
+
+### Bug
+The "Manage Students" → "Add Students" tab on `sections.html` never listed students
+whose status was `Enrolling` or `Active`. The eligible-students query and the
+`assignStudentsToSection` guard both hard-coded `"Submitted"` as the only acceptable
+status, so sectionless students in any other status could never be added.
+
+### Root Cause
+`ClassManagementService.getEligibleStudentsForSection()` (4 query branches) and
+`assignStudentsToSection()` both compared status against the literal `"Submitted"`.
+Per the project status model, a sectionless student can legitimately be `Enrolling`
+or `Active`, so those students were invisible to the registrar and rejected on assign.
+
+### Fix
+- New constant `SECTION_ELIGIBLE_STATUSES = {submitted, enrolling, active}` in
+  `ClassManagementService` — single source of truth for both the query and the guard.
+  `Graduated` remains excluded.
+- `StudentRecordRepository`: 4 new JPQL `IN`-based finders (`findSectionlessByStatuses`
+  and batch/course variants) using `LOWER(s.studentStatus) IN :statuses`. The old
+  single-status derived finders are left intact (no other callers were changed).
+- `getEligibleStudentsForSection()` now passes the status set; `assignStudentsToSection()`
+  checks membership in the set instead of `equalsIgnoreCase("Submitted")`.
+- On assignment, status is still set to `Active` (unchanged behavior, user-confirmed).
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 177 tests, 0 failures, 0 errors** (was 176; +1).
+- Two stale tests in `ClassManagementSectionServiceTest` updated to mock the new
+  finders; new test `assignStudentsToSectionAcceptsEnrollingStudent` added.
+
+### Open Items
+- Manual browser smoke test: open `sections.html` → Manage Students → Add Students;
+  confirm `Enrolling`/`Active` sectionless students now appear and assign successfully.
+- Commit changes to `main`.
+
+## Previous Session (May 21, 2026 — Bugfix Audit Remediation)
 
 ### Items Completed
 All 10 tasks from `2026-05-21-bugfix-audit-remediation.md` plan executed. Test suite: **176 tests, 0 failures, 0 errors** (was 166; 10 new tests added).

@@ -45,10 +45,11 @@ class ClassManagementSubjectServiceTest {
     }
 
     @Test
-    void createSubjectPersistsAndReturnsResponse() {
-        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", 1, 3);
+    void createSubjectResolvesExistingQualificationByName() {
+        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", "Cookery NC II", 3);
         when(subjectRepository.existsById("CK-101")).thenReturn(false);
-        when(qualificationRepository.findById(1)).thenReturn(Optional.of(qual));
+        when(qualificationRepository.findByQualificationNameIgnoreCase("Cookery NC II"))
+                .thenReturn(Optional.of(qual));
         when(subjectRepository.save(any(Subject.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SubjectResponse resp = service.createSubject(req);
@@ -58,25 +59,39 @@ class ClassManagementSubjectServiceTest {
         assertEquals("Cookery NC II", resp.qualificationName());
         assertEquals(3, resp.units());
         verify(subjectRepository).save(any(Subject.class));
+        // Existing qualification reused — no new qualification persisted.
+        verify(qualificationRepository, never()).save(any(Qualification.class));
+    }
+
+    @Test
+    void createSubjectAutoCreatesQualificationWhenNameIsNew() {
+        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", "Knife Skills NC I", 3);
+        when(subjectRepository.existsById("CK-101")).thenReturn(false);
+        when(qualificationRepository.findByQualificationNameIgnoreCase("Knife Skills NC I"))
+                .thenReturn(Optional.empty());
+        when(qualificationRepository.save(any(Qualification.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(subjectRepository.save(any(Subject.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SubjectResponse resp = service.createSubject(req);
+
+        assertEquals("Knife Skills NC I", resp.qualificationName());
+        org.mockito.ArgumentCaptor<Qualification> captor =
+                org.mockito.ArgumentCaptor.forClass(Qualification.class);
+        verify(qualificationRepository).save(captor.capture());
+        // Description defaults to the name — qualifications.description is NOT NULL.
+        assertEquals("Knife Skills NC I", captor.getValue().getQualificationName());
+        assertEquals("Knife Skills NC I", captor.getValue().getQualificationDescription());
+        verify(subjectRepository).save(any(Subject.class));
     }
 
     @Test
     void createSubjectRejectsDuplicateCode() {
-        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", 1, 3);
+        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", "Cookery NC II", 3);
         when(subjectRepository.existsById("CK-101")).thenReturn(true);
 
         var ex = assertThrows(IllegalArgumentException.class, () -> service.createSubject(req));
         assertTrue(ex.getMessage().toLowerCase().contains("already exists"));
-        verify(subjectRepository, never()).save(any());
-    }
-
-    @Test
-    void createSubjectRejectsUnknownQualification() {
-        var req = new CreateSubjectRequest("CK-101", "Basic Cookery", 999, 3);
-        when(subjectRepository.existsById("CK-101")).thenReturn(false);
-        when(qualificationRepository.findById(999)).thenReturn(Optional.empty());
-
-        assertThrows(IllegalArgumentException.class, () -> service.createSubject(req));
         verify(subjectRepository, never()).save(any());
     }
 
