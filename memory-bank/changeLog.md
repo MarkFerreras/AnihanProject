@@ -1,5 +1,44 @@
 # Change Log - Anihan SRMS
 
+## 2026-05-22 - Create Subject: Qualification as Free-Text Field
+**Branch:** `main`
+
+### Task
+Change the Qualification field in the **Create Subject** modal from a `<select>`
+dropdown to a free-text input. The **Edit Subject** modal is unchanged (still a
+dropdown) — only Create was requested.
+
+### Approach (user-confirmed)
+Free-text with **auto-create**. The dropdown was backing a real FK
+(`subjects.qualification_code` → `qualifications`). Rather than drop the FK, the typed
+name is resolved to an existing qualification case-insensitively; if no match exists,
+a new `qualifications` row is created on the fly. The FK and the `qualifications`
+table are kept — no DB migration.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `dto/registrar/CreateSubjectRequest.java` | `Integer qualificationCode` field replaced with `String qualificationName` (`@NotBlank`, `@Size(max=255)`). |
+| `repository/QualificationRepository.java` | Added `Optional<Qualification> findByQualificationNameIgnoreCase(String)`. |
+| `service/ClassManagementService.java` | `createSubject()` now calls a new private `resolveOrCreateQualification(String)` helper — finds the qualification by name (case-insensitive) or persists a new one. The new qualification's `qualification_description` defaults to the trimmed name, since that column is `NOT NULL`. `updateSubject()` left unchanged (still resolves by `qualificationCode`). |
+| `static/subjects.html` | Create Subject modal: `<select id="createSubjectQualification">` → `<input type="text" maxlength="255">` with help text "A new qualification is created if the name does not already exist." JS cache-buster `?v=2` → `?v=3`. |
+| `static/js/registrar-subjects.js` | Create flow: `show.bs.modal` clears the text input instead of calling `loadQualificationsDropdown`; payload sends `qualificationName` instead of `qualificationCode`. `loadQualificationsDropdown()` retained — the Edit Subject flow still uses it. |
+| `test/.../ClassManagementSubjectServiceTest.java` | `createSubjectPersistsAndReturnsResponse` → `createSubjectResolvesExistingQualificationByName` (mocks `findByQualificationNameIgnoreCase`). `createSubjectRejectsUnknownQualification` removed (no longer valid — unknown names are now auto-created) and replaced with `createSubjectAutoCreatesQualificationWhenNameIsNew` (captures the saved `Qualification`, asserts name + defaulted description). `createSubjectRejectsDuplicateCode` updated to the new constructor. |
+| `test/.../ClassManagementSubjectControllerWebMvcTest.java` | The two `POST /subjects` payloads now use `"qualificationName"` instead of `"qualificationCode"`. |
+
+### Design Decisions
+- **Auto-create over match-only or FK-drop.** Per user choice — registrars can add qualifications freely without a separate admin screen, and existing subjects/FK are untouched. Trade-off: free text can introduce near-duplicate qualifications (e.g. "Cookery NC2" vs "Cookery NC II"); accepted by the user.
+- **Description defaults to the name.** `qualifications.qualification_description` is `NOT NULL`. Auto-creation has only a name to work with, so the description is set equal to the name to keep the row valid without a schema change.
+- **Create-only scope.** Edit Subject still uses the dropdown — the request was specifically about Create. `loadQualificationsDropdown()` and `UpdateSubjectRequest.qualificationCode` are deliberately left in place.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 177 tests, 0 failures, 0 errors**.
+
+### Open Items
+- Manual browser smoke test: Create Subject with (a) an existing qualification name (case variations) and (b) a brand-new name — confirm both save and the new qualification becomes selectable in Edit/elsewhere.
+
+---
+
 ## 2026-05-22 - Fix: Registrar Cannot Add Students to a Section
 **Branch:** `main`
 
