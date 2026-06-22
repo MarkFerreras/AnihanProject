@@ -9,10 +9,9 @@
 services:
   - type: web
     name: anihan-srms
-    runtime: java
+    runtime: docker               # Java is not a native Render runtime — build via Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: free                     # bump to a paid plan for a real client demo
-    buildCommand: ./gradlew clean bootJar -x test
-    startCommand: java -jar build/libs/springboot-0.0.1-SNAPSHOT.jar
     healthCheckPath: /
     envVars:
       - key: DB_URL                # jdbc:mysql://<host>:<port>/AnihanSRMS?sslMode=REQUIRED
