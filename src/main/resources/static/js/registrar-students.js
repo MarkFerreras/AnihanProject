@@ -187,7 +187,17 @@
                 dataSrc: ''
             },
             columns: [
-                { data: 'recordId', render: renderNullable },
+                {
+                    data: 'recordId',
+                    // Orthogonal data: sort/filter on the raw number so ordering is
+                    // numeric (17 > 9), not lexical ("9" > "17"); display stays the same.
+                    render: function (data, type) {
+                        if (type === 'sort' || type === 'type') {
+                            return data == null ? -1 : Number(data);
+                        }
+                        return renderNullable(data);
+                    }
+                },
                 { data: 'studentId', render: renderNullable },
                 { data: 'lastName', render: renderNullable },
                 { data: 'firstName', render: renderNullable },
@@ -210,7 +220,9 @@
                     }
                 }
             ],
-            order: [[0, 'asc']],
+            // Default sort: newest first (Record ID is auto-increment, so
+            // descending puts the most recently created record at the top).
+            order: [[0, 'desc']],
             language: {
                 emptyTable: 'No student records found.'
             }
