@@ -13,7 +13,7 @@ public class Batch {
     @Column(name = "batch_code", length = 20)
     private String batchCode;
 
-    @Column(name = "batch_year", nullable = false)
+    @Column(name = "batch_year", nullable = false, columnDefinition = "year")
     private Short batchYear;
 
     public Batch() {

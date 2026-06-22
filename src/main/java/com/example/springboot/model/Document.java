@@ -22,7 +22,7 @@ public class Document {
     private Integer documentId;
 
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
+    @JoinColumn(name = "student_id", referencedColumnName = "student_id", nullable = false)
     private StudentRecord student;
 
     @Column(name = "document_type", nullable = false)

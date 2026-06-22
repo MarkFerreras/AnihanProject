@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(docker exec *)",
-      "mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources"
+      "mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources",
+      "Bash(./gradlew test *)"
     ]
   }
 }
