@@ -4,8 +4,7 @@
 let studentId = null;
 let currentStep = 1;
 let pendingIdPhoto = null;
-let pendingBaptCert = null;
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 const REDIRECT_DELAY_MS = 5000;
 
 // Required fields per step — used for both step-level and full-submit validation.
@@ -16,9 +15,9 @@ const STEP_REQUIRED = {
         { id: 'sex',              label: 'Sex' },
         { id: 'civilStatus',      label: 'Civil Status' },
         { id: 'permanentAddress', label: 'Permanent Address' },
+        { id: 'religion',         label: 'Religion' },
     ],
-    2: [{ id: 'religion', label: 'Religion' }],
-    3: [
+    2: [
         { id: 'fatherFamilyName', label: "Father's Family Name" },
         { id: 'fatherFirstName',  label: "Father's First Name" },
         { id: 'fatherBirthdate',  label: "Father's Birthdate" },
@@ -32,29 +31,12 @@ const STEP_REQUIRED = {
         { id: 'motherContactNo',  label: "Mother's Contact No." },
         { id: 'motherAddress',    label: "Mother's Address" },
     ],
-    4: [],
+    3: [],
 };
 
-// Custom validators for fields whose required status depends on runtime state
-// (file uploads, conditional fields). Each returns an array of error objects.
-const STEP_CUSTOM_VALIDATORS = {
-    2: () => {
-        const errors = [];
-        // Baptism fields required only when checkbox is checked
-        if (document.getElementById('baptized').checked) {
-            const bDate = document.getElementById('baptismDate');
-            if (!bDate || !bDate.value) {
-                errors.push({ id: 'baptismDate', label: 'Baptism Date', step: 2 });
-            }
-            const bPlace = document.getElementById('baptismPlace');
-            if (!bPlace || !bPlace.value.trim()) {
-                errors.push({ id: 'baptismPlace', label: 'Baptism Place', step: 2 });
-            }
-
-        }
-        return errors;
-    },
-};
+// Custom validators for fields whose required status depends on runtime state.
+// (No conditional fields remain after the Religion step was merged into Personal.)
+const STEP_CUSTOM_VALIDATORS = {};
 
 // Flat list with step numbers for submit-time full validation
 const ALL_REQUIRED = Object.entries(STEP_REQUIRED).flatMap(([step, fields]) =>
@@ -63,7 +45,6 @@ const ALL_REQUIRED = Object.entries(STEP_REQUIRED).flatMap(([step, fields]) =>
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    setupBaptismToggle();
     setupBirthdateAgeCalc();
     setupPhoneFormatting();
     setupFileUploads();
@@ -216,16 +197,10 @@ async function submitForm() {
         }
 
         // Upload any files selected before submit
-        if (pendingIdPhoto || pendingBaptCert) {
+        if (pendingIdPhoto) {
             submitBtn.textContent = 'Uploading files…';
-            if (pendingIdPhoto) {
-                await uploadPendingFile(pendingIdPhoto, 'ID_PHOTO', 'idPhotoStatus');
-                pendingIdPhoto = null;
-            }
-            if (pendingBaptCert) {
-                await uploadPendingFile(pendingBaptCert, 'BAPTISMAL_CERT', 'baptCertStatus');
-                pendingBaptCert = null;
-            }
+            await uploadPendingFile(pendingIdPhoto, 'ID_PHOTO', 'idPhotoStatus');
+            pendingIdPhoto = null;
         }
 
         showSubmittedBanner(studentId);
@@ -283,8 +258,6 @@ function buildPayload() {
 
     const schoolYears = [];
 
-    const baptized = document.getElementById('baptized').checked;
-
     const fatherHasData   = ['fatherFamilyName', 'fatherFirstName', 'fatherMiddleName'].some(id => val(id));
     const motherHasData   = ['motherFamilyName', 'motherFirstName', 'motherMiddleName'].some(id => val(id));
     const guardianHasData = ['guardianLastName', 'guardianFirstName'].some(id => val(id));
@@ -303,9 +276,9 @@ function buildPayload() {
         brotherCount:     num('brotherCount'),
         sisterCount:      num('sisterCount'),
         religion:         val('religion'),
-        baptized,
-        baptismDate:  baptized ? (val('baptismDate') || null) : null,
-        baptismPlace: baptized ? val('baptismPlace')          : null,
+        baptized:         false,
+        baptismDate:      null,
+        baptismPlace:     null,
         father: fatherHasData ? {
             familyName: val('fatherFamilyName'), firstName: val('fatherFirstName'),
             middleName: val('fatherMiddleName'), birthdate:  val('fatherBirthdate') || null,
@@ -352,26 +325,12 @@ function populateForm(data) {
     if (data.age != null) document.getElementById('ageDisplay').value = data.age;
 
     set('religion', data.religion);
-    if (data.baptized) {
-        document.getElementById('baptized').checked = true;
-        document.getElementById('baptismFields').style.setProperty('display', 'flex', 'important');
-        set('baptismDate', data.baptismDate);
-        set('baptismPlace', data.baptismPlace);
-    }
 
     if (data.idPhotoRef) {
         document.getElementById('idPhotoStatus').textContent = `Uploaded: ${data.idPhotoRef.originalName}`;
         const img = document.getElementById('idPhotoPreview');
         img.src = `/api/student/files/${data.idPhotoRef.uploadId}`;
         img.classList.add('show');
-    }
-    if (data.baptismalCertRef) {
-        document.getElementById('baptCertStatus').textContent = `Uploaded: ${data.baptismalCertRef.originalName}`;
-        if (data.baptismalCertRef.mimeType !== 'application/pdf') {
-            const img = document.getElementById('baptCertPreview');
-            img.src = `/api/student/files/${data.baptismalCertRef.uploadId}`;
-            img.classList.add('show');
-        }
     }
 
     const f = data.father;
@@ -415,14 +374,6 @@ function prefillNameFields(lastName, firstName, middleName) {
     set('studentLastName',   lastName);
     set('studentFirstName',  firstName);
     set('studentMiddleName', middleName);
-}
-
-// ─── Baptism toggle ───────────────────────────────────────────────────────────
-function setupBaptismToggle() {
-    document.getElementById('baptized').addEventListener('change', function () {
-        const fields = document.getElementById('baptismFields');
-        fields.style.setProperty('display', this.checked ? 'flex' : 'none', 'important');
-    });
 }
 
 // ─── Age auto-calculation ─────────────────────────────────────────────────────
@@ -471,7 +422,6 @@ function setupPhoneFormatting() {
 // ─── File uploads ─────────────────────────────────────────────────────────────
 function setupFileUploads() {
     setupFileInput('idPhotoFile',  'idPhotoPreview',  'idPhotoStatus',  'ID_PHOTO');
-    setupFileInput('baptCertFile', 'baptCertPreview', 'baptCertStatus', 'BAPTISMAL_CERT');
 }
 
 function setupFileInput(inputId, previewId, statusId, kind) {
@@ -482,8 +432,7 @@ function setupFileInput(inputId, previewId, statusId, kind) {
         const previewEl = document.getElementById(previewId);
 
         // Store for deferred upload on final submit
-        if (kind === 'ID_PHOTO')        pendingIdPhoto  = file;
-        else if (kind === 'BAPTISMAL_CERT') pendingBaptCert = file;
+        if (kind === 'ID_PHOTO') pendingIdPhoto = file;
 
         statusEl.textContent = `Selected: ${file.name}`;
 
@@ -551,7 +500,7 @@ function highlightErrors(errors) {
 }
 
 // IDs that may receive is-invalid from custom validators (uploads + conditional fields)
-const CUSTOM_VALIDATED_IDS = ['idPhotoFile', 'baptCertFile', 'baptismDate', 'baptismPlace'];
+const CUSTOM_VALIDATED_IDS = ['idPhotoFile'];
 
 function clearValidation() {
     ALL_REQUIRED.forEach(f => document.getElementById(f.id)?.classList.remove('is-invalid'));

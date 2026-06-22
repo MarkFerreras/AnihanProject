@@ -197,15 +197,11 @@
                 </div>
                 <div class="step-item">
                     <div class="step-circle" id="circle2">2</div>
-                    <div class="step-label" id="label2">Religion</div>
+                    <div class="step-label" id="label2">Family</div>
                 </div>
                 <div class="step-item">
                     <div class="step-circle" id="circle3">3</div>
-                    <div class="step-label" id="label3">Family</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-circle" id="circle4">4</div>
-                    <div class="step-label" id="label4">Education</div>
+                    <div class="step-label" id="label3">Education</div>
                 </div>
             </div>
 
@@ -298,37 +294,16 @@
                         <input type="number" class="form-control" id="sisterCount" min="0" placeholder="0">
                     </div>
                 </div>
-            </div>
 
-            <!-- ========== STEP 2: Religion & Documents ========== -->
-            <div class="wizard-step" id="step2">
-                <p class="required-note">Fields marked * are required before submitting.</p>
                 <div class="section-heading">Religion</div>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Religion *</label>
                         <input type="text" class="form-control" id="religion" placeholder="e.g. Roman Catholic">
                     </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="baptized">
-                            <label class="form-check-label fw-500" for="baptized">Baptized</label>
-                        </div>
-                    </div>
-                    <div id="baptismFields" class="col-12 row g-3" style="display:none!important">
-                        <div class="col-md-4">
-                            <label class="form-label">Baptism Date *</label>
-                            <input type="date" class="form-control" id="baptismDate">
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label">Baptism Place *</label>
-                            <input type="text" class="form-control" id="baptismPlace"
-                                placeholder="Church name and address">
-                        </div>
-                    </div>
                 </div>
 
-                <div class="section-heading">Document Uploads</div>
+                <div class="section-heading">Document Upload</div>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">ID Photo <span class="text-muted fw-normal">(JPEG/PNG/WebP, max 2
@@ -338,19 +313,11 @@
                         <img class="upload-preview" id="idPhotoPreview" alt="ID Photo preview">
                         <div id="idPhotoStatus" class="upload-link mt-1"></div>
                     </div>
-                    <div class="col-md-6" id="baptCertSection">
-                        <label class="form-label">Baptismal Certificate <span class="text-muted fw-normal">(image or
-                                PDF, max 5 MB)</span></label>
-                        <input type="file" class="form-control" id="baptCertFile"
-                            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf">
-                        <img class="upload-preview" id="baptCertPreview" alt="Baptismal cert preview">
-                        <div id="baptCertStatus" class="upload-link mt-1"></div>
-                    </div>
                 </div>
             </div>
 
-            <!-- ========== STEP 3: Family ========== -->
-            <div class="wizard-step" id="step3">
+            <!-- ========== STEP 2: Family ========== -->
+            <div class="wizard-step" id="step2">
                 <p class="required-note">Fields marked * are required before submitting.</p>
                 <div class="section-heading">Father's Information</div>
                 <div class="row g-2">
@@ -464,8 +431,8 @@
                 </div>
             </div>
 
-            <!-- ========== STEP 4: Education & Training ========== -->
-            <div class="wizard-step" id="step4">
+            <!-- ========== STEP 3: Education & Training ========== -->
+            <div class="wizard-step" id="step3">
                 <div class="section-heading">Educational Background</div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm" id="educationTable">
@@ -541,7 +508,7 @@
     </footer>
 
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/student-details.js?v=5"></script>
+    <script src="js/student-details.js?v=6"></script>
 </body>
 
 </html>

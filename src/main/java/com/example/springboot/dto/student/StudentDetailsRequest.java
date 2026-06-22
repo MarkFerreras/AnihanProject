@@ -18,18 +18,20 @@ public record StudentDetailsRequest(
     Integer brotherCount,
     Integer sisterCount,
 
-    // Step 2 — Religion
+    // Step 1 — Religion (merged into Personal in the public wizard).
+    // baptized/baptismDate/baptismPlace are retained for registrar-side use and
+    // backward compatibility; the public wizard always sends baptized=false.
     String religion,
     Boolean baptized,
     LocalDate baptismDate,
     String baptismPlace,
 
-    // Step 3 — Family
+    // Step 2 — Family
     ParentDto father,
     ParentDto mother,
     GuardianDto guardian,
 
-    // Step 4 — Education
+    // Step 3 — Education
     List<EducationItemDto> educationHistory,
     List<SchoolYearDto> schoolYears
 ) {}
