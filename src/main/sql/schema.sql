@@ -1,14 +1,22 @@
 -- ============================================================
--- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- schema.sql — Clean Schema (Structure Only)
+-- Updated: 2026-06-22 (verified against live DB; reconciled grades
+--                       column order; seed data split into separate files)
 -- Updated: 2026-05-19 (added grades restructure for trainer grading)
 -- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
 --                       seeded qualifications + subjects)
--- Purpose: Set up a fresh AnihanSRMS database with:
---            * 3 test accounts (admin, registrar, trainer)
---            * lookup data (1 course, 3 batches, 3 sections,
---              2 qualifications, 6 subjects)
---            * 5 sample student records for development/testing
---          No system log data is included.
+-- Purpose: Set up a fresh AnihanSRMS database structure (19 tables).
+--          This file contains ONLY table definitions — no seed data.
+--
+--          For a working fresh install, run the seed files AFTER this one:
+--            1. seed-accounts.sql   — the 3 login accounts (required)
+--            2. seed-lookups.sql    — course / batches / sections /
+--                                     qualifications / subjects (required for
+--                                     enrollment + class management to work)
+--            3. seed-sample-students.sql — 5 demo students (optional, dev only)
+--
+--          Apply order:  schema.sql → seed-accounts.sql → seed-lookups.sql
+--                        [→ seed-sample-students.sql]
 -- Tables: 19
 --
 -- Existing databases that predate the 2026-05-05 schema-drift fix
@@ -200,15 +208,15 @@ CREATE TABLE IF NOT EXISTS grades (
     grade_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     subject_code VARCHAR(20) NOT NULL,
+    final_grade DECIMAL(5, 2) NULL,
+    re_exam_grade DECIMAL(5, 2) NULL,
+    hours_studied DECIMAL(5, 2) NULL,
+    remarks VARCHAR(255) NULL,
     class_id INT NULL,
     midterm_grade DECIMAL(5, 2) NULL,
     finals_grade DECIMAL(5, 2) NULL,
     locked TINYINT(1) NOT NULL DEFAULT 0,
     locked_at DATETIME NULL,
-    final_grade DECIMAL(5, 2) NULL,
-    re_exam_grade DECIMAL(5, 2) NULL,
-    hours_studied DECIMAL(5, 2) NULL,
-    remarks VARCHAR(255) NULL,
     UNIQUE KEY uq_grade_student_class (class_id, student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
     FOREIGN KEY (subject_code) REFERENCES subjects (subject_code),
@@ -345,99 +353,9 @@ CREATE TABLE IF NOT EXISTS class_enrollments (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
--- SEED DATA: 3 Dummy Accounts
--- Password for ALL accounts: password123
--- BCrypt hash: $2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6
+-- END OF STRUCTURE.
+-- Seed data lives in separate files — run them after this one:
+--   seed-accounts.sql        (required — login accounts)
+--   seed-lookups.sql         (required — course/batches/sections/subjects)
+--   seed-sample-students.sql (optional — demo students, dev only)
 -- ============================================================
-INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age, email, role, enabled, password_changed_at) VALUES
-('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'juan.delacruz@example.com', 'ROLE_ADMIN',     1, NULL),
-('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'maria.reyes@example.com',   'ROLE_REGISTRAR', 1, NULL),
-('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'carlos.santos@example.com', 'ROLE_TRAINER',   1, NULL);
-
--- ============================================================
--- SEED DATA: Lookup Tables (course, batches, sections)
--- Required as foreign-key targets for the dummy student records below.
--- ============================================================
-INSERT INTO courses (course_code, course_name) VALUES
-('CARS', 'Culinary Arts and Restaurant Services');
-
-INSERT INTO batches (batch_code, batch_year) VALUES
-('B2024A', 2024),
-('B2025A', 2025),
-('B2026A', 2026);
-
-INSERT INTO sections (section_code, section, batch_code, course_code) VALUES
-('SEC-A24', 'Section A 2024', 'B2024A', 'CARS'),
-('SEC-A25', 'Section A 2025', 'B2025A', 'CARS'),
-('SEC-A26', 'Section A 2026', 'B2026A', 'CARS');
-
--- ============================================================
--- SEED DATA: Qualifications + Subjects
--- ============================================================
-INSERT INTO qualifications (qualification_name, qualification_description) VALUES
-('Cookery NC II', 'TESDA National Certificate II in Cookery'),
-('Bread and Pastry Production NC II', 'TESDA NC II in Bread and Pastry Production');
-
-INSERT INTO subjects (subject_code, subject_name, qualification_code, units, trainer_id) VALUES
-('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
-('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
-('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       5, NULL),
-('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       4, NULL),
-('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  3, NULL),
-('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  4, NULL);
-
--- ============================================================
--- SEED DATA: 5 Dummy Student Records — All Columns Populated
--- profile_picture is intentionally an empty BLOB (X'') as a placeholder;
--- replace with a real image upload once the registrar adds one.
--- Image assets for the SRMS live at:
---   src/main/resources/static/images/
--- ============================================================
-INSERT INTO student_records (
-    student_id, last_name, first_name, middle_name,
-    birthdate, age, sex, civil_status,
-    permanent_address, temporary_address, email, contact_no, religion,
-    baptized, baptism_date, baptism_place,
-    sibling_count, brother_count, sister_count,
-    batch_code, course_code, section_code,
-    profile_picture, enrollment_date, student_status
-) VALUES
-('STU-2024-001', 'Reyes',     'Anna',     'Cruz',
-    '2003-04-12', 22, 'Female', 'Single',
-    '123 Mabini St, Quezon City',  '45 Aurora Blvd, Manila',  'anna.reyes@example.com',     '09171234001', 'Roman Catholic',
-    1, '2003-06-20', 'San Pedro Parish, Manila',
-    2, 1, 1,
-    'B2024A', 'CARS', 'SEC-A24',
-    X'', '2024-06-03', 'Active'),
-
-('STU-2024-002', 'Santos',    'Bea',      'Lim',
-    '2002-09-30', 23, 'Female', 'Single',
-    '88 Roxas Ave, Pasig',         '12 EDSA, Mandaluyong',    'bea.santos@example.com',     '09171234002', 'Iglesia ni Cristo',
-    1, '2003-01-15', 'INC Central Temple, Quezon City',
-    3, 2, 1,
-    'B2024A', 'CARS', 'SEC-A24',
-    X'', '2024-06-03', 'Active'),
-
-('STU-2025-001', 'Cruz',      'Carla',    'Mendoza',
-    '2004-01-18', 22, 'Female', 'Single',
-    '7 Bonifacio St, Makati',      '7 Bonifacio St, Makati',  'carla.cruz@example.com',     '09171234003', 'Christian',
-    1, '2004-05-10', 'Christ Fellowship Church, Makati',
-    1, 0, 1,
-    'B2025A', 'CARS', 'SEC-A25',
-    X'', '2025-06-02', 'Active'),
-
-('STU-2025-002', 'Garcia',    'Diana',    'Reyes',
-    '2003-12-05', 22, 'Female', 'Single',
-    '256 Espana Blvd, Manila',     '256 Espana Blvd, Manila', 'diana.garcia@example.com',   '09171234004', 'Roman Catholic',
-    1, '2004-02-28', 'Sto. Domingo Church, Manila',
-    4, 2, 2,
-    'B2025A', 'CARS', 'SEC-A25',
-    X'', '2025-06-02', 'Active'),
-
-('STU-2026-001', 'Lopez',     'Elise',    'Tan',
-    '2005-07-22', 20, 'Female', 'Single',
-    '19 Katipunan Ave, Quezon City','19 Katipunan Ave, Quezon City','elise.lopez@example.com', '09171234005', 'Roman Catholic',
-    1, '2005-10-14', 'Mary Immaculate Parish, Quezon City',
-    2, 0, 2,
-    'B2026A', 'CARS', 'SEC-A26',
-    X'', '2026-06-01', 'Active');

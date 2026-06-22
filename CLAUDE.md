@@ -108,7 +108,7 @@ Controller → Service → Repository → Model (JPA Entity)
 
 ## Database Schema
 
-Schema source of truth: `src/main/sql/schema.sql` (and `AnihanSRMS.sql` at root for device transfer).
+Schema source of truth: `src/main/sql/schema.sql` (structure only). Seed data is split into `src/main/sql/seed-accounts.sql` (login accounts), `seed-lookups.sql` (course/batches/sections/subjects), and `seed-sample-students.sql` (optional demo students). Apply order: schema → accounts → lookups → [sample-students].
 
 Core tables (19 total): `users`, `student_records`, `batches`, `courses`, `sections`, `subjects` (with `trainer_id`), `qualifications`, `parents`, `other_guardians`, `documents` (BLOB), `grades`, `system_logs`, `student_education`, `student_school_years`, `student_ojt`, `student_tesda_qualifications`, `student_uploads`, `classes`, `class_enrollments`.
 

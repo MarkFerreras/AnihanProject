@@ -1,5 +1,51 @@
 # Change Log - Anihan SRMS
 
+## 2026-06-22 - Deployment Prep (Render + Aiven) + SQL Folder Cleanup
+**Branch:** `AnihanSRMSv3.5`
+
+### Task
+Prepare the branch for cloud deployment on **Render** (full Spring Boot app:
+back-end + served frontend) backed by **Aiven** MySQL. Clean up `src/main/sql/`,
+make `schema.sql` structure-only matched to the live DB, and split seed data
+into dedicated files including a standalone accounts file. (User initially asked
+about Netlify/Vercel — both rejected: they cannot run a stateful Spring Boot
+server; Render is the correct host.)
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/seed-accounts.sql` | The 3 login accounts (admin/registrar/trainer, password `password123`) — the requested "all account inserts" file |
+| `src/main/sql/seed-lookups.sql` | Required reference data: course, batches, sections, qualifications, subjects |
+| `src/main/sql/seed-sample-students.sql` | Optional 5 demo students (dev only) |
+| `DEPLOYMENT.md` | Step-by-step Render + Aiven deploy guide (Aiven create, SSL JDBC URL, schema/seed apply order, Render env vars, first-login hardening, known limitations) |
+| `render.yaml` | Render Blueprint — one Java web service; `bootJar` build; DB_* secrets via `sync: false` |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | Now **structure-only** (seed data removed → split into seed-*.sql). Reordered `grades` columns to match live DB exactly. Header rewritten with apply order. Verified structurally identical to live MySQL via `mysqldump --no-data`. |
+| `src/main/resources/application.properties` | Externalized to env vars with local-dev defaults: `spring.datasource.url/username/password` → `${DB_URL/DB_USERNAME/DB_PASSWORD:...}`; added `server.port=${PORT:8080}`; `app.storage.root=${STORAGE_ROOT:./uploads}`; added `server.servlet.session.cookie.secure=${COOKIE_SECURE:false}` |
+| `CLAUDE.md` | Schema source-of-truth line updated to reference schema.sql + the 3 seed files and apply order |
+
+### Files Deleted
+| File | Reason |
+|------|--------|
+| `src/main/sql/backup.sql` | Stale UTF-16 mysqldump artifact — junk, not source |
+| `src/main/sql/AnihanSRMS.sql` | Redundant + stale (claimed 17 tables; live has 19); superseded by schema.sql + seed files |
+
+### Kept
+- All `src/main/sql/migrations/*.sql` — retained as the upgrade path for existing databases (per user decision).
+
+### Verification
+- `./gradlew compileJava` → BUILD SUCCESSFUL
+- `./gradlew bootJar -x test` → produced `build/libs/springboot-0.0.1-SNAPSHOT.jar` (confirms the start command in render.yaml / DEPLOYMENT.md is correct)
+- Live DB structure dumped and confirmed functionally identical to schema.sql (19 tables).
+
+### Known Limitation (flagged, NOT yet fixed)
+- File uploads (`StorageService`) still write to local disk → ephemeral on Render. Documented in DEPLOYMENT.md with two fix paths (Render Disk vs DB BLOB). DB-BLOB rework is a follow-up code change, not done this session.
+
+---
+
 ## 2026-05-21 - Bugfix Audit Remediation
 **Branch:** `main`
 

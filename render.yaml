@@ -1,0 +1,27 @@
+# Render Blueprint — Anihan SRMS
+# One web service running the full Spring Boot app (API + served frontend).
+# The MySQL database is hosted separately on Aiven; its connection details
+# are supplied via the DB_* environment variables below (sync: false means
+# you enter them in the Render dashboard, never committed to git).
+#
+# See DEPLOYMENT.md for the full step-by-step, including Aiven setup.
+
+services:
+  - type: web
+    name: anihan-srms
+    runtime: java
+    plan: free                     # bump to a paid plan for a real client demo
+    buildCommand: ./gradlew clean bootJar -x test
+    startCommand: java -jar build/libs/springboot-0.0.1-SNAPSHOT.jar
+    healthCheckPath: /
+    envVars:
+      - key: DB_URL                # jdbc:mysql://<host>:<port>/AnihanSRMS?sslMode=REQUIRED
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75"
