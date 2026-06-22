@@ -232,6 +232,9 @@ public class ClassManagementService {
             if (!"ROLE_TRAINER".equals(trainer.getRole())) {
                 throw new IllegalArgumentException("User is not a trainer.");
             }
+            if (!Boolean.TRUE.equals(trainer.getEnabled())) {
+                throw new IllegalArgumentException("Trainer account is disabled: " + trainer.getUsername());
+            }
         }
 
         SchoolClass schoolClass = new SchoolClass();

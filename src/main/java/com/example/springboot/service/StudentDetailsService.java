@@ -148,6 +148,32 @@ public class StudentDetailsService {
         return toUploadRef(upload);
     }
 
+    /**
+     * Resolves an upload for the PUBLIC student portal, enforcing that the owning
+     * student is still in the in-progress {@code Enrolling} state. This prevents
+     * anyone on the LAN from enumerating {@code upload_id} values to download the
+     * ID photos or baptismal certificates of submitted/active students (PII).
+     *
+     * <p>This guard is the public portal's only document-access path. Authenticated
+     * staff access (the planned registrar document-explorer module that organizes
+     * student files by batch/year/section/course) MUST be implemented as a separate
+     * {@code /api/registrar/...} endpoint with its own RBAC — it must NOT relax or
+     * reuse this {@code Enrolling}-only restriction.
+     *
+     * @throws IllegalArgumentException if the upload does not exist or its owning
+     *                                  student is no longer in the Enrolling state
+     */
+    @Transactional(readOnly = true)
+    public StudentUpload getEnrollingUpload(Integer uploadId) {
+        StudentUpload upload = uploadRepo.findById(uploadId)
+                .orElseThrow(() -> new IllegalArgumentException("Upload not found: " + uploadId));
+        StudentRecord owner = findOrThrow(upload.getStudentId());
+        if (!"Enrolling".equalsIgnoreCase(owner.getStudentStatus())) {
+            throw new IllegalArgumentException("This file is no longer accessible from the public portal.");
+        }
+        return upload;
+    }
+
     // ─── Private helpers ────────────────────────────────────────────────────────
 
     private StudentRecord findOrThrow(String studentId) {

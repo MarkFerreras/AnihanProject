@@ -21,7 +21,6 @@ import com.example.springboot.dto.student.StudentDetailsRequest;
 import com.example.springboot.dto.student.StudentDetailsResponse;
 import com.example.springboot.dto.student.UploadRefDto;
 import com.example.springboot.model.StudentUpload;
-import com.example.springboot.repository.StudentUploadRepository;
 import com.example.springboot.service.StorageService;
 import com.example.springboot.service.StudentDetailsService;
 
@@ -31,14 +30,11 @@ public class StudentDetailsController {
 
     private final StudentDetailsService studentDetailsService;
     private final StorageService storageService;
-    private final StudentUploadRepository uploadRepo;
 
     public StudentDetailsController(StudentDetailsService studentDetailsService,
-                                    StorageService storageService,
-                                    StudentUploadRepository uploadRepo) {
+                                    StorageService storageService) {
         this.studentDetailsService = studentDetailsService;
         this.storageService = storageService;
-        this.uploadRepo = uploadRepo;
     }
 
     /**
@@ -89,11 +85,20 @@ public class StudentDetailsController {
         }
     }
 
+    /**
+     * Serves an uploaded file for the public student portal. Access is restricted
+     * to files whose owning student is still in the {@code Enrolling} state (enforced
+     * by {@link StudentDetailsService#getEnrollingUpload}); files of submitted/active
+     * students are not reachable here, preventing public enumeration of student PII.
+     */
     @GetMapping("/files/{uploadId}")
     public ResponseEntity<Resource> serveFile(@PathVariable Integer uploadId) {
-        var opt = uploadRepo.findById(uploadId);
-        if (opt.isEmpty()) return ResponseEntity.<Resource>notFound().build();
-        var upload = opt.get();
+        StudentUpload upload;
+        try {
+            upload = studentDetailsService.getEnrollingUpload(uploadId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.<Resource>notFound().build();
+        }
         try {
             Resource resource = storageService.load(upload);
             return ResponseEntity.ok()
