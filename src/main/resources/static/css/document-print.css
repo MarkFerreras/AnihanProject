@@ -1,0 +1,311 @@
+/*
+ * document-print.css — layout for generated official documents (TOR / Form IX).
+ * Used live on generate-document.html and embedded inline into saved HTML
+ * documents so they stay self-contained when viewed or reprinted later.
+ */
+
+.document-sheet {
+    background: #fff;
+    color: #000;
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 11px;
+    line-height: 1.35;
+    width: 8.27in;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0.6in 0.55in;
+    box-sizing: border-box;
+}
+
+.document-sheet * {
+    box-sizing: border-box;
+}
+
+/* ----- School header ----- */
+.doc-school-header {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.doc-school-name {
+    font-size: 22px;
+    font-style: italic;
+    font-weight: bold;
+    margin: 0;
+}
+
+.doc-school-sub {
+    font-size: 10px;
+    margin: 0;
+}
+
+.doc-form-label {
+    text-align: right;
+    font-weight: bold;
+    font-size: 11px;
+    margin: 4px 0;
+}
+
+.doc-title {
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin: 10px 0 14px;
+    font-size: 13px;
+}
+
+.doc-title .doc-subtitle {
+    display: block;
+    letter-spacing: 3px;
+}
+
+/* ----- Header field rows ----- */
+.doc-fields {
+    width: 100%;
+    border-bottom: 2px solid #000;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+}
+
+.doc-field-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 3px;
+}
+
+.doc-field {
+    display: flex;
+    flex: 1;
+    align-items: flex-end;
+    min-width: 0;
+}
+
+.doc-field-label {
+    white-space: nowrap;
+    padding-right: 4px;
+}
+
+.doc-field .fill {
+    flex: 1;
+    border-bottom: 1px solid #000;
+    min-height: 14px;
+    padding: 0 3px;
+    font-weight: 600;
+}
+
+.doc-field .fill.static-value {
+    font-weight: 600;
+}
+
+.doc-field.narrow { flex: 0 0 auto; min-width: 130px; }
+.doc-field.wide { flex: 2; }
+
+/* ----- Fillable spans ----- */
+.fill {
+    display: inline-block;
+    min-width: 30px;
+    outline: none;
+}
+
+.fill:empty::before {
+    content: '\00a0';
+}
+
+.document-toolbar-active .fill[contenteditable="true"]:hover,
+.document-toolbar-active .fill[contenteditable="true"]:focus {
+    background: #fff8d6;
+}
+
+/* ----- Semester heading ----- */
+.doc-semester {
+    font-weight: bold;
+    text-decoration: underline;
+    margin: 12px 0 6px;
+}
+
+/* ----- Subjects table ----- */
+.doc-subjects-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+
+.doc-subjects-table th,
+.doc-subjects-table td {
+    border: 1px dotted #666;
+    padding: 1px 4px;
+    vertical-align: bottom;
+}
+
+.doc-subjects-table thead th {
+    border: 1px solid #000;
+    text-align: center;
+    font-size: 10px;
+    padding: 2px 4px;
+}
+
+.doc-subjects-table .col-code { width: 12%; text-align: center; }
+.doc-subjects-table .col-grade { width: 7%; text-align: center; }
+.doc-subjects-table .col-hours { width: 7%; text-align: right; }
+.doc-subjects-table .col-units { width: 7%; text-align: right; }
+.doc-subjects-table .col-remarks { width: 11%; text-align: center; }
+
+.doc-subjects-table .section-row td {
+    font-weight: bold;
+    border-left: 1px dotted #666;
+}
+
+.doc-subjects-table .total-row td {
+    font-weight: bold;
+    text-align: right;
+}
+
+/* ----- End of transcript ----- */
+.doc-end-line {
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin: 6px 0;
+    word-break: break-all;
+}
+
+/* ----- Notes + grading legend ----- */
+.doc-notes {
+    font-size: 9px;
+    margin: 8px 0;
+}
+
+.doc-notes p { margin: 0 0 2px; }
+
+.doc-grading-wrap {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.doc-seal-note {
+    flex: 0 0 110px;
+    text-align: center;
+    font-size: 9px;
+    color: #444;
+}
+
+.doc-grading-table {
+    flex: 1;
+    border-collapse: collapse;
+    font-size: 9px;
+}
+
+.doc-grading-table caption {
+    caption-side: top;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 3px;
+    font-size: 10px;
+    color: #000;
+}
+
+.doc-grading-table td {
+    border: 1px dotted #666;
+    padding: 1px 4px;
+}
+
+.doc-grading-table .competent-cell {
+    border: 1px solid #000;
+    text-align: center;
+    vertical-align: middle;
+    width: 70px;
+}
+
+/* ----- Certification ----- */
+.doc-certification {
+    margin: 14px 0;
+    text-align: justify;
+}
+
+.doc-certification .cert-heading {
+    letter-spacing: 3px;
+    font-weight: bold;
+}
+
+.doc-certification .fill {
+    border-bottom: 1px solid #000;
+    padding: 0 4px;
+    font-weight: 600;
+}
+
+/* ----- Signatories ----- */
+.doc-signatories {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 22px;
+    gap: 40px;
+}
+
+.doc-signatory {
+    flex: 1;
+    text-align: center;
+}
+
+.doc-signatory .sig-caption {
+    text-align: left;
+    margin-bottom: 28px;
+}
+
+.doc-signatory .sig-name {
+    border-top: 1px solid #000;
+    display: inline-block;
+    min-width: 220px;
+    padding-top: 2px;
+    font-weight: bold;
+}
+
+.doc-signatory .sig-role {
+    margin-top: 0;
+}
+
+.doc-date-line {
+    text-align: right;
+    margin: 10px 0;
+}
+
+/* ----- Footer contact line ----- */
+.doc-contact-footer {
+    text-align: center;
+    font-size: 9px;
+    margin-top: 18px;
+    border-top: 1px solid #000;
+    padding-top: 4px;
+}
+
+/* ----- Page breaks between sheets ----- */
+.doc-page-break {
+    page-break-before: always;
+}
+
+/* ----- Print rules ----- */
+@page {
+    size: A4 portrait;
+    margin: 10mm;
+}
+
+@media print {
+    body.generate-document-page > *:not(#documentArea) {
+        display: none !important;
+    }
+
+    #documentArea {
+        margin: 0;
+        padding: 0;
+    }
+
+    .document-sheet {
+        width: 100%;
+        padding: 0;
+    }
+
+    .fill[contenteditable="true"] {
+        background: transparent !important;
+    }
+}

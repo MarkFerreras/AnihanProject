@@ -4,19 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Registrar Classes Management">
-    <title>Classes — Registrar</title>
+    <meta name="description" content="Anihan SRMS — Generate Official Documents">
+    <title>Generate Document — Registrar</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/document-print.css">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
+        #documentArea { margin: 1.5rem auto 3rem; }
+        #documentArea .document-sheet { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.15); }
+        .generate-controls .form-label { font-size: 0.85rem; margin-bottom: 0.25rem; }
     </style>
 </head>
 
-<body class="dashboard-page" data-required-role="ROLE_REGISTRAR">
+<body class="dashboard-page generate-document-page" data-required-role="ROLE_REGISTRAR">
 
     <!-- ===== HEADER ===== -->
     <header>
@@ -41,8 +44,7 @@
                             <a class="nav-link admin-nav-link" href="subjects.html">Subjects</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page"
-                                href="classes.html">Classes</a>
+                            <a class="nav-link admin-nav-link" href="classes.html">Classes</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="sections.html">Sections</a>
@@ -87,8 +89,9 @@
                 <div class="page-hero-grid">
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
-                        <h1 class="page-title">Classes</h1>
-                        <p class="page-subtitle">Manage classes, assign trainers, and enroll students.</p>
+                        <h1 class="page-title">Generate Document</h1>
+                        <p class="page-subtitle">Auto-fill an official TOR or Form IX from a student's record,
+                            review and complete it below, then print or save it to Documents.</p>
                     </div>
                 </div>
             </section>
@@ -96,177 +99,46 @@
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>Classes</h2>
-                        <p>Current semester classes are shown by default. Toggle to view all.</p>
-                    </div>
-                    <button class="btn btn-surface" id="createClassBtn" data-bs-toggle="modal"
-                            data-bs-target="#createClassModal">Create Class</button>
-                </div>
-
-                <div class="logs-filter-bar" id="classFilterBar">
-                    <div class="logs-filter-section">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="showAllClassesToggle">
-                            <label class="form-check-label filter-label" for="showAllClassesToggle">Show All Semesters</label>
-                        </div>
-                        <span class="filter-label ms-3" id="currentSemesterLabel">Semester: —</span>
+                        <h2>Document Setup</h2>
+                        <p>Pick a student and a template. Fields highlighted on hover are editable — click any
+                            blank or pre-filled value in the document to change it before printing or saving.</p>
                     </div>
                 </div>
-
                 <div class="surface-card-body compact">
-                    <div class="table-responsive">
-                        <table id="classesTable" class="table admin-table align-middle mb-0 w-100">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">ID</th>
-                                    <th scope="col">Section</th>
-                                    <th scope="col">Subject</th>
-                                    <th scope="col">Trainer</th>
-                                    <th scope="col">Semester</th>
-                                    <th scope="col">Enrolled</th>
-                                    <th scope="col" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                    <div class="alert d-none" id="generateAlert" role="alert"></div>
+                    <div class="row g-3 align-items-end generate-controls">
+                        <div class="col-md-3">
+                            <label for="generateStudentId" class="form-label">Student <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="generateStudentId" list="studentsDatalist"
+                                   placeholder="Type a student ID" autocomplete="off">
+                            <datalist id="studentsDatalist"></datalist>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="generateTemplate" class="form-label">Template <span class="text-danger">*</span></label>
+                            <select class="form-select" id="generateTemplate"></select>
+                        </div>
+                        <div class="col-md-3 d-none" id="formIxVariantWrap">
+                            <label for="generateVariant" class="form-label">Form IX Variant</label>
+                            <select class="form-select" id="generateVariant">
+                                <option value="candidate">Records of Candidate for Graduation</option>
+                                <option value="permanent">Student's Permanent Record</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="button" class="btn btn-primary" id="loadDocumentBtn">Load</button>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-surface" id="printDocumentBtn" disabled>Print</button>
+                        <button type="button" class="btn btn-primary" id="saveDocumentBtn" disabled>Save to Documents</button>
                     </div>
                 </div>
             </section>
         </div>
     </main>
 
-    <!-- ===== CREATE CLASS MODAL ===== -->
-    <div class="modal fade detail-modal" id="createClassModal" tabindex="-1"
-         aria-labelledby="createClassModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="createClassModalLabel">Create Class</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert d-none" id="createClassAlert" role="alert"></div>
-                    <div class="mb-3">
-                        <label for="classSectionSelect" class="form-label">Section *</label>
-                        <select class="form-select" id="classSectionSelect" required>
-                            <option value="">— Select Section —</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="classSubjectSelect" class="form-label">Subject *</label>
-                        <select class="form-select" id="classSubjectSelect" required>
-                            <option value="">— Select Subject —</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="classTrainerSelect" class="form-label">Trainer</label>
-                        <select class="form-select" id="classTrainerSelect">
-                            <option value="">— No Trainer —</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="classSemesterInput" class="form-label">Semester *</label>
-                        <input type="text" class="form-control" id="classSemesterInput" readonly>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-surface" id="saveClassBtn">Create</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== EDIT CLASS TRAINER MODAL ===== -->
-    <div class="modal fade detail-modal" id="editClassModal" tabindex="-1"
-         aria-labelledby="editClassModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editClassModalLabel">Edit Class Trainer</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert d-none" id="editClassAlert" role="alert"></div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Section</label>
-                        <p class="form-control-plaintext fw-semibold" id="editClassSection">—</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Subject</label>
-                        <p class="form-control-plaintext fw-semibold" id="editClassSubject">—</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Semester</label>
-                        <p class="form-control-plaintext fw-semibold" id="editClassSemester">—</p>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editClassTrainerSelect" class="form-label">Trainer</label>
-                        <select class="form-select" id="editClassTrainerSelect">
-                            <option value="">— No Trainer —</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-surface" id="saveEditClassBtn">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== ENROLL STUDENT MODAL ===== -->
-    <div class="modal fade detail-modal" id="enrollStudentModal" tabindex="-1"
-         aria-labelledby="enrollStudentModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="enrollStudentModalLabel">Manage Enrollment</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert d-none" id="enrollAlert" role="alert"></div>
-
-                    <h6 class="fw-semibold mb-2">Currently Enrolled</h6>
-                    <div class="table-responsive mb-4">
-                        <table class="table table-sm admin-table align-middle mb-0" id="enrolledTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Student ID</th>
-                                    <th>Last Name</th>
-                                    <th>First Name</th>
-                                    <th class="text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-
-                    <hr>
-                    <h6 class="fw-semibold mb-2">Add Student</h6>
-                    <div class="row g-2 align-items-end">
-                        <div class="col">
-                            <label for="eligibleStudentSelect" class="form-label">Eligible Students</label>
-                            <select class="form-select" id="eligibleStudentSelect">
-                                <option value="">— Select Student —</option>
-                            </select>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-surface" id="enrollStudentBtn">Enroll</button>
-                        </div>
-                    </div>
-
-                    <hr>
-                    <h6 class="fw-semibold mb-2">Bulk Enrollment</h6>
-                    <div class="alert d-none" id="enrollSectionAlert" role="alert"></div>
-                    <button class="btn btn-surface" id="enrollWholeSectionBtn">Enroll Whole Section</button>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- ===== GENERATED DOCUMENT (direct child of body so @media print can isolate it) ===== -->
+    <div id="documentArea"></div>
 
     <!-- ===== EDIT ACCOUNT MODAL ===== -->
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
@@ -359,6 +231,7 @@
         </div>
     </div>
 
+    <!-- ===== FOOTER ===== -->
     <footer class="login-footer mt-auto">
         <div class="container">
             <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
@@ -367,9 +240,9 @@
 
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
-    <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-classes.js?v=3"></script>
+    <script src="js/curriculum-templates.js?v=1"></script>
+    <script src="js/registrar-generate-document.js?v=1"></script>
 </body>
 
 </html>

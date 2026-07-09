@@ -1,5 +1,66 @@
 # Change Log - Anihan SRMS
 
+## 2026-07-09 - Document Management (R3.1–R3.7) + TOR/Form IX Generation
+**Branch:** `feature/document-management`
+
+### Task
+Implement the registrar Document Management module — Jira AGILE-75…AGILE-81 (R3.1 Upload,
+R3.2 Type, R3.3 Name, R3.4 View, R3.5 Search, R3.6 Filter, R3.7 Download) — plus
+auto-filled, editable, print-ready generation of the four official templates in
+`document-templates/` (TOR; Form IX for BPP / Cookery / FBS, each with Records-of-
+Candidate-for-Graduation and Student's-Permanent-Record variants). Confirmed decisions:
+print-ready HTML output, auto-fill + editable review, generated documents persisted to
+the `documents` BLOB table with `system_logs` entries. No DB migration required.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `repository/DocumentRepository.java` | `searchSummaries` JPQL constructor-expression projection (never selects `content_data`); explicit LEFT JOINs so null batch/section students survive the optional filters |
+| `dto/registrar/DocumentSummaryResponse.java` | BLOB-free listing row |
+| `dto/registrar/DocumentGenerateDataResponse.java` | Aggregated auto-fill payload (student + parents + education + TESDA + OJT + grades) |
+| `dto/registrar/GenerateDocumentRequest.java` | `@NotBlank` studentId/documentType/fileName/html |
+| `service/DocumentService.java` | Upload (extension+MIME whitelist pdf/docx/xlsx, 10MB cap, student + type validation), generated-HTML save (`text/html`, `.html` appended), type list, BLOB fetch for view/download |
+| `service/DocumentGenerationService.java` | Builds the generate-data payload from 6 repositories |
+| `controller/DocumentController.java` | `GET /api/registrar/documents` (q/type/batchCode/sectionCode), `GET /types`, `POST` multipart, `GET /{id}/download` + `GET /{id}/view`, `GET /generate-data/{studentId}`, `POST /generate`; upload/download/generate write `system_logs` |
+| `static/documents.html` | Documents page — DataTable, upload modal (student datalist), iframe view modal, filter bar |
+| `static/js/registrar-documents.js` | Table + debounced search, filters, FormData upload, PDF/HTML inline preview (docx/xlsx download-only) |
+| `static/generate-document.html` | Template picker (TOR / Form IX × variant) + editable in-document form |
+| `static/js/registrar-generate-document.js` | Renders the document as the fillable form (contenteditable spans), auto-fills from generate-data, Print (window.print), Save (self-contained HTML with inlined CSS → POST /generate) |
+| `static/js/curriculum-templates.js` | Full curriculum transcription from the PDFs (~50 subjects with fixed hours/units, grading legend); grades merged by subject_code at render time |
+| `static/css/document-print.css` | Document layout + `@page`/`@media print` rules; embedded into saved HTML |
+| `test/.../DocumentServiceTest.java` | 10 Mockito tests (whitelist, size, unknown student/type, generated save, filter normalization) |
+| `test/.../DocumentGenerationServiceTest.java` | 3 Mockito tests (aggregation, null OJT, missing student) |
+| `test/.../DocumentControllerWebMvcTest.java` | 11 WebMvc tests (RBAC 401/403, multipart 201+log, 400 paths, download/view headers, generate) |
+| `docs/superpowers/plans/2026-07-09-document-management-r3.md` | Approved implementation plan |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `config/SecurityConfig.java` | Registrar matcher += `/documents.html`, `/generate-document.html`; `X-Frame-Options` DENY → **SAMEORIGIN** (View modal iframe was blocked by the default — found via live smoke test) |
+| `exception/GlobalExceptionHandler.java` | `MaxUploadSizeExceededException` → 400 with friendly message |
+| `static/registrar.html`, `subjects.html`, `classes.html`, `sections.html`, `student-records.html` | Registrar navbar 4 → 5 links (Documents added) |
+
+### Design Decisions
+- **Curriculum is static template data, not `subjects` rows.** The printed documents carry
+  ~50 fixed subjects with decimal units; `subjects.units` is INT and seeding would entangle
+  class management. Deferred as a follow-up (units DECIMAL migration + seed).
+- **The document is the form.** Instead of a separate form panel bound to a preview, every
+  blank is a contenteditable span inside the print-faithful layout — what you edit is what
+  prints and what gets saved.
+- **Saved documents are self-contained HTML** so `GET /{id}/view` renders them in the iframe
+  with zero extra dependencies and reprints keep their styling.
+- **View is not logged; upload/download/generate are** — mirrors the trainer read-only
+  no-logging precedent.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 200 tests, 0 failures, 0 errors** (was 176).
+- Live smoke test (running app + real MySQL): login → types → upload → list → `?q=` search →
+  type+batch filter → wrong-section filter (0 rows) → download (attachment, bytes intact) →
+  view (inline, SAMEORIGIN) → generate-save (`.html` appended, `text/html`) → `system_logs`
+  rows for upload/download/generate confirmed. Smoke-test document rows deleted afterwards.
+
+---
+
 ## 2026-07-09 - Live DB vs SQL Files Comparison & Sync
 **Branch:** `main` (user explicitly approved working on `main`)
 

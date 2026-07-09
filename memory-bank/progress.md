@@ -2,6 +2,14 @@
 
 ## Recent Sessions (detail)
 
+### Document Management R3.1–R3.7 + Template Generation (Completed — July 9, 2026)
+- **Task:** Implement Jira AGILE-75…81 (upload / type / name / view / search / filter / download of student documents) plus auto-filled, editable, print-ready generation of the 4 templates in `document-templates/` (TOR + Form IX ×3). Plan at `docs/superpowers/plans/2026-07-09-document-management-r3.md`; requirements pulled live from the AGILE Jira board.
+- **Backend:** `DocumentRepository` (BLOB-free JPQL projection with LEFT JOINs for optional batch/section filters), `DocumentService` (upload with pdf/docx/xlsx + 10MB whitelist, generated-HTML save, type list), `DocumentGenerationService` (aggregated auto-fill payload from record/parents/education/TESDA/OJT/grades), `DocumentController` under `/api/registrar/documents` — upload/download/generate write `system_logs`. `MaxUploadSizeExceededException` handler added (400). No DB migration — `documents` table/entity already existed.
+- **Frontend:** `documents.html` + `registrar-documents.js` (DataTable, upload modal with student datalist, iframe view modal, download, debounced search + type/batch/section filters); `generate-document.html` + `registrar-generate-document.js` + `curriculum-templates.js` + `document-print.css` (the rendered document is the fillable form — contenteditable spans, auto-filled; Print via browser; Save posts self-contained HTML into `documents`). Registrar navbar 4 → 5 links across all registrar pages.
+- **Security:** `/documents.html` + `/generate-document.html` added to registrar matcher; `X-Frame-Options` DENY → SAMEORIGIN (needed for iframe preview — caught by live smoke test, not by unit tests).
+- **Verified:** `./gradlew test` → **200 tests, 0 failures** (+24). Live end-to-end smoke against real MySQL: upload → list/search/filter → download (bytes intact) → view inline → generate-save → `system_logs` rows present. Smoke data cleaned up.
+- **Branch:** `feature/document-management`. Open: browser smoke of both pages, print-fidelity check vs sample PDFs, PR to main.
+
 ### Live DB vs SQL Files Comparison & Sync (Completed — July 9, 2026)
 - **Task:** Compare the live `AnihanSRMS` database against the newest SQL files in `src/main/sql/`, sync the live DB, then check for compatibility issues and discrepancies.
 - **Structural result:** No drift. A no-data `mysqldump` of the live DB matches `schema.sql` exactly — 19 tables, identical columns, types, nullability, indexes, and FKs. All previously-recorded migrations were already applied.

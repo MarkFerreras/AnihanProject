@@ -1,12 +1,60 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Live DB verified in sync with SQL sources — no structural drift**
+**Document Management module (R3.1–R3.7) + TOR/Form IX generation implemented — awaiting browser smoke test + PR**
 
 ## Active Branch
-`main` (kept on `main` per user's instruction)
+`feature/document-management`
 
-## Latest Session (July 9, 2026 — Live DB vs SQL Files Comparison & Sync)
+## Latest Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
+
+### Scope
+Implemented Jira AGILE-75…AGILE-81 (R3.1 Upload, R3.2 Type, R3.3 Name, R3.4 View,
+R3.5 Search, R3.6 Filter, R3.7 Download) plus auto-filled, editable, print-ready
+generation of the 4 templates in `document-templates/` (TOR + Form IX ×3 with
+Candidate-for-Graduation / Permanent-Record variants). Plan:
+`docs/superpowers/plans/2026-07-09-document-management-r3.md`.
+
+### Key Decisions
+- Uses the **existing `documents` table + `Document` entity** — no DB migration.
+- Listing query is a JPQL constructor-expression projection that **never selects
+  `content_data`** (LONGBLOB stays out of memory); explicit LEFT JOINs on batch/section
+  so students without batch/section still appear when those filters are null.
+- Generated documents are **self-contained HTML** (`text/html`, print CSS inlined)
+  saved into `documents` so they flow through list/view/search/download immediately.
+  Curriculum (~50 subjects with fixed hours/units) lives in
+  `static/js/curriculum-templates.js`, transcribed from the PDFs — deliberately NOT
+  seeded into `subjects` (would entangle class management; `subjects.units` is INT).
+  Grades merge in by `subject_code`.
+- The rendered document itself is the fillable form: every blank is a
+  `contenteditable` span, pre-filled from `GET /api/registrar/documents/generate-data/{studentId}`.
+- `X-Frame-Options` changed DENY → **SAMEORIGIN** (SecurityConfig) — required for the
+  View modal's same-origin iframe preview; found via live smoke test.
+- Upload whitelist: pdf/docx/xlsx, 10MB cap; view=inline only for PDF/HTML (docx/xlsx
+  are download-only in the UI).
+
+### New Endpoints (`/api/registrar/documents`)
+`GET` list (q/type/batchCode/sectionCode) · `GET /types` · `POST` multipart upload ·
+`GET /{id}/download` (logged) · `GET /{id}/view` (inline, not logged) ·
+`GET /generate-data/{studentId}` · `POST /generate` (logged). Upload/generate logged too.
+
+### Verified
+- `./gradlew test` → **200 tests, 0 failures** (was 176; +24 new).
+- Live smoke test against running app + real MySQL: login → types → upload smoke.pdf →
+  list/search/filter (incl. 0-rows on wrong section) → download (bytes intact,
+  attachment) → view (inline, SAMEORIGIN) → generate-save (.html appended) →
+  `system_logs` rows for upload/download/generate confirmed. Smoke rows deleted after.
+
+### Open Items
+- Browser smoke test: documents.html flows + generate-document.html print fidelity
+  side-by-side with the sample PDFs.
+- PR to `main` (user approval required).
+- Follow-up ticket: R3.8–R3.11 (group download, encode, group encode, incomplete-docs
+  warning) remain unimplemented; curriculum seeding into `subjects` deferred.
+
+---
+
+## Previous Session (July 9, 2026 — Live DB vs SQL Files Comparison & Sync)
 
 ### What Was Checked
 Compared the live `AnihanSRMS` MySQL database against the newest SQL sources
