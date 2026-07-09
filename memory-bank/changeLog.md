@@ -1,5 +1,125 @@
 # Change Log - Anihan SRMS
 
+## 2026-07-09 - Live DB vs SQL Files Comparison & Sync
+**Branch:** `main` (user explicitly approved working on `main`)
+
+### Task
+Compare the live `AnihanSRMS` MySQL database against the most recent SQL files in
+`src/main/sql/`, apply whatever the live DB was missing, then check for compatibility
+issues and discrepancies between the database and the application code.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `memory-bank/activeContext.md` | New session entry: comparison findings, action taken, verification matrix |
+| `memory-bank/progress.md` | Added this session under Recent Sessions |
+| `memory-bank/changeLog.md` | This entry |
+
+No application code, entity, or SQL source file was changed — the live database was the
+only thing brought into sync.
+
+### Database Changes Applied
+| Statement | Purpose |
+|-----------|---------|
+| `src/main/sql/migrations/2026-05-10-seed-courses-and-batch.sql` | Seeded the two missing courses `BPRO` (Bread and Pastry Production) and `FSERV` (Food and Beverage Services). `CARS` and batch `B2026A` already existed and were left untouched by `INSERT IGNORE`. |
+
+A full `mysqldump` backup was taken before applying anything.
+
+### Comparison Result
+- **Structure: no drift.** `mysqldump --no-data` of the live DB matches `schema.sql` exactly —
+  19 tables, identical columns, types, nullability, indexes, and foreign keys. Every prior
+  migration (`2026-05-05`, both `2026-05-09` files, `2026-05-19`, `2026-05-20`) was already
+  reflected in the live schema.
+- **Data: one gap**, the 2026-05-10 course seed, now applied.
+- Structure re-dumped after the migration and diffed against the pre-migration dump: identical,
+  confirming the change was data-only.
+
+### Compatibility Verification
+- **`ddl-auto=validate` boot against live MySQL → PASS.** Hibernate compared all 19 entities to
+  the live tables and started cleanly in 9.0s. This is the authoritative compatibility check;
+  the Gradle test suite runs on in-memory H2 (`ddl-auto=create-drop`) and therefore cannot
+  catch live-DB drift.
+- `./gradlew test` → 176 tests, 0 failures, 0 errors.
+- Referential-integrity sweep → 0 orphaned rows across `grades`, `class_enrollments`,
+  `sections`, and `subjects`.
+- Domain-invariant sweep → every `classes.trainer_id` references a `ROLE_TRAINER` user;
+  all grades sit inside the `[1.0, 5.0]` range that `TrainerGradeService` enforces;
+  every `Active` student has a `section_code`.
+
+### Discrepancy Noted → Fixed in the same session (see next entry)
+`src/main/sql/migrations/2026-05-19-grades-restructure.sql` contained only `DESCRIBE`/`SHOW`
+verification queries — its `ALTER TABLE` statements were commented out. It documented the
+grades restructure rather than applying it.
+
+---
+
+## 2026-07-09 - Grades-Restructure Migration Made Functional + FK Idempotency Fix
+**Branch:** `main`
+
+### Task
+Fix the flag raised above: make `2026-05-19-grades-restructure.sql` actually perform the
+restructure instead of only verifying it, without breaking already-migrated databases.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/migrations/2026-05-19-grades-restructure.sql` | Rewritten. Commented-out `ALTER`s replaced with real, guarded statements. Adds `class_id`, `midterm_grade`, `finals_grade`, `locked`, `locked_at`; relaxes `final_grade`/`hours_studied`/`remarks` to NULL; adds `fk_grades_class` + `uq_grade_student_class`. Aborts before any change if the `classes` FK target is missing. Verification queries retained at the end. |
+| `src/main/sql/migrations/2026-05-20-sync-and-clear-students.sql` | Fixed the same latent FK-guard bug in section A4 (`subjects.trainer_id`) and A5 (`grades.class_id`). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+No application code, entity, or `schema.sql` change. The live database ends the session
+structurally identical to how it started.
+
+### Why the ALTERs were commented out
+The design spec (`docs/superpowers/specs/2026-05-19-trainer-grading-design.md`) wrote them as
+`ALTER TABLE grades ADD COLUMN IF NOT EXISTS ...` — valid in MariaDB and Postgres, **not** in
+MySQL 8. Rather than translate, they were disabled. The rewrite uses the guarded
+`information_schema` + `PREPARE`/`EXECUTE` pattern already used by the 2026-05-20 migration,
+which is the project's established idiom for idempotent DDL on MySQL 8.
+
+### Second Bug Found While Testing (the important one)
+The FK guards keyed off the **constraint name** `fk_grades_class`. But a database created from
+`schema.sql` declares that FK inline and unnamed, so MySQL auto-names it `grades_ibfk_3`.
+The name-only check therefore concluded "no FK present" and issued `ADD CONSTRAINT` — creating
+a **duplicate foreign key on `grades.class_id` on every single re-run**. The migration was not
+idempotent despite claiming to be.
+
+Reproduced against the live database (a duplicate `fk_grades_class` really did appear; it was
+dropped immediately). Fixed by matching on what the constraint *does* rather than what it is
+called:
+
+```sql
+SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'grades'
+  AND COLUMN_NAME = 'class_id' AND REFERENCED_TABLE_NAME = 'classes';
+```
+
+The identical name-based guard in `2026-05-20-sync-and-clear-students.sql` (for both
+`grades.class_id` and `subjects.trainer_id`) had the same defect and was corrected the same way.
+
+### Design Note — why not `SIGNAL` for the precondition
+`SIGNAL` is not supported inside the prepared-statement protocol (`ERROR 1295`). The
+precondition check instead selects from a deliberately non-existent table whose name carries
+the operator instruction, so a missing `classes` table aborts the script on its first statement
+with `ERROR 1146: Table '...ABORT_classes_missing_run_2026_05_09_migration_first' doesn't exist`.
+MySQL identifiers cap at 64 characters, which is why the name is terse.
+
+### Verification
+Tested on all three paths a migration can meet:
+
+| Scenario | Result |
+|----------|--------|
+| Legacy pre-restructure `grades` (no `class_id`, legacy `NOT NULL` cols) | Applies all 5 columns, relaxes 3 columns, creates FK + unique key |
+| Re-run on the migrated legacy DB | Structure byte-identical — idempotent, no duplicate FK |
+| Re-run twice on the live DB | Structure byte-identical to the pre-fix baseline; exactly 3 FKs; grade row intact |
+| `classes` table absent | Aborts on statement 1; `grades` completely unmodified (no half-apply) |
+| Hibernate `ddl-auto=validate` vs live MySQL | PASS |
+
+Throwaway schemas `legacy_test` and `noclasses_test` were used for the first four and dropped
+afterwards; only `AnihanSRMS` remains.
+
+---
+
 ## 2026-05-21 - Bugfix Audit Remediation
 **Branch:** `main`
 

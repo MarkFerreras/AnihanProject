@@ -124,10 +124,12 @@ SET @sql = IF(@has_subj_trainer = 0,
     'ALTER TABLE subjects ADD COLUMN trainer_id INT NULL', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Match on column + referenced table rather than constraint name, so an
+-- equivalent FK created under a different name is not duplicated.
 SET @has_subj_trainer_fk = (
-    SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+    SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
     WHERE TABLE_SCHEMA = 'AnihanSRMS' AND TABLE_NAME = 'subjects'
-      AND CONSTRAINT_NAME = 'fk_subjects_trainer'
+      AND COLUMN_NAME = 'trainer_id' AND REFERENCED_TABLE_NAME = 'users'
 );
 SET @sql = IF(@has_subj_trainer_fk = 0,
     'ALTER TABLE subjects ADD CONSTRAINT fk_subjects_trainer FOREIGN KEY (trainer_id) REFERENCES users(user_id) ON DELETE SET NULL',
@@ -177,10 +179,13 @@ ALTER TABLE grades MODIFY COLUMN hours_studied DECIMAL(5,2) NULL;
 ALTER TABLE grades MODIFY COLUMN remarks VARCHAR(255) NULL;
 
 -- grades.class_id FK -> classes
+-- Match on the constrained column + referenced table, not the constraint
+-- name: a DB built from schema.sql carries this FK under an auto-generated
+-- name (grades_ibfk_3), and a name-only check would add a duplicate FK.
 SET @g_has_class_fk = (
-    SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+    SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
     WHERE TABLE_SCHEMA='AnihanSRMS' AND TABLE_NAME='grades'
-      AND CONSTRAINT_NAME='fk_grades_class');
+      AND COLUMN_NAME='class_id' AND REFERENCED_TABLE_NAME='classes');
 SET @sql = IF(@g_has_class_fk = 0,
     'ALTER TABLE grades ADD CONSTRAINT fk_grades_class FOREIGN KEY (class_id) REFERENCES classes(class_id) ON DELETE SET NULL',
     'SELECT 1');

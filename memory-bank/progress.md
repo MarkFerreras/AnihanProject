@@ -2,6 +2,22 @@
 
 ## Recent Sessions (detail)
 
+### Live DB vs SQL Files Comparison & Sync (Completed — July 9, 2026)
+- **Task:** Compare the live `AnihanSRMS` database against the newest SQL files in `src/main/sql/`, sync the live DB, then check for compatibility issues and discrepancies.
+- **Structural result:** No drift. A no-data `mysqldump` of the live DB matches `schema.sql` exactly — 19 tables, identical columns, types, nullability, indexes, and FKs. All previously-recorded migrations were already applied.
+- **Only discrepancy found:** `2026-05-10-seed-courses-and-batch.sql` had never been run — live `courses` held only `CARS`. Applied it (backup taken first); `BPRO` and `FSERV` added via `INSERT IGNORE`. Post-migration structure diff confirmed the change was data-only.
+- **Compatibility:** Booted the app with `ddl-auto=validate` against live MySQL → **PASS** (all 19 entities validated, started in 9.0s). This is the check that matters — the Gradle suite runs on in-memory H2 and cannot detect live-DB drift. `./gradlew test` → 176 tests, 0 failures. Referential-integrity and domain-invariant sweeps → all clean.
+- **Noted → then fixed (see next entry):** `2026-05-19-grades-restructure.sql` was a verification script only; its `ALTER` statements were commented out.
+- **Branch:** `main` (user explicitly approved).
+
+### Grades-Restructure Migration Made Functional + FK Idempotency Fix (Completed — July 9, 2026)
+- **Task:** Make `2026-05-19-grades-restructure.sql` actually apply the restructure instead of only verifying it.
+- **Root cause of the no-op:** the design spec wrote the ALTERs as `ADD COLUMN IF NOT EXISTS`, which is MariaDB/Postgres syntax and invalid in MySQL 8, so they were commented out rather than translated. Rewrote them using the guarded `information_schema` + `PREPARE` idiom the 2026-05-20 migration already uses.
+- **Second bug found while testing:** the FK guards matched on the constraint *name* (`fk_grades_class`), but a DB built from `schema.sql` carries that FK auto-named `grades_ibfk_3`. The guard therefore added a **duplicate FK on every re-run** — the migration was not idempotent. Reproduced live, reverted, then fixed by matching on `KEY_COLUMN_USAGE (COLUMN_NAME + REFERENCED_TABLE_NAME)`. Same defect fixed in `2026-05-20-sync-and-clear-students.sql` for both `grades.class_id` and `subjects.trainer_id`.
+- **Precondition guard:** aborts before any change if `classes` is missing. `SIGNAL` can't run under the prepared-statement protocol, so it selects from a non-existent table whose name is the operator instruction.
+- **Verified on 3 paths:** legacy pre-restructure DB (applies correctly) · already-migrated DB (byte-identical re-run, no duplicate FK) · `classes` absent (aborts clean, no half-apply). Hibernate `ddl-auto=validate` vs live MySQL → PASS. Live DB ends structurally identical to how it started.
+- **Branch:** `main`.
+
 ### Bugfix Audit Remediation (Completed — May 21, 2026)
 - **Task:** Execute all 10 items from `docs/superpowers/plans/2026-05-21-bugfix-audit-remediation.md`.
 - **Result:** `./gradlew test` → **176 tests, 0 failures, 0 errors** (was 166; 10 new tests).
