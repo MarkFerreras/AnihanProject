@@ -16,6 +16,10 @@
         #documentArea { margin: 1.5rem auto 3rem; }
         #documentArea .document-sheet { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.15); }
         .generate-controls .form-label { font-size: 0.85rem; margin-bottom: 0.25rem; }
+        /* dashboard.css clips surface-card children (overflow: hidden, for the rounded
+           corners); the student picker menu must overflow the card, so relax it here. */
+        .generate-document-page .surface-card { overflow: visible; }
+        #studentPickerMenu { z-index: 1050; min-width: max-content; }
     </style>
 </head>
 

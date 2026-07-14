@@ -12,7 +12,7 @@ incomplete student records in the live database.
 ### Files Modified
 | File | Change |
 |------|--------|
-| `static/generate-document.html` | `<input list>` + `<datalist id="studentsDatalist">` replaced with `#studentPicker` combobox (input `role="combobox"` + Bootstrap `.dropdown-menu` `#studentPickerMenu`, 300px scrollable). JS cache-buster `?v=1` → `?v=2`. |
+| `static/generate-document.html` | `<input list>` + `<datalist id="studentsDatalist">` replaced with `#studentPicker` combobox (input `role="combobox"` + Bootstrap `.dropdown-menu` `#studentPickerMenu`, 300px scrollable). JS cache-buster `?v=1` → `?v=2`. Follow-up fix: `.surface-card` has `overflow: hidden` in dashboard.css, which clipped the open picker menu at the card edge - added a page-scoped `overflow: visible` override plus `min-width: max-content` on the menu so long names are not truncated (verified by browser hit-test past the card boundary). |
 | `static/js/registrar-generate-document.js` | `loadStudentsDatalist()` → `setupStudentPicker()` (open on focus, live filter on ID/last/first name, ArrowUp/Down + Enter + Escape keyboard nav, mouse select, outside-click close, "Loading students…" placeholder + re-render when the student list arrives). New `resolveStudentId()` (exact-ID match, else unique search match, else friendly alert). New `ajaxErrorMessage()` used by load + save error paths: prefers server JSON message, else distinguishes network (status 0), 401 session-expired, 404 stale-build, and other HTTP statuses. |
 | `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
 
