@@ -16,12 +16,24 @@
     let currentVariant = 'candidate';
     let cachedCss = null;
     let allStudents = [];
+    // Edit mode: re-open a saved generated document (documents.html -> View -> Edit).
+    let editDocumentId = null;
+    let editFileName = null;
+
+    // Degrade to a logo-less header if anihan-logo.js ever fails to load —
+    // a hard dereference here would kill the whole page at parse time.
+    const LOGO_URI = (window.AnihanLogo && window.AnihanLogo.DATA_URI) || '';
 
     const SCHOOL_HEADER =
         '<div class="doc-school-header">' +
+        (LOGO_URI
+            ? '<img class="doc-school-logo" src="' + LOGO_URI + '" alt="Anihan Technical School logo">'
+            : '') +
+        '<div>' +
         '<p class="doc-school-name">Anihan Technical School</p>' +
         '<p class="doc-school-sub">(For Women-in-Development)</p>' +
         '<p class="doc-school-sub">A project of the Foundation for Professional Training, Inc. (FPTI)</p>' +
+        '</div>' +
         '</div>';
 
     const CONTACT_FOOTER =
@@ -36,12 +48,17 @@
         populateTemplateSelect();
         $('#generateTemplate').on('change', toggleVariantSelect);
         $('#loadDocumentBtn').on('click', loadDocument);
-        $('#printDocumentBtn').on('click', function () { window.print(); });
+        $('#printDocumentBtn').on('click', printDocument);
         $('#saveDocumentBtn').on('click', saveDocument);
+        $('#cancelDocumentBtn').on('click', function () {
+            window.location.href = 'documents.html';
+        });
         toggleVariantSelect();
 
         const params = new URLSearchParams(window.location.search);
-        if (params.get('studentId')) {
+        if (params.get('documentId')) {
+            enterEditMode(params);
+        } else if (params.get('studentId')) {
             $('#generateStudentId').val(params.get('studentId'));
         }
     });
@@ -189,6 +206,66 @@
     }
 
     // -------------------------------------------------------
+    // Edit mode — re-open a saved generated document
+    // -------------------------------------------------------
+
+    function enterEditMode(params) {
+        editDocumentId = Number(params.get('documentId'));
+        editFileName = params.get('fileName') || '';
+        currentTemplateKey = params.get('documentType') || '';
+        const studentId = params.get('studentId') || '';
+        currentData = { student: { studentId: studentId } };
+
+        // The document identity is fixed while editing — lock the setup controls.
+        $('#generateStudentId').val(studentId).prop('disabled', true);
+        $('#generateTemplate').val(currentTemplateKey).prop('disabled', true);
+        $('#generateVariant').prop('disabled', true);
+        $('#loadDocumentBtn').prop('disabled', true);
+        toggleVariantSelect();
+
+        $.ajax({
+            url: '/api/registrar/documents/' + encodeURIComponent(editDocumentId) + '/view',
+            method: 'GET',
+            dataType: 'html',
+            success: function (html) {
+                const parsed = new DOMParser().parseFromString(html, 'text/html');
+                const sheet = parsed.querySelector('.document-sheet');
+                if (!sheet) {
+                    showAlert('This document has no editable content. Only documents generated '
+                        + 'by this page can be edited.', 'danger');
+                    return;
+                }
+                const area = document.getElementById('documentArea');
+                area.innerHTML = '';
+                area.appendChild(document.adoptNode(sheet));
+                // Saved documents have contenteditable stripped — re-arm every blank.
+                area.querySelectorAll('.fill').forEach(function (el) {
+                    el.setAttribute('contenteditable', 'true');
+                });
+                $('#printDocumentBtn').prop('disabled', false);
+                $('#saveDocumentBtn').prop('disabled', false);
+                $('#cancelDocumentBtn').removeClass('d-none');
+                showAlert('Editing "' + editFileName + '". Change any value below, then '
+                    + 'Save to Documents to overwrite the saved copy.', 'info');
+            },
+            error: function (xhr) {
+                showAlert(ajaxErrorMessage(xhr, 'Failed to load the saved document'), 'danger');
+            }
+        });
+
+        // Names are only needed for the print filename; missing data degrades gracefully.
+        if (studentId) {
+            $.ajax({
+                url: '/api/registrar/documents/generate-data/' + encodeURIComponent(studentId),
+                method: 'GET',
+                success: function (data) {
+                    currentData = data;
+                }
+            });
+        }
+    }
+
+    // -------------------------------------------------------
     // Load + render
     // -------------------------------------------------------
 
@@ -218,6 +295,7 @@
                 render();
                 $('#printDocumentBtn').prop('disabled', false);
                 $('#saveDocumentBtn').prop('disabled', false);
+                $('#cancelDocumentBtn').removeClass('d-none');
                 document.getElementById('documentArea').scrollIntoView({ behavior: 'smooth' });
             },
             error: function (xhr) {
@@ -570,6 +648,41 @@
     }
 
     // -------------------------------------------------------
+    // Print
+    // -------------------------------------------------------
+
+    /**
+     * Browsers use document.title as the suggested save-as-PDF filename, so swap in
+     * "{DocumentType}-{LastName} {FirstName}" for the duration of the print dialog.
+     */
+    function printDocument() {
+        if (!currentData || !currentTemplateKey) return;
+        const originalTitle = document.title;
+        document.title = printFileName();
+        const restore = function () {
+            document.title = originalTitle;
+            window.removeEventListener('afterprint', restore);
+        };
+        window.addEventListener('afterprint', restore);
+        window.print();
+        // Fallback for browsers where afterprint does not fire reliably.
+        window.setTimeout(restore, 2000);
+    }
+
+    function printFileName() {
+        const s = currentData.student;
+        const template = TEMPLATES[currentTemplateKey];
+        const shortName = template ? template.shortName : currentTemplateKey;
+        const namePart = joinNonBlank([s.lastName, s.firstName], ' ') || s.studentId;
+        return sanitizeFileName(shortName + '-' + namePart);
+    }
+
+    /** Strip characters that are invalid in Windows/macOS filenames. */
+    function sanitizeFileName(name) {
+        return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    // -------------------------------------------------------
     // Save to Documents
     // -------------------------------------------------------
 
@@ -577,8 +690,10 @@
         if (!currentData || !currentTemplateKey) return;
         const template = TEMPLATES[currentTemplateKey];
         const studentId = currentData.student.studentId;
-        const variantSuffix = template.kind === 'FORM_IX' ? '-' + currentVariant : '';
-        const fileName = studentId + '-' + template.shortName + variantSuffix + '.html';
+        const variantSuffix = template && template.kind === 'FORM_IX' ? '-' + currentVariant : '';
+        const fileName = editDocumentId
+            ? editFileName
+            : studentId + '-' + template.shortName + variantSuffix + '.html';
 
         const btn = $('#saveDocumentBtn');
         btn.prop('disabled', true).text('Saving...');
@@ -602,11 +717,15 @@
                     studentId: studentId,
                     documentType: currentTemplateKey,
                     fileName: fileName,
-                    html: standalone
+                    html: standalone,
+                    documentId: editDocumentId
                 }),
                 success: function () {
-                    btn.prop('disabled', false).text('Save to Documents');
-                    showAlert('Document saved. It is now available on the Documents page.', 'success');
+                    btn.text('Saved');
+                    showAlert('Document saved. Returning to the Documents page…', 'success');
+                    window.setTimeout(function () {
+                        window.location.href = 'documents.html';
+                    }, 900);
                 },
                 error: function (xhr) {
                     btn.prop('disabled', false).text('Save to Documents');

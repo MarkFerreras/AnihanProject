@@ -17,6 +17,13 @@
         .doc-filter-bar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem; }
         .doc-filter-bar .form-label { margin-bottom: 0.25rem; font-size: 0.85rem; }
         .doc-filter-bar input[type="search"] { min-width: 260px; }
+        /* dashboard.css .btn-surface padding overrides Bootstrap's .btn-sm; restore the
+           small size inside the Actions group so the buttons fit within their row. */
+        .document-actions .btn {
+            padding: 0.3rem 0.75rem;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -212,7 +219,44 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="#" class="btn btn-surface d-none" id="viewDocumentEditBtn">Edit</a>
                     <a href="#" class="btn btn-surface" id="viewDocumentDownloadBtn" download>Download</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DELETE DOCUMENT CONFIRM MODAL (type-to-confirm) ===== -->
+    <div class="modal fade delete-confirm-modal" id="deleteDocumentConfirmModal" tabindex="-1"
+         aria-labelledby="deleteDocumentConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteDocumentConfirmModalLabel">Permanently Delete Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">
+                        You are about to permanently delete
+                        <strong id="deleteDocumentIdentifier">this document</strong>.
+                    </p>
+                    <div class="danger-zone">
+                        <p><strong>This action cannot be undone.</strong> Once deleted, the document cannot be recovered.</p>
+                    </div>
+                    <div class="mt-3">
+                        <label for="deleteDocumentConfirmInput" class="form-label">
+                            To confirm, type <strong>delete</strong> below:
+                        </label>
+                        <input type="text" class="form-control" id="deleteDocumentConfirmInput"
+                               placeholder="Type 'delete' to enable the button" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="alert d-none mt-3" id="deleteDocumentResultAlert" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-permanent-delete" id="confirmDeleteDocumentBtn" disabled>
+                        Permanently Delete
+                    </button>
                 </div>
             </div>
         </div>
@@ -320,7 +364,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-documents.js?v=1"></script>
+    <script src="js/registrar-documents.js?v=2"></script>
 </body>
 
 </html>
