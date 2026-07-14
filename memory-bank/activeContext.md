@@ -1,10 +1,98 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Document Management module (R3.1–R3.7) + TOR/Form IX generation implemented — awaiting browser smoke test + PR**
+**Generate Document page polish (searchable student picker) + student-records cleanup — awaiting PR**
 
 ## Active Branch
-`feature/document-management`
+`fix/generate-document-student-picker`
+
+## Latest Session (2026-07-14 PM - Student Picker Dropdown + "Failed to load" Diagnosis + Record Cleanup)
+
+### Scope
+Three user requests on the Generate Document page and data: (1) replace the native
+`<datalist>` student list (ugly floating browser list) with a proper searchable dropdown;
+(2) diagnose "Failed to load student data" on Load; (3) delete duplicate / incomplete
+student records from the live DB.
+
+### 1. "Failed to load student data" - root cause: stale server build, not a bug
+`GET /api/registrar/documents/generate-data/SR20260016` returns **HTTP 200 with full
+auto-fill payload** on the current build (verified via curl + headless browser). The
+fallback alert text only appears when the error response has no JSON `message` - i.e. a
+404 from a server still running a **pre-PR-#49 build** without the document endpoints.
+Requirements to generate: the student ID must exist in `student_records`; everything else
+(course, section, grades, TESDA, OJT, parents) is optional and simply left blank.
+**Operator note: restart `./gradlew bootRun` after pulling document-management.**
+Hardened `ajaxErrorMessage()` in the JS so 0/401/404/other statuses now produce
+distinguishable messages instead of one generic string.
+
+### 2. Searchable student dropdown (combobox)
+- `generate-document.html`: replaced `<input list>` + `<datalist>` with a
+  `#studentPicker` wrapper — text input (`role="combobox"`) + Bootstrap `.dropdown-menu`
+  (`#studentPickerMenu`, 300px scroll). JS cache-buster `?v=1` → `?v=2`.
+- `registrar-generate-document.js`: `loadStudentsDatalist()` → `setupStudentPicker()`.
+  Opens on focus, filters as you type (matches ID + last/first name, case-insensitive),
+  ArrowUp/Down + Enter keyboard nav, Escape/Tab/outside-click closes, mouse select.
+  Shows "Loading students…" until the AJAX list arrives and re-renders when it does
+  (race found by headless-browser test: menu rendered empty if focused before load).
+- `resolveStudentId()`: exact ID match wins; else a query matching exactly one student
+  resolves to it; else friendly "No student matches" alert (no wasted request).
+
+### 3. Student record cleanup (live DB)
+Backup taken to scratchpad first. Deleted via the app's own
+`DELETE /api/registrar/student-records/{recordId}` (cascade-safe + `system_logs` rows):
+- SR20260009 Wong, Angelica — duplicate of SR20260008 (same name/initial), all-NULL Enrolling stub
+- SR20260010 Avellaneda, SR20260011 "Mark Mark", SR20260017 "test125" — abandoned all-NULL Enrolling stubs, zero child rows
+**Left in place (flagged, user to decide):** SR20260005 (dwd, wdw), SR20260007 (dwadwa,
+dwadad — has grade data), SR20260013 (fff, fff) — fake-name test fixtures but Active with
+sections. 10 records remain.
+
+### Verified
+- Headless Edge (playwright-core) E2E: 10/10 checks pass — login → picker opens on focus
+  (10 students) → filter "lipata" → keyboard select → TOR renders auto-filled ("Lipata")
+  → mouse select → unknown-text friendly error.
+- `./gradlew test` → **200 tests, 0 failures, 0 errors** (unchanged baseline; frontend-only).
+
+### Open Items
+- PR to `main` (user approval required).
+- User decision: delete the 3 remaining fake-name Active test records?
+
+---
+
+## Previous Session (2026-07-14 - Live DB vs schema.sql Comparison and Sync)
+
+### Scope
+Compare the live AnihanSRMS MySQL database against src/main/sql/schema.sql, find any
+discrepancies, and update the live DB so it works with the latest project schema.
+User explicitly kept work on main (DB-only, no branch switch).
+
+### Method
+- Backed up the live DB first -> src/main/sql/backup-2026-07-14.sql (58 KB).
+- Built a throwaway schema_check DB from schema.sql (stripped its hard-coded
+  CREATE DATABASE / USE AnihanSRMS so it did not redirect into the live DB), dumped
+  --no-data structures of both, normalized (dropped AUTO_INCREMENT counters + comments),
+  and diffed.
+
+### Findings - ZERO functional drift
+Diff showed only cosmetic differences, all verified non-functional:
+1. grades columns appear in a different physical ORDER in the dump. Sorted
+   column-by-column, live and schema.sql are byte-identical (every name, type,
+   nullability, default matches). Column order is irrelevant to SQL and to Hibernate.
+2. grades class FK: live name fk_grades_class vs schema.sql auto-name grades_ibfk_3 -
+   same relationship (class_id -> classes ON DELETE SET NULL), name only.
+3. users unique key: live uq_username vs schema.sql username - same UNIQUE, name only.
+- Data: courses holds all 3 (CARS, BPRO, FSERV). Live is the real working DB (14 students,
+  6 classes, 264 log rows), so schema.sql's fresh-install seed blocks were NOT re-applied.
+
+### Verification
+- ddl-auto=validate boot against live MySQL -> PASS (Started in 11.256s, all 19 entities
+  validated, zero HHH schema-validation errors). Authoritative check; Gradle suite runs on
+  H2 and cannot catch live drift.
+- FK integrity sweep -> 0 orphans (grades->classes, class_enrollments->classes,
+  subjects->users trainer, classes->users trainer).
+
+### Outcome
+No update to the live database was required - it already matches schema.sql. Only
+filesystem change: the new backup file (untracked).
 
 ## Latest Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
 

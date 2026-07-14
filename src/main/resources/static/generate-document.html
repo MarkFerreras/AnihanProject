@@ -109,9 +109,14 @@
                     <div class="row g-3 align-items-end generate-controls">
                         <div class="col-md-3">
                             <label for="generateStudentId" class="form-label">Student <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="generateStudentId" list="studentsDatalist"
-                                   placeholder="Type a student ID" autocomplete="off">
-                            <datalist id="studentsDatalist"></datalist>
+                            <div class="position-relative" id="studentPicker">
+                                <input type="text" class="form-control" id="generateStudentId"
+                                       placeholder="Select or search a student" autocomplete="off"
+                                       role="combobox" aria-expanded="false" aria-controls="studentPickerMenu"
+                                       aria-autocomplete="list">
+                                <div class="dropdown-menu w-100 shadow-sm" id="studentPickerMenu" role="listbox"
+                                     style="max-height: 300px; overflow-y: auto;"></div>
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <label for="generateTemplate" class="form-label">Template <span class="text-danger">*</span></label>
@@ -242,7 +247,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
     <script src="js/curriculum-templates.js?v=1"></script>
-    <script src="js/registrar-generate-document.js?v=1"></script>
+    <script src="js/registrar-generate-document.js?v=2"></script>
 </body>
 
 </html>

@@ -1,5 +1,94 @@
 # Change Log - Anihan SRMS
 
+## 2026-07-14 PM - Generate-Document Student Picker + Load-Failure Diagnosis + Record Cleanup
+**Branch:** `fix/generate-document-student-picker`
+
+### Task
+(1) Replace the native `<datalist>` student list on the Generate Document page with a
+dropdown that can also be typed into to search; (2) explain the "Failed to load student
+data" error and the requirements for generating a document; (3) clean up duplicate and
+incomplete student records in the live database.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/generate-document.html` | `<input list>` + `<datalist id="studentsDatalist">` replaced with `#studentPicker` combobox (input `role="combobox"` + Bootstrap `.dropdown-menu` `#studentPickerMenu`, 300px scrollable). JS cache-buster `?v=1` → `?v=2`. |
+| `static/js/registrar-generate-document.js` | `loadStudentsDatalist()` → `setupStudentPicker()` (open on focus, live filter on ID/last/first name, ArrowUp/Down + Enter + Escape keyboard nav, mouse select, outside-click close, "Loading students…" placeholder + re-render when the student list arrives). New `resolveStudentId()` (exact-ID match, else unique search match, else friendly alert). New `ajaxErrorMessage()` used by load + save error paths: prefers server JSON message, else distinguishes network (status 0), 401 session-expired, 404 stale-build, and other HTTP statuses. |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Diagnosis - "Failed to load student data"
+The endpoint works: `GET /api/registrar/documents/generate-data/SR20260016` → HTTP 200
+with the full auto-fill payload (student, parents, education, TESDA, OJT, grades). The
+only hard requirement is that the student ID exists in `student_records`; missing
+course/section/grades just render as editable blanks. The generic alert appears only when
+the error response carries no JSON `message` — a 404 from a server still running a build
+that predates the document-management merge (PR #49). Fix for operators: restart the app
+after pulling. The hardened error handler now names that condition explicitly.
+
+### Database Changes (live `AnihanSRMS`, backup taken first)
+Deleted 4 student records via `DELETE /api/registrar/student-records/{recordId}`
+(cascade-safe service path; each write logged to `system_logs`):
+| Record | Reason |
+|--------|--------|
+| SR20260009 Wong, Angelica | Duplicate of SR20260008 (same name + middle initial); all-NULL `Enrolling` stub |
+| SR20260010 Avellaneda, Keith | Abandoned `Enrolling` stub — no birthdate/sex/contact/batch/course/section, zero child rows |
+| SR20260011 Mark, Mark | Same |
+| SR20260017 test125, test125 | Same |
+
+Left in place pending user decision: SR20260005 (dwd, wdw), SR20260007 (dwadwa, dwadad —
+has grade data), SR20260013 (fff, fff) — fake-name test fixtures but `Active` with sections.
+
+### Verification
+- Headless Edge E2E (playwright-core driving system Edge): 10/10 checks pass — login,
+  picker opens on focus (10 students), filter "lipata" → 1 match, keyboard select fills
+  SR20260016, TOR renders with auto-filled data, mouse select works, unknown text shows
+  friendly error. The E2E run caught and led to fixing a focus-before-load race.
+- `./gradlew test` → **200 tests, 0 failures, 0 errors** (frontend-only change).
+
+---
+
+## 2026-07-14 - Live DB vs schema.sql Comparison and Sync
+**Branch:** `main` (user explicitly kept work on main - DB-only task)
+
+### Task
+Compare the live `AnihanSRMS` MySQL database against `src/main/sql/schema.sql`, find any
+discrepancies, and update the live DB so it works with the latest project schema.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/backup-2026-07-14.sql` | New full `mysqldump` backup taken before any inspection (untracked). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+No application code, entity, or SQL source file was changed. **No change was applied to the
+live database** - it already matched `schema.sql`.
+
+### Comparison Result - no functional drift
+Built a throwaway `schema_check` DB from `schema.sql`, dumped `--no-data` structures of both,
+normalized (stripped `AUTO_INCREMENT=` + comments), and diffed. Only cosmetic differences,
+all verified non-functional:
+- **`grades` column order** differs in the raw dump; sorted column-by-column the two are
+  byte-identical (name/type/nullability/default all match). Order is irrelevant to SQL/Hibernate.
+- **`grades` class FK name:** live `fk_grades_class` vs schema.sql auto-name `grades_ibfk_3` -
+  same `class_id -> classes ON DELETE SET NULL` relationship, name only.
+- **`users` unique key name:** live `uq_username` vs schema.sql `username` - same UNIQUE, name only.
+- **`courses`** already holds `CARS`, `BPRO`, `FSERV` (the 2026-07-09 seed gap remains closed).
+
+### Compatibility Verification
+- **`ddl-auto=validate` boot against live MySQL -> PASS** (`Started SpringbootApplication in
+  11.256s`, all 19 entities validated, zero `HHH` schema-validation errors). Authoritative check;
+  the Gradle test suite runs on in-memory H2 and cannot detect live-DB drift.
+- FK integrity sweep -> 0 orphaned rows across `grades`, `class_enrollments`, `subjects`,
+  `classes`.
+- Live schema unchanged (19 tables). Throwaway `schema_check` DB dropped afterward.
+
+### Note - schema.sql seed blocks intentionally not re-applied
+Live is the real working DB (14 students, 6 classes, 264 `system_logs` rows). `schema.sql`'s
+fresh-install seeds (3 test accounts, 5 sample students) were deliberately skipped - re-running
+them would duplicate/corrupt live data (the load also errored on a duplicate `admin` username,
+confirming the guard).
+
+
 ## 2026-07-09 - Document Management (R3.1–R3.7) + TOR/Form IX Generation
 **Branch:** `feature/document-management`
 
