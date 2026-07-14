@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -87,20 +88,37 @@ public class DocumentController {
     @GetMapping("/{documentId}/download")
     public ResponseEntity<byte[]> download(@PathVariable Integer documentId,
                                            HttpServletRequest httpRequest) {
-        Document document = documentService.getDocument(documentId);
+        DocumentService.DownloadPayload payload = documentService.prepareDownload(documentId);
+        Document document = payload.document();
 
         LogContext ctx = getLogContext();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Downloaded document '" + document.getFileName() + "' (" + document.getDocumentType()
+                "Downloaded document '" + payload.fileName() + "' (" + document.getDocumentType()
                         + ") of student " + document.getStudent().getStudentId(),
                 httpRequest.getRemoteAddr());
 
-        return fileResponse(document, false);
+        return fileResponse(payload.fileName(), payload.contentType(), payload.content(), false);
     }
 
     @GetMapping("/{documentId}/view")
     public ResponseEntity<byte[]> view(@PathVariable Integer documentId) {
-        return fileResponse(documentService.getDocument(documentId), true);
+        Document document = documentService.getDocument(documentId);
+        return fileResponse(document.getFileName(), document.getFileType(),
+                document.getContentData(), true);
+    }
+
+    @DeleteMapping("/{documentId}")
+    public ResponseEntity<Void> delete(@PathVariable Integer documentId,
+                                       HttpServletRequest httpRequest) {
+        DocumentSummaryResponse deleted = documentService.delete(documentId);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Deleted document '" + deleted.fileName() + "' (" + deleted.documentType()
+                        + ") of student " + deleted.studentId(),
+                httpRequest.getRemoteAddr());
+
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/generate-data/{studentId}")
@@ -114,27 +132,30 @@ public class DocumentController {
             HttpServletRequest httpRequest
     ) {
         DocumentSummaryResponse saved = documentService.saveGenerated(
-                request.studentId(), request.documentType(), request.fileName(), request.html());
+                request.studentId(), request.documentType(), request.fileName(),
+                request.html(), request.documentId());
 
+        String action = request.documentId() == null ? "Generated" : "Updated generated";
         LogContext ctx = getLogContext();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Generated document '" + saved.fileName() + "' (" + saved.documentType()
+                action + " document '" + saved.fileName() + "' (" + saved.documentType()
                         + ") for student " + saved.studentId(),
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    private ResponseEntity<byte[]> fileResponse(Document document, boolean inline) {
+    private ResponseEntity<byte[]> fileResponse(String fileName, String contentType,
+                                                byte[] content, boolean inline) {
         ContentDisposition disposition = (inline
                 ? ContentDisposition.inline()
                 : ContentDisposition.attachment())
-                .filename(document.getFileName())
+                .filename(fileName)
                 .build();
 
         MediaType mediaType;
         try {
-            mediaType = MediaType.parseMediaType(document.getFileType());
+            mediaType = MediaType.parseMediaType(contentType);
         } catch (Exception e) {
             mediaType = MediaType.APPLICATION_OCTET_STREAM;
         }
@@ -142,7 +163,7 @@ public class DocumentController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .contentType(mediaType)
-                .body(document.getContentData());
+                .body(content);
     }
 
     private LogContext getLogContext() {
