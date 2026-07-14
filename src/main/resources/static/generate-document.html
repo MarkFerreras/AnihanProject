@@ -19,7 +19,9 @@
         /* dashboard.css clips surface-card children (overflow: hidden, for the rounded
            corners); the student picker menu must overflow the card, so relax it here. */
         .generate-document-page .surface-card { overflow: visible; }
-        #studentPickerMenu { z-index: 1050; min-width: max-content; }
+        /* Cap the open list at 5 rows (5 x 2.5rem items + 1rem menu padding); the rest scrolls. */
+        #studentPickerMenu { z-index: 1050; min-width: max-content; max-height: 13.5rem; overflow-y: auto; }
+        #studentPickerMenu .dropdown-item { height: 2.5rem; display: flex; align-items: center; gap: 0.3rem; }
     </style>
 </head>
 
@@ -118,8 +120,7 @@
                                        placeholder="Select or search a student" autocomplete="off"
                                        role="combobox" aria-expanded="false" aria-controls="studentPickerMenu"
                                        aria-autocomplete="list">
-                                <div class="dropdown-menu w-100 shadow-sm" id="studentPickerMenu" role="listbox"
-                                     style="max-height: 300px; overflow-y: auto;"></div>
+                                <div class="dropdown-menu w-100 shadow-sm" id="studentPickerMenu" role="listbox"></div>
                             </div>
                         </div>
                         <div class="col-md-4">
