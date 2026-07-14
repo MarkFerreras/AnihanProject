@@ -4,6 +4,30 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-07-14 - Generated-Document DOCX via Server-Side OOXML altChunk
+
+**Decision:** Generated `text/html` documents download as .docx built by `HtmlDocxConverter`:
+a minimal OOXML package (pure `java.util.zip`) whose `document.xml` references the stored
+HTML as an altChunk; Word converts it to editable content on open. Uploaded pdf/docx/xlsx
+keep their original bytes. Rejected alternative: vendoring `html-docx-js` (~70KB unaudited
+JS doing the same altChunk trick client-side, with identical fidelity limits).
+
+**Why:** Zero new dependencies on an air-gapped system, server-side and unit-testable, and
+the stored HTML is already self-contained. Known trade-off: Word's HTML import linearizes
+flex rows, so the docx is editable but not pixel-identical to the printed PDF.
+
+## 2026-07-14 - Edit of a Generated Document Updates the Row In Place
+
+**Decision:** `POST /generate` with an optional `documentId` updates the existing
+`documents` row (same PK) instead of inserting a new copy. Guards: the document must
+belong to the submitted studentId AND must be `text/html` — uploaded files can never be
+overwritten through this path. Deletes are hard deletes via
+`DELETE /api/registrar/documents/{id}`; only `system_logs` is append-only.
+
+**Why:** Re-saving after an edit must not accumulate duplicate rows with the same
+filename; the audit trail lives in `system_logs` ("Updated generated document…",
+"Deleted document…"), not in row copies.
+
 ## 2026-05-09 - Generic 500 Body, Internals via SLF4J Only
 
 **Decision:** `GlobalExceptionHandler`'s catch-all `Exception` handler returns `"An unexpected error occurred. Please contact the administrator."` with HTTP 500. The exception class name, message, and stack trace are written via `log.error("Unhandled exception", ex)` — never serialized to the response body. A new `DataIntegrityViolationException` handler returns HTTP 409 with a generic conflict message.

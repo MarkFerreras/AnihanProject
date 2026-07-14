@@ -1,5 +1,61 @@
 # Change Log - Anihan SRMS
 
+## 2026-07-14 PM #2 - Document Management Polish: Print, Logo, Filenames, DOCX, Delete/Edit
+**Branch:** `fix/generate-document-student-picker`
+
+### Task
+Six approved polish items on the Document Management module: (1) print formatting —
+no grey backdrop/chrome, 1-page templates print as exactly 1 page; (2) school logo in
+the generated document header; (3) auto PDF/download filenames
+"{ShortType}-{LastName} {FirstName}"; (4) documents.html Actions column fit; (5)
+generated HTML documents download as editable Word .docx; (6) DELETE endpoint +
+type-to-confirm modal, view-modal Edit that re-opens a saved document for re-editing,
+generate-page Cancel + post-save redirect.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `service/HtmlDocxConverter.java` | Wraps stored self-contained HTML into a minimal OOXML package whose document.xml references the HTML as an altChunk — Word converts it to editable content on open. Pure `java.util.zip`, no new dependency, air-gap safe. A4 sectPr matches the print CSS margins. |
+| `static/js/anihan-logo.js` | `window.AnihanLogo.DATA_URI` — base64 data URI of images/logo.png (17KB) so generated/saved documents stay fully self-contained. |
+| `test/.../HtmlDocxConverterTest.java` | 4 tests: OOXML parts present, original bytes preserved as the chunk part, altChunk references wired, empty-content rejection. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `service/DocumentService.java` | New `delete(id)` (fetch → summary → delete, 404 via `NoSuchElementException`); new `prepareDownload(id)` + `DownloadPayload` record — `text/html` documents convert to docx named "{ShortType}-{Last} {First}.docx" (`TYPE_SHORT_NAMES` mirrors curriculum-templates.js; blank-name fallback to studentId), uploads pass through unchanged; `saveGenerated` gained a 5-arg overload with `documentId` for update-in-place, guarded by student ownership **and** text/html fileType (an API call must not overwrite an uploaded PSA scan — code-review finding). |
+| `controller/DocumentController.java` | `DELETE /{documentId}` → 204 + "Deleted document…" system_logs row; download uses `prepareDownload` and logs the delivered filename; `generate` passes `documentId` and logs "Updated generated document…" on edits; `fileResponse` refactored to (name, type, bytes, inline). |
+| `dto/registrar/GenerateDocumentRequest.java` | Optional `Integer documentId` (null = create, present = update in place). |
+| `css/document-print.css` | Header now flex with `.doc-school-logo` (62px). Print rules rewritten: white body, chrome hidden, no sheet shadow, `body { display:block; min-height:0 }` (**root cause of the page-2 spill: Chromium cannot fragment flex items**), tighter margins/fonts, `page-break-inside: avoid` on table rows/signatories/certification/footer, `@page 9mm 11mm`. |
+| `static/js/registrar-generate-document.js` | Logo in `SCHOOL_HEADER` (guarded `LOGO_URI` — degrades logo-less if the script fails); `printDocument()` swaps `document.title` to the sanitized filename around `window.print()` (afterprint + 2s fallback restore); edit mode (`?documentId=`) fetches the saved HTML, extracts `.document-sheet`, re-arms contenteditable, locks setup controls; save passes `documentId`, redirects to documents.html on success; Cancel button handler. |
+| `static/js/registrar-documents.js` | Actions render: flex-nowrap group with View/Download/Delete (btn-sm, data-student/-type attrs); view modal shows Edit only for `text/html` docs, linking to the generate page edit mode; `setupDelete()` — type-"delete"-to-confirm modal flow, DELETE call, table refresh. |
+| `static/documents.html` | Page-scoped `.document-actions .btn` size fix (dashboard.css `.btn-surface` padding overrides Bootstrap `.btn-sm`); `#viewDocumentEditBtn`; `#deleteDocumentConfirmModal` (registrar.html pattern); JS `?v=2`. |
+| `static/generate-document.html` | `anihan-logo.js` include; Cancel button beside Save; JS `?v=3`. |
+| `test/.../DocumentServiceTest.java` | +7 tests: delete (success/missing), prepareDownload (docx conversion + friendly name, uploads unchanged), update-in-place (success, wrong student, uploaded-file rejection). |
+| `test/.../DocumentControllerWebMvcTest.java` | +6 tests: DELETE 204+log / 404 / 403 trainer / 401 anon; docx download headers; generate-with-documentId logs "Updated generated document". |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Print Verification Result (real print-to-PDF, headless Edge `page.pdf()`)
+All four Form IX variants print as **exactly 1 page**; the TOR prints as **2 dense
+pages** — its 57 fixed subject rows measure ~1718px against ~1054px of usable A4, so
+one page is physically impossible; breaks now fall cleanly between table rows with no
+near-empty trailing page. No grey backdrop, no app chrome, logo present.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 217 tests, 0 failures, 0 errors** (was 200).
+- Playwright headless-Edge E2E **30/30**: print-media assertions, PDFs (page counts +
+  visual check of the rendered PDF), title swap/restore ("TOR-Ferreras Mark"), actions
+  contained at 1400px and 992px, docx download (zip magic + `word/afchunk.html` +
+  Content-Disposition), edit → re-save in place (marker persisted, no duplicate row),
+  cancel + post-save redirects, type-to-confirm delete removes the row.
+- `system_logs` (live MySQL): Generated / Downloaded ('TOR-Ferreras Mark.docx') /
+  Updated generated / Deleted rows present. E2E's own test document deleted itself.
+- /code-review on the diff: 3 findings (uploaded-file overwrite guard, blank-name docx
+  filename, hard `window.AnihanLogo` dereference) — all fixed with tests.
+- E2E harness note: `emulateMedia({media:'screen'})` is sticky and overrides
+  `page.pdf()`'s default print media — reset with `media: null`.
+
+---
+
 ## 2026-07-14 PM - Generate-Document Student Picker + Load-Failure Diagnosis + Record Cleanup
 **Branch:** `fix/generate-document-student-picker`
 

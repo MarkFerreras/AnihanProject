@@ -26,11 +26,12 @@
 | `ClassManagementSectionControllerWebMvcTest` | WebMvc | 7 | PUT/GET/POST/DELETE section-student endpoints, POST enroll-section — RBAC + log verify |
 | `TrainerServiceTest` | Mockito | 12 | getMyAssignedSubjects, getStudentsForSubject (not-assigned throws), getMyClasses, getStudentsForClass (ownership guard, class-not-found, null-trainer) |
 | `TrainerControllerWebMvcTest` | WebMvc | 9 | All 4 GET endpoints — 200 happy path, 403 non-trainer, 401 anonymous, 400 on service throws |
-| `DocumentServiceTest` | Mockito | 10 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document |
+| `DocumentServiceTest` | Mockito | 17 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document, delete (success/missing), prepareDownload (html→docx + friendly name, uploads unchanged), update-in-place (success / wrong student / uploaded-file rejected) |
 | `DocumentGenerationServiceTest` | Mockito | 3 | Aggregated generate-data payload, null OJT, missing student throws |
-| `DocumentControllerWebMvcTest` | WebMvc | 11 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, view inline no-log, generate 201+log, blank-fields 400, generate-data |
+| `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
+| `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **200 tests, 0 failures, 0 errors** (July 9, 2026, after Document Management R3.1–R3.7 session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **217 tests, 0 failures, 0 errors** (July 14, 2026, after Document Management polish session).
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 

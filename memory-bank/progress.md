@@ -2,6 +2,31 @@
 
 ## Recent Sessions (detail)
 
+### Document Management Polish: Print/Logo/Filename, DOCX, Delete/Edit (Completed - July 14, 2026 PM #2)
+- **Task:** Six approved items on documents.html + generate-document.html: print formatting
+  (no grey backdrop, 1-page fit), embedded school logo, auto PDF/download filenames,
+  Actions column fit, DOCX download for generated docs, and Delete/Edit/Cancel flows.
+- **Backend:** `HtmlDocxConverter` (OOXML altChunk via `java.util.zip` — no new deps;
+  generated `text/html` docs download as editable Word .docx named
+  "{ShortType}-{Last} {First}.docx"; uploads unchanged). `DocumentService.delete()` +
+  `DELETE /api/registrar/documents/{id}` (204 + system_logs, 404 JSON). `saveGenerated`
+  5-arg overload updates an existing generated doc in place (`GenerateDocumentRequest.documentId`);
+  guarded by ownership + text/html-only (review finding — prevents overwriting uploads).
+- **Frontend:** print CSS rewritten (white body, no shadow/chrome, `body{display:block}` in
+  print — Chromium can't fragment flex, which caused the page-2 spill; row-level break-avoid);
+  logo embedded via `js/anihan-logo.js` data URI (self-contained saved docs);
+  `document.title` swap around `window.print()` for the save-as-PDF name; Actions column
+  flex-nowrap btn-sm group + page-scoped size fix; delete type-to-confirm modal; view-modal
+  Edit button (text/html only) → generate page edit mode (locks setup, re-arms
+  contenteditable, re-save in place); Cancel button + post-save redirect to documents.html.
+  Cache-busters: registrar-documents `?v=2`, registrar-generate-document `?v=3`.
+- **Verified:** `./gradlew test` → **217 tests, 0 failures** (+17). Playwright headless-Edge
+  E2E **30/30** incl. real `page.pdf()`: Form IX ×4 exactly 1 page, TOR 2 dense pages
+  (content physically exceeds one A4), no chrome in PDFs, docx zip+altChunk verified,
+  system_logs rows (Deleted/Updated/Downloaded/Generated) confirmed in live MySQL.
+  /code-review: 3 findings, all fixed + tested.
+- **Branch:** `fix/generate-document-student-picker`. Open: PR to main.
+
 ### Generate-Document Student Picker + Diagnosis + Record Cleanup (Completed - July 14, 2026 PM)
 - **Task:** (1) Replace the `<datalist>` student list on `generate-document.html` with a
   searchable dropdown; (2) diagnose "Failed to load student data"; (3) delete duplicate /

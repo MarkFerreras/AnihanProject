@@ -1,12 +1,72 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Generate Document page polish (searchable student picker) + student-records cleanup — awaiting PR**
+**Document Management polish (print/logo/filename, DOCX download, delete/edit flows) — awaiting PR**
 
 ## Active Branch
 `fix/generate-document-student-picker`
 
-## Latest Session (2026-07-14 PM - Student Picker Dropdown + "Failed to load" Diagnosis + Record Cleanup)
+## Latest Session (2026-07-14 PM #2 - Document Management Polish: Print, Logo, DOCX, Delete/Edit)
+
+### Scope
+Six approved tasks on documents.html + generate-document.html: (1) print formatting
+(no grey backdrop/chrome, 1-page templates print as 1 page); (2) school logo embedded
+in the generated header; (3) auto PDF/download filenames "{ShortType}-{Last} {First}";
+(4) Actions column fit; (5) generated HTML downloads as editable Word .docx;
+(6) DELETE endpoint + type-to-confirm modal, view-modal Edit (re-save in place),
+generate-page Cancel + post-save redirect.
+
+### Key Decisions
+- **DOCX via OOXML altChunk, server-side** (`HtmlDocxConverter`, pure `java.util.zip`,
+  no new dependency, air-gap safe): a minimal docx package embeds the stored HTML as an
+  altChunk that Word converts to editable content on open. Chosen over vendoring
+  html-docx-js (same fidelity, +70KB unaudited JS). Uploaded pdf/docx/xlsx download
+  unchanged; only `text/html` documents convert. Friendly filename via
+  `TYPE_SHORT_NAMES` map (mirrors curriculum-templates.js shortName).
+- **Edit re-saves update the existing row in place** (`saveGenerated` 5-arg overload with
+  `documentId`; `GenerateDocumentRequest.documentId` nullable). Guards: ownership
+  (studentId match) AND fileType must be text/html (code review caught that an API call
+  could otherwise overwrite an uploaded PSA scan with HTML).
+- **Print fix root causes**: grey backdrop = body background + sheet box-shadow not reset
+  in `@media print`; page spill = Chromium cannot fragment flex items — body stays
+  `display:flex` in print, so sheets jumped to page 2. Print CSS now forces
+  `body { display:block; min-height:0 }` + white bg + tighter metrics + row-level
+  `page-break-inside: avoid`. **Form IX variants = exactly 1 page; TOR = 2 dense pages**
+  (57 subject rows ≈ 1718px vs ~1054px/page capacity — physically cannot fit 1 page).
+- Logo shipped as `static/js/anihan-logo.js` (`window.AnihanLogo.DATA_URI`, base64 of
+  images/logo.png, 17KB) so saved documents stay self-contained; generator degrades to
+  logo-less header if the script fails to load.
+- Print filename: `document.title` swapped to sanitized "{shortName}-{Last} {First}"
+  around `window.print()`, restored on afterprint + 2s fallback.
+
+### New/Changed Endpoints
+`DELETE /api/registrar/documents/{id}` (204, logs "Deleted document…", 404 JSON when
+missing) · `GET /{id}/download` now converts text/html→docx with friendly filename
+(logs delivered name) · `POST /generate` accepts optional `documentId` → update in
+place, logs "Updated generated document…".
+
+### Verified
+- `./gradlew test` → **217 tests, 0 failures** (was 200; +17).
+- Headless-Edge Playwright E2E **30/30**: real `page.pdf()` (Form IX ×4 = 1 page,
+  TOR = 2; no chrome in PDF), logo data-URI, title swap/restore, actions contained
+  @1400/@992px, docx download (zip + altChunk + filename), edit re-arms contenteditable
+  + updates in place (no duplicate row), cancel + post-save redirects, delete
+  type-to-confirm removes row. `system_logs` rows confirmed in live MySQL
+  (Generated/Downloaded/Updated/Deleted).
+- E2E harness gotcha (documented for next time): a sticky
+  `emulateMedia({media:'screen'})` overrides `page.pdf()`'s print media — clear with
+  `media: null` or PDFs render with screen CSS.
+- /code-review: 3 findings (uploaded-file overwrite guard, blank-name docx filename
+  fallback, hard logo dereference) — all fixed + tested.
+
+### Open Items
+- PR to `main` (user approval required).
+- Fidelity note: Word's HTML import linearizes flex rows (`doc-field-row`) — docx opens
+  editable but not pixel-identical to print; tables/underlines survive.
+
+---
+
+## Previous Session (2026-07-14 PM - Student Picker Dropdown + "Failed to load" Diagnosis + Record Cleanup)
 
 ### Scope
 Three user requests on the Generate Document page and data: (1) replace the native
