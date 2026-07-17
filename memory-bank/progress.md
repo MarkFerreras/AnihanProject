@@ -2,6 +2,69 @@
 
 ## Recent Sessions (detail)
 
+### Document Management Polish: Print/Logo/Filename, DOCX, Delete/Edit (Completed - July 14, 2026 PM #2)
+- **Task:** Six approved items on documents.html + generate-document.html: print formatting
+  (no grey backdrop, 1-page fit), embedded school logo, auto PDF/download filenames,
+  Actions column fit, DOCX download for generated docs, and Delete/Edit/Cancel flows.
+- **Backend:** `HtmlDocxConverter` (OOXML altChunk via `java.util.zip` — no new deps;
+  generated `text/html` docs download as editable Word .docx named
+  "{ShortType}-{Last} {First}.docx"; uploads unchanged). `DocumentService.delete()` +
+  `DELETE /api/registrar/documents/{id}` (204 + system_logs, 404 JSON). `saveGenerated`
+  5-arg overload updates an existing generated doc in place (`GenerateDocumentRequest.documentId`);
+  guarded by ownership + text/html-only (review finding — prevents overwriting uploads).
+- **Frontend:** print CSS rewritten (white body, no shadow/chrome, `body{display:block}` in
+  print — Chromium can't fragment flex, which caused the page-2 spill; row-level break-avoid);
+  logo embedded via `js/anihan-logo.js` data URI (self-contained saved docs);
+  `document.title` swap around `window.print()` for the save-as-PDF name; Actions column
+  flex-nowrap btn-sm group + page-scoped size fix; delete type-to-confirm modal; view-modal
+  Edit button (text/html only) → generate page edit mode (locks setup, re-arms
+  contenteditable, re-save in place); Cancel button + post-save redirect to documents.html.
+  Cache-busters: registrar-documents `?v=2`, registrar-generate-document `?v=3`.
+- **Verified:** `./gradlew test` → **217 tests, 0 failures** (+17). Playwright headless-Edge
+  E2E **30/30** incl. real `page.pdf()`: Form IX ×4 exactly 1 page, TOR 2 dense pages
+  (content physically exceeds one A4), no chrome in PDFs, docx zip+altChunk verified,
+  system_logs rows (Deleted/Updated/Downloaded/Generated) confirmed in live MySQL.
+  /code-review: 3 findings, all fixed + tested.
+- **Branch:** `fix/generate-document-student-picker`. Open: PR to main.
+
+### Generate-Document Student Picker + Diagnosis + Record Cleanup (Completed - July 14, 2026 PM)
+- **Task:** (1) Replace the `<datalist>` student list on `generate-document.html` with a
+  searchable dropdown; (2) diagnose "Failed to load student data"; (3) delete duplicate /
+  incomplete student records.
+- **Diagnosis:** Not a code bug — `generate-data/{studentId}` returns 200 with full auto-fill
+  on the current build. The generic alert only appears when the error body has no JSON
+  `message`, i.e. a 404 from a server running a pre-PR-#49 build. Only requirement to
+  generate: the student ID exists; all other data is optional (blanks left editable).
+  JS error handler hardened to surface status-specific messages (0/401/404/other).
+- **Picker:** custom Bootstrap combobox — opens on focus, filters by ID or name, keyboard
+  nav (arrows/Enter/Escape), mouse select, "Loading students…" state (fixed a
+  focus-before-load race found by the browser test). `resolveStudentId()` maps a
+  unique name/ID query to the student. Cache-buster `?v=2`.
+- **Cleanup:** deleted SR20260009 (duplicate of SR20260008 Wong, Angelica) + SR20260010,
+  SR20260011, SR20260017 (all-NULL Enrolling stubs, zero child rows) via the app's DELETE
+  endpoint — cascade-safe, all 4 logged in `system_logs`. DB backed up first. Fake-name but
+  Active fixtures SR20260005/07/13 left for user decision (SR20260007 has grade data).
+- **Verified:** headless-Edge E2E 10/10 pass (login → picker → filter → keyboard/mouse
+  select → TOR auto-filled render → friendly no-match error). `./gradlew test` → 200 tests,
+  0 failures.
+- **Branch:** `fix/generate-document-student-picker`. Open: PR to main.
+
+### Live DB vs schema.sql Comparison and Sync (Completed - July 14, 2026)
+- **Task:** Compare the live `AnihanSRMS` database against `src/main/sql/schema.sql`, find any
+  discrepancies, and update the live DB to work with the latest project schema. User kept work
+  on `main` (DB-only task, no branch switch).
+- **Method:** Backed up live DB (`src/main/sql/backup-2026-07-14.sql`), built a throwaway
+  `schema_check` DB from `schema.sql`, diffed `--no-data` structures (normalized).
+- **Result - no functional drift:** The only diffs were cosmetic - `grades` column order in the
+  dump (sorted, the two are byte-identical), the `grades` class FK name (`fk_grades_class` live
+  vs auto `grades_ibfk_3`), and the `users` unique-key name (`uq_username` vs `username`). All
+  three are the same relationship/constraint under a different name; none affect the app.
+- **Compatibility:** `ddl-auto=validate` boot against live MySQL -> **PASS** (11.256s, all 19
+  entities validated, zero schema-validation errors). FK integrity sweep -> 0 orphans.
+- **Outcome:** No update to the live database was required - it already matches `schema.sql`.
+  `courses` still holds all 3 seeds; live data (14 students, 6 classes) left untouched.
+- **Branch:** `main`.
+
 ### Document Management R3.1–R3.7 + Template Generation (Completed — July 9, 2026)
 - **Task:** Implement Jira AGILE-75…81 (upload / type / name / view / search / filter / download of student documents) plus auto-filled, editable, print-ready generation of the 4 templates in `document-templates/` (TOR + Form IX ×3). Plan at `docs/superpowers/plans/2026-07-09-document-management-r3.md`; requirements pulled live from the AGILE Jira board.
 - **Backend:** `DocumentRepository` (BLOB-free JPQL projection with LEFT JOINs for optional batch/section filters), `DocumentService` (upload with pdf/docx/xlsx + 10MB whitelist, generated-HTML save, type list), `DocumentGenerationService` (aggregated auto-fill payload from record/parents/education/TESDA/OJT/grades), `DocumentController` under `/api/registrar/documents` — upload/download/generate write `system_logs`. `MaxUploadSizeExceededException` handler added (400). No DB migration — `documents` table/entity already existed.

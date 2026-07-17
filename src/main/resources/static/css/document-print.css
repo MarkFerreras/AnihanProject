@@ -23,8 +23,18 @@
 
 /* ----- School header ----- */
 .doc-school-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
     text-align: center;
     margin-bottom: 14px;
+}
+
+.doc-school-logo {
+    flex: 0 0 auto;
+    width: 62px;
+    height: auto;
 }
 
 .doc-school-name {
@@ -287,25 +297,62 @@
 /* ----- Print rules ----- */
 @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 9mm 11mm;
 }
 
 @media print {
+    /* Only the white document content prints — no grey app backdrop, no chrome.
+       body must not stay a flex container: Chromium cannot fragment flex items
+       across pages, which pushed whole documents onto a second page. */
+    html,
+    body {
+        display: block !important;
+        min-height: 0 !important;
+        height: auto !important;
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     body.generate-document-page > *:not(#documentArea) {
         display: none !important;
     }
 
     #documentArea {
-        margin: 0;
-        padding: 0;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     .document-sheet {
         width: 100%;
         padding: 0;
+        box-shadow: none !important;
+        font-size: 10px;
+        line-height: 1.25;
     }
 
     .fill[contenteditable="true"] {
         background: transparent !important;
+    }
+
+    /* Tighter vertical rhythm so 1-page templates stay on one page. */
+    .doc-school-header { margin-bottom: 8px; }
+    .doc-title { margin: 6px 0 8px; }
+    .doc-grading-wrap { margin: 6px 0; }
+    .doc-certification { margin: 10px 0; }
+    .doc-signatories { margin-top: 14px; }
+    .doc-contact-footer { margin-top: 10px; }
+
+    /* No table row or trailing block may straddle a page break. */
+    .doc-subjects-table tr,
+    .doc-grading-wrap,
+    .doc-signatories,
+    .doc-certification,
+    .doc-contact-footer {
+        page-break-inside: avoid;
+    }
+
+    .doc-subjects-table thead {
+        display: table-header-group;
     }
 }

@@ -15,12 +15,25 @@
     let currentTemplateKey = null;
     let currentVariant = 'candidate';
     let cachedCss = null;
+    let allStudents = [];
+    // Edit mode: re-open a saved generated document (documents.html -> View -> Edit).
+    let editDocumentId = null;
+    let editFileName = null;
+
+    // Degrade to a logo-less header if anihan-logo.js ever fails to load —
+    // a hard dereference here would kill the whole page at parse time.
+    const LOGO_URI = (window.AnihanLogo && window.AnihanLogo.DATA_URI) || '';
 
     const SCHOOL_HEADER =
         '<div class="doc-school-header">' +
+        (LOGO_URI
+            ? '<img class="doc-school-logo" src="' + LOGO_URI + '" alt="Anihan Technical School logo">'
+            : '') +
+        '<div>' +
         '<p class="doc-school-name">Anihan Technical School</p>' +
         '<p class="doc-school-sub">(For Women-in-Development)</p>' +
         '<p class="doc-school-sub">A project of the Foundation for Professional Training, Inc. (FPTI)</p>' +
+        '</div>' +
         '</div>';
 
     const CONTACT_FOOTER =
@@ -31,16 +44,21 @@
 
     $(document).ready(function () {
         document.body.classList.add('document-toolbar-active');
-        loadStudentsDatalist();
+        setupStudentPicker();
         populateTemplateSelect();
         $('#generateTemplate').on('change', toggleVariantSelect);
         $('#loadDocumentBtn').on('click', loadDocument);
-        $('#printDocumentBtn').on('click', function () { window.print(); });
+        $('#printDocumentBtn').on('click', printDocument);
         $('#saveDocumentBtn').on('click', saveDocument);
+        $('#cancelDocumentBtn').on('click', function () {
+            window.location.href = 'documents.html';
+        });
         toggleVariantSelect();
 
         const params = new URLSearchParams(window.location.search);
-        if (params.get('studentId')) {
+        if (params.get('documentId')) {
+            enterEditMode(params);
+        } else if (params.get('studentId')) {
             $('#generateStudentId').val(params.get('studentId'));
         }
     });
@@ -58,20 +76,193 @@
         $('#formIxVariantWrap').toggleClass('d-none', !isFormIx);
     }
 
-    function loadStudentsDatalist() {
+    // -------------------------------------------------------
+    // Student picker — searchable dropdown (combobox)
+    // -------------------------------------------------------
+
+    function setupStudentPicker() {
+        const input = document.getElementById('generateStudentId');
+        const menu = document.getElementById('studentPickerMenu');
+        let activeIndex = -1;
+        let studentsLoaded = false;
+
         $.ajax({
             url: '/api/registrar/student-records',
             method: 'GET',
             success: function (students) {
-                const list = document.getElementById('studentsDatalist');
-                students.forEach(function (s) {
-                    const option = document.createElement('option');
-                    option.value = s.studentId;
-                    option.label = s.lastName + ', ' + s.firstName;
-                    list.appendChild(option);
+                allStudents = students.map(function (s) {
+                    return {
+                        studentId: s.studentId,
+                        name: joinNonBlank([s.lastName, s.firstName], ', '),
+                        search: (s.studentId + ' ' + s.lastName + ' ' + s.firstName).toLowerCase()
+                    };
                 });
+                studentsLoaded = true;
+                if (menu.classList.contains('show') || document.activeElement === input) {
+                    renderMenu();
+                }
             }
         });
+
+        function filteredStudents() {
+            const q = input.value.trim().toLowerCase();
+            if (!q) return allStudents;
+            return allStudents.filter(function (s) { return s.search.indexOf(q) >= 0; });
+        }
+
+        function renderMenu() {
+            const matches = filteredStudents();
+            activeIndex = -1;
+            if (!studentsLoaded) {
+                menu.innerHTML = '<span class="dropdown-item-text text-muted">Loading students&hellip;</span>';
+            } else if (!matches.length) {
+                menu.innerHTML = '<span class="dropdown-item-text text-muted">No matching students</span>';
+            } else {
+                menu.innerHTML = matches.map(function (s) {
+                    return '<button type="button" class="dropdown-item" role="option" data-id="' + esc(s.studentId) + '">' +
+                        '<strong>' + esc(s.studentId) + '</strong>' +
+                        '<span class="text-muted"> — ' + esc(s.name) + '</span>' +
+                        '</button>';
+                }).join('');
+            }
+            openMenu();
+        }
+
+        function openMenu() {
+            menu.classList.add('show');
+            input.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            menu.classList.remove('show');
+            input.setAttribute('aria-expanded', 'false');
+            activeIndex = -1;
+        }
+
+        function items() {
+            return menu.querySelectorAll('.dropdown-item');
+        }
+
+        function setActive(index) {
+            const els = items();
+            if (!els.length) return;
+            activeIndex = (index + els.length) % els.length;
+            els.forEach(function (el, i) { el.classList.toggle('active', i === activeIndex); });
+            els[activeIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        function select(el) {
+            input.value = el.getAttribute('data-id');
+            closeMenu();
+            input.focus();
+        }
+
+        input.addEventListener('focus', renderMenu);
+        input.addEventListener('input', renderMenu);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!menu.classList.contains('show')) renderMenu();
+                setActive(activeIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActive(activeIndex - 1);
+            } else if (e.key === 'Enter') {
+                const els = items();
+                if (menu.classList.contains('show') && activeIndex >= 0 && els[activeIndex]) {
+                    e.preventDefault();
+                    select(els[activeIndex]);
+                } else {
+                    closeMenu();
+                }
+            } else if (e.key === 'Escape' || e.key === 'Tab') {
+                closeMenu();
+            }
+        });
+        menu.addEventListener('mousedown', function (e) {
+            const item = e.target.closest('.dropdown-item');
+            if (item) {
+                e.preventDefault();
+                select(item);
+            }
+        });
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('studentPicker').contains(e.target)) closeMenu();
+        });
+    }
+
+    /**
+     * Resolve whatever is typed in the picker to a student ID: an exact ID match wins,
+     * otherwise a search string matching exactly one student resolves to that student.
+     */
+    function resolveStudentId(raw) {
+        const q = raw.trim().toLowerCase();
+        if (!q) return null;
+        const exact = allStudents.find(function (s) { return s.studentId.toLowerCase() === q; });
+        if (exact) return exact.studentId;
+        const matches = allStudents.filter(function (s) { return s.search.indexOf(q) >= 0; });
+        if (matches.length === 1) return matches[0].studentId;
+        return allStudents.length ? null : raw.trim();
+    }
+
+    // -------------------------------------------------------
+    // Edit mode — re-open a saved generated document
+    // -------------------------------------------------------
+
+    function enterEditMode(params) {
+        editDocumentId = Number(params.get('documentId'));
+        editFileName = params.get('fileName') || '';
+        currentTemplateKey = params.get('documentType') || '';
+        const studentId = params.get('studentId') || '';
+        currentData = { student: { studentId: studentId } };
+
+        // The document identity is fixed while editing — lock the setup controls.
+        $('#generateStudentId').val(studentId).prop('disabled', true);
+        $('#generateTemplate').val(currentTemplateKey).prop('disabled', true);
+        $('#generateVariant').prop('disabled', true);
+        $('#loadDocumentBtn').prop('disabled', true);
+        toggleVariantSelect();
+
+        $.ajax({
+            url: '/api/registrar/documents/' + encodeURIComponent(editDocumentId) + '/view',
+            method: 'GET',
+            dataType: 'html',
+            success: function (html) {
+                const parsed = new DOMParser().parseFromString(html, 'text/html');
+                const sheet = parsed.querySelector('.document-sheet');
+                if (!sheet) {
+                    showAlert('This document has no editable content. Only documents generated '
+                        + 'by this page can be edited.', 'danger');
+                    return;
+                }
+                const area = document.getElementById('documentArea');
+                area.innerHTML = '';
+                area.appendChild(document.adoptNode(sheet));
+                // Saved documents have contenteditable stripped — re-arm every blank.
+                area.querySelectorAll('.fill').forEach(function (el) {
+                    el.setAttribute('contenteditable', 'true');
+                });
+                $('#printDocumentBtn').prop('disabled', false);
+                $('#saveDocumentBtn').prop('disabled', false);
+                $('#cancelDocumentBtn').removeClass('d-none');
+                showAlert('Editing "' + editFileName + '". Change any value below, then '
+                    + 'Save to Documents to overwrite the saved copy.', 'info');
+            },
+            error: function (xhr) {
+                showAlert(ajaxErrorMessage(xhr, 'Failed to load the saved document'), 'danger');
+            }
+        });
+
+        // Names are only needed for the print filename; missing data degrades gracefully.
+        if (studentId) {
+            $.ajax({
+                url: '/api/registrar/documents/generate-data/' + encodeURIComponent(studentId),
+                method: 'GET',
+                success: function (data) {
+                    currentData = data;
+                }
+            });
+        }
     }
 
     // -------------------------------------------------------
@@ -79,12 +270,19 @@
     // -------------------------------------------------------
 
     function loadDocument() {
-        const studentId = $('#generateStudentId').val().trim();
+        const rawStudent = $('#generateStudentId').val().trim();
         const templateKey = $('#generateTemplate').val();
-        if (!studentId || !templateKey) {
+        if (!rawStudent || !templateKey) {
             showAlert('Please pick a student and a template.', 'danger');
             return;
         }
+
+        const studentId = resolveStudentId(rawStudent);
+        if (!studentId) {
+            showAlert('No student matches "' + rawStudent + '". Pick one from the dropdown list.', 'danger');
+            return;
+        }
+        $('#generateStudentId').val(studentId);
 
         hideAlert();
         $.ajax({
@@ -97,13 +295,26 @@
                 render();
                 $('#printDocumentBtn').prop('disabled', false);
                 $('#saveDocumentBtn').prop('disabled', false);
+                $('#cancelDocumentBtn').removeClass('d-none');
                 document.getElementById('documentArea').scrollIntoView({ behavior: 'smooth' });
             },
             error: function (xhr) {
-                const msg = xhr.responseJSON?.message || 'Failed to load student data.';
-                showAlert(msg, 'danger');
+                showAlert(ajaxErrorMessage(xhr, 'Failed to load student data'), 'danger');
             }
         });
+    }
+
+    /**
+     * Build a diagnosable error message: prefer the server's JSON message, otherwise
+     * include the HTTP status so failures (404 stale build, session timeout, network)
+     * are distinguishable instead of one generic string.
+     */
+    function ajaxErrorMessage(xhr, prefix) {
+        if (xhr.responseJSON && xhr.responseJSON.message) return xhr.responseJSON.message;
+        if (xhr.status === 0) return prefix + ': cannot reach the server. Check that the application is running.';
+        if (xhr.status === 401) return prefix + ': your session has expired. Please log in again.';
+        if (xhr.status === 404) return prefix + ': the server does not have this endpoint (HTTP 404). It may be running an outdated build — restart it after updating.';
+        return prefix + ' (HTTP ' + xhr.status + '). Please contact the administrator.';
     }
 
     function render() {
@@ -437,6 +648,41 @@
     }
 
     // -------------------------------------------------------
+    // Print
+    // -------------------------------------------------------
+
+    /**
+     * Browsers use document.title as the suggested save-as-PDF filename, so swap in
+     * "{DocumentType}-{LastName} {FirstName}" for the duration of the print dialog.
+     */
+    function printDocument() {
+        if (!currentData || !currentTemplateKey) return;
+        const originalTitle = document.title;
+        document.title = printFileName();
+        const restore = function () {
+            document.title = originalTitle;
+            window.removeEventListener('afterprint', restore);
+        };
+        window.addEventListener('afterprint', restore);
+        window.print();
+        // Fallback for browsers where afterprint does not fire reliably.
+        window.setTimeout(restore, 2000);
+    }
+
+    function printFileName() {
+        const s = currentData.student;
+        const template = TEMPLATES[currentTemplateKey];
+        const shortName = template ? template.shortName : currentTemplateKey;
+        const namePart = joinNonBlank([s.lastName, s.firstName], ' ') || s.studentId;
+        return sanitizeFileName(shortName + '-' + namePart);
+    }
+
+    /** Strip characters that are invalid in Windows/macOS filenames. */
+    function sanitizeFileName(name) {
+        return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    // -------------------------------------------------------
     // Save to Documents
     // -------------------------------------------------------
 
@@ -444,8 +690,10 @@
         if (!currentData || !currentTemplateKey) return;
         const template = TEMPLATES[currentTemplateKey];
         const studentId = currentData.student.studentId;
-        const variantSuffix = template.kind === 'FORM_IX' ? '-' + currentVariant : '';
-        const fileName = studentId + '-' + template.shortName + variantSuffix + '.html';
+        const variantSuffix = template && template.kind === 'FORM_IX' ? '-' + currentVariant : '';
+        const fileName = editDocumentId
+            ? editFileName
+            : studentId + '-' + template.shortName + variantSuffix + '.html';
 
         const btn = $('#saveDocumentBtn');
         btn.prop('disabled', true).text('Saving...');
@@ -469,16 +717,19 @@
                     studentId: studentId,
                     documentType: currentTemplateKey,
                     fileName: fileName,
-                    html: standalone
+                    html: standalone,
+                    documentId: editDocumentId
                 }),
                 success: function () {
-                    btn.prop('disabled', false).text('Save to Documents');
-                    showAlert('Document saved. It is now available on the Documents page.', 'success');
+                    btn.text('Saved');
+                    showAlert('Document saved. Returning to the Documents page…', 'success');
+                    window.setTimeout(function () {
+                        window.location.href = 'documents.html';
+                    }, 900);
                 },
                 error: function (xhr) {
                     btn.prop('disabled', false).text('Save to Documents');
-                    const msg = xhr.responseJSON?.message || 'Failed to save the document.';
-                    showAlert(msg, 'danger');
+                    showAlert(ajaxErrorMessage(xhr, 'Failed to save the document'), 'danger');
                 }
             });
         }).catch(function () {

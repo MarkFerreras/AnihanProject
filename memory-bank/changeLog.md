@@ -1,5 +1,150 @@
 # Change Log - Anihan SRMS
 
+## 2026-07-14 PM #2 - Document Management Polish: Print, Logo, Filenames, DOCX, Delete/Edit
+**Branch:** `fix/generate-document-student-picker`
+
+### Task
+Six approved polish items on the Document Management module: (1) print formatting —
+no grey backdrop/chrome, 1-page templates print as exactly 1 page; (2) school logo in
+the generated document header; (3) auto PDF/download filenames
+"{ShortType}-{LastName} {FirstName}"; (4) documents.html Actions column fit; (5)
+generated HTML documents download as editable Word .docx; (6) DELETE endpoint +
+type-to-confirm modal, view-modal Edit that re-opens a saved document for re-editing,
+generate-page Cancel + post-save redirect.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `service/HtmlDocxConverter.java` | Wraps stored self-contained HTML into a minimal OOXML package whose document.xml references the HTML as an altChunk — Word converts it to editable content on open. Pure `java.util.zip`, no new dependency, air-gap safe. A4 sectPr matches the print CSS margins. |
+| `static/js/anihan-logo.js` | `window.AnihanLogo.DATA_URI` — base64 data URI of images/logo.png (17KB) so generated/saved documents stay fully self-contained. |
+| `test/.../HtmlDocxConverterTest.java` | 4 tests: OOXML parts present, original bytes preserved as the chunk part, altChunk references wired, empty-content rejection. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `service/DocumentService.java` | New `delete(id)` (fetch → summary → delete, 404 via `NoSuchElementException`); new `prepareDownload(id)` + `DownloadPayload` record — `text/html` documents convert to docx named "{ShortType}-{Last} {First}.docx" (`TYPE_SHORT_NAMES` mirrors curriculum-templates.js; blank-name fallback to studentId), uploads pass through unchanged; `saveGenerated` gained a 5-arg overload with `documentId` for update-in-place, guarded by student ownership **and** text/html fileType (an API call must not overwrite an uploaded PSA scan — code-review finding). |
+| `controller/DocumentController.java` | `DELETE /{documentId}` → 204 + "Deleted document…" system_logs row; download uses `prepareDownload` and logs the delivered filename; `generate` passes `documentId` and logs "Updated generated document…" on edits; `fileResponse` refactored to (name, type, bytes, inline). |
+| `dto/registrar/GenerateDocumentRequest.java` | Optional `Integer documentId` (null = create, present = update in place). |
+| `css/document-print.css` | Header now flex with `.doc-school-logo` (62px). Print rules rewritten: white body, chrome hidden, no sheet shadow, `body { display:block; min-height:0 }` (**root cause of the page-2 spill: Chromium cannot fragment flex items**), tighter margins/fonts, `page-break-inside: avoid` on table rows/signatories/certification/footer, `@page 9mm 11mm`. |
+| `static/js/registrar-generate-document.js` | Logo in `SCHOOL_HEADER` (guarded `LOGO_URI` — degrades logo-less if the script fails); `printDocument()` swaps `document.title` to the sanitized filename around `window.print()` (afterprint + 2s fallback restore); edit mode (`?documentId=`) fetches the saved HTML, extracts `.document-sheet`, re-arms contenteditable, locks setup controls; save passes `documentId`, redirects to documents.html on success; Cancel button handler. |
+| `static/js/registrar-documents.js` | Actions render: flex-nowrap group with View/Download/Delete (btn-sm, data-student/-type attrs); view modal shows Edit only for `text/html` docs, linking to the generate page edit mode; `setupDelete()` — type-"delete"-to-confirm modal flow, DELETE call, table refresh. |
+| `static/documents.html` | Page-scoped `.document-actions .btn` size fix (dashboard.css `.btn-surface` padding overrides Bootstrap `.btn-sm`); `#viewDocumentEditBtn`; `#deleteDocumentConfirmModal` (registrar.html pattern); JS `?v=2`. |
+| `static/generate-document.html` | `anihan-logo.js` include; Cancel button beside Save; JS `?v=3`. |
+| `test/.../DocumentServiceTest.java` | +7 tests: delete (success/missing), prepareDownload (docx conversion + friendly name, uploads unchanged), update-in-place (success, wrong student, uploaded-file rejection). |
+| `test/.../DocumentControllerWebMvcTest.java` | +6 tests: DELETE 204+log / 404 / 403 trainer / 401 anon; docx download headers; generate-with-documentId logs "Updated generated document". |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Print Verification Result (real print-to-PDF, headless Edge `page.pdf()`)
+All four Form IX variants print as **exactly 1 page**; the TOR prints as **2 dense
+pages** — its 57 fixed subject rows measure ~1718px against ~1054px of usable A4, so
+one page is physically impossible; breaks now fall cleanly between table rows with no
+near-empty trailing page. No grey backdrop, no app chrome, logo present.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 217 tests, 0 failures, 0 errors** (was 200).
+- Playwright headless-Edge E2E **30/30**: print-media assertions, PDFs (page counts +
+  visual check of the rendered PDF), title swap/restore ("TOR-Ferreras Mark"), actions
+  contained at 1400px and 992px, docx download (zip magic + `word/afchunk.html` +
+  Content-Disposition), edit → re-save in place (marker persisted, no duplicate row),
+  cancel + post-save redirects, type-to-confirm delete removes the row.
+- `system_logs` (live MySQL): Generated / Downloaded ('TOR-Ferreras Mark.docx') /
+  Updated generated / Deleted rows present. E2E's own test document deleted itself.
+- /code-review on the diff: 3 findings (uploaded-file overwrite guard, blank-name docx
+  filename, hard `window.AnihanLogo` dereference) — all fixed with tests.
+- E2E harness note: `emulateMedia({media:'screen'})` is sticky and overrides
+  `page.pdf()`'s default print media — reset with `media: null`.
+
+---
+
+## 2026-07-14 PM - Generate-Document Student Picker + Load-Failure Diagnosis + Record Cleanup
+**Branch:** `fix/generate-document-student-picker`
+
+### Task
+(1) Replace the native `<datalist>` student list on the Generate Document page with a
+dropdown that can also be typed into to search; (2) explain the "Failed to load student
+data" error and the requirements for generating a document; (3) clean up duplicate and
+incomplete student records in the live database.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/generate-document.html` | `<input list>` + `<datalist id="studentsDatalist">` replaced with `#studentPicker` combobox (input `role="combobox"` + Bootstrap `.dropdown-menu` `#studentPickerMenu`, 300px scrollable). JS cache-buster `?v=1` → `?v=2`. Follow-up fix: `.surface-card` has `overflow: hidden` in dashboard.css, which clipped the open picker menu at the card edge - added a page-scoped `overflow: visible` override plus `min-width: max-content` on the menu so long names are not truncated (verified by browser hit-test past the card boundary). Second follow-up (user feedback: full list too tall): menu capped at exactly 5 visible rows (items fixed at 2.5rem, menu max-height 13.5rem = 5 rows + padding) with overflow-y scroll for the rest; flex layout + 0.3rem gap keeps the "ID - Name" spacing. Browser-verified: 5/10 items visible, last item reachable by scroll. |
+| `static/js/registrar-generate-document.js` | `loadStudentsDatalist()` → `setupStudentPicker()` (open on focus, live filter on ID/last/first name, ArrowUp/Down + Enter + Escape keyboard nav, mouse select, outside-click close, "Loading students…" placeholder + re-render when the student list arrives). New `resolveStudentId()` (exact-ID match, else unique search match, else friendly alert). New `ajaxErrorMessage()` used by load + save error paths: prefers server JSON message, else distinguishes network (status 0), 401 session-expired, 404 stale-build, and other HTTP statuses. |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Diagnosis - "Failed to load student data"
+The endpoint works: `GET /api/registrar/documents/generate-data/SR20260016` → HTTP 200
+with the full auto-fill payload (student, parents, education, TESDA, OJT, grades). The
+only hard requirement is that the student ID exists in `student_records`; missing
+course/section/grades just render as editable blanks. The generic alert appears only when
+the error response carries no JSON `message` — a 404 from a server still running a build
+that predates the document-management merge (PR #49). Fix for operators: restart the app
+after pulling. The hardened error handler now names that condition explicitly.
+
+### Database Changes (live `AnihanSRMS`, backup taken first)
+Deleted 4 student records via `DELETE /api/registrar/student-records/{recordId}`
+(cascade-safe service path; each write logged to `system_logs`):
+| Record | Reason |
+|--------|--------|
+| SR20260009 Wong, Angelica | Duplicate of SR20260008 (same name + middle initial); all-NULL `Enrolling` stub |
+| SR20260010 Avellaneda, Keith | Abandoned `Enrolling` stub — no birthdate/sex/contact/batch/course/section, zero child rows |
+| SR20260011 Mark, Mark | Same |
+| SR20260017 test125, test125 | Same |
+
+Left in place pending user decision: SR20260005 (dwd, wdw), SR20260007 (dwadwa, dwadad —
+has grade data), SR20260013 (fff, fff) — fake-name test fixtures but `Active` with sections.
+
+### Verification
+- Headless Edge E2E (playwright-core driving system Edge): 10/10 checks pass — login,
+  picker opens on focus (10 students), filter "lipata" → 1 match, keyboard select fills
+  SR20260016, TOR renders with auto-filled data, mouse select works, unknown text shows
+  friendly error. The E2E run caught and led to fixing a focus-before-load race.
+- `./gradlew test` → **200 tests, 0 failures, 0 errors** (frontend-only change).
+
+---
+
+## 2026-07-14 - Live DB vs schema.sql Comparison and Sync
+**Branch:** `main` (user explicitly kept work on main - DB-only task)
+
+### Task
+Compare the live `AnihanSRMS` MySQL database against `src/main/sql/schema.sql`, find any
+discrepancies, and update the live DB so it works with the latest project schema.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/backup-2026-07-14.sql` | New full `mysqldump` backup taken before any inspection (untracked). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+No application code, entity, or SQL source file was changed. **No change was applied to the
+live database** - it already matched `schema.sql`.
+
+### Comparison Result - no functional drift
+Built a throwaway `schema_check` DB from `schema.sql`, dumped `--no-data` structures of both,
+normalized (stripped `AUTO_INCREMENT=` + comments), and diffed. Only cosmetic differences,
+all verified non-functional:
+- **`grades` column order** differs in the raw dump; sorted column-by-column the two are
+  byte-identical (name/type/nullability/default all match). Order is irrelevant to SQL/Hibernate.
+- **`grades` class FK name:** live `fk_grades_class` vs schema.sql auto-name `grades_ibfk_3` -
+  same `class_id -> classes ON DELETE SET NULL` relationship, name only.
+- **`users` unique key name:** live `uq_username` vs schema.sql `username` - same UNIQUE, name only.
+- **`courses`** already holds `CARS`, `BPRO`, `FSERV` (the 2026-07-09 seed gap remains closed).
+
+### Compatibility Verification
+- **`ddl-auto=validate` boot against live MySQL -> PASS** (`Started SpringbootApplication in
+  11.256s`, all 19 entities validated, zero `HHH` schema-validation errors). Authoritative check;
+  the Gradle test suite runs on in-memory H2 and cannot detect live-DB drift.
+- FK integrity sweep -> 0 orphaned rows across `grades`, `class_enrollments`, `subjects`,
+  `classes`.
+- Live schema unchanged (19 tables). Throwaway `schema_check` DB dropped afterward.
+
+### Note - schema.sql seed blocks intentionally not re-applied
+Live is the real working DB (14 students, 6 classes, 264 `system_logs` rows). `schema.sql`'s
+fresh-install seeds (3 test accounts, 5 sample students) were deliberately skipped - re-running
+them would duplicate/corrupt live data (the load also errored on a duplicate `admin` username,
+confirming the guard).
+
+
 ## 2026-07-09 - Document Management (R3.1–R3.7) + TOR/Form IX Generation
 **Branch:** `feature/document-management`
 

@@ -1,10 +1,158 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Document Management module (R3.1–R3.7) + TOR/Form IX generation implemented — awaiting browser smoke test + PR**
+**Document Management polish (print/logo/filename, DOCX download, delete/edit flows) — awaiting PR**
 
 ## Active Branch
-`feature/document-management`
+`fix/generate-document-student-picker`
+
+## Latest Session (2026-07-14 PM #2 - Document Management Polish: Print, Logo, DOCX, Delete/Edit)
+
+### Scope
+Six approved tasks on documents.html + generate-document.html: (1) print formatting
+(no grey backdrop/chrome, 1-page templates print as 1 page); (2) school logo embedded
+in the generated header; (3) auto PDF/download filenames "{ShortType}-{Last} {First}";
+(4) Actions column fit; (5) generated HTML downloads as editable Word .docx;
+(6) DELETE endpoint + type-to-confirm modal, view-modal Edit (re-save in place),
+generate-page Cancel + post-save redirect.
+
+### Key Decisions
+- **DOCX via OOXML altChunk, server-side** (`HtmlDocxConverter`, pure `java.util.zip`,
+  no new dependency, air-gap safe): a minimal docx package embeds the stored HTML as an
+  altChunk that Word converts to editable content on open. Chosen over vendoring
+  html-docx-js (same fidelity, +70KB unaudited JS). Uploaded pdf/docx/xlsx download
+  unchanged; only `text/html` documents convert. Friendly filename via
+  `TYPE_SHORT_NAMES` map (mirrors curriculum-templates.js shortName).
+- **Edit re-saves update the existing row in place** (`saveGenerated` 5-arg overload with
+  `documentId`; `GenerateDocumentRequest.documentId` nullable). Guards: ownership
+  (studentId match) AND fileType must be text/html (code review caught that an API call
+  could otherwise overwrite an uploaded PSA scan with HTML).
+- **Print fix root causes**: grey backdrop = body background + sheet box-shadow not reset
+  in `@media print`; page spill = Chromium cannot fragment flex items — body stays
+  `display:flex` in print, so sheets jumped to page 2. Print CSS now forces
+  `body { display:block; min-height:0 }` + white bg + tighter metrics + row-level
+  `page-break-inside: avoid`. **Form IX variants = exactly 1 page; TOR = 2 dense pages**
+  (57 subject rows ≈ 1718px vs ~1054px/page capacity — physically cannot fit 1 page).
+- Logo shipped as `static/js/anihan-logo.js` (`window.AnihanLogo.DATA_URI`, base64 of
+  images/logo.png, 17KB) so saved documents stay self-contained; generator degrades to
+  logo-less header if the script fails to load.
+- Print filename: `document.title` swapped to sanitized "{shortName}-{Last} {First}"
+  around `window.print()`, restored on afterprint + 2s fallback.
+
+### New/Changed Endpoints
+`DELETE /api/registrar/documents/{id}` (204, logs "Deleted document…", 404 JSON when
+missing) · `GET /{id}/download` now converts text/html→docx with friendly filename
+(logs delivered name) · `POST /generate` accepts optional `documentId` → update in
+place, logs "Updated generated document…".
+
+### Verified
+- `./gradlew test` → **217 tests, 0 failures** (was 200; +17).
+- Headless-Edge Playwright E2E **30/30**: real `page.pdf()` (Form IX ×4 = 1 page,
+  TOR = 2; no chrome in PDF), logo data-URI, title swap/restore, actions contained
+  @1400/@992px, docx download (zip + altChunk + filename), edit re-arms contenteditable
+  + updates in place (no duplicate row), cancel + post-save redirects, delete
+  type-to-confirm removes row. `system_logs` rows confirmed in live MySQL
+  (Generated/Downloaded/Updated/Deleted).
+- E2E harness gotcha (documented for next time): a sticky
+  `emulateMedia({media:'screen'})` overrides `page.pdf()`'s print media — clear with
+  `media: null` or PDFs render with screen CSS.
+- /code-review: 3 findings (uploaded-file overwrite guard, blank-name docx filename
+  fallback, hard logo dereference) — all fixed + tested.
+
+### Open Items
+- PR to `main` (user approval required).
+- Fidelity note: Word's HTML import linearizes flex rows (`doc-field-row`) — docx opens
+  editable but not pixel-identical to print; tables/underlines survive.
+
+---
+
+## Previous Session (2026-07-14 PM - Student Picker Dropdown + "Failed to load" Diagnosis + Record Cleanup)
+
+### Scope
+Three user requests on the Generate Document page and data: (1) replace the native
+`<datalist>` student list (ugly floating browser list) with a proper searchable dropdown;
+(2) diagnose "Failed to load student data" on Load; (3) delete duplicate / incomplete
+student records from the live DB.
+
+### 1. "Failed to load student data" - root cause: stale server build, not a bug
+`GET /api/registrar/documents/generate-data/SR20260016` returns **HTTP 200 with full
+auto-fill payload** on the current build (verified via curl + headless browser). The
+fallback alert text only appears when the error response has no JSON `message` - i.e. a
+404 from a server still running a **pre-PR-#49 build** without the document endpoints.
+Requirements to generate: the student ID must exist in `student_records`; everything else
+(course, section, grades, TESDA, OJT, parents) is optional and simply left blank.
+**Operator note: restart `./gradlew bootRun` after pulling document-management.**
+Hardened `ajaxErrorMessage()` in the JS so 0/401/404/other statuses now produce
+distinguishable messages instead of one generic string.
+
+### 2. Searchable student dropdown (combobox)
+- `generate-document.html`: replaced `<input list>` + `<datalist>` with a
+  `#studentPicker` wrapper — text input (`role="combobox"`) + Bootstrap `.dropdown-menu`
+  (`#studentPickerMenu`, 300px scroll). JS cache-buster `?v=1` → `?v=2`.
+- `registrar-generate-document.js`: `loadStudentsDatalist()` → `setupStudentPicker()`.
+  Opens on focus, filters as you type (matches ID + last/first name, case-insensitive),
+  ArrowUp/Down + Enter keyboard nav, Escape/Tab/outside-click closes, mouse select.
+  Shows "Loading students…" until the AJAX list arrives and re-renders when it does
+  (race found by headless-browser test: menu rendered empty if focused before load).
+- `resolveStudentId()`: exact ID match wins; else a query matching exactly one student
+  resolves to it; else friendly "No student matches" alert (no wasted request).
+
+### 3. Student record cleanup (live DB)
+Backup taken to scratchpad first. Deleted via the app's own
+`DELETE /api/registrar/student-records/{recordId}` (cascade-safe + `system_logs` rows):
+- SR20260009 Wong, Angelica — duplicate of SR20260008 (same name/initial), all-NULL Enrolling stub
+- SR20260010 Avellaneda, SR20260011 "Mark Mark", SR20260017 "test125" — abandoned all-NULL Enrolling stubs, zero child rows
+**Left in place (flagged, user to decide):** SR20260005 (dwd, wdw), SR20260007 (dwadwa,
+dwadad — has grade data), SR20260013 (fff, fff) — fake-name test fixtures but Active with
+sections. 10 records remain.
+
+### Verified
+- Headless Edge (playwright-core) E2E: 10/10 checks pass — login → picker opens on focus
+  (10 students) → filter "lipata" → keyboard select → TOR renders auto-filled ("Lipata")
+  → mouse select → unknown-text friendly error.
+- `./gradlew test` → **200 tests, 0 failures, 0 errors** (unchanged baseline; frontend-only).
+
+### Open Items
+- PR to `main` (user approval required).
+- User decision: delete the 3 remaining fake-name Active test records?
+
+---
+
+## Previous Session (2026-07-14 - Live DB vs schema.sql Comparison and Sync)
+
+### Scope
+Compare the live AnihanSRMS MySQL database against src/main/sql/schema.sql, find any
+discrepancies, and update the live DB so it works with the latest project schema.
+User explicitly kept work on main (DB-only, no branch switch).
+
+### Method
+- Backed up the live DB first -> src/main/sql/backup-2026-07-14.sql (58 KB).
+- Built a throwaway schema_check DB from schema.sql (stripped its hard-coded
+  CREATE DATABASE / USE AnihanSRMS so it did not redirect into the live DB), dumped
+  --no-data structures of both, normalized (dropped AUTO_INCREMENT counters + comments),
+  and diffed.
+
+### Findings - ZERO functional drift
+Diff showed only cosmetic differences, all verified non-functional:
+1. grades columns appear in a different physical ORDER in the dump. Sorted
+   column-by-column, live and schema.sql are byte-identical (every name, type,
+   nullability, default matches). Column order is irrelevant to SQL and to Hibernate.
+2. grades class FK: live name fk_grades_class vs schema.sql auto-name grades_ibfk_3 -
+   same relationship (class_id -> classes ON DELETE SET NULL), name only.
+3. users unique key: live uq_username vs schema.sql username - same UNIQUE, name only.
+- Data: courses holds all 3 (CARS, BPRO, FSERV). Live is the real working DB (14 students,
+  6 classes, 264 log rows), so schema.sql's fresh-install seed blocks were NOT re-applied.
+
+### Verification
+- ddl-auto=validate boot against live MySQL -> PASS (Started in 11.256s, all 19 entities
+  validated, zero HHH schema-validation errors). Authoritative check; Gradle suite runs on
+  H2 and cannot catch live drift.
+- FK integrity sweep -> 0 orphans (grades->classes, class_enrollments->classes,
+  subjects->users trainer, classes->users trainer).
+
+### Outcome
+No update to the live database was required - it already matches schema.sql. Only
+filesystem change: the new backup file (untracked).
 
 ## Latest Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
 

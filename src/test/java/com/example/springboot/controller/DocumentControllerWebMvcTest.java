@@ -137,7 +137,9 @@ class DocumentControllerWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void downloadReturnsAttachmentAndLogs() throws Exception {
-        when(documentService.getDocument(1)).thenReturn(sampleDocument());
+        when(documentService.prepareDownload(1)).thenReturn(new DocumentService.DownloadPayload(
+                sampleDocument(), "tor-scan.pdf", "application/pdf",
+                "pdf-bytes".getBytes(StandardCharsets.UTF_8)));
 
         mvc.perform(get("/api/registrar/documents/1/download"))
                 .andExpect(status().isOk())
@@ -145,6 +147,28 @@ class DocumentControllerWebMvcTest {
                         org.hamcrest.Matchers.containsString("attachment")))
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(content().bytes("pdf-bytes".getBytes(StandardCharsets.UTF_8)));
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                contains("Downloaded document"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void downloadGeneratedHtmlDeliversDocxAttachment() throws Exception {
+        Document generated = sampleDocument();
+        generated.setFileName("SR20260001-TOR.html");
+        generated.setFileType("text/html");
+        when(documentService.prepareDownload(2)).thenReturn(new DocumentService.DownloadPayload(
+                generated, "TOR-Dela Cruz Maria.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "docx-bytes".getBytes(StandardCharsets.UTF_8)));
+
+        mvc.perform(get("/api/registrar/documents/2/download"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("TOR-Dela Cruz Maria.docx")))
+                .andExpect(content().contentType(
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
 
         verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
                 contains("Downloaded document"), any());
@@ -167,7 +191,7 @@ class DocumentControllerWebMvcTest {
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void generateCreatesDocumentAndLogs() throws Exception {
         when(documentService.saveGenerated(eq("SR20260001"), eq(TOR_TYPE),
-                eq("SR20260001-TOR.html"), any()))
+                eq("SR20260001-TOR.html"), any(), isNull()))
                 .thenReturn(new DocumentSummaryResponse(2, "SR20260001", "Dela Cruz", "Maria",
                         TOR_TYPE, "SR20260001-TOR.html", "text/html", 40, LocalDateTime.now()));
 
@@ -193,6 +217,75 @@ class DocumentControllerWebMvcTest {
                                 {"studentId":"","documentType":"","fileName":"","html":""}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void generateWithDocumentIdUpdatesExistingAndLogs() throws Exception {
+        when(documentService.saveGenerated(eq("SR20260001"), eq(TOR_TYPE),
+                eq("SR20260001-TOR.html"), any(), eq(5)))
+                .thenReturn(new DocumentSummaryResponse(5, "SR20260001", "Dela Cruz", "Maria",
+                        TOR_TYPE, "SR20260001-TOR.html", "text/html", 40, LocalDateTime.now()));
+
+        mvc.perform(post("/api/registrar/documents/generate").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentId":"SR20260001","documentType":"Transcript of Records (TOR)",
+                                 "fileName":"SR20260001-TOR.html","html":"<html><body>v2</body></html>",
+                                 "documentId":5}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.documentId").value(5));
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                contains("Updated generated document"), any());
+    }
+
+    // -------------------------------------------------------
+    // Delete
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void deleteRemovesDocumentAndLogs() throws Exception {
+        when(documentService.delete(1)).thenReturn(sampleSummary());
+
+        mvc.perform(delete("/api/registrar/documents/1").with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                contains("Deleted document"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void deleteReturns404WhenMissing() throws Exception {
+        when(documentService.delete(99))
+                .thenThrow(new java.util.NoSuchElementException("Document not found: 99"));
+
+        mvc.perform(delete("/api/registrar/documents/99").with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Document not found: 99"));
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void deleteForbiddenForTrainer() throws Exception {
+        mvc.perform(delete("/api/registrar/documents/1").with(csrf()))
+                .andExpect(status().isForbidden());
+
+        verify(documentService, never()).delete(any());
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void deleteUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(delete("/api/registrar/documents/1").with(csrf()))
+                .andExpect(status().isUnauthorized());
+
+        verify(documentService, never()).delete(any());
     }
 
     @Test

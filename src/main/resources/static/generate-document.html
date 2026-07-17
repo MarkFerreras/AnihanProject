@@ -16,6 +16,12 @@
         #documentArea { margin: 1.5rem auto 3rem; }
         #documentArea .document-sheet { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.15); }
         .generate-controls .form-label { font-size: 0.85rem; margin-bottom: 0.25rem; }
+        /* dashboard.css clips surface-card children (overflow: hidden, for the rounded
+           corners); the student picker menu must overflow the card, so relax it here. */
+        .generate-document-page .surface-card { overflow: visible; }
+        /* Cap the open list at 5 rows (5 x 2.5rem items + 1rem menu padding); the rest scrolls. */
+        #studentPickerMenu { z-index: 1050; min-width: max-content; max-height: 13.5rem; overflow-y: auto; }
+        #studentPickerMenu .dropdown-item { height: 2.5rem; display: flex; align-items: center; gap: 0.3rem; }
     </style>
 </head>
 
@@ -109,9 +115,13 @@
                     <div class="row g-3 align-items-end generate-controls">
                         <div class="col-md-3">
                             <label for="generateStudentId" class="form-label">Student <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="generateStudentId" list="studentsDatalist"
-                                   placeholder="Type a student ID" autocomplete="off">
-                            <datalist id="studentsDatalist"></datalist>
+                            <div class="position-relative" id="studentPicker">
+                                <input type="text" class="form-control" id="generateStudentId"
+                                       placeholder="Select or search a student" autocomplete="off"
+                                       role="combobox" aria-expanded="false" aria-controls="studentPickerMenu"
+                                       aria-autocomplete="list">
+                                <div class="dropdown-menu w-100 shadow-sm" id="studentPickerMenu" role="listbox"></div>
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <label for="generateTemplate" class="form-label">Template <span class="text-danger">*</span></label>
@@ -131,6 +141,7 @@
                     <div class="d-flex gap-2 mt-3">
                         <button type="button" class="btn btn-surface" id="printDocumentBtn" disabled>Print</button>
                         <button type="button" class="btn btn-primary" id="saveDocumentBtn" disabled>Save to Documents</button>
+                        <button type="button" class="btn btn-surface-secondary d-none" id="cancelDocumentBtn">Cancel</button>
                     </div>
                 </div>
             </section>
@@ -241,8 +252,9 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
+    <script src="js/anihan-logo.js?v=1"></script>
     <script src="js/curriculum-templates.js?v=1"></script>
-    <script src="js/registrar-generate-document.js?v=1"></script>
+    <script src="js/registrar-generate-document.js?v=3"></script>
 </body>
 
 </html>

@@ -42,6 +42,17 @@ public class DocumentService {
 
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
 
+    /**
+     * Short template names used for friendly download filenames of generated
+     * documents — mirrors TEMPLATES[*].shortName in curriculum-templates.js.
+     */
+    private static final Map<String, String> TYPE_SHORT_NAMES = Map.of(
+            "Transcript of Records (TOR)", "TOR",
+            "Form IX - Bread and Pastry Production NC II", "FormIX-BPP",
+            "Form IX - Cookery NC II", "FormIX-Cookery",
+            "Form IX - Food and Beverage Services NC II", "FormIX-FBS"
+    );
+
     private final DocumentRepository documentRepository;
     private final StudentRecordRepository studentRecordRepository;
 
@@ -102,9 +113,21 @@ public class DocumentService {
      */
     public DocumentSummaryResponse saveGenerated(String studentId, String documentType,
                                                  String fileName, String htmlContent) {
-        StudentRecord student = requireStudent(studentId);
+        return saveGenerated(studentId, documentType, fileName, htmlContent, null);
+    }
+
+    /**
+     * As above; when {@code documentId} is present the existing generated document is
+     * updated in place (edit flow) instead of inserting a new row.
+     */
+    public DocumentSummaryResponse saveGenerated(String studentId, String documentType,
+                                                 String fileName, String htmlContent,
+                                                 Integer documentId) {
         requireKnownType(documentType);
 
+        if (!StringUtils.hasText(studentId)) {
+            throw new IllegalArgumentException("A student ID is required.");
+        }
         if (!StringUtils.hasText(fileName)) {
             throw new IllegalArgumentException("A file name is required.");
         }
@@ -125,7 +148,70 @@ public class DocumentService {
             cleanName = cleanName + ".html";
         }
 
+        if (documentId != null) {
+            Document existing = getDocument(documentId);
+            String owner = existing.getStudent().getStudentId();
+            if (!owner.equalsIgnoreCase(studentId.trim())) {
+                throw new IllegalArgumentException(
+                        "Document " + documentId + " belongs to student " + owner + ", not " + studentId);
+            }
+            String existingType = existing.getFileType() == null
+                    ? "" : existing.getFileType().toLowerCase(Locale.ROOT);
+            if (!existingType.startsWith("text/html")) {
+                throw new IllegalArgumentException(
+                        "Only generated (HTML) documents can be updated in place; document "
+                                + documentId + " is an uploaded file.");
+            }
+            existing.setDocumentType(documentType);
+            existing.setFileName(cleanName);
+            existing.setFileType("text/html");
+            existing.setFileSize(content.length);
+            existing.setContentData(content);
+            return toSummary(documentRepository.save(existing));
+        }
+
+        StudentRecord student = requireStudent(studentId);
         return toSummary(save(student, documentType, cleanName, "text/html", content));
+    }
+
+    /** Deletes a document and returns its summary so the caller can write the audit log. */
+    public DocumentSummaryResponse delete(Integer documentId) {
+        Document document = getDocument(documentId);
+        DocumentSummaryResponse summary = toSummary(document);
+        documentRepository.delete(document);
+        return summary;
+    }
+
+    /** What the download endpoint should send: name, MIME type, and content bytes. */
+    public record DownloadPayload(Document document, String fileName,
+                                  String contentType, byte[] content) {
+    }
+
+    /**
+     * Generated HTML documents download as an editable Word .docx named
+     * "{ShortType}-{LastName} {FirstName}.docx"; uploaded files keep their
+     * original name, type, and bytes.
+     */
+    public DownloadPayload prepareDownload(Integer documentId) {
+        Document document = getDocument(documentId);
+        String fileType = document.getFileType() == null
+                ? "" : document.getFileType().toLowerCase(Locale.ROOT);
+
+        if (fileType.startsWith("text/html")) {
+            String shortType = TYPE_SHORT_NAMES.getOrDefault(
+                    document.getDocumentType(), document.getDocumentType());
+            String studentName = joinNonBlank(
+                    document.getStudent().getLastName(), document.getStudent().getFirstName());
+            if (studentName.isEmpty()) {
+                studentName = document.getStudent().getStudentId();
+            }
+            String docxName = sanitizeFileName(shortType + "-" + studentName) + ".docx";
+            return new DownloadPayload(document, docxName, HtmlDocxConverter.DOCX_MIME,
+                    HtmlDocxConverter.toDocx(document.getContentData()));
+        }
+
+        return new DownloadPayload(document, document.getFileName(),
+                document.getFileType(), document.getContentData());
     }
 
     /** Full entity fetch (including BLOB) — only for view/download of a single document. */
@@ -171,6 +257,24 @@ public class DocumentService {
 
     private static String blankToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    /** Strips characters that are invalid in Windows/macOS filenames. */
+    private static String sanitizeFileName(String name) {
+        return name.replaceAll("[\\\\/:*?\"<>|]", "").replaceAll("\\s+", " ").trim();
+    }
+
+    private static String joinNonBlank(String... parts) {
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (StringUtils.hasText(part)) {
+                if (sb.length() > 0) {
+                    sb.append(' ');
+                }
+                sb.append(part.trim());
+            }
+        }
+        return sb.toString();
     }
 
     private static DocumentSummaryResponse toSummary(Document d) {

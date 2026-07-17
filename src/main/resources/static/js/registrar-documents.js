@@ -8,6 +8,8 @@
     let documentsTable;
     let uploadModal = null;
     let viewModal = null;
+    let deleteDocumentModal = null;
+    let currentDeleteDocumentId = null;
 
     $(document).ready(function () {
         initTable();
@@ -18,6 +20,7 @@
         setupFilters();
         setupUpload();
         setupViewAndDownload();
+        setupDelete();
     });
 
     function buildAjaxUrl() {
@@ -70,12 +73,20 @@
                     className: 'text-end',
                     render: function (data) {
                         return (
-                            '<button class="btn btn-surface btn-sm view-document-btn me-1" ' +
+                            '<div class="d-flex flex-nowrap justify-content-end gap-1 document-actions">' +
+                            '<button class="btn btn-surface btn-sm view-document-btn" ' +
                             'data-id="' + data.documentId + '" ' +
                             'data-name="' + escapeHtml(data.fileName) + '" ' +
-                            'data-mime="' + escapeHtml(data.fileType) + '">View</button>' +
+                            'data-mime="' + escapeHtml(data.fileType) + '" ' +
+                            'data-student="' + escapeHtml(data.studentId) + '" ' +
+                            'data-type="' + escapeHtml(data.documentType) + '">View</button>' +
                             '<button class="btn btn-surface btn-sm download-document-btn" ' +
-                            'data-id="' + data.documentId + '">Download</button>'
+                            'data-id="' + data.documentId + '">Download</button>' +
+                            '<button class="btn btn-danger-surface btn-sm delete-document-btn" ' +
+                            'data-id="' + data.documentId + '" ' +
+                            'data-name="' + escapeHtml(data.fileName) + '" ' +
+                            'data-student="' + escapeHtml(data.studentId) + '">Delete</button>' +
+                            '</div>'
                         );
                     }
                 }
@@ -242,9 +253,22 @@
             const id = $(this).data('id');
             const name = $(this).data('name');
             const mime = String($(this).data('mime') || '');
+            const studentId = String($(this).data('student') || '');
+            const documentType = String($(this).data('type') || '');
 
             $('#viewDocumentTitle').text(name);
             $('#viewDocumentDownloadBtn').attr('href', '/api/registrar/documents/' + id + '/download');
+
+            // Only generated HTML documents can be re-opened in the generate page for editing.
+            const editable = mime.indexOf('text/html') === 0;
+            $('#viewDocumentEditBtn').toggleClass('d-none', !editable);
+            if (editable) {
+                $('#viewDocumentEditBtn').attr('href', 'generate-document.html'
+                    + '?documentId=' + encodeURIComponent(id)
+                    + '&studentId=' + encodeURIComponent(studentId)
+                    + '&documentType=' + encodeURIComponent(documentType)
+                    + '&fileName=' + encodeURIComponent(name));
+            }
 
             const previewable = mime === 'application/pdf' || mime.indexOf('text/html') === 0;
             if (previewable) {
@@ -268,6 +292,57 @@
             const id = $(this).data('id');
             window.location.href = '/api/registrar/documents/' + id + '/download';
         });
+    }
+
+    // -------------------------------------------------------
+    // Delete (type-"delete"-to-confirm, same pattern as registrar.html)
+    // -------------------------------------------------------
+
+    function setupDelete() {
+        deleteDocumentModal = new bootstrap.Modal(document.getElementById('deleteDocumentConfirmModal'));
+        const confirmInput = document.getElementById('deleteDocumentConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteDocumentBtn');
+
+        $('#documentsTable').on('click', '.delete-document-btn', function () {
+            currentDeleteDocumentId = $(this).data('id');
+            $('#deleteDocumentIdentifier').text(
+                '"' + $(this).data('name') + '" of student ' + $(this).data('student'));
+            confirmInput.value = '';
+            confirmBtn.disabled = true;
+            hideAlert('deleteDocumentResultAlert');
+            deleteDocumentModal.show();
+        });
+
+        confirmInput.addEventListener('input', function () {
+            confirmBtn.disabled = confirmInput.value.trim().toLowerCase() !== 'delete';
+        });
+
+        confirmBtn.addEventListener('click', function () {
+            if (currentDeleteDocumentId == null) return;
+            confirmBtn.disabled = true;
+
+            $.ajax({
+                url: '/api/registrar/documents/' + currentDeleteDocumentId,
+                method: 'DELETE',
+                success: function () {
+                    deleteDocumentModal.hide();
+                    reloadTable();
+                },
+                error: function (xhr) {
+                    const msg = xhr.responseJSON?.message || 'Failed to delete the document.';
+                    showAlert('deleteDocumentResultAlert', msg, 'danger');
+                    confirmBtn.disabled = confirmInput.value.trim().toLowerCase() !== 'delete';
+                }
+            });
+        });
+
+        document.getElementById('deleteDocumentConfirmModal')
+            .addEventListener('hidden.bs.modal', function () {
+                currentDeleteDocumentId = null;
+                confirmInput.value = '';
+                confirmBtn.disabled = true;
+                hideAlert('deleteDocumentResultAlert');
+            });
     }
 
     // -------------------------------------------------------
