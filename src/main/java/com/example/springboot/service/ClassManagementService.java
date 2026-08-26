@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
@@ -17,6 +16,7 @@ import com.example.springboot.dto.registrar.EnrollStudentRequest;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
+import com.example.springboot.dto.registrar.TrainerSummaryResponse;
 import com.example.springboot.model.Batch;
 import com.example.springboot.model.ClassEnrollment;
 import com.example.springboot.model.Course;
@@ -188,29 +188,6 @@ public class ClassManagementService {
         subjectRepository.deleteById(subjectCode);
     }
 
-    @Transactional
-    public SubjectResponse assignTrainer(String subjectCode, AssignTrainerRequest request) {
-        Subject subject = subjectRepository.findById(subjectCode)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
-
-        if (request.trainerId() == null) {
-            subject.setTrainer(null);
-        } else {
-            User trainer = userRepository.findById(request.trainerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Trainer not found: " + request.trainerId()));
-            if (!"ROLE_TRAINER".equals(trainer.getRole())) {
-                throw new IllegalArgumentException("User is not a trainer: " + trainer.getUsername());
-            }
-            if (!Boolean.TRUE.equals(trainer.getEnabled())) {
-                throw new IllegalArgumentException("Trainer account is disabled: " + trainer.getUsername());
-            }
-            subject.setTrainer(trainer);
-        }
-
-        subjectRepository.save(subject);
-        return SubjectResponse.from(subject);
-    }
-
     // -------------------------------------------------------
     // Trainers (lookup)
     // -------------------------------------------------------
@@ -218,6 +195,28 @@ public class ClassManagementService {
     public List<TrainerResponse> getActiveTrainers() {
         return userRepository.findByRoleAndEnabledTrue("ROLE_TRAINER").stream()
                 .map(TrainerResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    // Class count is scoped to the current semester (matches getClassesForTrainer,
+    // which the Trainers page modal uses) so the number on a trainer's card always
+    // equals what the modal actually shows underneath it.
+    public List<TrainerSummaryResponse> getTrainerSummaries() {
+        String currentSemester = getCurrentSemester();
+        return userRepository.findByRoleAndEnabledTrue("ROLE_TRAINER").stream()
+                .map(t -> new TrainerSummaryResponse(
+                        t.getUserId(),
+                        t.getLastName(),
+                        t.getFirstName(),
+                        t.getEmail(),
+                        classRepository.countByTrainerUserIdAndSemester(t.getUserId(), currentSemester)))
+                .collect(Collectors.toList());
+    }
+
+    public List<ClassResponse> getClassesForTrainer(Integer trainerId) {
+        String currentSemester = getCurrentSemester();
+        return classRepository.findByTrainerUserIdAndSemester(trainerId, currentSemester).stream()
+                .map(c -> ClassResponse.from(c, enrollmentRepository.countBySchoolClassClassId(c.getClassId())))
                 .collect(Collectors.toList());
     }
 
@@ -231,10 +230,17 @@ public class ClassManagementService {
                 .orElse(String.valueOf(java.time.Year.now().getValue()));
     }
 
-    public List<ClassResponse> getClasses(String semester) {
+    public List<ClassResponse> getClasses(String semester, String subjectCode) {
+        boolean hasSemester = semester != null && !semester.isBlank();
+        boolean hasSubjectCode = subjectCode != null && !subjectCode.isBlank();
+
         List<SchoolClass> classes;
-        if (semester != null && !semester.isBlank()) {
+        if (hasSemester && hasSubjectCode) {
+            classes = classRepository.findBySemesterAndSubjectSubjectCode(semester, subjectCode);
+        } else if (hasSemester) {
             classes = classRepository.findBySemester(semester);
+        } else if (hasSubjectCode) {
+            classes = classRepository.findBySubjectSubjectCode(subjectCode);
         } else {
             classes = classRepository.findAll();
         }

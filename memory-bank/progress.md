@@ -2,6 +2,29 @@
 
 ## Recent Sessions (detail)
 
+### Remove subjects.trainer_id + View Classes Modal + Trainers Page (Completed — August 27, 2026 PM)
+- **Task:** Implement the plan from the same-day design discussion — drop the redundant
+  `subjects.trainer_id` column, add a read-only "View Classes" modal to the Subjects page
+  (subject-centric), add a new Trainers page (trainer-centric card grid, click a trainer
+  to see their current-semester classes grouped by subject).
+- **Done:** Migration + `schema.sql` + entity/DTO/service/controller cleanup for the column
+  removal (old `AssignTrainerRequest` DTO deleted, grepped first to confirm nothing else
+  used it). `getClasses()` gained an optional subject filter, reused by the new modal.
+  Two new endpoints (`/trainers/summary`, `/trainers/{id}/classes`) power the new page.
+  Navbar bumped 5→6 links across all 7 other registrar pages. `./gradlew test` → 240 tests,
+  0 failures (+10). Three separate live HTTP smoke tests against the real app + real DB.
+- **Key decision:** View Classes is read-only for now (avoids a modal-on-modal handoff);
+  the Trainers page's card count and its modal both scope to the current semester and
+  share the same query so they can never show conflicting numbers; Trainers page uses a
+  card grid instead of a DataTable — the only non-DataTable list in the app, a deliberate
+  tradeoff given the small trainer count at this school.
+- **Not done yet:** PR to main; manual browser click-through (verified via curl/SQL/unit
+  tests only).
+- **Branch:** `edit_subjects`. This closes out everything planned across today's sessions
+  (competency_type, subject-code-rename, trainer_id removal) — see `decisions.md` and
+  `capstonepaper/2026-08-27-trainer-subject-assignment-design-discussion.md` for the full
+  reasoning trail.
+
 ### Subject Code Made Editable/Renameable on Edit (Completed — August 26, 2026 PM #2)
 - **Task:** Allow `subjectCode` (the PK) to be edited on the Edit Subject modal — it was
   locked readonly since 2026-05-10 because `classes`/`grades` reference it by FK.

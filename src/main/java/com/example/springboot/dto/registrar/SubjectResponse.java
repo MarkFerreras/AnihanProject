@@ -8,26 +8,16 @@ public record SubjectResponse(
     String competencyType,
     Integer qualificationCode,
     String qualificationName,
-    Integer units,
-    Integer trainerId,
-    String trainerName
+    Integer units
 ) {
     public static SubjectResponse from(Subject s) {
-        String trainerName = null;
-        Integer trainerId = null;
-        if (s.getTrainer() != null) {
-            trainerId = s.getTrainer().getUserId();
-            trainerName = s.getTrainer().getLastName() + ", " + s.getTrainer().getFirstName();
-        }
         return new SubjectResponse(
                 s.getSubjectCode(),
                 s.getSubjectName(),
                 s.getCompetencyType(),
                 s.getQualification() != null ? s.getQualification().getQualificationCode() : null,
                 s.getQualification() != null ? s.getQualification().getQualificationName() : null,
-                s.getUnits(),
-                trainerId,
-                trainerName
+                s.getUnits()
         );
     }
 }

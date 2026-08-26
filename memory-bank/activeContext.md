@@ -1,15 +1,110 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Create/Edit Subject: competency_type done; subject_code is now editable/renameable on Edit — PR to main still open**
+**All three pieces of the trainer-visibility rework are implemented and verified (uncommitted): subjects.trainer_id removed, View Classes modal on Subjects page, new Trainers page. Along with the earlier competency_type and subject-code-rename work, this closes out everything planned for `edit_subjects`. PR to main still open.**
 
 ## Active Branch
 `edit_subjects`
 
-## ⚠️ ACTION REQUIRED — All Developers (as of 2026-08-26)
-Two migrations landed today and the app code depends on both. Every developer with
-a local `AnihanSRMS` database **must run these, in order, before pulling this
-branch**:
+## Latest Session (2026-08-27 PM - Remove subjects.trainer_id + View Classes Modal + Trainers Page)
+
+### Scope
+Implemented the plan from the morning's design discussion
+(`capstonepaper/2026-08-27-trainer-subject-assignment-design-discussion.md`,
+`decisions.md` 2026-08-27 AM/PM): (1) removed `subjects.trainer_id` entirely,
+(2) added a read-only "View Classes" modal to `subjects.html` (subject-centric —
+click/act on a subject, see its classes), (3) added a new `trainers.html` page
+(trainer-centric — a card grid, click a trainer, see their current-semester
+classes grouped by subject).
+
+### 1. Remove subjects.trainer_id
+- Migration `2026-08-27-remove-subjects-trainer.sql` (idempotent, dynamic FK-name
+  lookup matching the established idiom) drops the FK and column from the live
+  DB; `schema.sql` updated to match (verified via a fresh throwaway-DB build).
+- One live subject (`BPP-101`) had a trainer_id set before the drop — confirmed
+  harmless to lose (the field was never used for authorization, only display/
+  pre-fill) and backed up first regardless
+  (`backup-2026-08-27-pre-remove-subjects-trainer.sql`).
+- `Subject.java`: removed the `trainer` field/relationship entirely.
+  `SubjectResponse`: removed `trainerId`/`trainerName`.
+  `ClassManagementService.assignTrainer()` and the
+  `PUT /subjects/{code}/trainer` endpoint deleted outright (grepped first —
+  confirmed no test or other code referenced them). `AssignTrainerRequest.java`
+  deleted (had become fully unused). `subjects.html`/`registrar-subjects.js`:
+  "Assigned Trainer" column and "Assign Trainer" modal/button removed.
+
+### 2. View Classes modal (subjects.html)
+- Read-only by design decision (see `decisions.md` 2026-08-27 PM) — reassigning
+  a trainer still happens via the existing Edit Class Trainer flow on
+  `classes.html`.
+- Backend: `ClassManagementService.getClasses(semester, subjectCode)` — added a
+  second optional filter parameter (previously semester-only), following the
+  same optional-filter-combo pattern already used elsewhere in this service
+  (e.g. `getEligibleStudentsForSection`). New `SchoolClassRepository` finders:
+  `findBySubjectSubjectCode`, `findBySemesterAndSubjectSubjectCode`.
+  `GET /api/registrar/classes` gained an optional `?subjectCode=` param — fully
+  backward compatible with the existing Classes page's semester-only usage.
+- Frontend: new `#viewClassesModal` on `subjects.html`, mirroring the
+  `trainer-subjects.html` roster-modal pattern (nested DataTable, cleared and
+  re-populated via AJAX on open). "View Classes" button replaces the old
+  "Assign Trainer" button in the Subjects table's Actions column.
+
+### 3. Trainers page (trainers.html)
+- New DTO `TrainerSummaryResponse` (userId, lastName, firstName, email,
+  classCount). New endpoints: `GET /api/registrar/trainers/summary`,
+  `GET /api/registrar/trainers/{trainerId}/classes` — both scoped to the
+  *current semester*, matching each other by design (see `decisions.md`).
+  New `SchoolClassRepository` methods: `countByTrainerUserIdAndSemester`,
+  `findByTrainerUserIdAndSemester`.
+- Frontend: `trainers.html` (full registrar-page boilerplate copied from
+  `subjects.html` — navbar, account dropdown, Edit Account modal) +
+  `registrar-trainers.js`. Trainers render as `.trainer-card` blocks in a
+  `.trainer-grid` (new CSS in `dashboard.css`) — each card a small label:value
+  table (Last Name, First Name, Email, # Classes badge). Clicking a card opens
+  `#trainerClassesModal`, which groups that trainer's current-semester classes
+  by subject (client-side `Map` grouping in JS, not a DataTable — grouping
+  with subheadings doesn't map cleanly onto DataTables).
+- `SecurityConfig`: `/trainers.html` added to the REGISTRAR matcher.
+- **Navbar bumped 5→6 links across all 7 other registrar pages**
+  (`registrar.html`, `subjects.html`, `classes.html`, `sections.html`,
+  `documents.html`, `generate-document.html`, `student-records.html`) —
+  "Trainers" inserted between Sections and Documents, matching the exact
+  pattern used for every prior page addition (2-link → 4-link → 5-link → 6-link).
+
+### Verified
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL throughout.
+- `./gradlew test` → **240 tests, 0 failures, 0 errors** (was 230; +10: 4 new
+  `getClasses` filter-combination tests, 3 new trainer-summary/trainer-classes
+  service tests, 3 new controller tests).
+- Live-DB migration applied + re-run twice (idempotent) + `schema.sql` rebuilt
+  fresh into a throwaway DB — FK/column removal confirmed both ways.
+- **Three separate live HTTP smoke tests** against the real running app + real
+  Docker MySQL (each with throwaway data cleaned up after):
+  1. Confirmed `GET /api/registrar/subjects` no longer returns
+     `trainerId`/`trainerName`; confirmed the deleted assign-trainer endpoint
+     now falls through to this app's existing generic-500 handler (pre-existing
+     behavior for any undefined route, not a regression); confirmed
+     `GET /api/registrar/classes?subjectCode=` returns the right filtered rows.
+  2. (same session) — covered above.
+  3. Trainer summary/classes: created two real classes for the same trainer
+     across two different subjects, confirmed the summary card count (2)
+     exactly matches the number of rows the trainer-classes endpoint returns,
+     confirmed `trainers.html` itself loads (200 as registrar, 302 anonymous)
+     and contains the expected page elements.
+
+### Open Items
+- PR to `main` (user approval required).
+- No manual **browser** click-through yet for any of this session's UI (View
+  Classes modal, Trainers page cards/modal) — verified via curl/SQL/unit tests,
+  not eyeballed in an actual browser.
+- Design doc (`capstonepaper/...design-discussion.md`) describes the plan that
+  was implemented but was not itself updated with an "as-built" section — the
+  authoritative as-built record is this changeLog/activeContext entry instead.
+
+## ⚠️ ACTION REQUIRED — All Developers (as of 2026-08-27)
+Three migrations landed on this branch and the app code depends on all of them.
+Every developer with a local `AnihanSRMS` database **must run these, in order,
+before pulling this branch**:
 1. `src/main/sql/migrations/2026-08-26-subjects-competency-type.sql` — adds
    `subjects.competency_type` (NOT NULL, BASIC/COMMON/CORE), relaxes
    `subjects.qualification_code` to nullable.
@@ -17,14 +112,17 @@ branch**:
    `ON UPDATE CASCADE` to `classes.subject_code` and `grades.subject_code` (both
    were MySQL-default RESTRICT, which silently blocked renaming a subject's code
    the moment it had real classes/grades).
+3. `src/main/sql/migrations/2026-08-27-remove-subjects-trainer.sql` — drops
+   `subjects.trainer_id` and its FK entirely. Trainer assignment is class-level
+   only now (`classes.trainer_id`).
 
-Without both, `Subject`/`SubjectResponse` will fail to load `competency_type`,
-`createSubject`/`updateSubject` will throw, and renaming a subject with live
-classes/grades will hit a raw FK constraint error instead of succeeding. Fresh
-installs get both automatically via `schema.sql`. See `decisions.md` (2026-08-26
-entries) for the full rationale.
+Without all three, `Subject`/`SubjectResponse` won't match the entity, several
+`ClassManagementService` methods will throw, and the Subjects/Classes/Trainers
+pages will fail to load correctly. Fresh installs get all three automatically via
+`schema.sql`. See `decisions.md` (2026-08-26 and 2026-08-27 entries) for the full
+rationale.
 
-## Latest Session (2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit)
+## Previous Session (2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit)
 
 ### Scope
 User request: allow `subjectCode` to be edited in the Edit Subject modal (it was

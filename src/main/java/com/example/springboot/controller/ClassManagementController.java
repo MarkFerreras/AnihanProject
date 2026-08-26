@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
@@ -29,6 +28,7 @@ import com.example.springboot.dto.registrar.QualificationResponse;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.SubjectResponse;
 import com.example.springboot.dto.registrar.TrainerResponse;
+import com.example.springboot.dto.registrar.TrainerSummaryResponse;
 import com.example.springboot.dto.registrar.AssignStudentsToSectionRequest;
 import com.example.springboot.dto.registrar.BulkEnrollSectionResponse;
 import com.example.springboot.dto.registrar.EligibleSectionStudentResponse;
@@ -125,23 +125,6 @@ public class ClassManagementController {
                 httpRequest.getRemoteAddr());
     }
 
-    @PutMapping("/subjects/{code}/trainer")
-    public ResponseEntity<SubjectResponse> assignTrainer(
-            @PathVariable String code,
-            @RequestBody AssignTrainerRequest request,
-            HttpServletRequest httpRequest) {
-        SubjectResponse result = classManagementService.assignTrainer(code, request);
-
-        LogContext ctx = getLogContext();
-        String action = request.trainerId() != null
-                ? "Assigned trainer " + result.trainerName() + " to subject " + code
-                : "Unassigned trainer from subject " + code;
-        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                action, httpRequest.getRemoteAddr());
-
-        return ResponseEntity.ok(result);
-    }
-
     // -------------------------------------------------------
     // Trainers (lookup)
     // -------------------------------------------------------
@@ -149,6 +132,16 @@ public class ClassManagementController {
     @GetMapping("/trainers")
     public ResponseEntity<List<TrainerResponse>> listTrainers() {
         return ResponseEntity.ok(classManagementService.getActiveTrainers());
+    }
+
+    @GetMapping("/trainers/summary")
+    public ResponseEntity<List<TrainerSummaryResponse>> getTrainerSummaries() {
+        return ResponseEntity.ok(classManagementService.getTrainerSummaries());
+    }
+
+    @GetMapping("/trainers/{trainerId}/classes")
+    public ResponseEntity<List<ClassResponse>> getTrainerClasses(@PathVariable Integer trainerId) {
+        return ResponseEntity.ok(classManagementService.getClassesForTrainer(trainerId));
     }
 
     // -------------------------------------------------------
@@ -163,8 +156,9 @@ public class ClassManagementController {
 
     @GetMapping("/classes")
     public ResponseEntity<List<ClassResponse>> listClasses(
-            @RequestParam(value = "semester", required = false) String semester) {
-        return ResponseEntity.ok(classManagementService.getClasses(semester));
+            @RequestParam(value = "semester", required = false) String semester,
+            @RequestParam(value = "subjectCode", required = false) String subjectCode) {
+        return ResponseEntity.ok(classManagementService.getClasses(semester, subjectCode));
     }
 
     @PostMapping("/classes")

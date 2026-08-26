@@ -1,7 +1,9 @@
 package com.example.springboot.service;
 
 import com.example.springboot.dto.registrar.ClassResponse;
+import com.example.springboot.dto.registrar.TrainerSummaryResponse;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
+import com.example.springboot.model.Batch;
 import com.example.springboot.model.SchoolClass;
 import com.example.springboot.model.Section;
 import com.example.springboot.model.Subject;
@@ -15,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -136,5 +139,104 @@ class ClassManagementServiceTest {
                 () -> service.updateClassTrainer(1, new UpdateClassTrainerRequest(10)));
         assertTrue(ex.getMessage().toLowerCase().contains("disabled"));
         verify(classRepository, never()).save(any());
+    }
+
+    @Test
+    void getTrainerSummariesReturnsCountsForCurrentSemesterOnly() {
+        trainer.setEmail("jdelacruz@example.com");
+        when(batchRepository.findTopByOrderByBatchYearDesc())
+                .thenReturn(Optional.of(new Batch("B2026A", (short) 2026)));
+        when(userRepository.findByRoleAndEnabledTrue("ROLE_TRAINER")).thenReturn(List.of(trainer));
+        when(classRepository.countByTrainerUserIdAndSemester(10, "2026")).thenReturn(3L);
+
+        List<TrainerSummaryResponse> result = service.getTrainerSummaries();
+
+        assertEquals(1, result.size());
+        TrainerSummaryResponse summary = result.get(0);
+        assertEquals(10, summary.userId());
+        assertEquals("Dela Cruz", summary.lastName());
+        assertEquals("Juan", summary.firstName());
+        assertEquals("jdelacruz@example.com", summary.email());
+        assertEquals(3L, summary.classCount());
+    }
+
+    @Test
+    void getTrainerSummariesReturnsZeroWhenTrainerHasNoCurrentSemesterClasses() {
+        when(batchRepository.findTopByOrderByBatchYearDesc())
+                .thenReturn(Optional.of(new Batch("B2026A", (short) 2026)));
+        when(userRepository.findByRoleAndEnabledTrue("ROLE_TRAINER")).thenReturn(List.of(trainer));
+        when(classRepository.countByTrainerUserIdAndSemester(10, "2026")).thenReturn(0L);
+
+        List<TrainerSummaryResponse> result = service.getTrainerSummaries();
+
+        assertEquals(0L, result.get(0).classCount());
+    }
+
+    @Test
+    void getClassesForTrainerScopesToCurrentSemester() {
+        schoolClass.setTrainer(trainer);
+        when(batchRepository.findTopByOrderByBatchYearDesc())
+                .thenReturn(Optional.of(new Batch("B2026A", (short) 2026)));
+        when(classRepository.findByTrainerUserIdAndSemester(10, "2026")).thenReturn(List.of(schoolClass));
+        when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(5L);
+
+        List<ClassResponse> result = service.getClassesForTrainer(10);
+
+        assertEquals(1, result.size());
+        assertEquals("CK-101", result.get(0).subjectCode());
+        assertEquals(5L, result.get(0).enrolledCount());
+        verify(classRepository).findByTrainerUserIdAndSemester(10, "2026");
+    }
+
+    @Test
+    void getClassesWithNoFiltersReturnsAll() {
+        when(classRepository.findAll()).thenReturn(List.of(schoolClass));
+        when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(0L);
+
+        List<ClassResponse> result = service.getClasses(null, null);
+
+        assertEquals(1, result.size());
+        verify(classRepository).findAll();
+        verify(classRepository, never()).findBySemester(any());
+        verify(classRepository, never()).findBySubjectSubjectCode(any());
+    }
+
+    @Test
+    void getClassesFiltersBySemesterOnly() {
+        when(classRepository.findBySemester("2026")).thenReturn(List.of(schoolClass));
+        when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(0L);
+
+        List<ClassResponse> result = service.getClasses("2026", null);
+
+        assertEquals(1, result.size());
+        verify(classRepository).findBySemester("2026");
+        verify(classRepository, never()).findAll();
+    }
+
+    @Test
+    void getClassesFiltersBySubjectCodeOnly() {
+        when(classRepository.findBySubjectSubjectCode("CK-101")).thenReturn(List.of(schoolClass));
+        when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(0L);
+
+        List<ClassResponse> result = service.getClasses(null, "CK-101");
+
+        assertEquals(1, result.size());
+        assertEquals("CK-101", result.get(0).subjectCode());
+        verify(classRepository).findBySubjectSubjectCode("CK-101");
+        verify(classRepository, never()).findAll();
+    }
+
+    @Test
+    void getClassesFiltersBySemesterAndSubjectCodeTogether() {
+        when(classRepository.findBySemesterAndSubjectSubjectCode("2026", "CK-101"))
+                .thenReturn(List.of(schoolClass));
+        when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(0L);
+
+        List<ClassResponse> result = service.getClasses("2026", "CK-101");
+
+        assertEquals(1, result.size());
+        verify(classRepository).findBySemesterAndSubjectSubjectCode("2026", "CK-101");
+        verify(classRepository, never()).findBySemester(any());
+        verify(classRepository, never()).findBySubjectSubjectCode(any());
     }
 }

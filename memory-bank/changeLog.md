@@ -1,5 +1,81 @@
 # Change Log - Anihan SRMS
 
+## 2026-08-27 PM - Remove subjects.trainer_id + View Classes Modal + Trainers Page
+**Branch:** `edit_subjects`
+
+### Task
+Implement the plan from the same day's design discussion
+(`capstonepaper/2026-08-27-trainer-subject-assignment-design-discussion.md`,
+`decisions.md` 2026-08-27): (1) remove `subjects.trainer_id` entirely — trainer
+assignment is class-level only; (2) add a read-only "View Classes" modal to
+`subjects.html` (subject-centric); (3) add a new `trainers.html` page
+(trainer-centric card grid).
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-27-remove-subjects-trainer.sql` | Idempotent: drops the FK (dynamic name lookup) then the column. |
+| `src/main/sql/backup-2026-08-27-pre-remove-subjects-trainer.sql` | Backup taken before dropping. |
+| `dto/registrar/TrainerSummaryResponse.java` | userId, lastName, firstName, email, classCount — for the Trainers page cards. |
+| `static/trainers.html` | New registrar page — full page boilerplate copied from `subjects.html` (navbar, account dropdown, Edit Account modal); `.trainer-grid` of `.trainer-card` blocks + a classes-by-subject modal. |
+| `static/js/registrar-trainers.js` | Loads `/trainers/summary` into cards; on card click, loads `/trainers/{id}/classes` and groups client-side by subject (a `Map`, not a DataTable — grouping with subheadings). |
+| `capstonepaper/2026-08-27-trainer-subject-assignment-design-discussion.md` | (from the morning session) Design record this implements. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | `subjects` CREATE TABLE: `trainer_id` column + FK removed; seed INSERT column list updated. |
+| `model/Subject.java` | Removed the `trainer` field/relationship. |
+| `dto/registrar/SubjectResponse.java` | Removed `trainerId`/`trainerName`. |
+| `service/ClassManagementService.java` | Removed `assignTrainer()`. Added `getClasses(semester, subjectCode)` (was semester-only) — same optional-filter-combo pattern as `getEligibleStudentsForSection`. Added `getTrainerSummaries()` and `getClassesForTrainer(trainerId)`, both scoped to `getCurrentSemester()`. |
+| `controller/ClassManagementController.java` | Removed `PUT /subjects/{code}/trainer`. `GET /classes` gained an optional `?subjectCode=` param (backward compatible). Added `GET /trainers/summary` and `GET /trainers/{trainerId}/classes`. |
+| `repository/SchoolClassRepository.java` | Added `findBySubjectSubjectCode`, `findBySemesterAndSubjectSubjectCode`, `findByTrainerUserIdAndSemester`, `countByTrainerUserIdAndSemester`. |
+| `config/SecurityConfig.java` | `/trainers.html` added to the REGISTRAR matcher. |
+| `dto/registrar/AssignTrainerRequest.java` | **Deleted** — fully unused once `assignTrainer()` was removed (grepped first to confirm no other references). |
+| `static/subjects.html` | "Assigned Trainer" column + "Assign Trainer" modal removed; new `#viewClassesModal` added (mirrors the `trainer-subjects.html` roster-modal pattern — nested DataTable, AJAX-populated on open). "View Classes" button replaces "Assign Trainer" in the Actions column. Cache-buster `?v=4` → `?v=5`. |
+| `static/js/registrar-subjects.js` | Removed all trainer-assignment logic (`loadTrainers`, `setupAssignTrainer`, the assign-trainer click handler). Added `setupViewClasses()` + `openViewClasses()`. |
+| `static/css/dashboard.css` | New `.trainer-grid`/`.trainer-card`/`.trainer-card-table` rules — reuses the existing `.surface-card` look for each card rather than inventing a new visual style. |
+| `registrar.html`, `subjects.html`, `classes.html`, `sections.html`, `documents.html`, `generate-document.html`, `student-records.html` | Navbar bumped 5→6 links — "Trainers" inserted between Sections and Documents on every registrar page, matching the exact pattern used for every prior page addition. |
+| `test/.../ClassManagementServiceTest.java` | +7 tests: 4 for the `getClasses` filter combinations (none/semester/subject/both), 3 for `getTrainerSummaries`/`getClassesForTrainer` (current-semester scoping, zero-count case). |
+| `test/.../ClassManagementSubjectControllerWebMvcTest.java` | Fixed `SubjectResponse` constructor calls (6-arg, trainer fields gone); +3 tests for the two new trainer endpoints (list, RBAC-forbidden for TRAINER role, empty-list case). |
+| `memory-bank/activeContext.md`, `decisions.md`, `changeLog.md` | Session notes. |
+
+### Design Decisions
+See `decisions.md` (2026-08-27 PM). Short version: View Classes is read-only
+(avoids a modal-on-modal handoff for a feature that's inherently just "look at
+this"); the Trainers page's card count and its modal are both scoped to the
+current semester and share the same underlying data so they can never disagree;
+the Trainers page uses a card grid rather than a DataTable — the only list in
+this app that isn't one — a deliberate tradeoff the user chose after being shown
+the inconsistency (no built-in search/sort/pagination) against a small, fixed-size
+list where that tradeoff is low-risk.
+
+### Verification
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL throughout.
+- `./gradlew test` → **240 tests, 0 failures, 0 errors** (was 230; +10).
+- Live migration applied + re-run twice (idempotent); `schema.sql` rebuilt fresh
+  into a throwaway DB — matches.
+- **Three live HTTP smoke tests** against the real app + real Docker MySQL, each
+  with throwaway data cleaned up afterward:
+  1. `GET /api/registrar/subjects` no longer returns trainer fields; deleted
+     assign-trainer endpoint now falls through to this app's pre-existing
+     generic-500 handler (confirmed via server log it's `NoResourceFoundException`
+     — the same thing that happens for *any* undefined route in this app, not a
+     regression); `GET /api/registrar/classes?subjectCode=` returns correctly
+     filtered rows (verified both a match and a non-match).
+  2. Created two real classes for one trainer across two different subjects;
+     confirmed the trainer-summary card count (2) exactly equals the row count
+     the trainer-classes endpoint returns for the same trainer.
+  3. `trainers.html` loads (200 as registrar, 302 anonymous) and contains the
+     expected page elements (`#trainerGrid`, `#trainerClassesModal`, the JS include).
+
+### Open Items
+- PR to `main` (user approval required).
+- No manual **browser** click-through yet — this session's UI (View Classes
+  modal, Trainers page cards/modal) was verified via curl/SQL/unit tests only.
+
+---
+
 ## 2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit
 **Branch:** `edit_subjects`
 

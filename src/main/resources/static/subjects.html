@@ -48,6 +48,9 @@
                             <a class="nav-link admin-nav-link" href="sections.html">Sections</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="trainers.html">Trainers</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="documents.html">Documents</a>
                         </li>
                     </ul>
@@ -88,7 +91,7 @@
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
                         <h1 class="page-title">Subjects</h1>
-                        <p class="page-subtitle">Create, edit, and manage subjects. Assign trainers to each one.</p>
+                        <p class="page-subtitle">Create, edit, and manage subjects.</p>
                     </div>
                 </div>
             </section>
@@ -98,7 +101,7 @@
                     <div class="d-flex justify-content-between align-items-center w-100">
                         <div>
                             <h2>All Subjects</h2>
-                            <p>Use the Actions column to edit, assign a trainer, or delete a subject.</p>
+                            <p>Use the Actions column to edit, view classes, or delete a subject.</p>
                         </div>
                         <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                                 data-bs-target="#createSubjectModal">
@@ -116,7 +119,6 @@
                                     <th scope="col">Competency Type</th>
                                     <th scope="col">Qualification</th>
                                     <th scope="col">Units</th>
-                                    <th scope="col">Assigned Trainer</th>
                                     <th scope="col" class="text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -252,28 +254,31 @@
         </div>
     </div>
 
-    <!-- ===== ASSIGN TRAINER MODAL ===== -->
-    <div class="modal fade detail-modal" id="assignTrainerModal" tabindex="-1"
-         aria-labelledby="assignTrainerModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+    <!-- ===== VIEW CLASSES MODAL ===== -->
+    <div class="modal fade" id="viewClassesModal" tabindex="-1"
+         aria-labelledby="viewClassesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="assignTrainerModalLabel">Assign Trainer</h5>
+                    <h5 class="modal-title" id="viewClassesModalLabel">Classes</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert d-none" id="assignTrainerAlert" role="alert"></div>
-                    <p>Subject: <strong id="assignTrainerSubjectName">—</strong></p>
-                    <div class="mb-3">
-                        <label for="trainerSelect" class="form-label">Trainer</label>
-                        <select class="form-select" id="trainerSelect">
-                            <option value="">— No Trainer —</option>
-                        </select>
-                    </div>
+                    <p class="text-muted mb-3" id="viewClassesSubtitle"></p>
+                    <table id="viewClassesTable" class="table table-hover w-100">
+                        <thead>
+                            <tr>
+                                <th>Section</th>
+                                <th>Trainer</th>
+                                <th>Semester</th>
+                                <th>Enrolled</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-surface" id="saveTrainerBtn">Save</button>
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -381,7 +386,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-subjects.js?v=4"></script>
+    <script src="js/registrar-subjects.js?v=5"></script>
 </body>
 
 </html>

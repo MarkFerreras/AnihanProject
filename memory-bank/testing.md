@@ -18,9 +18,9 @@
 | `StudentRecordH2LoadTest` | `@DataJpaTest` (H2 in MySQL mode) | 1 | 100 records persist+load via real JPA, isolated from live MySQL |
 | `StudentDetailsServiceTest` | Mockito | 7 | start (minimal record), resume, submit, double-submit guard, load |
 | `AgeCalculatorTest` | Pure unit | 6 | null/today/past/future/birthday-edge cases (returns `Integer null` for null birthdate) |
-| `ClassManagementSubjectServiceTest` | Mockito | 9 | createSubject/updateSubject/deleteSubject — FK pre-checks, duplicate code, unknown qualification |
-| `ClassManagementSubjectControllerWebMvcTest` | WebMvc | 6 | POST/PUT/DELETE subjects, GET qualifications, TRAINER forbidden |
-| `ClassManagementServiceTest` | Mockito | 6 | updateClassTrainer — assign, unassign, class not found, trainer not found, not-a-trainer, disabled |
+| `ClassManagementSubjectServiceTest` | Mockito | 17 | createSubject/updateSubject/deleteSubject — FK pre-checks, duplicate code, unknown qualification, competency_type (Basic/Common/Core qualification rules), subjectCode rename (success, collision, reload-under-new-code) |
+| `ClassManagementSubjectControllerWebMvcTest` | WebMvc | 14 | POST/PUT/DELETE subjects, GET qualifications, TRAINER forbidden, competency_type validation, rename logging, trainer summary/classes endpoints |
+| `ClassManagementServiceTest` | Mockito | 13 | updateClassTrainer — assign, unassign, class not found, trainer not found, not-a-trainer, disabled; getClasses filter combinations (none/semester/subject/both); getTrainerSummaries + getClassesForTrainer (current-semester scoping) |
 | `ClassManagementControllerWebMvcTest` | WebMvc | 4 | PUT /classes/{id}/trainer — 200 assign+log, 200 unassign+log, 403 TRAINER, 400 service throws |
 | `ClassManagementSectionServiceTest` | Mockito | 13 | updateSection, getStudentsInSection, getEligibleStudentsForSection, assignStudentsToSection, removeStudentFromSection, bulkEnrollSectionIntoClass |
 | `ClassManagementSectionControllerWebMvcTest` | WebMvc | 7 | PUT/GET/POST/DELETE section-student endpoints, POST enroll-section — RBAC + log verify |
@@ -31,7 +31,7 @@
 | `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
 | `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **217 tests, 0 failures, 0 errors** (July 14, 2026, after Document Management polish session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **240 tests, 0 failures, 0 errors** (August 27, 2026 PM, after removing subjects.trainer_id and adding the View Classes modal + Trainers page, on branch `edit_subjects`).
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 
@@ -69,6 +69,8 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 
 ## Pending Manual Checks
 
+- [ ] Browser smoke: `subjects.html` — Create/Edit Subject competency-type toggle, subject-code rename, "View Classes" modal open/close/content. Verified via curl/SQL/unit tests only so far (2026-08-26/27 sessions).
+- [ ] Browser smoke: `trainers.html` — card grid renders, click-through to the classes-by-subject modal, grouping displays correctly for a trainer with classes across multiple subjects. Verified via curl only so far (2026-08-27).
 - [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
 - [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
 - [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).

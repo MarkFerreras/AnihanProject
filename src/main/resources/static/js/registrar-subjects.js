@@ -1,13 +1,11 @@
 /**
- * registrar-subjects.js — Subjects DataTable + Create / Edit / Delete + Trainer Assignment
+ * registrar-subjects.js — Subjects DataTable + Create / Edit / Delete / View Classes
  */
 (function () {
     'use strict';
 
     let subjectsTable;
-    let trainers = [];
     let qualifications = [];
-    let currentSubjectCode = null;
 
     let createSubjectModal = null;
     let editSubjectModal = null;
@@ -15,12 +13,12 @@
     let deleteSubjectModal = null;
     let deleteSubjectCurrentCode = null;
 
-    const assignTrainerModal = new bootstrap.Modal(document.getElementById('assignTrainerModal'));
+    let viewClassesModal = null;
+    let viewClassesTable = null;
 
     $(document).ready(function () {
-        loadTrainers();
         initTable();
-        setupAssignTrainer();
+        setupViewClasses();
         // CRUD modals — must be called after initTable() so subjectsTable is defined
         setupCreateSubject(subjectsTable);
         setupEditSubject(subjectsTable);
@@ -50,15 +48,6 @@
                 },
                 { data: 'units', className: 'text-center' },
                 {
-                    data: 'trainerName',
-                    render: function (data) {
-                        if (data) {
-                            return '<span class="status-badge status-badge-active">' + escapeHtml(data) + '</span>';
-                        }
-                        return '<span class="text-muted fst-italic">Unassigned</span>';
-                    }
-                },
-                {
                     data: null,
                     orderable: false,
                     className: 'text-end',
@@ -66,10 +55,9 @@
                         return (
                             '<button class="btn btn-surface btn-sm edit-subject-btn me-1" ' +
                             'data-code="' + escapeHtml(data.subjectCode) + '">Edit</button>' +
-                            '<button class="btn btn-surface btn-sm assign-trainer-btn me-1" ' +
+                            '<button class="btn btn-surface btn-sm view-classes-btn me-1" ' +
                             'data-code="' + escapeHtml(data.subjectCode) + '" ' +
-                            'data-name="' + escapeHtml(data.subjectName) + '" ' +
-                            'data-trainer="' + (data.trainerId || '') + '">Assign Trainer</button>' +
+                            'data-name="' + escapeHtml(data.subjectName) + '">View Classes</button>' +
                             '<button class="btn btn-sm btn-outline-danger delete-subject-btn" ' +
                             'data-code="' + escapeHtml(data.subjectCode) + '" ' +
                             'data-name="' + escapeHtml(data.subjectName) + '">Delete</button>'
@@ -83,54 +71,69 @@
                 zeroRecords: 'No matching subjects.'
             }
         });
-
-        // Delegate click on assign buttons
-        $('#subjectsTable').on('click', '.assign-trainer-btn', function () {
-            currentSubjectCode = $(this).data('code');
-            const subjectName = $(this).data('name');
-            const trainerId = $(this).data('trainer');
-
-            $('#assignTrainerSubjectName').text(subjectName);
-            $('#trainerSelect').val(trainerId || '');
-            hideAlert('assignTrainerAlert');
-            assignTrainerModal.show();
-        });
     }
 
-    function loadTrainers() {
-        $.ajax({
-            url: '/api/registrar/trainers',
-            method: 'GET',
-            success: function (data) {
-                trainers = data;
-                const select = $('#trainerSelect');
-                select.find('option:not(:first)').remove();
-                trainers.forEach(function (t) {
-                    select.append('<option value="' + t.userId + '">' + escapeHtml(t.fullName) + '</option>');
-                });
-            }
-        });
-    }
+    // -------------------------------------------------------
+    // View Classes (read-only — reassigning a class's trainer is still
+    // done via the Classes page's existing Edit Class Trainer flow)
+    // -------------------------------------------------------
 
-    function setupAssignTrainer() {
-        $('#saveTrainerBtn').on('click', function () {
-            const trainerId = $('#trainerSelect').val();
-            const payload = { trainerId: trainerId ? parseInt(trainerId) : null };
-
-            $.ajax({
-                url: '/api/registrar/subjects/' + encodeURIComponent(currentSubjectCode) + '/trainer',
-                method: 'PUT',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function () {
-                    assignTrainerModal.hide();
-                    subjectsTable.ajax.reload(null, false);
+    function setupViewClasses() {
+        viewClassesModal = new bootstrap.Modal(document.getElementById('viewClassesModal'));
+        viewClassesTable = $('#viewClassesTable').DataTable({
+            autoWidth: false,
+            columns: [
+                {
+                    data: null,
+                    render: function (data) {
+                        return escapeHtml(data.sectionName) +
+                            ' <span class="text-muted">(' + escapeHtml(data.sectionCode) + ')</span>';
+                    }
                 },
-                error: function (xhr) {
-                    const msg = xhr.responseJSON?.message || 'Failed to assign trainer.';
-                    showAlert('assignTrainerAlert', msg, 'danger');
-                }
-            });
+                {
+                    data: 'trainerName',
+                    render: function (data) {
+                        if (data) {
+                            return '<span class="status-badge status-badge-active">' + escapeHtml(data) + '</span>';
+                        }
+                        return '<span class="text-muted fst-italic">Unassigned</span>';
+                    }
+                },
+                { data: 'semester' },
+                { data: 'enrolledCount', className: 'text-center' }
+            ],
+            order: [[2, 'desc']],
+            pageLength: 25,
+            language: { emptyTable: 'No classes teach this subject yet.' }
+        });
+
+        $('#subjectsTable').on('click', '.view-classes-btn', function () {
+            const code = $(this).data('code');
+            const name = $(this).data('name');
+            openViewClasses(code, name);
+        });
+
+        $('#viewClassesModal').on('shown.bs.modal', function () {
+            viewClassesTable.columns.adjust().draw();
+        });
+    }
+
+    function openViewClasses(subjectCode, subjectName) {
+        $('#viewClassesModalLabel').text('Classes — ' + subjectName);
+        $('#viewClassesSubtitle').text('Subject Code: ' + subjectCode);
+        viewClassesTable.clear().draw();
+        viewClassesModal.show();
+
+        $.ajax({
+            url: '/api/registrar/classes',
+            method: 'GET',
+            data: { subjectCode: subjectCode },
+            success: function (rows) {
+                viewClassesTable.rows.add(rows).draw();
+            },
+            error: function () {
+                $('#viewClassesSubtitle').text('Subject Code: ' + subjectCode + ' — failed to load classes.');
+            }
         });
     }
 

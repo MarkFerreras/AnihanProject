@@ -4,28 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Generate Official Documents">
-    <title>Generate Document — Registrar</title>
+    <meta name="description" content="Anihan SRMS — Registrar Trainers Overview">
+    <title>Trainers — Registrar</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/document-print.css">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
-        #documentArea { margin: 1.5rem auto 3rem; }
-        #documentArea .document-sheet { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.15); }
-        .generate-controls .form-label { font-size: 0.85rem; margin-bottom: 0.25rem; }
-        /* dashboard.css clips surface-card children (overflow: hidden, for the rounded
-           corners); the student picker menu must overflow the card, so relax it here. */
-        .generate-document-page .surface-card { overflow: visible; }
-        /* Cap the open list at 5 rows (5 x 2.5rem items + 1rem menu padding); the rest scrolls. */
-        #studentPickerMenu { z-index: 1050; min-width: max-content; max-height: 13.5rem; overflow-y: auto; }
-        #studentPickerMenu .dropdown-item { height: 2.5rem; display: flex; align-items: center; gap: 0.3rem; }
     </style>
 </head>
 
-<body class="dashboard-page generate-document-page" data-required-role="ROLE_REGISTRAR">
+<body class="dashboard-page" data-required-role="ROLE_REGISTRAR">
 
     <!-- ===== HEADER ===== -->
     <header>
@@ -56,7 +46,8 @@
                             <a class="nav-link admin-nav-link" href="sections.html">Sections</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="trainers.html">Trainers</a>
+                            <a class="nav-link admin-nav-link active" aria-current="page"
+                                href="trainers.html">Trainers</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="documents.html">Documents</a>
@@ -94,13 +85,13 @@
     <!-- ===== MAIN CONTENT ===== -->
     <main class="dashboard-main">
         <div class="container">
+
             <section class="page-hero">
                 <div class="page-hero-grid">
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
-                        <h1 class="page-title">Generate Document</h1>
-                        <p class="page-subtitle">Auto-fill an official TOR or Form IX from a student's record,
-                            review and complete it below, then print or save it to Documents.</p>
+                        <h1 class="page-title">Trainers</h1>
+                        <p class="page-subtitle">Click a trainer to see the classes they're teaching this semester, organized by subject.</p>
                     </div>
                 </div>
             </section>
@@ -108,51 +99,36 @@
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>Document Setup</h2>
-                        <p>Pick a student and a template. Fields highlighted on hover are editable — click any
-                            blank or pre-filled value in the document to change it before printing or saving.</p>
+                        <h2>All Trainers</h2>
+                        <p id="trainerCountSubtitle">Loading trainers…</p>
                     </div>
                 </div>
                 <div class="surface-card-body compact">
-                    <div class="alert d-none" id="generateAlert" role="alert"></div>
-                    <div class="row g-3 align-items-end generate-controls">
-                        <div class="col-md-3">
-                            <label for="generateStudentId" class="form-label">Student <span class="text-danger">*</span></label>
-                            <div class="position-relative" id="studentPicker">
-                                <input type="text" class="form-control" id="generateStudentId"
-                                       placeholder="Select or search a student" autocomplete="off"
-                                       role="combobox" aria-expanded="false" aria-controls="studentPickerMenu"
-                                       aria-autocomplete="list">
-                                <div class="dropdown-menu w-100 shadow-sm" id="studentPickerMenu" role="listbox"></div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="generateTemplate" class="form-label">Template <span class="text-danger">*</span></label>
-                            <select class="form-select" id="generateTemplate"></select>
-                        </div>
-                        <div class="col-md-3 d-none" id="formIxVariantWrap">
-                            <label for="generateVariant" class="form-label">Form IX Variant</label>
-                            <select class="form-select" id="generateVariant">
-                                <option value="candidate">Records of Candidate for Graduation</option>
-                                <option value="permanent">Student's Permanent Record</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="button" class="btn btn-primary" id="loadDocumentBtn">Load</button>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2 mt-3">
-                        <button type="button" class="btn btn-surface" id="printDocumentBtn" disabled>Print</button>
-                        <button type="button" class="btn btn-primary" id="saveDocumentBtn" disabled>Save to Documents</button>
-                        <button type="button" class="btn btn-surface-secondary d-none" id="cancelDocumentBtn">Cancel</button>
-                    </div>
+                    <div class="trainer-grid" id="trainerGrid"></div>
                 </div>
             </section>
         </div>
     </main>
 
-    <!-- ===== GENERATED DOCUMENT (direct child of body so @media print can isolate it) ===== -->
-    <div id="documentArea"></div>
+    <!-- ===== TRAINER CLASSES MODAL ===== -->
+    <div class="modal fade" id="trainerClassesModal" tabindex="-1"
+         aria-labelledby="trainerClassesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="trainerClassesModalLabel">Classes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3" id="trainerClassesSubtitle"></p>
+                    <div id="trainerClassesContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== EDIT ACCOUNT MODAL ===== -->
     <div class="modal fade edit-account-modal" id="editAccountModal" tabindex="-1"
@@ -255,9 +231,6 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/anihan-logo.js?v=1"></script>
-    <script src="js/curriculum-templates.js?v=1"></script>
-    <script src="js/registrar-generate-document.js?v=3"></script>
+    <script src="js/registrar-trainers.js?v=1"></script>
 </body>
-
 </html>

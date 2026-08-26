@@ -28,10 +28,6 @@ public class Subject {
     @Column(name = "units", nullable = false)
     private Integer units;
 
-    @ManyToOne
-    @JoinColumn(name = "trainer_id")
-    private User trainer;
-
     public Subject() {
     }
 
@@ -75,13 +71,5 @@ public class Subject {
 
     public void setUnits(Integer units) {
         this.units = units;
-    }
-
-    public User getTrainer() {
-        return trainer;
-    }
-
-    public void setTrainer(User trainer) {
-        this.trainer = trainer;
     }
 }

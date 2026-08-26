@@ -10,6 +10,10 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Intege
 
     List<SchoolClass> findBySemester(String semester);
 
+    List<SchoolClass> findBySubjectSubjectCode(String subjectCode);
+
+    List<SchoolClass> findBySemesterAndSubjectSubjectCode(String semester, String subjectCode);
+
     boolean existsBySectionSectionCodeAndSubjectSubjectCodeAndSemester(
             String sectionCode, String subjectCode, String semester);
 
@@ -20,4 +24,8 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Intege
     List<SchoolClass> findByTrainerUserId(Integer userId);
 
     List<SchoolClass> findByTrainerUserIdAndSubjectSubjectCode(Integer userId, String subjectCode);
+
+    List<SchoolClass> findByTrainerUserIdAndSemester(Integer userId, String semester);
+
+    long countByTrainerUserIdAndSemester(Integer userId, String semester);
 }

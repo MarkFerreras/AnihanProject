@@ -4,6 +4,55 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-08-27 PM - View Classes Modal Is Read-Only; Trainers Page Uses a Card Grid, Not a DataTable
+
+**Decisions (combined, made while implementing the plan from the morning session):**
+1. The new "View Classes" modal on `subjects.html` is **read-only** — it shows a
+   subject's classes (section, trainer, semester, enrolled count) but does not
+   allow reassigning a class's trainer inline. Reassignment still goes through
+   the existing Edit Class Trainer flow on `classes.html`.
+2. The Trainers page's "number of classes assigned" (on each card) and the
+   classes shown in its drill-in modal are both **scoped to the current
+   semester only**, and deliberately use the *same* underlying data so the
+   number on a card always matches what the modal shows underneath it.
+3. The Trainers page renders trainers as a **card grid** (`.trainer-grid` of
+   `.trainer-card` blocks, each a small label:value table: Last Name, First
+   Name, Email, # Classes) rather than a DataTable — the first list in this
+   app that isn't a DataTable.
+
+**Why:** (1) avoids the Bootstrap modal-on-modal handoff this project has had
+to work around before, for a feature that's read-only by nature anyway — view
+first, ship it, add inline editing later only if it's actually missed. (2)
+Otherwise a card could show "3 classes" while its modal shows a different
+number (e.g. all-time), which would read as a bug. (3) User's explicit choice
+after being shown the tradeoff (every other list in this app is a DataTable,
+so a card grid has no built-in search/sort/pagination) — judged acceptable
+given trainers are a small, fixed-size list at this school's scale, unlike
+students or documents.
+
+## 2026-08-27 AM - Remove subjects.trainer_id (Decision Only — Not Yet Implemented)
+
+**Decision:** `subjects.trainer_id` will be removed. Trainer assignment will be
+represented *only* by `classes.trainer_id`, which is already the sole field used
+for every real authorization/roster check in the codebase (confirmed by grepping
+every use of `Subject.getTrainer()` — it's display-only and a Create-Class-modal
+pre-fill, never used for access control). Full discussion, including three UX
+options for surfacing "who teaches what" once the column is gone, is written up
+in `capstonepaper/2026-08-27-trainer-subject-assignment-design-discussion.md`.
+
+**Why:** The field is redundant (nothing enforces it), misleading (it implies
+one trainer per subject, contradicting the actual class-level multi-trainer
+capability that already works), and prone to staleness (nothing keeps it in
+sync with who's actually teaching live classes). A dedicated trainer↔subject
+join table was also considered and rejected for the same reason `competencies`
+was rejected as its own table (2026-08-26 below): it would duplicate a fact
+`classes` already represents, absent a genuine "eligible to teach" concept
+distinct from "currently teaching."
+
+**Status:** Implemented 2026-08-27 PM. See the 2026-08-27 PM entry below for the
+follow-on decisions made during implementation (View Classes modal scope, Trainers
+page layout).
+
 ## 2026-08-26 PM #2 - subject_code Rename Uses ON UPDATE CASCADE + a JPQL Bulk Update, Not a Guard-and-Block
 
 **Decision:** `subjectCode` (the PK) is now editable in the Edit Subject modal
