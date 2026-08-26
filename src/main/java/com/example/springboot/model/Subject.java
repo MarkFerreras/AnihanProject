@@ -19,8 +19,11 @@ public class Subject {
     private String subjectName;
 
     @ManyToOne
-    @JoinColumn(name = "qualification_code", nullable = false)
+    @JoinColumn(name = "qualification_code")
     private Qualification qualification;
+
+    @Column(name = "competency_type", nullable = false, length = 15)
+    private String competencyType;
 
     @Column(name = "units", nullable = false)
     private Integer units;
@@ -56,6 +59,14 @@ public class Subject {
 
     public void setQualification(Qualification qualification) {
         this.qualification = qualification;
+    }
+
+    public String getCompetencyType() {
+        return competencyType;
+    }
+
+    public void setCompetencyType(String competencyType) {
+        this.competencyType = competencyType;
     }
 
     public Integer getUnits() {

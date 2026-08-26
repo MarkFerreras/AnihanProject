@@ -4,6 +4,69 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-08-26 PM #2 - subject_code Rename Uses ON UPDATE CASCADE + a JPQL Bulk Update, Not a Guard-and-Block
+
+**Decision:** `subjectCode` (the PK) is now editable in the Edit Subject modal
+at any time, including when the subject has live `classes`/`grades`.
+`classes.subject_code` and `grades.subject_code` were altered to `ON UPDATE
+CASCADE` (previously MySQL-default `RESTRICT`) so a rename ripples into every
+referencing row automatically. Renames are executed via a JPQL
+`@Modifying` bulk `UPDATE`
+(`SubjectRepository.renameSubjectCode`), not a normal `load → setSubjectCode →
+save()` on the entity. Rejected alternative: leave the FKs as `RESTRICT` and
+only allow the rename while `existsBySubjectSubjectCode`/`countGradesBySubjectCode`
+both report zero (mirroring the existing Delete Subject guard) — offered to the
+user as a narrower, no-migration option; they chose the cascading approach
+instead.
+
+**Why:** `subjectCode` is a JPA `@Id`. Hibernate has no well-defined way to
+change a *managed* entity's own identity through a setter followed by
+`save()` — the safe, standard pattern for a real PK rename is a direct SQL
+`UPDATE` that bypasses entity-identity tracking entirely, which is also the
+only way to actually trigger the database's `ON UPDATE CASCADE` (an
+INSERT-a-new-row-then-delete-the-old-row approach would not cascade — MySQL's
+FK cascade fires on the `UPDATE` statement itself). `ON DELETE` was left
+`RESTRICT` — deleting a subject that still has classes/grades stays blocked,
+exactly as before; only the update rule changed. Verified twice before
+shipping: a raw-SQL test proved the cascade at the database level, then a live
+HTTP smoke test proved the full stack (API → service → bulk update → cascade →
+audit log).
+
+## 2026-08-26 - competency_type as a Plain Column on subjects, Not a New Table or a Field on qualifications
+
+**Decision:** `subjects.competency_type VARCHAR(15) NOT NULL` (values `BASIC`,
+`COMMON`, `CORE`), validated at the service layer — same pattern as `role` and
+`student_status`. Rejected alternatives: a dedicated `competencies` lookup table
+with `subjects.competency_type_code` as an FK (mirrors how `qualifications` works),
+and putting the classification on `qualifications` itself.
+
+**Why:** Competency type is a property of the *subject*, not the qualification — a
+qualification (e.g. "Cookery NC II") doesn't have one competency type, it's an
+aggregate of subjects spanning all three. Confirmed from the actual TESDA documents
+(`document-templates/Blank Form/FORM IX - BPP.docx`) and the existing
+`curriculum-templates.js`: Basic and Common competency subjects are identical/shared
+across all three qualifications (Cookery, BPP, FBS); only Core subjects are
+qualification-specific. A separate lookup table was rejected because Basic/Common/
+Core is a fixed, TESDA-defined set of exactly 3 values that will never be
+admin-managed via UI — unlike `qualifications`, which genuinely needs to support new
+rows as the school adds NC programs.
+
+## 2026-08-26 - qualification_code Made Nullable, No "No Qualification" Sentinel Row
+
+**Decision:** `subjects.qualification_code` relaxed from `NOT NULL` to `NULL`.
+Basic/Common subjects leave it `NULL`; only Core subjects are required to set it
+(enforced in `ClassManagementService`, not at the SQL level). Rejected alternative:
+seed a sentinel `qualifications` row named "No Qualification" and point Basic/Common
+subjects at it, keeping the FK `NOT NULL`.
+
+**Why:** `qualifications` holds real TESDA-recognized NC programs that feed directly
+into generated official documents (TOR, Form IX, TESDA Special Orders). A sentinel
+row risks silently appearing on generated documents anywhere the app lists
+qualifications, and depends on that placeholder row never being deleted. NULL
+matches this schema's existing precedent for "not assigned" (`subjects.trainer_id`,
+`classes.trainer_id` are both nullable FKs with the same meaning) and matches the
+actual domain fact: these subjects don't belong to a qualification at all.
+
 ## 2026-07-14 - Generated-Document DOCX via Server-Side OOXML altChunk
 
 **Decision:** Generated `text/html` documents download as .docx built by `HtmlDocxConverter`:

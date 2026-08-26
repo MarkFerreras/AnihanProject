@@ -100,9 +100,13 @@ public class ClassManagementController {
             HttpServletRequest httpRequest) {
         SubjectResponse result = classManagementService.updateSubject(code, request);
 
+        String logMessage = code.equals(result.subjectCode())
+                ? "Updated subject " + code
+                : "Updated subject " + code + " (renamed to " + result.subjectCode() + ")";
+
         LogContext ctx = getLogContext();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Updated subject " + code,
+                logMessage,
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(result);

@@ -113,6 +113,7 @@
                                 <tr>
                                     <th scope="col">Subject Code</th>
                                     <th scope="col">Subject Name</th>
+                                    <th scope="col">Competency Type</th>
                                     <th scope="col">Qualification</th>
                                     <th scope="col">Units</th>
                                     <th scope="col">Assigned Trainer</th>
@@ -146,6 +147,15 @@
                         <input type="text" class="form-control" id="createSubjectName" maxlength="255" autocomplete="off">
                     </div>
                     <div class="mb-3">
+                        <label for="createSubjectCompetencyType" class="form-label">Competency Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="createSubjectCompetencyType">
+                            <option value="">-- Select Competency Type --</option>
+                            <option value="BASIC">Basic</option>
+                            <option value="COMMON">Common</option>
+                            <option value="CORE">Core</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="createSubjectQualificationGroup">
                         <label for="createSubjectQualification" class="form-label">Qualification <span class="text-danger">*</span></label>
                         <select class="form-select" id="createSubjectQualification"></select>
                     </div>
@@ -173,14 +183,24 @@
                 <div class="modal-body">
                     <div class="alert d-none" id="editSubjectAlert" role="alert"></div>
                     <div class="mb-3">
-                        <label class="form-label">Subject Code</label>
-                        <input type="text" class="form-control" id="editSubjectCode" readonly>
+                        <label for="editSubjectCode" class="form-label">Subject Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editSubjectCode" maxlength="20" autocomplete="off">
+                        <div class="form-text">Renaming updates every class and grade already linked to this subject.</div>
                     </div>
                     <div class="mb-3">
                         <label for="editSubjectName" class="form-label">Subject Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="editSubjectName" maxlength="255" autocomplete="off">
                     </div>
                     <div class="mb-3">
+                        <label for="editSubjectCompetencyType" class="form-label">Competency Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editSubjectCompetencyType">
+                            <option value="">-- Select Competency Type --</option>
+                            <option value="BASIC">Basic</option>
+                            <option value="COMMON">Common</option>
+                            <option value="CORE">Core</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="editSubjectQualificationGroup">
                         <label for="editSubjectQualification" class="form-label">Qualification <span class="text-danger">*</span></label>
                         <select class="form-select" id="editSubjectQualification"></select>
                     </div>
@@ -361,7 +381,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-subjects.js?v=2"></script>
+    <script src="js/registrar-subjects.js?v=4"></script>
 </body>
 
 </html>

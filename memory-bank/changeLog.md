@@ -1,5 +1,168 @@
 # Change Log - Anihan SRMS
 
+## 2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit
+**Branch:** `edit_subjects`
+
+### Task
+Allow `subjectCode` to be edited in the Edit Subject modal. It was locked
+`readonly` since 2026-05-10 specifically because it's the PK and
+`classes`/`grades` reference it by FK. Investigated the FK behavior before
+touching the UI — both FKs lacked `ON UPDATE CASCADE`, so MySQL would reject a
+rename outright once a subject had real classes/grades. User chose "full
+cascading rename" (add `ON UPDATE CASCADE`, allow renaming anytime) over a
+narrower "only rename while unreferenced" alternative.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-26-subjects-code-update-cascade.sql` | Idempotent migration: drops and re-adds `fk_grades_subject`/`fk_classes_subject` with `ON DELETE RESTRICT ON UPDATE CASCADE` (delete behavior unchanged, only update rule changed). Checks the FK's current `UPDATE_RULE` via `information_schema.REFERENTIAL_CONSTRAINTS`, since the FK already exists and must be replaced (drop-then-add), not skipped. |
+| `src/main/sql/backup-2026-08-26-pm-pre-subject-code-cascade.sql` | Full `mysqldump` backup taken before altering the live FKs. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | `fk_grades_subject`/`fk_classes_subject` now explicitly named with `ON DELETE RESTRICT ON UPDATE CASCADE`, for fresh installs. |
+| `repository/SubjectRepository.java` | New `renameSubjectCode(oldCode, newCode)` — `@Modifying(clearAutomatically = true)` JPQL bulk `UPDATE`, not a load-mutate-save. `subjectCode` is `@Id`; Hibernate has no defined way to change a managed entity's own identity via setter + `save()`, and only a direct SQL `UPDATE` actually triggers the DB's `ON UPDATE CASCADE`. |
+| `dto/registrar/UpdateSubjectRequest.java` | Added `subjectCode` (`@NotBlank`, max 20). |
+| `service/ClassManagementService.java` | `updateSubject()`: if the submitted code differs from the path code, checks for a collision, calls `renameSubjectCode()`, then **reloads the entity under the new code** (the old in-memory entity is stale the instant the row's PK changes) before applying the remaining field updates. |
+| `controller/ClassManagementController.java` | Audit log distinguishes a plain update ("Updated subject X") from a rename ("Updated subject X (renamed to Y)"). |
+| `static/subjects.html` | `#editSubjectCode` no longer `readonly`; added a form-text hint ("Renaming updates every class and grade already linked to this subject."). Cache-buster `?v=3` → `?v=4`. |
+| `static/js/registrar-subjects.js` | Edit payload/validation now includes `subjectCode`. The fixed `editSubjectCurrentCode` (captured when the Edit button is clicked) is still what's used as the URL path segment — only the request body's `subjectCode` can change. |
+| `test/.../ClassManagementSubjectServiceTest.java` | Updated all `UpdateSubjectRequest` calls for the new field; +2 tests (rename succeeds and reloads under the new code; rename to an already-existing code is rejected before any write). |
+| `test/.../ClassManagementSubjectControllerWebMvcTest.java` | +2 tests (blank `subjectCode` rejected by Bean Validation; rename logs both the old and new code). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Verification
+- `./gradlew test` → **230 tests, 0 failures, 0 errors** (was 226; +4).
+- **Raw-SQL cascade proof** (before any app-code change): inserted throwaway
+  `classes`/`grades` rows referencing `COOK-101`, ran a direct `UPDATE
+  subjects SET subject_code=...`, confirmed both child rows updated
+  automatically, then cleaned up and renamed back — zero leftover test data.
+- **Full live HTTP smoke test**: booted the real app against live Docker MySQL,
+  logged in as `registrar`, created a subject via the real API, attached a real
+  `classes` row, renamed via the real `PUT /api/registrar/subjects/{code}`
+  endpoint, confirmed the `classes` row's `subject_code` updated automatically
+  in MySQL, confirmed the exact audit-log message. Test subject/class rows
+  deleted afterward; `system_logs` rows deliberately left in place (append-only
+  per this project's convention).
+- `schema.sql` rebuilt fresh into a throwaway DB → FKs match the migrated live DB.
+
+### Open Items
+- PR to `main` (user approval required).
+- No manual browser click-through of the rename UX yet — verified via curl/SQL,
+  not eyeballed in an actual browser.
+
+---
+
+## 2026-08-26 PM - Subjects: competency_type Backend + Frontend (Create & Edit)
+**Branch:** `edit_subjects`
+
+### Task
+Complete the Create/Edit Subject feature revision (the DB layer landed earlier the
+same day — see the entry below). Add a Competency Type dropdown (Basic/Common/Core)
+to the Create Subject and Edit Subject modals; selecting Core reveals the
+Qualification dropdown, Basic/Common hides and clears it. Both Create and Edit
+updated together, per user decision (competency_type stays editable on Edit, not
+locked after creation, unlike `subjectCode`).
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `model/Subject.java` | Added `competencyType` field + accessors; `@JoinColumn(qualification_code)` no longer `nullable = false`. |
+| `dto/registrar/CreateSubjectRequest.java` | Added `@NotBlank @Pattern(regexp = "BASIC\|COMMON\|CORE") competencyType`; dropped `@NotNull` on `qualificationCode`. |
+| `dto/registrar/UpdateSubjectRequest.java` | Same as above. |
+| `dto/registrar/SubjectResponse.java` | Added `competencyType` and `qualificationCode` fields (the latter replaces fragile name-matching previously used to pre-select the Edit modal's qualification dropdown). |
+| `service/ClassManagementService.java` | New private `resolveQualificationForCompetencyType(competencyType, qualificationCode)`: CORE requires and resolves a qualification (throws if missing/not found); BASIC/COMMON ignore any submitted `qualificationCode` and save with `qualification = null`. Used by both `createSubject()` and `updateSubject()`, replacing the old unconditional `qualificationRepository.findById(...).orElseThrow(...)` that would have NPE'd/thrown on a null code. |
+| `static/subjects.html` | Competency Type `<select>` (Basic/Common/Core) added to both Create and Edit modals; Qualification field wrapped in a `d-none`-toggleable `<div>` group; new "Competency Type" DataTable column. Cache-buster `?v=2` → `?v=3`. |
+| `static/js/registrar-subjects.js` | New `setupCompetencyTypeToggle(competencyTypeId, qualificationGroupId, qualificationSelectId)` shared by Create + Edit — shows/hides the qualification group and clears its value on competency-type change. New `formatCompetencyType()` for table display. `setupCreateSubject()`/`setupEditSubject()`: payload now includes `competencyType`; `qualificationCode` is only read/sent when Core is selected; client-side validation updated to match (qualification required only for Core). Edit's qualification pre-select now matches by `qualificationCode` instead of `qualificationName`. |
+| `test/.../ClassManagementSubjectServiceTest.java` | Updated all existing `CreateSubjectRequest`/`UpdateSubjectRequest` calls for the new record shape; +6 new tests (Core without qualification rejected, Basic/Common allowed without one, Basic silently ignores a submitted qualificationCode, Core→Basic edit clears qualification). |
+| `test/.../ClassManagementSubjectControllerWebMvcTest.java` | Updated `SubjectResponse` construction + request JSON for the new fields; +3 new tests (missing/invalid `competencyType` rejected by Bean Validation, Basic subject with no `qualificationCode` accepted end-to-end). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` | Session notes. |
+
+### Design Note
+The CORE-requires-qualification rule is a cross-field constraint (depends on both
+`competencyType` and `qualificationCode` together), which Jakarta Bean Validation
+can't express cleanly on a single field. Enforced in `ClassManagementService`
+instead — same pattern this codebase already uses for other cross-field/FK business
+rules (e.g. `deleteSection`'s pre-check).
+
+### Verified
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL.
+- `./gradlew test` → **226 tests, 0 failures, 0 errors** (was 217; +9).
+- Booted with `--spring.jpa.hibernate.ddl-auto=validate` against the live Docker
+  MySQL (the authoritative live-DB check, since the Gradle suite runs on H2) →
+  `Started SpringbootApplication` cleanly, confirming the entity change matches the
+  already-migrated live `subjects` table. Process stopped afterward.
+
+### Open Items
+- PR to `main` (user approval required).
+- Manual browser smoke test of the toggle behavior not yet done.
+- Food and Beverage Services NC II still has no seeded `qualifications` row
+  (pre-existing gap, unrelated to this change).
+
+---
+
+## 2026-08-26 AM - Subjects: competency_type + Nullable qualification_code (DB Layer Only)
+**Branch:** `edit_subjects`
+
+### Task
+First step of revising the Create/Edit Subject feature: add a Basic/Common/Core
+competency classification to subjects, matching the actual structure of the TESDA
+Form IX / TOR documents (`document-templates/Blank Form/FORM IX - BPP.docx` etc.,
+which are already grouped into BASIC COMPETENCIES / COMMON COMPETENCIES / CORE
+COMPETENCIES sections — same grouping `curriculum-templates.js` already uses on the
+frontend, but that file is intentionally decoupled from the `subjects` table). This
+session is the database/schema layer only; entity, DTO, service, and frontend
+changes are a follow-up (see `activeContext.md` Open Items).
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-26-subjects-competency-type.sql` | Idempotent migration for existing databases: adds `subjects.competency_type VARCHAR(15) NOT NULL` (backfilled to `'CORE'` for existing rows), relaxes `subjects.qualification_code` to `NULL`. Guarded via `information_schema` (MySQL 8 has no `ADD COLUMN IF NOT EXISTS`), matching the idiom established in `2026-05-19-grades-restructure.sql`. |
+| `src/main/sql/backup-2026-08-26-pre-competency-type.sql` | Full `mysqldump` backup taken before altering the live DB. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | Header note added; `subjects` CREATE TABLE: `qualification_code` → `NULL`, new `competency_type VARCHAR(15) NOT NULL` column added; 6-row seed INSERT now supplies `competency_type = 'CORE'` for every row. |
+| `memory-bank/activeContext.md`, `decisions.md`, `changeLog.md` | Session notes; flagged for all developers to re-run the migration locally. |
+
+### Database Changes Applied (live `AnihanSRMS`, backup taken first)
+Ran `2026-08-26-subjects-competency-type.sql` against the live Docker container.
+`qualification_code` on all 6 existing subjects (`COOK-101..104`, `BPP-101..102`)
+left unchanged; all 6 backfilled to `competency_type = 'CORE'` (they are genuinely
+qualification-specific Core subjects — no Basic/Common subjects exist yet).
+
+### Design Decision
+See `decisions.md` (2026-08-26). `competency_type` lives on `subjects` as a plain
+`VARCHAR` (matching `role`/`student_status` convention) rather than a new lookup
+table or a field on `qualifications` — Basic/Common/Core is a fixed, TESDA-defined
+set of exactly 3 values, and competency type is a property of the subject, not the
+qualification (Basic/Common subjects are shared across all qualifications; only Core
+is qualification-specific). `qualification_code` was made nullable rather than
+pointing Basic/Common subjects at a sentinel "No Qualification" row, following the
+existing `trainer_id`-is-nullable-when-unassigned pattern already used elsewhere in
+this schema.
+
+### Verification
+- Migration run twice against the live DB → byte-identical result both times
+  (idempotent).
+- `schema.sql` built fresh into a throwaway `schema_check` database → subjects table
+  shape and seed data matched the migrated live DB exactly; throwaway DB dropped
+  afterward.
+- Confirmed via code search that `SubjectResponse.java` and `TrainerService.java`
+  already null-check `Subject.getQualification()` — unaffected by this change. Also
+  confirmed `ClassManagementService.createSubject()/.updateSubject()` do **not**
+  yet handle a null `qualificationCode` — flagged as the first fix needed in the
+  next session, not yet done.
+
+### Open Items
+- Entity/DTO/service/frontend/test changes (see `activeContext.md`) — not started.
+- **All developers must run the new migration on their local `AnihanSRMS` database**
+  before pulling the next session's code.
+
+---
+
 ## 2026-07-14 PM #2 - Document Management Polish: Print, Logo, Filenames, DOCX, Delete/Edit
 **Branch:** `fix/generate-document-student-picker`
 

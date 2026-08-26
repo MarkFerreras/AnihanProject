@@ -1,5 +1,9 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-08-26 PM (subject_code now renameable — grades/classes FKs
+--                          to subjects use ON UPDATE CASCADE)
+-- Updated: 2026-08-26 (added subjects.competency_type, relaxed
+--                       subjects.qualification_code to nullable)
 -- Updated: 2026-05-19 (added grades restructure for trainer grading)
 -- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
 --                       seeded qualifications + subjects)
@@ -24,6 +28,18 @@
 -- Existing databases that predate 2026-05-19 should also run
 -- src/main/sql/migrations/2026-05-19-grades-restructure.sql to add
 -- class-scoped grading, midterm/finals split, locking, and GWA support.
+--
+-- Existing databases that predate 2026-08-26 should also run
+-- src/main/sql/migrations/2026-08-26-subjects-competency-type.sql to
+-- add subjects.competency_type (BASIC/COMMON/CORE) and relax
+-- subjects.qualification_code to nullable (Basic/Common subjects are
+-- not tied to a single qualification — only Core subjects are).
+--
+-- Existing databases that predate 2026-08-26 PM should also run
+-- src/main/sql/migrations/2026-08-26-subjects-code-update-cascade.sql
+-- so that renaming a subject's code (Edit Subject) cascades into
+-- classes.subject_code and grades.subject_code instead of being
+-- rejected by MySQL's default FK behavior.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS
@@ -75,10 +91,15 @@ CREATE TABLE IF NOT EXISTS sections (
 -- TABLE: subjects
 -- trainer_id is an optional default trainer for this subject.
 -- ============================================================
+-- competency_type: BASIC / COMMON / CORE (TESDA-defined, fixed set).
+-- Basic and Common subjects are shared across all qualifications and
+-- are not tied to a single NC program, so qualification_code is
+-- nullable — only Core subjects require one.
 CREATE TABLE IF NOT EXISTS subjects (
     subject_code VARCHAR(20) NOT NULL PRIMARY KEY,
     subject_name VARCHAR(255) NOT NULL,
-    qualification_code INT NOT NULL,
+    qualification_code INT NULL,
+    competency_type VARCHAR(15) NOT NULL,
     units INT NOT NULL,
     trainer_id INT NULL,
     FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code),
@@ -211,7 +232,7 @@ CREATE TABLE IF NOT EXISTS grades (
     remarks VARCHAR(255) NULL,
     UNIQUE KEY uq_grade_student_class (class_id, student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
-    FOREIGN KEY (subject_code) REFERENCES subjects (subject_code),
+    CONSTRAINT fk_grades_subject FOREIGN KEY (subject_code) REFERENCES subjects (subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (class_id) REFERENCES classes (class_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -324,7 +345,7 @@ CREATE TABLE IF NOT EXISTS classes (
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_class (section_code, subject_code, semester),
     FOREIGN KEY (section_code) REFERENCES sections(section_code),
-    FOREIGN KEY (subject_code) REFERENCES subjects(subject_code),
+    CONSTRAINT fk_classes_subject FOREIGN KEY (subject_code) REFERENCES subjects(subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (trainer_id)   REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -378,13 +399,13 @@ INSERT INTO qualifications (qualification_name, qualification_description) VALUE
 ('Cookery NC II', 'TESDA National Certificate II in Cookery'),
 ('Bread and Pastry Production NC II', 'TESDA NC II in Bread and Pastry Production');
 
-INSERT INTO subjects (subject_code, subject_name, qualification_code, units, trainer_id) VALUES
-('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
-('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       3, NULL),
-('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       5, NULL),
-('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       4, NULL),
-('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  3, NULL),
-('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  4, NULL);
+INSERT INTO subjects (subject_code, subject_name, qualification_code, competency_type, units, trainer_id) VALUES
+('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3, NULL),
+('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3, NULL),
+('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 5, NULL),
+('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 4, NULL),
+('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 3, NULL),
+('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 4, NULL);
 
 -- ============================================================
 -- SEED DATA: 5 Dummy Student Records — All Columns Populated

@@ -2,6 +2,49 @@
 
 ## Recent Sessions (detail)
 
+### Subject Code Made Editable/Renameable on Edit (Completed — August 26, 2026 PM #2)
+- **Task:** Allow `subjectCode` (the PK) to be edited on the Edit Subject modal — it was
+  locked readonly since 2026-05-10 because `classes`/`grades` reference it by FK.
+- **Investigated before implementing:** confirmed both FKs had no `ON UPDATE CASCADE`, so
+  a naive unlock would have hit a raw MySQL FK error the moment a subject had real
+  classes/grades. Presented the user two real options (cascading rename vs. rename only
+  while unreferenced); user chose full cascading rename.
+- **Done:** New migration adds `ON UPDATE CASCADE` to both FKs (delete behavior
+  unchanged). `SubjectRepository.renameSubjectCode()` does the rename via a JPQL bulk
+  `UPDATE` (not load-mutate-save, since `subjectCode` is `@Id`). Service reloads the
+  entity under the new code before applying other field changes. Frontend field unlocked
+  with a hint about the cascade. `./gradlew test` → 230 tests, 0 failures (+4).
+- **Verified twice:** a raw-SQL test proved the DB-level cascade before any app code
+  changed; a full live HTTP smoke test (real login, real create, real class row, real
+  rename via the actual endpoint) proved the whole stack afterward.
+- **Not done yet:** PR to main; manual browser click-through of the rename UX.
+- **Branch:** `edit_subjects`.
+
+### Subjects: competency_type Backend + Frontend, Create & Edit (Completed — August 26, 2026 PM)
+- **Task:** Finish the Create/Edit Subject feature revision — Competency Type dropdown
+  (Basic/Common/Core) on both modals, Qualification field conditional on selecting Core,
+  backend business rule (Core requires qualification, Basic/Common don't) replacing the old
+  unconditional requirement.
+- **Done:** `Subject.java`, `CreateSubjectRequest`/`UpdateSubjectRequest`/`SubjectResponse`,
+  `ClassManagementService.createSubject()/.updateSubject()`, `subjects.html` +
+  `registrar-subjects.js` (both Create and Edit modals), and test coverage (+9 tests) all
+  updated. `./gradlew test` → 226 tests, 0 failures. Live-DB boot check with
+  `ddl-auto=validate` passed.
+- **Not done yet:** PR to main; manual browser smoke test of the show/hide toggle; seeding a
+  Food and Beverage Services NC II qualification row (pre-existing, unrelated gap).
+- **Branch:** `edit_subjects`.
+
+### Subjects: competency_type Schema/DB Change (Completed — DB layer only, August 26, 2026 AM)
+- **Task:** Step 1 of the Create/Edit Subject feature revision — add `subjects.competency_type`
+  (BASIC/COMMON/CORE) and relax `subjects.qualification_code` to nullable, matching the actual
+  TESDA Form IX/TOR document structure.
+- **Done:** Migration `2026-08-26-subjects-competency-type.sql` written (idempotent, verified by
+  double-run) and applied to the live Docker DB; backup taken first. `schema.sql` updated to
+  match (verified by a fresh build into a throwaway DB). Design rationale in `decisions.md`.
+- **Team action required:** everyone with a local `AnihanSRMS` database must run the new
+  migration before pulling the next session's code.
+- **Branch:** `edit_subjects`.
+
 ### Document Management Polish: Print/Logo/Filename, DOCX, Delete/Edit (Completed - July 14, 2026 PM #2)
 - **Task:** Six approved items on documents.html + generate-document.html: print formatting
   (no grey backdrop, 1-page fit), embedded school logo, auto PDF/download filenames,

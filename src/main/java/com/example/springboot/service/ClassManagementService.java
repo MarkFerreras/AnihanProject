@@ -104,13 +104,13 @@ public class ClassManagementService {
         if (subjectRepository.existsById(code)) {
             throw new IllegalArgumentException("Subject code already exists: " + code);
         }
-        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Qualification not found: " + request.qualificationCode()));
+        Qualification qualification = resolveQualificationForCompetencyType(
+                request.competencyType(), request.qualificationCode());
 
         Subject subject = new Subject();
         subject.setSubjectCode(code);
         subject.setSubjectName(request.subjectName().trim());
+        subject.setCompetencyType(request.competencyType());
         subject.setQualification(qualification);
         subject.setUnits(request.units());
 
@@ -120,19 +120,55 @@ public class ClassManagementService {
 
     @Transactional
     public SubjectResponse updateSubject(String subjectCode, UpdateSubjectRequest request) {
-        Subject subject = subjectRepository.findById(subjectCode)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
+        if (!subjectRepository.existsById(subjectCode)) {
+            throw new IllegalArgumentException("Subject not found: " + subjectCode);
+        }
 
-        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Qualification not found: " + request.qualificationCode()));
+        String newCode = request.subjectCode().trim();
+        String effectiveCode = subjectCode;
+        if (!newCode.equals(subjectCode)) {
+            if (subjectRepository.existsById(newCode)) {
+                throw new IllegalArgumentException("Subject code already exists: " + newCode);
+            }
+            // subjectCode is the @Id — a managed entity's identity can't be
+            // changed via setter + save(). Rename via a direct bulk UPDATE;
+            // the ON UPDATE CASCADE foreign keys on classes/grades then
+            // repoint every referencing row automatically.
+            subjectRepository.renameSubjectCode(subjectCode, newCode);
+            effectiveCode = newCode;
+        }
+
+        String lookupCode = effectiveCode;
+        Subject subject = subjectRepository.findById(lookupCode)
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + lookupCode));
+
+        Qualification qualification = resolveQualificationForCompetencyType(
+                request.competencyType(), request.qualificationCode());
 
         subject.setSubjectName(request.subjectName().trim());
+        subject.setCompetencyType(request.competencyType());
         subject.setQualification(qualification);
         subject.setUnits(request.units());
 
         Subject saved = subjectRepository.save(subject);
         return SubjectResponse.from(saved);
+    }
+
+    /**
+     * CORE subjects are qualification-specific and must resolve a real
+     * qualification. BASIC/COMMON subjects are shared across all qualifications
+     * and are never tied to one — any qualificationCode submitted for them is
+     * ignored so the subject is saved with no qualification.
+     */
+    private Qualification resolveQualificationForCompetencyType(String competencyType, Integer qualificationCode) {
+        if (!"CORE".equals(competencyType)) {
+            return null;
+        }
+        if (qualificationCode == null) {
+            throw new IllegalArgumentException("Qualification is required for Core subjects.");
+        }
+        return qualificationRepository.findById(qualificationCode)
+                .orElseThrow(() -> new IllegalArgumentException("Qualification not found: " + qualificationCode));
     }
 
     @Transactional

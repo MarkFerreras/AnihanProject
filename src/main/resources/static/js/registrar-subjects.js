@@ -37,6 +37,12 @@
                 { data: 'subjectCode' },
                 { data: 'subjectName' },
                 {
+                    data: 'competencyType',
+                    render: function (data) {
+                        return formatCompetencyType(data);
+                    }
+                },
+                {
                     data: 'qualificationName',
                     render: function (data) {
                         return data || '<span class="text-muted fst-italic">Not Available</span>';
@@ -151,30 +157,72 @@
     }
 
     // -------------------------------------------------------
+    // Competency Type <-> Qualification visibility (shared by Create + Edit)
+    // -------------------------------------------------------
+
+    // Only Core subjects are qualification-specific. Basic/Common subjects are
+    // shared across all qualifications, so the qualification field only makes
+    // sense — and is only required — when Core is selected.
+    function setupCompetencyTypeToggle(competencyTypeId, qualificationGroupId, qualificationSelectId) {
+        const $competencyType = $('#' + competencyTypeId);
+        const $group = $('#' + qualificationGroupId);
+
+        function apply() {
+            const isCore = $competencyType.val() === 'CORE';
+            $group.toggleClass('d-none', !isCore);
+            if (!isCore) {
+                $('#' + qualificationSelectId).val('');
+            }
+        }
+
+        $competencyType.off('change.competencyToggle').on('change.competencyToggle', apply);
+        return apply;
+    }
+
+    function formatCompetencyType(value) {
+        if (value === 'BASIC') return 'Basic';
+        if (value === 'COMMON') return 'Common';
+        if (value === 'CORE') return 'Core';
+        return '<span class="text-muted fst-italic">Not Available</span>';
+    }
+
+    // -------------------------------------------------------
     // Create Subject
     // -------------------------------------------------------
 
     function setupCreateSubject(dataTable) {
         createSubjectModal = new bootstrap.Modal(document.getElementById('createSubjectModal'));
+        const applyCreateToggle = setupCompetencyTypeToggle(
+            'createSubjectCompetencyType', 'createSubjectQualificationGroup', 'createSubjectQualification');
 
         $('#createSubjectModal').on('show.bs.modal', function () {
             hideAlert('createSubjectAlert');
             $('#createSubjectCode').val('');
             $('#createSubjectName').val('');
+            $('#createSubjectCompetencyType').val('');
             $('#createSubjectUnits').val(3);
             loadQualificationsDropdown('createSubjectQualification');
+            applyCreateToggle();
         });
 
         $('#saveCreateSubjectBtn').on('click', function () {
+            const competencyType = $('#createSubjectCompetencyType').val();
+            const isCore = competencyType === 'CORE';
+
             const payload = {
                 subjectCode: $('#createSubjectCode').val().trim(),
                 subjectName: $('#createSubjectName').val().trim(),
-                qualificationCode: parseInt($('#createSubjectQualification').val(), 10) || null,
+                competencyType: competencyType,
+                qualificationCode: isCore ? (parseInt($('#createSubjectQualification').val(), 10) || null) : null,
                 units: parseInt($('#createSubjectUnits').val(), 10) || null
             };
 
-            if (!payload.subjectCode || !payload.subjectName || !payload.qualificationCode || !payload.units) {
+            if (!payload.subjectCode || !payload.subjectName || !payload.competencyType || !payload.units) {
                 showAlert('createSubjectAlert', 'Please fill in all required fields.', 'danger');
+                return;
+            }
+            if (isCore && !payload.qualificationCode) {
+                showAlert('createSubjectAlert', 'Qualification is required for Core subjects.', 'danger');
                 return;
             }
 
@@ -201,6 +249,8 @@
 
     function setupEditSubject(dataTable) {
         editSubjectModal = new bootstrap.Modal(document.getElementById('editSubjectModal'));
+        const applyEditToggle = setupCompetencyTypeToggle(
+            'editSubjectCompetencyType', 'editSubjectQualificationGroup', 'editSubjectQualification');
 
         $('#subjectsTable').on('click', '.edit-subject-btn', function () {
             const code = $(this).data('code');
@@ -213,13 +263,13 @@
 
             $('#editSubjectCode').val(rowData.subjectCode);
             $('#editSubjectName').val(rowData.subjectName);
+            $('#editSubjectCompetencyType').val(rowData.competencyType || '');
             $('#editSubjectUnits').val(rowData.units);
+            applyEditToggle();
 
             loadQualificationsDropdown('editSubjectQualification').done(function () {
-                const matching = qualifications
-                    .find(function (q) { return q.qualificationName === rowData.qualificationName; });
-                if (matching) {
-                    $('#editSubjectQualification').val(matching.qualificationCode);
+                if (rowData.qualificationCode) {
+                    $('#editSubjectQualification').val(rowData.qualificationCode);
                 }
             });
 
@@ -229,14 +279,23 @@
         $('#saveEditSubjectBtn').on('click', function () {
             if (!editSubjectCurrentCode) return;
 
+            const competencyType = $('#editSubjectCompetencyType').val();
+            const isCore = competencyType === 'CORE';
+
             const payload = {
+                subjectCode: $('#editSubjectCode').val().trim(),
                 subjectName: $('#editSubjectName').val().trim(),
-                qualificationCode: parseInt($('#editSubjectQualification').val(), 10) || null,
+                competencyType: competencyType,
+                qualificationCode: isCore ? (parseInt($('#editSubjectQualification').val(), 10) || null) : null,
                 units: parseInt($('#editSubjectUnits').val(), 10) || null
             };
 
-            if (!payload.subjectName || !payload.qualificationCode || !payload.units) {
+            if (!payload.subjectCode || !payload.subjectName || !payload.competencyType || !payload.units) {
                 showAlert('editSubjectAlert', 'Please fill in all required fields.', 'danger');
+                return;
+            }
+            if (isCore && !payload.qualificationCode) {
+                showAlert('editSubjectAlert', 'Qualification is required for Core subjects.', 'danger');
                 return;
             }
 
