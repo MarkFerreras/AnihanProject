@@ -2,6 +2,33 @@
 
 ## Recent Sessions (detail)
 
+### Model 1: Trainer Assignment Class-Level Only + Bug 8 Fixed (Completed — August 29, 2026)
+- **Task:** Fix Bug 8 (Subjects page 500: `Subject` entity mapped `subjects.trainer_id`,
+  but the drifted local DB had no such column → `Unknown column 'trainer_id'` →
+  DataTables "Ajax error"). User chose to align the code with the intended business
+  model, not restore the column.
+- **Decision (see `decisions.md` 2026-08-29):** Model 1 — trainer assignment is
+  class-level only (`classes.trainer_id`); a subject's trainers are *derived* from its
+  classes. Model 2 (an explicit trainer↔subject M:N assigned before the class) was
+  rejected as unnecessary ceremony at this scale; can be added later as a soft filter
+  if ever needed.
+- **Done:** Dropped `subjects.trainer_id` (migration `2026-08-29-drop-subjects-trainer-id.sql`,
+  idempotent/guarded) + `Subject.trainer`, `SubjectResponse.trainerId/trainerName`
+  (→ `List<String> trainers`), `assignTrainer()` service method,
+  `PUT /api/registrar/subjects/{code}/trainer`, `AssignTrainerRequest`, the
+  Subjects "Assign Trainer" modal + JS, and the Create-Class default-trainer auto-fill.
+  Added `SchoolClassRepository.findByTrainerIsNotNull()`; `getAllSubjects()` derives a
+  distinct sorted trainer list per subject. Subjects page now has a read-only
+  "Trainer(s)" column. `schema.sql` + seed updated.
+- **Verified:** `./gradlew test` → **230 tests, 0 failures** (unchanged count).
+  Migration tested on has-column / re-run / live-DB paths (backup taken first).
+  `ddl-auto=validate` boot vs live MySQL → PASS. Live smoke: `GET /api/registrar/subjects`
+  → 200; a throwaway class made the derived "Trainer(s)" list populate, then removed.
+- **Not done:** browser click-through; the user's local :8080 app instance stopped
+  during this session's builds and needs a restart. Bug 9 (trainer hard-delete guard)
+  still open with a proposed solution in `bugs.md`.
+- **Branch:** `edit_subjects` (user directs branch selection).
+
 ### Subject Code Made Editable/Renameable on Edit (Completed — August 26, 2026 PM #2)
 - **Task:** Allow `subjectCode` (the PK) to be edited on the Edit Subject modal — it was
   locked readonly since 2026-05-10 because `classes`/`grades` reference it by FK.

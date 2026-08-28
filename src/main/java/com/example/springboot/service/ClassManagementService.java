@@ -2,13 +2,16 @@ package com.example.springboot.service;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
@@ -46,8 +49,9 @@ import com.example.springboot.repository.SubjectRepository;
 import com.example.springboot.repository.UserRepository;
 
 /**
- * Service handling Subjects (trainer assignment), Classes (CRUD + enrollment),
- * and Sections (CRUD) for the registrar portal.
+ * Service handling Subjects (CRUD), Classes (CRUD + trainer assignment +
+ * enrollment), and Sections (CRUD) for the registrar portal. Trainer assignment
+ * is class-level only — see {@code decisions.md} (2026-08-27).
  */
 @Service
 public class ClassManagementService {
@@ -87,8 +91,20 @@ public class ClassManagementService {
     // -------------------------------------------------------
 
     public List<SubjectResponse> getAllSubjects() {
+        // Trainer assignment lives on classes, not subjects. A subject's
+        // "trainers" is therefore the distinct set of trainers across its
+        // classes — derived here rather than stored.
+        Map<String, Set<String>> trainersBySubject = new HashMap<>();
+        for (SchoolClass c : classRepository.findByTrainerIsNotNull()) {
+            String name = c.getTrainer().getLastName() + ", " + c.getTrainer().getFirstName();
+            trainersBySubject
+                    .computeIfAbsent(c.getSubject().getSubjectCode(), k -> new TreeSet<>())
+                    .add(name);
+        }
+
         return subjectRepository.findAll().stream()
-                .map(SubjectResponse::from)
+                .map(s -> SubjectResponse.from(s,
+                        List.copyOf(trainersBySubject.getOrDefault(s.getSubjectCode(), Set.of()))))
                 .collect(Collectors.toList());
     }
 
@@ -186,29 +202,6 @@ public class ClassManagementService {
                     "Cannot delete subject: grades have already been recorded under it.");
         }
         subjectRepository.deleteById(subjectCode);
-    }
-
-    @Transactional
-    public SubjectResponse assignTrainer(String subjectCode, AssignTrainerRequest request) {
-        Subject subject = subjectRepository.findById(subjectCode)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
-
-        if (request.trainerId() == null) {
-            subject.setTrainer(null);
-        } else {
-            User trainer = userRepository.findById(request.trainerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Trainer not found: " + request.trainerId()));
-            if (!"ROLE_TRAINER".equals(trainer.getRole())) {
-                throw new IllegalArgumentException("User is not a trainer: " + trainer.getUsername());
-            }
-            if (!Boolean.TRUE.equals(trainer.getEnabled())) {
-                throw new IllegalArgumentException("Trainer account is disabled: " + trainer.getUsername());
-            }
-            subject.setTrainer(trainer);
-        }
-
-        subjectRepository.save(subject);
-        return SubjectResponse.from(subject);
     }
 
     // -------------------------------------------------------

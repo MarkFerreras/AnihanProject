@@ -37,7 +37,7 @@ class ClassManagementSubjectControllerWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void postSubjectsCreatesAndLogs() throws Exception {
-        var resp = new SubjectResponse("CK-101", "Basic Cookery", "CORE", 1, "Cookery NC II", 3, null, null);
+        var resp = new SubjectResponse("CK-101", "Basic Cookery", "CORE", 1, "Cookery NC II", 3, java.util.List.of());
         when(service.createSubject(any())).thenReturn(resp);
 
         mvc.perform(post("/api/registrar/subjects").with(csrf())
@@ -90,7 +90,7 @@ class ClassManagementSubjectControllerWebMvcTest {
     void postSubjectsAllowsBasicSubjectWithNoQualificationCode() throws Exception {
         // Bean Validation alone must accept a Basic subject with no qualificationCode —
         // the CORE-requires-qualification rule is enforced in the service, not here.
-        var resp = new SubjectResponse("BFS-100", "Basic Food Safety", "BASIC", null, null, 1, null, null);
+        var resp = new SubjectResponse("BFS-100", "Basic Food Safety", "BASIC", null, null, 1, java.util.List.of());
         when(service.createSubject(any())).thenReturn(resp);
 
         mvc.perform(post("/api/registrar/subjects").with(csrf())
@@ -105,7 +105,7 @@ class ClassManagementSubjectControllerWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void putSubjectUpdatesAndLogsWithoutRename() throws Exception {
-        var resp = new SubjectResponse("CK-101", "Updated", "CORE", 1, "Cookery NC II", 4, null, null);
+        var resp = new SubjectResponse("CK-101", "Updated", "CORE", 1, "Cookery NC II", 4, java.util.List.of());
         when(service.updateSubject(eq("CK-101"), any())).thenReturn(resp);
 
         mvc.perform(put("/api/registrar/subjects/CK-101").with(csrf())
@@ -134,7 +134,7 @@ class ClassManagementSubjectControllerWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void putSubjectRenameLogsOldAndNewCode() throws Exception {
-        var resp = new SubjectResponse("CK-101-NEW", "Updated", "CORE", 1, "Cookery NC II", 4, null, null);
+        var resp = new SubjectResponse("CK-101-NEW", "Updated", "CORE", 1, "Cookery NC II", 4, java.util.List.of());
         when(service.updateSubject(eq("CK-101"), any())).thenReturn(resp);
 
         mvc.perform(put("/api/registrar/subjects/CK-101").with(csrf())

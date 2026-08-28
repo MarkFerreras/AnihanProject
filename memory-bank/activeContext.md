@@ -1,10 +1,10 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Create/Edit Subject: competency_type done; subject_code is now editable/renameable on Edit — PR to main still open**
+**Trainer assignment is now class-level only — `subjects.trainer_id` dropped (Model 1), Bug 8 fixed. Competency_type + editable subject_code also done. All on `edit_subjects`, PR to main still open.**
 
 ## Active Branch
-`edit_subjects`
+`edit_subjects` — the user directs all branch selection; do not switch/create/merge branches without an explicit instruction.
 
 ## ⚠️ ACTION REQUIRED — All Developers (as of 2026-08-26)
 Two migrations landed today and the app code depends on both. Every developer with
@@ -24,7 +24,68 @@ classes/grades will hit a raw FK constraint error instead of succeeding. Fresh
 installs get both automatically via `schema.sql`. See `decisions.md` (2026-08-26
 entries) for the full rationale.
 
-## Latest Session (2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit)
+### ✅ Bug 8 RESOLVED (2026-08-29) — `subjects.trainer_id` dropped, not restored
+The Subjects-page 500 (`Unknown column 'trainer_id'`) was fixed by removing the
+per-subject trainer entirely (Model 1: trainer assignment is class-level only), not
+by restoring the drifted column. New migration
+`2026-08-29-drop-subjects-trainer-id.sql` (idempotent, guarded) drops the column +
+FK; it has already been run against the live Docker DB (a no-op there — the column
+was already absent). Every DB now converges on "no `subjects.trainer_id`". Full
+details in this file's Latest Session entry and `changeLog.md` (2026-08-29).
+
+## Latest Session (2026-08-29 - Model 1: Trainer Assignment Is Class-Level Only; Bug 8 Fixed)
+
+### Scope
+Fix `bugs.md` Bug 8 (Subjects page 500 — the `Subject` entity mapped
+`subjects.trainer_id` but the drifted local DB had no such column). User posed two
+models and chose **Model 1**: trainer assignment happens only at the class level
+(`classes.trainer_id`); a subject reaches "many trainers" through its many classes.
+Rejected Model 2 (an explicit trainer↔subject M:N table assigned before the class).
+Rationale in `decisions.md` (2026-08-29). The user directs branch selection — this
+was done on `edit_subjects` at their instruction.
+
+### Changes
+- **Removed** `Subject.trainer` field; `SubjectResponse.trainerId/trainerName`
+  (replaced by `List<String> trainers`); `ClassManagementService.assignTrainer()`;
+  `PUT /api/registrar/subjects/{code}/trainer`; `AssignTrainerRequest` (deleted);
+  the Subjects-page "Assign Trainer" modal + its JS; the Create-Class
+  "auto-fill the subject's default trainer" behaviour.
+- **Added** `SchoolClassRepository.findByTrainerIsNotNull()`.
+  `getAllSubjects()` now derives, per subject, the distinct sorted set of trainer
+  names across that subject's classes and passes it to `SubjectResponse.from`.
+- **Subjects page**: "Assigned Trainer" column → derived read-only "Trainer(s)"
+  (badges, or "None"); page copy updated; `registrar-subjects.js?v=5`,
+  `registrar-classes.js?v=4`.
+- **DB**: migration `2026-08-29-drop-subjects-trainer-id.sql` (idempotent, guarded —
+  drops FK by dynamically-resolved name, then the column; no-op if absent).
+  `schema.sql` `subjects` table + seed updated; header points existing DBs at it.
+- **Tests**: 4 `new SubjectResponse(...)` calls in
+  `ClassManagementSubjectControllerWebMvcTest` updated (trailing `null, null` →
+  `java.util.List.of()`).
+
+### Verified
+- `./gradlew test` → **230 tests, 0 failures, 0 errors** (unchanged count).
+- Migration tested 3 ways vs Docker MySQL: throwaway DB *with* column+FK → both
+  dropped; immediate re-run → clean no-op; live `AnihanSRMS` (already lacked it) →
+  no-op. Backup taken to scratchpad first.
+- `ddl-auto=validate` boot vs live MySQL → `Started SpringbootApplication` in 13.3s,
+  zero schema-validation errors.
+- Live smoke (fresh build, port 8099): `GET /api/registrar/subjects` → **200**,
+  `"trainers":[]` per row. Threw in a `classes` row (`COOK-101`, trainer_id 3,
+  semester `2026-TEST`) → endpoint returned `"trainers":["Santos, Carlos"]` for
+  COOK-101; throwaway row deleted, `classes` back to 0.
+
+### Open Items
+- Browser click-through of `subjects.html` + `classes.html` — not done.
+- **The user's local app instance (was on :8080) is no longer running** after this
+  session's Gradle build/boot activity — restart needed to serve the new code.
+- Merge/PR of `edit_subjects` is the user's call.
+- Bug 9 (trainer hard-delete guard) still open — logged with a proposed solution in
+  `bugs.md`, deliberately out of scope this session.
+
+---
+
+## Previous Session (2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit)
 
 ### Scope
 User request: allow `subjectCode` to be edited in the Edit Subject modal (it was

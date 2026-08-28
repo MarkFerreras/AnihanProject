@@ -1,5 +1,7 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-08-29 (dropped subjects.trainer_id — trainer assignment is
+--                       class-level only; see migrations/2026-08-29-drop-subjects-trainer-id.sql)
 -- Updated: 2026-08-26 PM (subject_code now renameable — grades/classes FKs
 --                          to subjects use ON UPDATE CASCADE)
 -- Updated: 2026-08-26 (added subjects.competency_type, relaxed
@@ -22,8 +24,11 @@
 --
 -- Existing databases that predate 2026-05-09 should also run
 -- src/main/sql/migrations/2026-05-09-classes-and-trainers.sql to add
--- the classes and class_enrollments tables and the subjects.trainer_id
--- column.
+-- the classes and class_enrollments tables.
+--
+-- Existing databases that still have subjects.trainer_id should run
+-- src/main/sql/migrations/2026-08-29-drop-subjects-trainer-id.sql to
+-- drop it (trainer assignment is class-level only).
 --
 -- Existing databases that predate 2026-05-19 should also run
 -- src/main/sql/migrations/2026-05-19-grades-restructure.sql to add
@@ -89,21 +94,21 @@ CREATE TABLE IF NOT EXISTS sections (
 
 -- ============================================================
 -- TABLE: subjects
--- trainer_id is an optional default trainer for this subject.
 -- ============================================================
 -- competency_type: BASIC / COMMON / CORE (TESDA-defined, fixed set).
 -- Basic and Common subjects are shared across all qualifications and
 -- are not tied to a single NC program, so qualification_code is
 -- nullable — only Core subjects require one.
+-- Trainers are NOT stored here: a subject has many classes, each with its
+-- own trainer (classes.trainer_id), so a subject has many trainers. The
+-- Subjects page derives that list from the subject's classes.
 CREATE TABLE IF NOT EXISTS subjects (
     subject_code VARCHAR(20) NOT NULL PRIMARY KEY,
     subject_name VARCHAR(255) NOT NULL,
     qualification_code INT NULL,
     competency_type VARCHAR(15) NOT NULL,
     units INT NOT NULL,
-    trainer_id INT NULL,
-    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code),
-    CONSTRAINT fk_subjects_trainer FOREIGN KEY (trainer_id) REFERENCES users (user_id) ON DELETE SET NULL
+    FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
@@ -399,13 +404,13 @@ INSERT INTO qualifications (qualification_name, qualification_description) VALUE
 ('Cookery NC II', 'TESDA National Certificate II in Cookery'),
 ('Bread and Pastry Production NC II', 'TESDA NC II in Bread and Pastry Production');
 
-INSERT INTO subjects (subject_code, subject_name, qualification_code, competency_type, units, trainer_id) VALUES
-('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3, NULL),
-('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3, NULL),
-('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 5, NULL),
-('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 4, NULL),
-('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 3, NULL),
-('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 4, NULL);
+INSERT INTO subjects (subject_code, subject_name, qualification_code, competency_type, units) VALUES
+('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3),
+('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3),
+('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 5),
+('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 4),
+('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 3),
+('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 4);
 
 -- ============================================================
 -- SEED DATA: 5 Dummy Student Records — All Columns Populated

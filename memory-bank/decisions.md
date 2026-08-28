@@ -4,6 +4,46 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-08-29 - Trainer Assignment Is Class-Level Only (subjects.trainer_id Dropped)
+
+**Decision:** Removed `subjects.trainer_id` (the per-subject "default trainer",
+added 2026-05-09) entirely — column, FK `fk_subjects_trainer`, the `Subject.trainer`
+entity field, `SubjectResponse.trainerId/trainerName`, `ClassManagementService
+.assignTrainer()`, `PUT /api/registrar/subjects/{code}/trainer`,
+`AssignTrainerRequest`, the Subjects-page "Assign Trainer" modal + JS, and the
+Create-Class "auto-fill the subject's default trainer" behaviour. Trainer
+assignment now happens **only** at the class level (`classes.trainer_id`). The
+Subjects page shows a **derived, read-only "Trainer(s)" column** = the distinct set
+of trainers across that subject's classes (`SchoolClassRepository
+.findByTrainerIsNotNull()`, grouped by subject in `getAllSubjects()`).
+
+Chosen between two models the user posed:
+1. *(chosen)* Trainer assignment happens at the class level; "what subjects does a
+   trainer teach" is derived from their classes.
+2. *(rejected)* Trainer is first assigned to a subject (an explicit
+   trainer↔subject M:N table), and only then to a class.
+
+**Why:** The business rule is "multiple trainers can handle one or more subjects" —
+a trainer↔subject many-to-many. Both models satisfy it; the difference is whether
+that M:N is *stored* (model 2, a `subject_trainers` table to maintain) or *derived*
+(model 1, computed from `classes`). Model 1 was chosen because: the real teaching
+relationship already lives on the class (roster + grades hang off `classes`); it's
+already how the trainer-facing views work (`TrainerService.getMyAssignedSubjects()`
+groups the trainer's classes by subject); it adds no mandatory pre-step for the
+already-overloaded registrar; and it removes a drift/limbo surface. Model 2's only
+real benefit — encoding "qualified/authorised to teach" — is not a project
+requirement at this scale and, if ever needed, can be added later as a *soft filter*
+on the class-creation dropdown without restructuring. This also resolves `bugs.md`
+Bug 8 (the app expected a `subjects.trainer_id` column the drifted local DB no
+longer had): the code now matches a DB with no such column.
+
+Migration `2026-08-29-drop-subjects-trainer-id.sql` (idempotent, guarded) drops the
+FK then the column; safe on a DB that never had it. Verified: full suite 230/0/0;
+`ddl-auto=validate` boot against live MySQL PASS; migration tested on a DB that had
+the column (drops it), re-run (no-op), and the live DB (no-op); live smoke
+`GET /api/registrar/subjects` → 200, and a throwaway class proved the derived
+"Trainer(s)" list populates ("Santos, Carlos").
+
 ## 2026-08-26 PM #2 - subject_code Rename Uses ON UPDATE CASCADE + a JPQL Bulk Update, Not a Guard-and-Block
 
 **Decision:** `subjectCode` (the PK) is now editable in the Edit Subject modal

@@ -1,5 +1,56 @@
 # Change Log - Anihan SRMS
 
+## 2026-08-29 - Model 1: Trainer Assignment Is Class-Level Only (drop subjects.trainer_id) — fixes Bug 8
+**Branch:** `edit_subjects` (user directs branch selection)
+
+### Task
+Fix `bugs.md` Bug 8 (Subjects page 500 — `GET /api/registrar/subjects` threw
+`Unknown column 'trainer_id'` because the drifted local DB had no
+`subjects.trainer_id`, which the `Subject` entity still mapped). User chose to align
+with the intended business model rather than restore the column: trainer assignment
+is a class-level concept only; a subject reaches "many trainers" through its many
+classes. See `decisions.md` (2026-08-29) for the model-1-vs-model-2 rationale.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-29-drop-subjects-trainer-id.sql` | Idempotent, `information_schema`-guarded: drops FK `fk_subjects_trainer` (name resolved dynamically) then column `subjects.trainer_id`. No-op on a DB that never had them. Verified on three paths (has-column → drops; re-run → no-op; live DB → no-op). |
+
+### Files Deleted
+| File | Reason |
+|------|--------|
+| `dto/registrar/AssignTrainerRequest.java` | Only used by the removed subject-trainer endpoint. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `model/Subject.java` | Removed the `@ManyToOne User trainer` field + accessors. (`ManyToOne`/`JoinColumn` imports kept — still used by `qualification`.) |
+| `dto/registrar/SubjectResponse.java` | Replaced `trainerId` + `trainerName` with `List<String> trainers`. New 2-arg `from(Subject, List<String>)`; 1-arg `from(Subject)` delegates with `List.of()`. |
+| `repository/SchoolClassRepository.java` | Added `findByTrainerIsNotNull()`. |
+| `service/ClassManagementService.java` | Removed `assignTrainer()` + `AssignTrainerRequest` import. `getAllSubjects()` now builds a `Map<subjectCode, TreeSet<trainerName>>` from `classRepository.findByTrainerIsNotNull()` and passes each subject its derived, sorted, distinct trainer list. Class Javadoc updated. |
+| `controller/ClassManagementController.java` | Removed `PUT /api/registrar/subjects/{code}/trainer` + `AssignTrainerRequest` import. (Class-level `PUT /classes/{id}/trainer` untouched.) |
+| `static/subjects.html` | Removed the Assign Trainer modal; "Assigned Trainer" column header → "Trainer(s)"; page copy updated ("Trainers are assigned per class"); JS cache-buster `?v=4` → `?v=5`. |
+| `static/js/registrar-subjects.js` | Removed `trainers` module var, `assignTrainerModal`, `loadTrainers()`, `setupAssignTrainer()`, the `.assign-trainer-btn` (render + click delegate), `currentSubjectCode`. Table's trainer column now renders the `trainers` array as badges (or "None"), `orderable:false`. |
+| `static/js/registrar-classes.js` | Removed the "when subject changes, auto-select the subject's default trainer" handler and the `data-trainer` attr on subject `<option>`s. Create-Class trainer dropdown is now the full active-trainer list with no pre-selection. |
+| `static/classes.html` | JS cache-buster `?v=3` → `?v=4`. |
+| `src/main/sql/schema.sql` | `subjects` CREATE TABLE: removed `trainer_id` column + `fk_subjects_trainer`. Seed `INSERT INTO subjects` column list + rows drop the trailing `trainer_id`/`NULL`. Header notes updated; points existing DBs at the new drop migration. |
+| `test/.../ClassManagementSubjectControllerWebMvcTest.java` | 4 `new SubjectResponse(...)` calls: trailing `null, null` → `java.util.List.of()`. |
+| `memory-bank/decisions.md`, `changeLog.md`, `activeContext.md`, `progress.md`, `bugs.md` | This session; Bug 8 marked resolved. |
+
+### Verification
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL.
+- `./gradlew test` → **230 tests, 0 failures, 0 errors** (unchanged count — no test methods added/removed).
+- Migration tested three ways against Docker MySQL: a throwaway DB *with* the column + FK → both dropped, verification query returns 0; immediate re-run → clean no-op; the live `AnihanSRMS` (already lacked the column) → no-op. Backup taken to scratchpad first.
+- `./gradlew bootRun --args='--spring.jpa.hibernate.ddl-auto=validate'` against live MySQL → `Started SpringbootApplication` in 13.3s, zero schema-validation errors (entity now matches the column-less table).
+- Live smoke on a fresh build (port 8099): login as `registrar` → 200; `GET /api/registrar/subjects` → **200** with `"trainers":[]` per row. Inserted a throwaway `classes` row (`COOK-101`, trainer_id 3, semester `2026-TEST`) → the same endpoint returned `"trainers":["Santos, Carlos"]` for COOK-101; throwaway row deleted, `classes` back to 0.
+
+### Open Items
+- Browser click-through of `subjects.html` (Trainer(s) column, Edit/Delete still work) and `classes.html` (Create Class trainer dropdown) — not done this session.
+- The user's local app instance (was on :8080) is no longer running after this session's build/boot activity — needs a restart to serve the new code.
+- PR/merge of `edit_subjects` remains the user's call.
+
+---
+
 ## 2026-08-26 PM #2 - Subject Code Made Editable/Renameable on Edit
 **Branch:** `edit_subjects`
 
