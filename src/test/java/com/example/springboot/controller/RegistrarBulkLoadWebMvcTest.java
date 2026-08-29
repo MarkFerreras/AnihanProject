@@ -60,7 +60,7 @@ class RegistrarBulkLoadWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void getRecordsReturnsTwoHundredRecordsAsJson() throws Exception {
-        when(registrarService.getAllRecords(isNull(), isNull(), isNull(), isNull()))
+        when(registrarService.getAllRecords(isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(buildSummaryList(200));
 
         long startMs = System.currentTimeMillis();
@@ -85,10 +85,10 @@ class RegistrarBulkLoadWebMvcTest {
     void searchEndpointForwardsQueryParamToService() throws Exception {
         // Mock the service to return a filtered subset only when called with the query
         List<StudentRecordSummaryResponse> filtered = List.of(
-                new StudentRecordSummaryResponse(43, "STU-42", "Last_42", "First_42",
+                new StudentRecordSummaryResponse(43, "STU-42", "2026-042", "Last_42", "First_42",
                         "BATCH-42", "CARS", "SEC-42", "Active")
         );
-        when(registrarService.getAllRecords(eq("Last_42"), isNull(), isNull(), isNull()))
+        when(registrarService.getAllRecords(eq("Last_42"), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(filtered);
 
         mockMvc.perform(get("/api/registrar/student-records").param("q", "Last_42"))
@@ -103,7 +103,7 @@ class RegistrarBulkLoadWebMvcTest {
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void batchYearRangeFilterForwardsParamsToService() throws Exception {
         List<StudentRecordSummaryResponse> filtered = buildSummaryList(50);
-        when(registrarService.getAllRecords(isNull(), eq(2024), eq(2026), isNull()))
+        when(registrarService.getAllRecords(isNull(), eq(2024), eq(2026), isNull(), isNull()))
                 .thenReturn(filtered);
 
         mockMvc.perform(get("/api/registrar/student-records")
@@ -122,6 +122,23 @@ class RegistrarBulkLoadWebMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void missingStudentNumberFilterForwardsParamToService() throws Exception {
+        List<StudentRecordSummaryResponse> missing = List.of(
+                new StudentRecordSummaryResponse(7, "STU-6", null, "Cruz", "Ana",
+                        "BATCH-6", "CARS", "SEC-6", "Active")
+        );
+        when(registrarService.getAllRecords(isNull(), isNull(), isNull(), isNull(), eq(Boolean.FALSE)))
+                .thenReturn(missing);
+
+        mockMvc.perform(get("/api/registrar/student-records").param("hasStudentNumber", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].studentId").value("STU-6"))
+                .andExpect(jsonPath("$[0].studentNumber").doesNotExist());
+    }
+
     private List<StudentRecordSummaryResponse> buildSummaryList(int count) {
         String[] statuses = {"Enrolling", "Submitted", "Active"};
         List<StudentRecordSummaryResponse> list = new ArrayList<>(count);
@@ -129,6 +146,9 @@ class RegistrarBulkLoadWebMvcTest {
             list.add(new StudentRecordSummaryResponse(
                     i + 1,
                     "STU-" + i,
+                    // Every third student has no student number yet — the realistic
+                    // mid-migration state while the archive import is still pending.
+                    i % 3 == 0 ? null : "2026-" + i,
                     "Last_" + i,
                     "First_" + i,
                     "BATCH-" + i,

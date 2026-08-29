@@ -2,6 +2,79 @@
 
 ## Recent Sessions (detail)
 
+### Student Number Export / Import / Report Page (Completed - August 30, 2026)
+- **Task:** Make bulk entry of student numbers practical — a report page with filters to find
+  who still needs one, export to CSV/Excel for encoding, and import back. (Editability already
+  shipped on 2026-08-27 and is reused, not duplicated.)
+- **Design constraint from the user:** the school's real record format is unknown, so the
+  file-reading rules must be *easily editable later*. All of it lives in one file,
+  `service/StudentNumberImportMapping.java` — header aliases, match key, normalisation, header
+  scan depth. `StudentNumberSheetParser` and the import service hold no format knowledge.
+  `StudentNumberSheetParserTest` (18 tests) is the regression net for future edits.
+- **Backend:** `StudentNumberImportMapping`, `StudentNumberSheetParser` (RFC-4180 CSV splitter;
+  XLSX via POI `DataFormatter`; header auto-detection over the first 10 rows, because
+  school-supplied sheets carry title blocks), `StudentNumberExportService` +
+  `StudentNumberExportFormat`, `StudentNumberImportService` (one `classify()` shared by preview
+  and apply; 10 outcomes; `applicable()` on the enum is the single definition of "writes"),
+  `StudentNumberController` (`GET /export`, `POST /import/preview`, `POST /import/apply`).
+  Validation constants hoisted onto `AssignStudentNumberRequest` so single-assign and bulk
+  import share one rule.
+- **Frontend:** `student-numbers.html` + `registrar-student-numbers.js` — filters, a
+  "N of M students still need a student number" summary, export (blob download reused from
+  system-logs.js), import preview→apply with per-row outcome badges, and the existing Assign
+  Number modal for single edits. 6th registrar nav link added across all registrar pages;
+  `/student-numbers.html` registered in `SecurityConfig`.
+- **Key behaviours:** preview writes nothing; apply writes only applicable rows and logs one
+  `system_logs` row per assignment plus a summary; an existing different number is never
+  overwritten without an explicit checkbox; a number repeated in one file blocks both rows;
+  the export is written as a *text* cell so leading zeros survive Excel.
+- **Verified:** `./gradlew test` → **299 tests, 0 failures** (+61). Live round trip against real
+  MySQL exercising every failure mode in one sheet; preview proven read-only (DB + system_logs
+  unchanged); POI-authored Excel file round-tripped `0012`, `2025-777`, `A/2026/03` intact;
+  header found under two pasted title rows; overwrite guard both ways. Playwright E2E **22/22**
+  run twice. Live DB restored to its pre-session state.
+- **No schema change** — `student_number` already existed.
+- **Branch:** `fix/student-ID-number`. Open: PR to main; edit the mapping file when the real
+  archive format arrives.
+
+### Registrar-Controlled Student Number (Completed - August 27, 2026)
+- **Task:** Stop auto-assigning student numbers. Per the stakeholder meeting: add a nullable
+  student number, let new students exist without one, let the (future) archive import assign
+  them, and surface which students are still missing one.
+- **Key constraint:** `student_records.student_id` is `NOT NULL UNIQUE` and the FK target of
+  **10 child tables**; the PK is `record_id`. Making `student_id` nullable would orphan every
+  child row written before a number is assigned (the wizard uploads an ID photo long before
+  the registrar sees the student). **Decision (user-confirmed): add a separate nullable
+  `student_number` column**; `student_id` stays as an internal "Reference No.". Rejected:
+  repointing all 10 child FKs to `record_id` (~40 files + 10-table migration).
+  The note's "should remain the primary key" could not be taken literally — a nullable column
+  cannot be a SQL PK, and `student_id` was never the PK. Resolved as a UNIQUE index, which in
+  MySQL permits many NULLs.
+- **Backend:** migration `2026-08-27-add-student-number.sql` (idempotent, COLUMN_NAME-based
+  guards) + `schema.sql`; `StudentRecord.studentNumber`;
+  `StudentRecordRepository.findByStudentNumber`; `AssignStudentNumberRequest`;
+  `RegistrarService.assignStudentNumber()` (trim, blank→clear, uniqueness pre-check → 400) and
+  a 5-arg `getAllRecords` with `hasStudentNumber`; free-text search matches the number;
+  `PUT /api/registrar/student-records/{id}/student-number` with `system_logs` rows.
+  **Nothing auto-generates the number** — `generateStudentId()` is untouched and still only
+  mints the internal reference.
+- **Frontend:** registrar table gains a Student Number column with a `Not Assigned` badge,
+  an Assign Number action + modal, and an All/Assigned/Not Assigned filter; "Student ID"
+  relabelled "Reference No." across list, details modal, edit form, and the portal's
+  submitted banner. Edit form shows the number read-only — the assign action is the only
+  write path, so every change is deliberate and audited.
+- **Verified:** `./gradlew test` → **238 tests, 0 failures** (+21). Migration applied twice to
+  live MySQL with byte-identical structure; `ddl-auto=validate` boot → PASS. Playwright
+  headless-Edge E2E **18/18** (run twice). Live API smoke incl. duplicate-rejection and
+  audit rows. Regression pinned by test: a full edit-form save does not wipe the number.
+  Live DB restored to its pre-session state.
+- **Two bugs the E2E caught:** the filter bar (pinned `flex-wrap: nowrap` in dashboard.css)
+  pushed the table into 86px of horizontal scroll once the new dropdown was added — fixed with
+  a page-scoped wrap under 1400px; and the details-modal handler bound to
+  `button[data-record-id]` would have fired on the new Assign button — narrowed to
+  `.js-open-details`.
+- **Branch:** `fix/student-ID-number`. Open: PR to main; follow-up ticket for the bulk import.
+
 ### Document Management Polish: Print/Logo/Filename, DOCX, Delete/Edit (Completed - July 14, 2026 PM #2)
 - **Task:** Six approved items on documents.html + generate-document.html: print formatting
   (no grey backdrop, 1-page fit), embedded school logo, auto PDF/download filenames,

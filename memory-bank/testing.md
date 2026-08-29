@@ -30,8 +30,70 @@
 | `DocumentGenerationServiceTest` | Mockito | 3 | Aggregated generate-data payload, null OJT, missing student throws |
 | `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
 | `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
+| `RegistrarStudentNumberServiceTest` | Mockito | 11 | assignStudentNumber — assign to a numberless record, trim, overwrite, same-number-same-record, blank clears, null clears, duplicate on another record throws (target untouched, no save), unknown record; **edit-form update preserves the number**; `hasStudentNumber` filter partitioning (blank counts as missing); free-text search by number |
+| `RegistrarStudentNumberControllerWebMvcTest` | WebMvc | 9 | PUT student-number — 200 + "Assigned…" log, 200 + "Cleared…" log, null body accepted, 400 duplicate (message passthrough, no log written), 400 invalid characters (field-level error), 400 too long, 404 unknown record, 403 trainer, 401 anonymous |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **217 tests, 0 failures, 0 errors** (July 14, 2026, after Document Management polish session).
+| `StudentNumberSheetParserTest` | Pure unit | 18 | **The suite to re-run after editing `StudentNumberImportMapping`.** Header detection with and without title rows, alias spellings (`"Student No."` / `"student_no"` / `"STUDENT ID"`), column-order independence, missing/unrecognisable header → clear message, optional name columns, trailing blank rows, blank cell → null, quoted CSV with embedded commas, UTF-8 BOM, XLSX numeric cells (no `.0` tail), **leading zeros preserved**, mid-sheet empty rows, empty file, bad extension |
+| `StudentNumberExportServiceTest` | Pure unit | 8 | Canonical header row, blank Student Number cell for unassigned, CSV escaping, filename extension, **CSV and XLSX round-trip back through the parser**, leading-zero survival, header-only export |
+| `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
+| `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
+
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **299 tests, 0 failures, 0 errors** (August 30, 2026, after the student-number export/import session).
+
+## Browser E2E — 2026-08-30 (Student Numbers Report Page)
+
+Playwright headless Edge against the running app + live MySQL. **22/22 passed, run twice**
+(self-cleaning: clears every number it creates, leaves pre-existing ones alone).
+
+Covered: navbar link → page loads all students → summary line counts who still needs a number →
+zero horizontal overflow → Not Assigned filter → **real file download** (dated filename, header
+matching the import aliases, only the filtered students) → encode the downloaded CSV → preview
+(labelled a preview, correct counts, duplicate pair and unknown student flagged, **nothing
+written to the DB**) → Apply enabled only after a preview → apply reports what it wrote →
+summary updates → Apply re-disables → choosing a different file clears the stale preview →
+single Assign Number still works → cleanup.
+
+**Harness notes:** browsers do not fire `change` when the *same* file is re-selected, so testing
+"a new file resets the preview" needs a genuinely different path. DataTables row counts must be
+polled (see the 2026-08-27 note).
+
+## Live Verification — 2026-08-30 (Export/Import Round Trip)
+
+Against real MySQL, with a backup taken first and the DB restored afterwards:
+- Exported the 6 unnumbered students; the already-numbered student was correctly excluded.
+- One sheet exercising every failure mode at once: 2 valid rows, a duplicate-in-file pair, a
+  number already held by another student, an unknown reference, and a blank row → preview
+  classified all 7 correctly and **wrote nothing** (DB and `system_logs` verified unchanged) →
+  apply wrote exactly the 2 valid rows.
+- **Excel fidelity** via a POI-authored workbook simulating the registrar typing into Excel:
+  `0012` (leading zero), `2025-777`, and `A/2026/03` all imported intact.
+- **Header auto-detection**: the same workbook with two title rows pasted above the header
+  parsed correctly, reporting the true spreadsheet row numbers.
+- Overwrite guard refused by default with an actionable message and applied with the flag set.
+- `system_logs`: per-assignment rows + import summary + export row; none from a preview.
+
+## Browser E2E — 2026-08-27 (Registrar-Controlled Student Number)
+
+Playwright `playwright-core` driving headless system Edge against the running app + live
+MySQL. **18/18 checks passed, run twice** (self-cleaning: the run clears the number it
+assigned, leaving the DB as it found it).
+
+Covered: login → "Reference No." + "Student Number" headers → every student shows a
+`Not Assigned` badge → both action buttons per row → **zero horizontal overflow** (also
+measured at 1280/1440/1920) → assign via modal → number appears in the table → duplicate shows
+"already assigned to …" inline → invalid characters show the field-level message (not the
+generic "Validation failed") → Not Assigned / Assigned filters + Reset → details modal shows
+the number → edit form shows it read-only with the relabelled Reference No. → cleanup clears it.
+
+**Harness note for next time:** DataTables renders a placeholder row before the AJAX rows
+arrive, so `waitForSelector('tbody tr')` is a racy anchor — three checks failed spuriously
+against a correct app. Wait for a *data-row* selector and for the row count to settle, and
+wait on `.modal-backdrop` detaching before the next click.
+
+**Two real bugs this E2E caught** (both fixed): the filter bar's `flex-wrap: nowrap` in
+dashboard.css pushed the table into 86px of horizontal scroll once the Student No. dropdown
+was added; and the details-modal click handler, bound to `button[data-record-id]`, would have
+fired on the new Assign button too.
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 

@@ -106,6 +106,10 @@ Controller → Service → Repository → Model (JPA Entity)
 
 **Name fields:** `users` table stores `last_name` and `first_name` as separate columns — do not collapse them into a single `full_name`.
 
+**Bulk student numbers:** the Student Numbers page (`/student-numbers.html`) exports the filtered student list to CSV/XLSX and imports the encoded sheet back via `/api/registrar/student-numbers`. **All knowledge of the sheet's format lives in `service/StudentNumberImportMapping.java`** — header aliases, match key (Reference No.), and value normalisation. To support a new file layout, add strings to the alias lists there and re-run `StudentNumberSheetParserTest`; do not add format logic to the parser or services. Import always previews before it writes, and never overwrites an existing student number without an explicit opt-in.
+
+**Student identifiers — two, deliberately:** `student_records.student_id` is an internal system reference (auto-generated as `SR{year}{seq}`, `NOT NULL UNIQUE`, immutable, and the FK target of 10 child tables). `student_records.student_number` is the *real* student number the Registrar and the archive import own — nullable, never auto-generated, unique when present. In the UI they are labelled **Reference No.** and **Student Number** respectively; never present `student_id` to a user as "the student number". The student number is written only through `PUT /api/registrar/student-records/{id}/student-number`; it is read-only on the edit form and absent from `StudentRecordUpdateRequest`, so a routine edit cannot wipe it.
+
 ## Database Schema
 
 Schema source of truth: `src/main/sql/schema.sql` (and `AnihanSRMS.sql` at root for device transfer).

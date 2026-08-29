@@ -5,6 +5,7 @@ import com.example.springboot.model.StudentRecord;
 public record StudentRecordSummaryResponse(
         Integer recordId,
         String studentId,
+        String studentNumber,
         String lastName,
         String firstName,
         String batchCode,
@@ -17,6 +18,7 @@ public record StudentRecordSummaryResponse(
         return new StudentRecordSummaryResponse(
                 r.getRecordId(),
                 r.getStudentId(),
+                r.getStudentNumber(),
                 r.getLastName(),
                 r.getFirstName(),
                 r.getBatch() != null ? r.getBatch().getBatchCode() : null,

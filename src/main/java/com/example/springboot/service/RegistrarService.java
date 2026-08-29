@@ -87,14 +87,24 @@ public class RegistrarService {
     }
 
     public List<StudentRecordSummaryResponse> getAllRecords(String query, Integer fromYear, Integer toYear) {
-        return getAllRecords(query, fromYear, toYear, null);
+        return getAllRecords(query, fromYear, toYear, null, null);
+    }
+
+    public List<StudentRecordSummaryResponse> getAllRecords(String query, Integer fromYear, Integer toYear, String status) {
+        return getAllRecords(query, fromYear, toYear, status, null);
     }
 
     /**
-     * Returns all student records filtered by free-text query, batch year range, and/or student status.
-     * All three filters are optional and combined with AND logic.
+     * Returns all student records filtered by free-text query, batch year range, student
+     * status, and/or whether a student number has been assigned. All filters are optional
+     * and combined with AND logic.
+     *
+     * @param hasStudentNumber {@code null} for all records, {@code TRUE} for students who
+     *                         have a student number, {@code FALSE} for those still missing
+     *                         one (the registrar's "who still needs a number?" view)
      */
-    public List<StudentRecordSummaryResponse> getAllRecords(String query, Integer fromYear, Integer toYear, String status) {
+    public List<StudentRecordSummaryResponse> getAllRecords(String query, Integer fromYear, Integer toYear,
+                                                            String status, Boolean hasStudentNumber) {
         List<StudentRecord> records = studentRecordRepository.findAll();
         String q = (query == null || query.isBlank()) ? null : query.toLowerCase().trim();
         boolean yearFilterActive = fromYear != null || toYear != null;
@@ -104,13 +114,19 @@ public class RegistrarService {
                 .filter(r -> q == null || matchesQuery(r, q))
                 .filter(r -> !yearFilterActive || matchesYearRange(r, fromYear, toYear))
                 .filter(r -> normalizedStatus == null || matchesStatus(r, normalizedStatus))
+                .filter(r -> hasStudentNumber == null || hasStudentNumber == hasAssignedStudentNumber(r))
                 .map(StudentRecordSummaryResponse::from)
                 .toList();
+    }
+
+    private boolean hasAssignedStudentNumber(StudentRecord r) {
+        return r.getStudentNumber() != null && !r.getStudentNumber().isBlank();
     }
 
     private boolean matchesQuery(StudentRecord r, String q) {
         return contains(String.valueOf(r.getRecordId()), q)
                 || contains(r.getStudentId(), q)
+                || contains(r.getStudentNumber(), q)
                 || contains(r.getLastName(), q)
                 || contains(r.getFirstName(), q)
                 || contains(r.getMiddleName(), q)
@@ -146,6 +162,38 @@ public class RegistrarService {
         StudentRecord record = studentRecordRepository.findById(recordId)
                 .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
         return buildDetailsResponse(record);
+    }
+
+    /**
+     * Assigns, changes, or clears a student's registrar-controlled student number.
+     *
+     * <p>This is the ONLY write path for {@code student_number}. The edit form deliberately
+     * shows it read-only so the change is always a deliberate, separately audited action.
+     * A blank or null value clears the number — students are allowed to have none.
+     *
+     * <p>Uniqueness is pre-checked here rather than left to the unique index, so a clash
+     * reaches the registrar as an actionable 400 ("already assigned to ...") instead of a
+     * generic 409 from {@code GlobalExceptionHandler}.
+     */
+    @Transactional
+    public StudentRecordDetailsResponse assignStudentNumber(Integer recordId, String studentNumber) {
+        StudentRecord record = studentRecordRepository.findById(recordId)
+                .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
+
+        String normalized = emptyToNull(studentNumber);
+
+        if (normalized != null) {
+            studentRecordRepository.findByStudentNumber(normalized)
+                    .filter(other -> !other.getRecordId().equals(recordId))
+                    .ifPresent(other -> {
+                        throw new IllegalArgumentException(
+                                "Student number " + normalized + " is already assigned to "
+                                        + other.getLastName() + ", " + other.getFirstName() + ".");
+                    });
+        }
+
+        record.setStudentNumber(normalized);
+        return buildDetailsResponse(studentRecordRepository.save(record));
     }
 
     @Transactional
