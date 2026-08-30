@@ -79,6 +79,9 @@ class RegistrarBulkLoadTest {
     @Mock
     private com.example.springboot.service.StorageService storageService;
 
+    @Mock
+    private com.example.springboot.repository.GradeRepository gradeRepository;
+
     @InjectMocks
     private RegistrarService registrarService;
 

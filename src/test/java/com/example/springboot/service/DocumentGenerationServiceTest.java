@@ -73,7 +73,9 @@ class DocumentGenerationServiceTest {
         subject.setSubjectCode("TRS741342");
         Grade grade = new Grade();
         grade.setSubject(subject);
+        grade.setFinalPercentage(new BigDecimal("93"));
         grade.setFinalGrade(new BigDecimal("1.50"));
+        grade.setRemarks("COMPETENT");
 
         when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(record));
         when(parentRepository.findByStudentStudentId("SR20260001")).thenReturn(List.of(father));
@@ -101,7 +103,8 @@ class DocumentGenerationServiceTest {
 
         assertEquals(1, response.grades().size());
         assertEquals("TRS741342", response.grades().get(0).subjectCode());
-        assertEquals(new BigDecimal("1.50"), response.grades().get(0).finalGrade());
+        assertEquals("1.50", response.grades().get(0).finalGrade());
+        assertEquals("Competent", response.grades().get(0).remarks());
     }
 
     @Test

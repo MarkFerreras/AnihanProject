@@ -1,10 +1,10 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Trainer assignment is now class-level only — `subjects.trainer_id` dropped (Model 1), Bug 8 fixed. Competency_type + editable subject_code also done. All on `edit_subjects`, PR to main still open.**
+**Trainer grading overhauled to the TESDA/TOR model — raw % → transmuted 1.00–5.00 equivalent, TOR status codes (C/FA/INC/D), derived competency remark, mandatory hours_rendered, registrar-only Total GWA, and the generated-document grade wiring (dormant per Bug 10). On `grade_input_fix` (off `edit_subjects`). Earlier on this chain: Model 1 trainer-at-class-level (Bug 8), competency_type + editable subject_code. Nothing merged to main.**
 
 ## Active Branch
-`edit_subjects` — the user directs all branch selection; do not switch/create/merge branches without an explicit instruction.
+`grade_input_fix` (branched off `edit_subjects`) — the user directs all branch selection; do not switch/create/merge branches without an explicit instruction.
 
 ## ⚠️ ACTION REQUIRED — All Developers (as of 2026-08-26)
 Two migrations landed today and the app code depends on both. Every developer with
@@ -33,7 +33,51 @@ FK; it has already been run against the live Docker DB (a no-op there — the co
 was already absent). Every DB now converges on "no `subjects.trainer_id`". Full
 details in this file's Latest Session entry and `changeLog.md` (2026-08-29).
 
-## Latest Session (2026-08-29 - Model 1: Trainer Assignment Is Class-Level Only; Bug 8 Fixed)
+## Latest Session (2026-08-29 - Trainer Grading Overhaul)
+
+### Scope
+Rebuilt trainer grade input to match the client's TESDA/TOR documents. Full model
++ rationale: `decisions.md` (2026-08-29 - Trainer Grading Overhaul). Done on
+`grade_input_fix` at the user's instruction (they direct branch selection).
+
+### What changed (headline)
+- Trainer enters a **raw percentage** (0–100, decimals ok) **or** a TOR **status
+  code** (Complete `C` / Failure Due to Absences `FA` / Incomplete `INC` /
+  Dropped `D`) — never both. System transmutes the % to a 1.00–5.00 equivalent
+  (`GradeEquivalent.toEquivalent`, "≥ lower bound" bands). Passing = ≤ 3.00.
+- **Remarks** is derived, never entered: `COMPETENT` / `NOT_COMPETENT` / null
+  (effective-grade-driven for %; `C`→COMPETENT, `FA`→NOT_COMPETENT, `INC`/`D`→none).
+- **Re-exam** % optional and only accepted when the final failed (UI hides it
+  otherwise; service rejects it on a passing final).
+- **`hours_studied` → `hours_rendered`**, now **mandatory** (0–100), separate from
+  curriculum hours, not shown on any document.
+- **Total GWA** (units-weighted, `GradeEquivalent.gwa`) — registrar-only, in the
+  student-record detail modal (`#detailsTotalGwa`). Not on any document.
+- **Scope B done but dormant:** `GradePart` / `DocumentGenerationService` /
+  `registrar-generate-document.js` emit/consume the new grade fields; no rows will
+  match until Bug 10 (subjects codes ≠ curriculum module codes) is resolved.
+- DB: migration `2026-08-29-grades-overhaul.sql` (idempotent, guarded) — drops
+  `midterm_grade`/`finals_grade`, adds `final_percentage`/`re_exam_percentage`/
+  `grade_status`, renames the hours column. Already applied to the live Docker DB
+  (0 rows — structural only).
+
+### Verified
+- `./gradlew test` → **250 tests, 0 failures, 0 errors** (+20).
+- Migration: live shape / legacy old shape / re-runs — all clean. Backup taken first.
+- Fresh `schema.sql` build; `ddl-auto=validate` boot vs live MySQL → PASS.
+- Full live HTTP smoke (enrol a student → % → equivalent + COMPETENT; re-exam on a
+  passing final → 400; status `D` → no equivalent/no remark; fail 60 + re-exam 80 →
+  COMPETENT via effective; registrar `totalGwa` = 2.75). Fixtures cleaned up.
+
+### Open Items
+- Browser click-through of the trainer grade modal + registrar detail modal.
+- Bug 10 (curriculum vs subjects codes) blocks the document grade cells.
+- Bug 11 logged: Total GWA has no home in any official document (user kept it anyway).
+- User's own local app instance needs a restart to serve the new code.
+
+---
+
+## Previous Session (2026-08-29 - Model 1: Trainer Assignment Is Class-Level Only; Bug 8 Fixed)
 
 ### Scope
 Fix `bugs.md` Bug 8 (Subjects page 500 — the `Subject` entity mapped

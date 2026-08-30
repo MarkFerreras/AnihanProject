@@ -4,6 +4,64 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-08-29 - Trainer Grading Overhaul: Raw % → Transmuted Equivalent, TOR Status Codes, Derived Remark
+
+**Decision:** Replaced the invented midterm/finals (40/60) grade model with the model
+the client's TESDA/TOR documents actually use.
+
+- **The trainer enters a raw percentage** (decimals allowed, 0–100) **OR** a TOR
+  status code — never both, never neither. The system transmutes the percentage to
+  a 1.00–5.00 equivalent (`GradeEquivalent.toEquivalent`) using the table printed
+  on the Anihan Transcript of Records, read as *"≥ the band's lower bound"* so
+  decimals resolve unambiguously (98.9 → 1.25, 74.99 → 4.00, 69.99 → 5.00).
+  Passing = equivalent ≤ 3.00 (≥ 75%).
+- **Status codes** stored as `grades.grade_status`: `C` (Complete), `FA` (Failure
+  Due to Absences), `INC` (Incomplete), `D` (Dropped). The trainer picks the
+  *meaning* from a dropdown; only the letter is encoded. A status row carries no
+  numeric equivalent; on the generated documents the FINAL cell prints the code.
+- **`remarks` is fully derived, never entered.** Token stored: `COMPETENT` /
+  `NOT_COMPETENT` / `NULL`. For a percentage it follows the *effective* equivalent
+  (re-exam substituted when the final failed): ≤ 3.00 → COMPETENT else
+  NOT_COMPETENT. For a status: `C` → COMPETENT, `FA` → NOT_COMPETENT, `INC`/`D` →
+  no remark (per the user's mapping).
+- **Re-exam** (`re_exam_percentage` → `re_exam_grade` equivalent) is optional and
+  **only accepted when the final is a failing mark** — the service rejects a
+  re-exam on a passing final; the trainer UI hides the re-exam input until the
+  final equivalent > 3.00.
+- **Hours rendered** (`hours_studied` renamed → `hours_rendered`, 0–100) is a
+  **mandatory** field per TESDA (attendance hours) — entirely separate from the
+  fixed curriculum hours, and it does **not** appear on any generated document.
+- **Two grade figures:** the per-subject equivalent (trainer sees it; printed on
+  the TOR / Form IX / Permanent Record) and **Total GWA** =
+  `Σ(effective_equivalent × subject_units) / Σ(subject_units)` — registrar-only,
+  shown in the student-record **detail modal**, not on any document. GWA math lives
+  in `GradeEquivalent.gwa()` and is reused by `RegistrarService`.
+- **Lock** stays a reversible toggle the trainer controls (no change; the
+  "once locked, cannot be altered" wording in older docs is still aspirational —
+  left as-is for now per the user).
+- **Both scopes done:** trainer input *and* document generation
+  (`DocumentGenerationService` / `GradePart` now emit pre-formatted strings —
+  equivalent-or-code for FINAL, equivalent for RE-EXAM, "Competent"/"Not Competent"
+  for Remarks; `registrar-generate-document.js` consumes them directly). Document
+  wiring is **dormant** until `bugs.md` Bug 10 (subjects codes ≠ curriculum module
+  codes) is resolved.
+
+**Rejected alternatives:** keeping midterm/finals (not in any document); letting the
+trainer type the equivalent directly (the client's process is percentage-in); a
+free-text remarks field (client uses a controlled competency verdict); a single
+column holding both the code and the verdict (FINAL and Remarks are separate
+columns on the documents, so `grade_status` + `remarks` are separate).
+
+Migration `2026-08-29-grades-overhaul.sql` (idempotent, guarded): drops
+`midterm_grade`/`finals_grade`, adds `final_percentage`/`re_exam_percentage`/
+`grade_status`, renames `hours_studied` → `hours_rendered`. Live `grades` has 0
+rows so this is structural only. Verified: full suite **250/0/0**; migration tested
+on the live shape + a legacy old shape + re-runs (idempotent); fresh `schema.sql`
+build; `ddl-auto=validate` boot PASS; full live HTTP smoke (% → equivalent +
+COMPETENT, re-exam rejected on a passing final, status code `D` → no equivalent/no
+remark, fail 60 + re-exam 80 → COMPETENT via effective, registrar `totalGwa` = 2.75)
+— all fixtures cleaned up.
+
 ## 2026-08-29 - Trainer Assignment Is Class-Level Only (subjects.trainer_id Dropped)
 
 **Decision:** Removed `subjects.trainer_id` (the per-subject "default trainer",

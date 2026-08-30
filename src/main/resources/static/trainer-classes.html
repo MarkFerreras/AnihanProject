@@ -131,21 +131,28 @@
                     <p class="text-muted mb-3" id="classRosterSubtitle"></p>
                     <div class="alert d-none" id="gradeInputAlert" role="alert"></div>
                     <div class="table-responsive">
-                        <table id="gradeInputTable" class="table table-striped w-100">
+                        <table id="gradeInputTable" class="table table-striped w-100 align-middle">
                             <thead>
                                 <tr>
                                     <th>Student ID</th>
                                     <th>Last Name</th>
                                     <th>First Name</th>
-                                    <th>Midterm</th>
-                                    <th>Finals</th>
-                                    <th>Re-exam</th>
-                                    <th>Hours Studied</th>
+                                    <th>Final&nbsp;%</th>
+                                    <th>Status</th>
+                                    <th>Equivalent</th>
+                                    <th>Re-exam&nbsp;%</th>
+                                    <th>Re-exam Equiv</th>
                                     <th>Remarks</th>
+                                    <th>Hours Rendered</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
                         </table>
+                        <p class="text-muted small mt-2 mb-0">
+                            Enter a raw percentage (the system computes the 1.00&ndash;5.00 equivalent), or pick a
+                            Status instead. The Re-exam column appears only when the final grade is a failing mark.
+                            Hours Rendered is required.
+                        </p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -253,6 +260,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/trainer-classes.js?v=4"></script>
+    <script src="js/trainer-classes.js?v=5"></script>
 </body>
 </html>

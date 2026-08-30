@@ -1,5 +1,75 @@
 # Change Log - Anihan SRMS
 
+## 2026-08-29 - Trainer Grading Overhaul (raw % → equivalent, TOR status codes, Total GWA)
+**Branch:** `grade_input_fix` (off `edit_subjects`; user directs branch selection)
+
+### Task
+Overhaul trainer grade input to match the client's TESDA/TOR documents: trainer
+enters a raw percentage (or a status code); the system transmutes to the 1.00–5.00
+equivalent; Remarks is a derived competency verdict; hours-rendered is a mandatory
+field separate from curriculum hours; a registrar-only Total GWA. Full design and
+rationale in `decisions.md` (2026-08-29 - Trainer Grading Overhaul).
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-29-grades-overhaul.sql` | Idempotent, `information_schema`-guarded. Drops `midterm_grade`/`finals_grade`; adds `final_percentage`, `re_exam_percentage`, `grade_status`; renames `hours_studied` → `hours_rendered`. Structural only (live `grades` = 0 rows). Verified on the live shape, a legacy old shape, and re-runs. |
+| `service/GradeEquivalent.java` | Stateless util: `toEquivalent(pct)` (TOR transmutation, "≥ lower bound" bands), `isFailing`, `effective(Grade)` (re-exam substitution), `gwa(List<Grade>)` (units-weighted), `remarkFor(equiv)`. |
+| `test/.../service/GradeEquivalentTest.java` | 10 pure-unit tests — every band boundary incl. decimals, failing threshold, effective grade, GWA. |
+| `test/.../controller/TrainerGradeControllerWebMvcTest.java` | Revived from a stale `.bak`; new request/response shape; `@Import({SecurityConfig, GlobalExceptionHandler})` + `CustomUserDetailsService` mock so RBAC/CSRF behave like production. 7 tests. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `model/Grade.java` | Dropped `midtermGrade`/`finalsGrade`. Added `finalPercentage`, `reExamPercentage`, `gradeStatus`. `hoursStudied` → `hoursRendered`. `finalGrade`/`reExamGrade` keep their names, now = 1.00–5.00 equivalents. `remarks` length 255 → 20 (token). |
+| `dto/trainer/SaveGradeRequest.java` | New shape: `studentId`, `finalPercentage` (0–100), `gradeStatus` (`@Pattern C\|FA\|INC\|D`), `reExamPercentage` (0–100), `hoursRendered` (`@NotNull`, 0–100). `remarks` removed (derived server-side). |
+| `dto/trainer/StudentGradeRow.java` | New shape: percentages + equivalents + `gradeStatus` + `remarks` token + `hoursRendered`. Per-row `gwa` removed (Total GWA is registrar-only). |
+| `service/TrainerGradeService.java` | Removed 40/60 `computeFinalGrade` and the old range check. `applyRequest()` enforces percentage-XOR-status, mandatory hours (0–100), re-exam only on a failing final, transmutes via `GradeEquivalent`, derives the remark. `getGradesForClass` maps the new row. Lock/unlock unchanged. |
+| `controller/TrainerGradeController.java` | Unchanged (endpoints + log text already fit). |
+| `dto/registrar/DocumentGenerateDataResponse.java` | `GradePart` → `(subjectCode, finalGrade, reExamGrade, remarks)` — all `String`, pre-formatted (equivalent or status code / equivalent / "Competent"\|"Not Competent"). `hoursStudied` dropped (not on documents). |
+| `service/DocumentGenerationService.java` | Builds the new `GradePart` — `gradeCell()` (code or equivalent string), `remarkLabel()` (token → label). |
+| `dto/registrar/StudentRecordDetailsResponse.java` | Added `BigDecimal totalGwa` (8th arg on the primary `from`; delegates pass `null`). |
+| `service/RegistrarService.java` | Injects `GradeRepository`; `buildDetailsResponse` computes `totalGwa = GradeEquivalent.gwa(...)`. |
+| `static/trainer-classes.html` | Grade table columns: Final % · Status · Equivalent · Re-exam % · Re-exam Equiv · Remarks · Hours Rendered. Helper text. `?v=4` → `?v=5`. |
+| `static/js/trainer-classes.js` | Rewritten build/collect. Client mirror of the transmutation table; live equivalent; percentage↔status exclusivity; re-exam column hidden until the final is failing; derived remark; mandatory-hours client check. Unlock rebuilds the table. |
+| `static/registrar.html` | New "Total GWA" detail card after Status. `registrar-students.js?v=3` → `?v=4`. |
+| `static/js/registrar-students.js` | `setText('detailsTotalGwa', r.totalGwa)`. |
+| `static/generate-document.html` | `registrar-generate-document.js?v=3` → `?v=4`. |
+| `static/js/registrar-generate-document.js` | `subjectsTable()` grade merge reads the pre-formatted `GradePart` strings directly (no `fmtGrade`, no "Competent" fallback). |
+| `src/main/sql/schema.sql` | `grades` block rebuilt to the new column set; header note added. |
+| `test/.../service/TrainerGradeServiceTest.java` | Rewritten for the new model — 19 tests (transmutation + passing/failing remark, re-exam accept/reject, status codes C/FA/INC/D, both/neither rejected, hours required/range, locked, auto-create, lock/unlock, ownership). |
+| `test/.../service/DocumentGenerationServiceTest.java` | `GradePart.finalGrade` now `"1.50"` (string), asserts `remarks == "Competent"`. |
+| `test/.../service/RegistrarBulkLoadTest.java` | Added `@Mock GradeRepository`. |
+| `memory-bank/decisions.md`, `changeLog.md`, `activeContext.md`, `progress.md`, `bugs.md`, `testing.md` | Session notes; Bug 10 + Bug 11 logged. |
+
+### Files Deleted
+`test/.../controller/TrainerGradeControllerWebMvcTest.java.bak` — replaced by the real test.
+
+### Verification
+- `./gradlew test` → **250 tests, 0 failures, 0 errors** (was 230; +20).
+- Migration: live shape → transformed; legacy old shape (midterm/finals/hours_studied) → transformed; both re-run byte-identical. Backup to scratchpad first.
+- Fresh `schema.sql` built into a throwaway DB → new `grades` shape, dropped.
+- `ddl-auto=validate` boot vs live MySQL → PASS (6.3s, zero schema-validation errors).
+- **Full live HTTP smoke** (port 8099): enrolled a student into a real class →
+  `PUT` final % 88 → stored `final_percentage=88.00`, `final_grade=2.00`,
+  `remarks=COMPETENT`, `hours_rendered=40.00`; re-exam on a passing final → **400**
+  ("only allowed when the final grade is a failing mark"); status code `D` →
+  `final_grade=null`, `grade_status=D`, `remarks=null`; final 60 + re-exam 80 →
+  `final_grade=5.00`, `re_exam_grade=2.75`, `remarks=COMPETENT` (effective);
+  registrar student detail `totalGwa=2.75`. All fixtures deleted; `grades` and
+  `class_enrollments` back to 0.
+
+### Open Items
+- Browser click-through of the trainer grade modal + registrar detail modal.
+- Bug 10 (curriculum module codes ≠ `subjects` codes) — Scope-B document wiring is
+  correct but dormant until resolved.
+- Bug 11 (Total GWA has no home in any official Anihan document) — logged as a
+  possible business-process contradiction, per the user.
+- The user's local app instance was on :8099 for verification and is now stopped;
+  their own instance needs a restart to serve the new code.
+
+---
+
 ## 2026-08-29 - Model 1: Trainer Assignment Is Class-Level Only (drop subjects.trainer_id) — fixes Bug 8
 **Branch:** `edit_subjects` (user directs branch selection)
 

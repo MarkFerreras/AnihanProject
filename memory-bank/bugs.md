@@ -13,6 +13,38 @@
 
 ## Open Bugs
 
+### Bug 10 — Generated documents can't show grades: `subjects` codes ≠ curriculum module codes 🟡
+- **Severity:** Medium · **Status:** Open (known, deferred by the user during the 2026-08-29 grading overhaul) · **Logged:** 2026-08-29
+- **What:** Grades are keyed to the `subjects` table (`COOK-101`, `BPP-101`, …).
+  The TOR / Form IX / Student Permanent Record templates carry the ~50 fixed TESDA
+  modules with entirely different codes (`TRS512328`, `400311210`, …), transcribed
+  separately in `static/js/curriculum-templates.js` (deliberately decoupled from
+  `subjects`). `DocumentGenerationService` merges grades into the document tables
+  **by subject code** (`gradesByCode[subj.code]` in `registrar-generate-document.js`
+  `subjectsTable()`), so no row ever matches.
+- **Effect:** the Scope-B document wiring from the grading overhaul is *correct*
+  (FINAL = equivalent or status code, RE-EXAM = equivalent, Remarks = derived
+  label) but **dormant** — a generated TOR/Form IX shows blank grade cells for a
+  real student until this mapping exists.
+- **Options (not chosen yet):** (a) create classes against real TESDA module codes
+  so grades key straight to the curriculum; (b) a `subjects` ↔ curriculum-module
+  mapping table; (c) accept documents stay manually filled for grades.
+- Raised again by the assistant during the grading overhaul, per the user's request
+  to "remind about it later / log it as a potential bug".
+
+### Bug 11 — "Total GWA" is computed and shown to the registrar but appears on no official Anihan document 🟢
+- **Severity:** Low (possible business-process contradiction, not a defect) · **Status:** Open — flagged per the user · **Logged:** 2026-08-29
+- **What:** The 2026-08-29 grading overhaul added a units-weighted **Total GWA**
+  (`GradeEquivalent.gwa`), surfaced in the registrar's student-record detail modal
+  (`#detailsTotalGwa`). None of the client's documents — TOR, Form IX, Student
+  Permanent Record — contain a GWA / GPA / grade total (Form IX totals only HOURS
+  and UNITS). The user chose to **keep it for now** as a possible "nice to have"
+  for internal use (honors/ranking), but asked that the mismatch with the actual
+  business process be recorded.
+- **If it turns out unused:** remove `totalGwa` from `StudentRecordDetailsResponse`
+  + `RegistrarService` + the detail card, and `GradeEquivalent.gwa` becomes dead
+  code. No migration needed (GWA is computed on read, never stored).
+
 ### Bug 9 — Trainer (user) hard-delete is silent, unguarded, and can orphan classes/locked grades 🟡→🔴
 - **Severity:** Medium today (0 classes/grades), High once real classes exist ·
   **Status:** Open — analysis complete, solution proposed below, not implemented ·

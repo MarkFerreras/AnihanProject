@@ -35,571 +35,381 @@ import com.example.springboot.repository.UserRepository;
 @ExtendWith(MockitoExtension.class)
 public class TrainerGradeServiceTest {
 
-    @Mock
-    private GradeRepository gradeRepository;
+    @Mock private GradeRepository gradeRepository;
+    @Mock private SchoolClassRepository classRepository;
+    @Mock private ClassEnrollmentRepository enrollmentRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private SchoolClassRepository classRepository;
-
-    @Mock
-    private ClassEnrollmentRepository enrollmentRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @InjectMocks
-    private TrainerGradeService gradeService;
+    @InjectMocks private TrainerGradeService gradeService;
 
     private User trainerUser;
 
     @BeforeEach
     void setUp() {
-        // Set up SecurityContext to return "trainer1" as current username
-        SecurityContext mockContext = mock(SecurityContext.class);
-        Authentication mockAuth = mock(Authentication.class);
-        when(mockAuth.getName()).thenReturn("trainer1");
-        when(mockAuth.isAuthenticated()).thenReturn(true);
-        when(mockContext.getAuthentication()).thenReturn(mockAuth);
-        SecurityContextHolder.setContext(mockContext);
+        SecurityContext ctx = mock(SecurityContext.class);
+        Authentication auth = mock(Authentication.class);
+        lenient().when(auth.getName()).thenReturn("trainer1");
+        lenient().when(auth.isAuthenticated()).thenReturn(true);
+        lenient().when(ctx.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(ctx);
 
-        // Create the trainer User object that resolveCurrentTrainerId will find
         trainerUser = new User();
         trainerUser.setUserId(100);
         trainerUser.setUsername("trainer1");
     }
 
-    /**
-     * Helper to stub the UserRepository lookup for resolveCurrentTrainerId().
-     */
     private void stubTrainerLookup() {
         when(userRepository.findByUsername("trainer1")).thenReturn(Optional.of(trainerUser));
     }
 
-    @Test
-    void testGetGradesForClassSuccess() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
+    private SchoolClass ownedClass(Integer classId) {
         Subject subject = new Subject();
         subject.setSubjectCode("CUL101");
         subject.setSubjectName("Culinary Arts");
         subject.setUnits(3);
-
         Section section = new Section();
-        section.setSectionCode("S001");
         section.setSection("Section A");
+        SchoolClass sc = new SchoolClass();
+        sc.setClassId(classId);
+        sc.setTrainer(trainerUser);
+        sc.setSubject(subject);
+        sc.setSection(section);
+        sc.setSemester("2026");
+        return sc;
+    }
 
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-        schoolClass.setSection(section);
-        schoolClass.setSemester("2026");
+    private StudentRecord student(String id) {
+        StudentRecord s = new StudentRecord();
+        s.setStudentId(id);
+        s.setLastName("Doe");
+        s.setFirstName("Jane");
+        return s;
+    }
 
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-        student.setLastName("Doe");
-        student.setFirstName("John");
-        student.setMiddleName("M");
+    private SaveGradeRequest req(String id, String finalPct, String status, String reExamPct, String hours) {
+        return new SaveGradeRequest(
+                id,
+                finalPct == null ? null : new BigDecimal(finalPct),
+                status,
+                reExamPct == null ? null : new BigDecimal(reExamPct),
+                hours == null ? null : new BigDecimal(hours));
+    }
 
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setSchoolClass(schoolClass);
-        grade.setStudent(student);
-        grade.setMidtermGrade(new BigDecimal("4.0"));
-        grade.setFinalsGrade(new BigDecimal("3.5"));
-        grade.setFinalGrade(new BigDecimal("3.7"));
-        grade.setLocked(false);
+    private Grade stubExistingGrade(Integer classId, String studentId, SchoolClass sc) {
+        Grade g = new Grade();
+        g.setStudent(student(studentId));
+        g.setSubject(sc.getSubject());
+        g.setSchoolClass(sc);
+        g.setLocked(false);
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, studentId)).thenReturn(true);
+        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, studentId))
+                .thenReturn(Optional.of(g));
+        return g;
+    }
 
-        ClassEnrollment enrollment = new ClassEnrollment();
-        enrollment.setStudent(student);
-        enrollment.setSchoolClass(schoolClass);
+    // ----- read -----
 
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(grade));
-        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(enrollment));
-        when(gradeRepository.findByStudentStudentId("STU001")).thenReturn(List.of(grade));
+    @Test
+    void getGradesForClassMapsExistingRow() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        StudentRecord stu = student("STU001");
 
-        GradeSummaryResponse response = gradeService.getGradesForClass(classId);
+        Grade g = new Grade();
+        g.setSchoolClass(sc);
+        g.setStudent(stu);
+        g.setFinalPercentage(new BigDecimal("88"));
+        g.setFinalGrade(new BigDecimal("2.00"));
+        g.setRemarks("COMPETENT");
+        g.setHoursRendered(new BigDecimal("40"));
 
-        assertNotNull(response);
-        assertEquals(classId, response.classId());
-        assertEquals("Culinary Arts", response.subjectName());
-        assertEquals("Section A", response.sectionName());
-        assertEquals("2026", response.semester());
-        assertFalse(response.locked());
-        assertEquals(1, response.students().size());
+        ClassEnrollment e = new ClassEnrollment();
+        e.setStudent(stu);
+        e.setSchoolClass(sc);
+
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(g));
+        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(e));
+
+        GradeSummaryResponse resp = gradeService.getGradesForClass(classId);
+        assertEquals(1, resp.students().size());
+        var row = resp.students().get(0);
+        assertEquals(new BigDecimal("88"), row.finalPercentage());
+        assertEquals(new BigDecimal("2.00"), row.finalGrade());
+        assertEquals("COMPETENT", row.remarks());
+        assertEquals(new BigDecimal("40"), row.hoursRendered());
     }
 
     @Test
-    void testGetGradesForClassNewClassNoGrades() {
+    void getGradesForClassNewClassReturnsEmptyRows() {
         stubTrainerLookup();
         Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        ClassEnrollment e1 = new ClassEnrollment();
+        e1.setStudent(student("STU001"));
+        e1.setSchoolClass(sc);
 
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
-        subject.setSubjectName("Culinary Arts");
-        subject.setUnits(3);
-
-        Section section = new Section();
-        section.setSectionCode("S001");
-        section.setSection("Section A");
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-        schoolClass.setSection(section);
-        schoolClass.setSemester("2026");
-
-        StudentRecord student1 = new StudentRecord();
-        student1.setStudentId("STU001");
-        student1.setLastName("Doe");
-        student1.setFirstName("John");
-
-        StudentRecord student2 = new StudentRecord();
-        student2.setStudentId("STU002");
-        student2.setLastName("Smith");
-        student2.setFirstName("Jane");
-
-        ClassEnrollment enrollment1 = new ClassEnrollment();
-        enrollment1.setStudent(student1);
-        enrollment1.setSchoolClass(schoolClass);
-
-        ClassEnrollment enrollment2 = new ClassEnrollment();
-        enrollment2.setStudent(student2);
-        enrollment2.setSchoolClass(schoolClass);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        // No grades exist yet
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
         when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of());
-        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(enrollment1, enrollment2));
+        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(e1));
 
-        GradeSummaryResponse response = gradeService.getGradesForClass(classId);
-
-        assertNotNull(response);
-        assertEquals(2, response.students().size());
-        assertFalse(response.locked());
-        // All grade fields should be null for students without grade rows
-        response.students().forEach(s -> {
-            assertNull(s.midtermGrade());
-            assertNull(s.finalsGrade());
-            assertNull(s.finalGrade());
-            assertNull(s.gwa());
-        });
+        GradeSummaryResponse resp = gradeService.getGradesForClass(classId);
+        assertEquals(1, resp.students().size());
+        var row = resp.students().get(0);
+        assertNull(row.finalPercentage());
+        assertNull(row.finalGrade());
+        assertNull(row.gradeStatus());
+        assertNull(row.remarks());
+        assertFalse(row.locked());
     }
 
     @Test
-    void testGetGradesForClassNotAssigned() {
+    void getGradesForClassRejectsUnassignedTrainer() {
+        stubTrainerLookup();
+        User other = new User();
+        other.setUserId(999);
+        SchoolClass sc = new SchoolClass();
+        sc.setClassId(1);
+        sc.setTrainer(other);
+        when(classRepository.findById(1)).thenReturn(Optional.of(sc));
+        assertThrows(IllegalArgumentException.class, () -> gradeService.getGradesForClass(1));
+    }
+
+    // ----- save: percentage path -----
+
+    @Test
+    void percentageIsTransmutedAndPassingRemarkIsCompetent() {
         stubTrainerLookup();
         Integer classId = 1;
-        User otherTrainer = new User();
-        otherTrainer.setUserId(200);
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(otherTrainer);
+        gradeService.saveGrades(classId, List.of(req("STU001", "88", null, null, "40")));
 
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-
-        assertThrows(IllegalArgumentException.class, () -> gradeService.getGradesForClass(classId));
+        assertEquals(new BigDecimal("88"), g.getFinalPercentage());
+        assertEquals(new BigDecimal("2.00"), g.getFinalGrade());
+        assertEquals("COMPETENT", g.getRemarks());
+        assertNull(g.getGradeStatus());
+        assertEquals(new BigDecimal("40"), g.getHoursRendered());
     }
 
     @Test
-    void testSaveGradesSuccess() {
+    void failingPercentageRemarkIsNotCompetent() {
         stubTrainerLookup();
         Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
+        gradeService.saveGrades(classId, List.of(req("STU001", "60", null, null, "10")));
 
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setStudent(student);
-        grade.setLocked(false);
-
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("4.0"),
-                new BigDecimal("3.5"),
-                null,
-                new BigDecimal("5.0"),
-                "Good performance");
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
-        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.of(grade));
-        when(gradeRepository.save(any())).thenReturn(grade);
-
-        gradeService.saveGrades(classId, List.of(request));
-
-        verify(gradeRepository, times(1)).save(any());
+        assertEquals(new BigDecimal("5.00"), g.getFinalGrade());
+        assertEquals("NOT_COMPETENT", g.getRemarks());
     }
 
     @Test
-    void testSaveGradesAutoCreatesGradeRow() {
+    void reExamAcceptedWhenFinalFailedAndDrivesTheRemark() {
         stubTrainerLookup();
         Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
+        // final 60 -> 5.00 (fail); re-exam 80 -> 2.75 (pass) -> effective 2.75 -> Competent
+        gradeService.saveGrades(classId, List.of(req("STU001", "60", null, "80", "12")));
 
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-
-        ClassEnrollment enrollment = new ClassEnrollment();
-        enrollment.setStudent(student);
-        enrollment.setSchoolClass(schoolClass);
-
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("4.0"),
-                new BigDecimal("3.5"),
-                null,
-                null,
-                null);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
-        // No existing grade — triggers auto-create
-        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.empty());
-        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(enrollment));
-        when(gradeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        gradeService.saveGrades(classId, List.of(request));
-
-        verify(gradeRepository, times(1)).save(argThat(g ->
-                g.getStudent().getStudentId().equals("STU001") &&
-                g.getSchoolClass().getClassId().equals(classId) &&
-                g.getMidtermGrade().compareTo(new BigDecimal("4.0")) == 0));
+        assertEquals(new BigDecimal("5.00"), g.getFinalGrade());
+        assertEquals(new BigDecimal("80"), g.getReExamPercentage());
+        assertEquals(new BigDecimal("2.75"), g.getReExamGrade());
+        assertEquals("COMPETENT", g.getRemarks());
     }
 
     @Test
-    void testSaveGradesGradeLocked() {
+    void reExamRejectedWhenFinalPassed() {
         stubTrainerLookup();
         Integer classId = 1;
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setLocked(true);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
-        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.of(grade));
-
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("4.0"),
-                new BigDecimal("3.5"),
-                null,
-                new BigDecimal("5.0"),
-                "Good");
-
-        assertThrows(IllegalArgumentException.class, () -> gradeService.saveGrades(classId, List.of(request)));
-    }
-
-    @Test
-    void testLockGradesSuccess() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setLocked(false);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(grade));
-        when(gradeRepository.save(any())).thenReturn(grade);
-
-        gradeService.lockGrades(classId);
-
-        verify(gradeRepository, times(1)).save(any());
-    }
-
-    @Test
-    void testUnlockGradesSuccess() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setLocked(true);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(grade));
-        when(gradeRepository.save(any())).thenReturn(grade);
-
-        gradeService.unlockGrades(classId);
-
-        verify(gradeRepository, times(1)).save(any());
-    }
-
-    @Test
-    void testComputeGwaWithMultipleGrades() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        Subject subject1 = new Subject();
-        subject1.setSubjectCode("CUL101");
-        subject1.setSubjectName("Culinary");
-        subject1.setUnits(3);
-
-        Subject subject2 = new Subject();
-        subject2.setSubjectCode("CUL102");
-        subject2.setSubjectName("Baking");
-        subject2.setUnits(4);
-
-        Section section = new Section();
-        section.setSectionCode("S001");
-        section.setSection("Section A");
-
-        SchoolClass class1 = new SchoolClass();
-        class1.setClassId(1);
-        class1.setTrainer(trainerUser);
-        class1.setSubject(subject1);
-        class1.setSection(section);
-        class1.setSemester("2026");
-
-        SchoolClass class2 = new SchoolClass();
-        class2.setClassId(2);
-        class2.setTrainer(trainerUser);
-        class2.setSubject(subject2);
-        class2.setSection(section);
-        class2.setSemester("2026");
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-        student.setLastName("Doe");
-        student.setFirstName("John");
-
-        Grade grade1 = new Grade();
-        grade1.setSchoolClass(class1);
-        grade1.setStudent(student);
-        grade1.setFinalGrade(new BigDecimal("4.0"));
-
-        Grade grade2 = new Grade();
-        grade2.setSchoolClass(class2);
-        grade2.setStudent(student);
-        grade2.setFinalGrade(new BigDecimal("3.5"));
-
-        ClassEnrollment enrollment = new ClassEnrollment();
-        enrollment.setStudent(student);
-        enrollment.setSchoolClass(class1);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(class1));
-        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(grade1));
-        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(enrollment));
-        when(gradeRepository.findByStudentStudentId("STU001")).thenReturn(List.of(grade1, grade2));
-
-        GradeSummaryResponse response = gradeService.getGradesForClass(classId);
-
-        assertNotNull(response);
-        assertEquals(1, response.students().size());
-        // GWA = (4.0*3 + 3.5*4) / (3+4) = (12+14)/7 = 26/7 = 3.71
-        assertEquals(new BigDecimal("3.71"), response.students().get(0).gwa());
-    }
-
-    @Test
-    void testSaveGradesComputesFinalGrade() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setStudent(student);
-
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("4.0"),
-                new BigDecimal("3.0"),
-                null,
-                new BigDecimal("5.0"),
-                null);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
-        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.of(grade));
-        when(gradeRepository.save(any())).thenReturn(grade);
-
-        gradeService.saveGrades(classId, List.of(request));
-
-        assertEquals(new BigDecimal("3.40"), grade.getFinalGrade());
-    }
-
-    @Test
-    void testLockGradesNotAssigned() {
-        stubTrainerLookup();
-        Integer classId = 1;
-        User otherTrainer = new User();
-        otherTrainer.setUserId(200);
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(otherTrainer);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-
-        assertThrows(IllegalArgumentException.class, () -> gradeService.lockGrades(classId));
-    }
-
-    @Test
-    void testEffectiveGradeWithReExam() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
-        subject.setSubjectName("Culinary");
-        subject.setUnits(3);
-
-        Section section = new Section();
-        section.setSectionCode("S001");
-        section.setSection("A");
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
-        schoolClass.setSection(section);
-        schoolClass.setSemester("2026");
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-        student.setLastName("Doe");
-        student.setFirstName("Jane");
-        student.setMiddleName("M");
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setSchoolClass(schoolClass);
-        grade.setStudent(student);
-        grade.setFinalGrade(new BigDecimal("3.2"));
-        grade.setReExamGrade(new BigDecimal("2.5"));
-
-        ClassEnrollment enrollment = new ClassEnrollment();
-        enrollment.setStudent(student);
-        enrollment.setSchoolClass(schoolClass);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(grade));
-        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(enrollment));
-        when(gradeRepository.findByStudentStudentId("STU001")).thenReturn(List.of(grade));
-
-        GradeSummaryResponse response = gradeService.getGradesForClass(classId);
-
-        assertNotNull(response);
-        assertEquals(1, response.students().size());
-        // Since final_grade=3.2 > 3.0 and re_exam=2.5, effective=2.5 → GWA=2.5
-        assertEquals(new BigDecimal("2.50"), response.students().get(0).gwa());
-    }
-
-    @Test
-    void rejectsGradeOutsideValidRange() {
-        stubTrainerLookup();
-        Integer classId = 1;
-
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
-
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setStudent(student);
-        grade.setLocked(false);
-
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("0.5"),
-                new BigDecimal("3.5"),
-                null, null, null);
-
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
-        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
-        when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.of(grade));
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
 
         assertThrows(IllegalArgumentException.class,
-                () -> gradeService.saveGrades(classId, List.of(request)));
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "85", null, "90", "20"))));
     }
 
     @Test
-    void computesFinalGradeUnconditionallyWhenOneGradeNull() {
+    void percentageOutOfRangeRejected() {
         stubTrainerLookup();
         Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
 
-        Subject subject = new Subject();
-        subject.setSubjectCode("CUL101");
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "150", null, null, "20"))));
+    }
 
-        SchoolClass schoolClass = new SchoolClass();
-        schoolClass.setClassId(classId);
-        schoolClass.setTrainer(trainerUser);
-        schoolClass.setSubject(subject);
+    // ----- save: status path -----
 
-        StudentRecord student = new StudentRecord();
-        student.setStudentId("STU001");
+    @Test
+    void statusCodeStoresNoEquivalentAndDerivesRemark() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        Grade grade = new Grade();
-        grade.setGradeId(1);
-        grade.setStudent(student);
-        grade.setLocked(false);
+        gradeService.saveGrades(classId, List.of(req("STU001", null, "C", null, "18")));
+        assertEquals("C", g.getGradeStatus());
+        assertNull(g.getFinalPercentage());
+        assertNull(g.getFinalGrade());
+        assertEquals("COMPETENT", g.getRemarks());
 
-        SaveGradeRequest request = new SaveGradeRequest(
-                "STU001",
-                new BigDecimal("3.0"),
-                null,
-                null, null, null);
+        gradeService.saveGrades(classId, List.of(req("STU001", null, "FA", null, "5")));
+        assertEquals("FA", g.getGradeStatus());
+        assertEquals("NOT_COMPETENT", g.getRemarks());
 
-        when(classRepository.findById(classId)).thenReturn(Optional.of(schoolClass));
+        gradeService.saveGrades(classId, List.of(req("STU001", null, "D", null, "0")));
+        assertEquals("D", g.getGradeStatus());
+        assertNull(g.getRemarks());
+    }
+
+    @Test
+    void bothPercentageAndStatusRejected() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "88", "C", null, "20"))));
+    }
+
+    @Test
+    void neitherPercentageNorStatusRejected() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", null, null, null, "20"))));
+    }
+
+    @Test
+    void reExamRejectedAlongsideStatusCode() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", null, "FA", "80", "5"))));
+    }
+
+    // ----- save: hours -----
+
+    @Test
+    void hoursRenderedRequired() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "88", null, null, null))));
+    }
+
+    @Test
+    void hoursRenderedOutOfRangeRejected() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        stubExistingGrade(classId, "STU001", sc);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "88", null, null, "150"))));
+    }
+
+    // ----- save: misc -----
+
+    @Test
+    void lockedGradeRejectsSave() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        g.setLocked(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "88", null, null, "20"))));
+    }
+
+    @Test
+    void saveAutoCreatesGradeRowForEnrolledStudent() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        StudentRecord stu = student("STU001");
+        ClassEnrollment e = new ClassEnrollment();
+        e.setStudent(stu);
+        e.setSchoolClass(sc);
+
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
         when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "STU001")).thenReturn(true);
         when(gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, "STU001"))
-                .thenReturn(Optional.of(grade));
-        when(gradeRepository.save(any())).thenReturn(grade);
+                .thenReturn(Optional.empty());
+        when(enrollmentRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(e));
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        gradeService.saveGrades(classId, List.of(request));
+        gradeService.saveGrades(classId, List.of(req("STU001", "93", null, null, "30")));
 
-        assertNull(grade.getFinalGrade());
+        verify(gradeRepository).save(argThat(g ->
+                g.getStudent().getStudentId().equals("STU001")
+                        && g.getSchoolClass().getClassId().equals(classId)
+                        && g.getFinalGrade().compareTo(new BigDecimal("1.50")) == 0));
+    }
+
+    @Test
+    void lockAndUnlockToggleEveryRow() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        Grade g = new Grade();
+        g.setLocked(false);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(g));
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        gradeService.lockGrades(classId);
+        assertTrue(g.isLocked());
+        assertNotNull(g.getLockedAt());
+
+        gradeService.unlockGrades(classId);
+        assertFalse(g.isLocked());
+        assertNull(g.getLockedAt());
+    }
+
+    @Test
+    void lockRejectsUnassignedTrainer() {
+        stubTrainerLookup();
+        User other = new User();
+        other.setUserId(999);
+        SchoolClass sc = new SchoolClass();
+        sc.setClassId(1);
+        sc.setTrainer(other);
+        when(classRepository.findById(1)).thenReturn(Optional.of(sc));
+        assertThrows(IllegalArgumentException.class, () -> gradeService.lockGrades(1));
     }
 }

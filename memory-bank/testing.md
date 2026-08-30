@@ -30,8 +30,11 @@
 | `DocumentGenerationServiceTest` | Mockito | 3 | Aggregated generate-data payload, null OJT, missing student throws |
 | `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
 | `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
+| `GradeEquivalentTest` | Pure unit | 10 | TOR transmutation table — every band at its lower bound, decimals (98.9→1.25, 74.99→4.00, 69.99→5.00), failing threshold (>3.00), `effective()` re-exam substitution, units-weighted `gwa()`, `remarkFor()` |
+| `TrainerGradeServiceTest` | Mockito | 19 | Grading overhaul — % → equivalent + passing/failing remark, re-exam accepted only on a failing final (rejected on a passing one), status codes C/FA/INC/D (no equivalent; C→COMPETENT, FA→NOT_COMPETENT, INC/D→no remark), both/neither %+status rejected, hours required + range, locked-row rejects save, auto-create grade row, lock/unlock toggle, ownership guard |
+| `TrainerGradeControllerWebMvcTest` | WebMvc | 7 | `@Import(SecurityConfig, GlobalExceptionHandler)` — GET summary (new DTO shape), 400 on service reject, PUT save 200 + `system_logs`, 400 when service rejects, lock/unlock 200, 401 anon, 403 non-trainer |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **217 tests, 0 failures, 0 errors** (July 14, 2026, after Document Management polish session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **250 tests, 0 failures, 0 errors** (2026-08-29, after the trainer grading overhaul).
 
 ## Manual Smoke Test — 2026-05-10 (Subjects CRUD)
 

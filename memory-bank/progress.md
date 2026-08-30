@@ -2,6 +2,35 @@
 
 ## Recent Sessions (detail)
 
+### Trainer Grading Overhaul (Completed — August 29, 2026)
+- **Task:** Rebuild trainer grade input to match the client's TESDA/TOR documents.
+- **Model (see `decisions.md` 2026-08-29 - Trainer Grading Overhaul):** trainer enters a
+  raw percentage (0–100, decimals) OR a TOR status code (C/FA/INC/D) — never both;
+  system transmutes the % to a 1.00–5.00 equivalent ("≥ lower bound" bands);
+  passing = ≤ 3.00; Remarks (`COMPETENT`/`NOT_COMPETENT`/null) is derived, never
+  entered; re-exam % optional and only when the final failed; `hours_studied` →
+  `hours_rendered`, now mandatory (0–100), separate from curriculum hours;
+  registrar-only Total GWA (`GradeEquivalent.gwa`) in the student-record detail modal.
+- **Done:** migration `2026-08-29-grades-overhaul.sql` (idempotent — drop
+  midterm/finals, add final_percentage/re_exam_percentage/grade_status, rename hours
+  column); `GradeEquivalent` util; `Grade` entity, `SaveGradeRequest`,
+  `StudentGradeRow`, `TrainerGradeService` reworked; `DocumentGenerateDataResponse
+  .GradePart` + `DocumentGenerationService` emit pre-formatted strings; registrar
+  `StudentRecordDetailsResponse` + `RegistrarService` gained `totalGwa`;
+  `trainer-classes.html`/`.js` grade modal rebuilt (live equivalent, %↔status
+  exclusivity, re-exam hidden until failing); `registrar.html` detail card;
+  `registrar-generate-document.js` grade merge; `schema.sql`.
+- **Verified:** `./gradlew test` → **250 tests, 0 failures** (+20; new
+  `GradeEquivalentTest`, rewritten `TrainerGradeServiceTest`, revived
+  `TrainerGradeControllerWebMvcTest`). Migration tested on live + legacy shapes +
+  re-runs. `ddl-auto=validate` boot PASS. Full live HTTP smoke (%→equivalent+remark,
+  re-exam guard, status code, fail+re-exam→effective, registrar totalGwa) — fixtures
+  cleaned up.
+- **Not done:** browser click-through. Bug 10 (curriculum module codes ≠ `subjects`
+  codes) leaves the generated-document grade cells blank — Scope-B wiring is dormant.
+  Bug 11 logged (Total GWA has no home in any official document; kept per user).
+- **Branch:** `grade_input_fix` (off `edit_subjects`; user directs branch selection).
+
 ### Model 1: Trainer Assignment Class-Level Only + Bug 8 Fixed (Completed — August 29, 2026)
 - **Task:** Fix Bug 8 (Subjects page 500: `Subject` entity mapped `subjects.trainer_id`,
   but the drifted local DB had no such column → `Unknown column 'trainer_id'` →

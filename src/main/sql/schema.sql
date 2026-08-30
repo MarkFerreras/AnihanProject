@@ -1,5 +1,9 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-08-29 (grades overhaul — raw % + transmuted equivalent,
+--                       grade_status C/FA/INC/D, hours_studied -> hours_rendered,
+--                       dropped midterm_grade/finals_grade;
+--                       see migrations/2026-08-29-grades-overhaul.sql)
 -- Updated: 2026-08-29 (dropped subjects.trainer_id — trainer assignment is
 --                       class-level only; see migrations/2026-08-29-drop-subjects-trainer-id.sql)
 -- Updated: 2026-08-26 PM (subject_code now renameable — grades/classes FKs
@@ -220,21 +224,26 @@ CREATE TABLE IF NOT EXISTS documents (
 
 -- ============================================================
 -- TABLE: grades
--- Class-scoped grading with midterm/finals, locking, and GWA support.
+-- Class-scoped grading: the trainer enters a raw percentage (final_percentage,
+-- transmuted to the 1.00-5.00 final_grade equivalent) OR a status code
+-- (grade_status: C/FA/INC/D). remarks is a derived token (COMPETENT /
+-- NOT_COMPETENT / NULL). hours_rendered is attendance hours (TESDA), separate
+-- from the fixed curriculum hours. locked/locked_at freeze a class's grades.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS grades (
     grade_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     subject_code VARCHAR(20) NOT NULL,
     class_id INT NULL,
-    midterm_grade DECIMAL(5, 2) NULL,
-    finals_grade DECIMAL(5, 2) NULL,
+    final_percentage DECIMAL(5, 2) NULL,      -- raw % the trainer enters (NULL when grade_status is used)
+    re_exam_percentage DECIMAL(5, 2) NULL,    -- raw % for the optional re-exam (only when the final failed)
+    final_grade DECIMAL(5, 2) NULL,           -- 1.00-5.00 equivalent, transmuted from final_percentage
+    re_exam_grade DECIMAL(5, 2) NULL,         -- 1.00-5.00 equivalent, transmuted from re_exam_percentage
+    grade_status VARCHAR(5) NULL,             -- C / FA / INC / D — used INSTEAD of a percentage
+    remarks VARCHAR(20) NULL,                 -- derived token: COMPETENT / NOT_COMPETENT / NULL
+    hours_rendered DECIMAL(5, 2) NULL,        -- attendance hours (TESDA); separate from curriculum hours
     locked TINYINT(1) NOT NULL DEFAULT 0,
     locked_at DATETIME NULL,
-    final_grade DECIMAL(5, 2) NULL,
-    re_exam_grade DECIMAL(5, 2) NULL,
-    hours_studied DECIMAL(5, 2) NULL,
-    remarks VARCHAR(255) NULL,
     UNIQUE KEY uq_grade_student_class (class_id, student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
     CONSTRAINT fk_grades_subject FOREIGN KEY (subject_code) REFERENCES subjects (subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
