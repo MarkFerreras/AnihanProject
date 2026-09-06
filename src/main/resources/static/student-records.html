@@ -57,6 +57,9 @@
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="documents.html">Documents</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link admin-nav-link" href="student-numbers.html">Student Numbers</a>
+                        </li>
                     </ul>
                     <div class="d-flex align-items-center gap-3 ms-lg-3">
                         <span class="portal-label">Registrar Portal</span>
@@ -120,15 +123,23 @@
                     <form id="editRecordForm" novalidate>
                         <h6 class="section-title mt-2">Identifiers</h6>
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="editRecordId" class="form-label">Record ID</label>
                                 <input type="text" class="form-control" id="editRecordId" disabled readonly>
                             </div>
-                            <div class="col-md-4">
-                                <label for="editStudentId" class="form-label">Student ID</label>
+                            <div class="col-md-3">
+                                <label for="editStudentId" class="form-label">Reference No.</label>
                                 <input type="text" class="form-control" id="editStudentId" maxlength="20" readonly>
+                                <div class="form-text">System reference. Not the student number.</div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="editStudentNumber" class="form-label">Student Number</label>
+                                <input type="text" class="form-control" id="editStudentNumber" readonly>
+                                <div class="form-text">
+                                    Set via <strong>Assign Number</strong> on the Student Records list.
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                 <label for="editStudentStatus" class="form-label">Status</label>
                                 <select class="form-select" id="editStudentStatus" required>
                                     <option value="">-- Select Status --</option>
@@ -597,7 +608,7 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js?v=3"></script>
+    <script src="js/registrar-student-records-edit.js?v=4"></script>
 
 </body>
 

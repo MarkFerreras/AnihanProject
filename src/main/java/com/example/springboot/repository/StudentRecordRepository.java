@@ -16,6 +16,12 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
 
     Optional<StudentRecord> findByStudentId(String studentId);
 
+    /**
+     * Uniqueness pre-check for the registrar-assigned student number, so a clash
+     * surfaces as a friendly 400 instead of a generic 409 from the unique index.
+     */
+    Optional<StudentRecord> findByStudentNumber(String studentNumber);
+
     java.util.List<StudentRecord> findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
             String lastName, String firstName, String middleName);
 

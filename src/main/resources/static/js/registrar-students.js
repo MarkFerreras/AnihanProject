@@ -3,8 +3,10 @@
 
     let detailsModal = null;
     let deleteConfirmModal = null;
+    let assignNumberModal = null;
     let currentRecordId = null;
     let currentRecordIdentifier = null;
+    let assignTargetRecordId = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -24,6 +26,24 @@
             return '<span class="text-muted fst-italic">Not Available</span>';
         }
         return escapeHtml(value);
+    }
+
+    /**
+     * A missing student number is a state the registrar needs to act on, not just
+     * absent data — so it gets a warning badge rather than the muted "Not Available"
+     * used for optional fields.
+     *
+     * Orthogonal data (same pattern as the Record ID column): sort and filter on the
+     * raw value so the badge markup never reaches DataTables' client-side search.
+     */
+    function renderStudentNumber(data, type) {
+        if (type === 'sort' || type === 'type' || type === 'filter') {
+            return isBlank(data) ? '' : data;
+        }
+        if (isBlank(data)) {
+            return '<span class="badge text-bg-warning">Not Assigned</span>';
+        }
+        return escapeHtml(data);
     }
 
     function renderStatusBadge(status) {
@@ -73,6 +93,7 @@
 
         setText('detailsRecordId', r.recordId);
         setText('detailsStudentId', r.studentId);
+        setText('detailsStudentNumber', isBlank(r.studentNumber) ? 'Not Assigned' : r.studentNumber);
         setText('detailsLastName', r.lastName);
         setText('detailsFirstName', r.firstName);
         setText('detailsMiddleName', r.middleName);
@@ -148,9 +169,11 @@
         const fromYear = (document.getElementById('batchFromYear') || {}).value || '';
         const toYear = (document.getElementById('batchToYear') || {}).value || '';
         const status = (document.getElementById('studentStatusFilter') || {}).value || '';
+        const hasStudentNumber = (document.getElementById('studentNumberFilter') || {}).value || '';
         if (fromYear) params.set('fromYear', fromYear);
         if (toYear) params.set('toYear', toYear);
         if (status) params.set('status', status);
+        if (hasStudentNumber) params.set('hasStudentNumber', hasStudentNumber);
         const qs = params.toString();
         return '/api/registrar/student-records' + (qs ? '?' + qs : '');
     }
@@ -200,6 +223,7 @@
                     }
                 },
                 { data: 'studentId', render: renderNullable },
+                { data: 'studentNumber', render: renderStudentNumber },
                 { data: 'lastName', render: renderNullable },
                 { data: 'firstName', render: renderNullable },
                 { data: 'batchCode', render: renderNullable },
@@ -216,8 +240,15 @@
                     orderable: false,
                     className: 'text-end',
                     render: function (_data, _type, row) {
-                        return '<button class="btn btn-surface-secondary btn-sm" data-record-id="' +
-                            escapeHtml(row.recordId) + '">Open Details</button>';
+                        const name = (row.lastName || '') + ', ' + (row.firstName || '');
+                        return '<div class="record-actions d-flex gap-1 justify-content-end flex-nowrap">' +
+                            '<button class="btn btn-surface-secondary btn-sm js-open-details" data-record-id="' +
+                            escapeHtml(row.recordId) + '">Details</button>' +
+                            '<button class="btn btn-surface btn-sm js-assign-number" data-record-id="' +
+                            escapeHtml(row.recordId) + '" data-student-name="' + escapeHtml(name) +
+                            '" data-student-number="' + escapeHtml(row.studentNumber ?? '') +
+                            '">Assign Number</button>' +
+                            '</div>';
                     }
                 }
             ],
@@ -240,12 +271,20 @@
             }
         }());
 
-        window.jQuery('#studentRecordsTable tbody').on('click', 'button[data-record-id]', async function () {
+        window.jQuery('#studentRecordsTable tbody').on('click', 'button.js-open-details', async function () {
             try {
                 await loadRecordDetails(this.getAttribute('data-record-id'));
             } catch (error) {
                 window.alert('Unable to load the selected student record right now.');
             }
+        });
+
+        window.jQuery('#studentRecordsTable tbody').on('click', 'button.js-assign-number', function () {
+            openAssignNumberModal(
+                this.getAttribute('data-record-id'),
+                this.getAttribute('data-student-name'),
+                this.getAttribute('data-student-number')
+            );
         });
 
         const applyBtn = document.getElementById('batchFilterApplyBtn');
@@ -277,6 +316,8 @@
                 document.getElementById('batchToYear').value = '';
                 const statusEl = document.getElementById('studentStatusFilter');
                 if (statusEl) statusEl.value = '';
+                const numberEl = document.getElementById('studentNumberFilter');
+                if (numberEl) numberEl.value = '';
                 dataTable.ajax.url('/api/registrar/student-records').load(function (json) {
                     const count = Array.isArray(json) ? json.length : 0;
                     setFeedback('Filter cleared. Showing all ' + count + ' record(s).', 'info');
@@ -285,7 +326,103 @@
         }
 
         setupDeleteRecordFlow(dataTable);
+        setupAssignStudentNumber(dataTable);
     });
+
+    function openAssignNumberModal(recordId, studentName, studentNumber) {
+        if (!assignNumberModal) return;
+        assignTargetRecordId = recordId;
+
+        const nameEl = document.getElementById('assignStudentName');
+        const inputEl = document.getElementById('assignStudentNumberInput');
+        if (nameEl) nameEl.value = studentName || ('Record #' + recordId);
+        if (inputEl) inputEl.value = studentNumber || '';
+        hideAlert('assignStudentNumberAlert');
+
+        assignNumberModal.show();
+    }
+
+    function setupAssignStudentNumber(dataTable) {
+        const modalEl = document.getElementById('assignStudentNumberModal');
+        const saveBtn = document.getElementById('saveStudentNumberBtn');
+        const inputEl = document.getElementById('assignStudentNumberInput');
+        const alertEl = document.getElementById('assignStudentNumberAlert');
+
+        if (!modalEl || !saveBtn || !inputEl) return;
+        assignNumberModal = new bootstrap.Modal(modalEl);
+
+        function showAssignAlert(message, type) {
+            if (!alertEl) return;
+            alertEl.className = 'alert alert-' + type + ' mt-3';
+            alertEl.textContent = message;
+            alertEl.classList.remove('d-none');
+        }
+
+        async function save() {
+            if (!assignTargetRecordId) return;
+
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            hideAlert('assignStudentNumberAlert');
+
+            try {
+                const res = await fetch(
+                    '/api/registrar/student-records/' + encodeURIComponent(assignTargetRecordId) + '/student-number',
+                    {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ studentNumber: inputEl.value.trim() })
+                    }
+                );
+
+                if (!res.ok) {
+                    // Duplicate-number 400s carry the actionable text in `message`;
+                    // Bean Validation 400s put it under `errors.studentNumber`, with
+                    // `message` only saying "Validation failed".
+                    const body = await res.json().catch(function () { return null; });
+                    const fieldError = body && body.errors && body.errors.studentNumber;
+                    showAssignAlert(
+                        fieldError || (body && body.message) || 'Could not save the student number.',
+                        'danger'
+                    );
+                    return;
+                }
+
+                const saved = await res.json();
+                showAssignAlert(
+                    saved.studentNumber
+                        ? 'Student number saved as ' + saved.studentNumber + '.'
+                        : 'Student number cleared.',
+                    'success'
+                );
+                window.setTimeout(function () {
+                    assignNumberModal.hide();
+                    dataTable.ajax.reload(null, false);
+                }, 900);
+            } catch (err) {
+                showAssignAlert('Network error. Could not save the student number.', 'danger');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+        }
+
+        saveBtn.addEventListener('click', save);
+        inputEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            assignTargetRecordId = null;
+            inputEl.value = '';
+            hideAlert('assignStudentNumberAlert');
+        });
+    }
 
     function setupDeleteRecordFlow(dataTable) {
         const deleteBtn = document.getElementById('deleteRecordBtn');

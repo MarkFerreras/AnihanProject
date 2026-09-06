@@ -2,104 +2,78 @@
 
 ## Recent Sessions (detail)
 
-### Trainer Grading Overhaul (Completed — August 29, 2026)
-- **Task:** Rebuild trainer grade input to match the client's TESDA/TOR documents.
-- **Model (see `decisions.md` 2026-08-29 - Trainer Grading Overhaul):** trainer enters a
-  raw percentage (0–100, decimals) OR a TOR status code (C/FA/INC/D) — never both;
-  system transmutes the % to a 1.00–5.00 equivalent ("≥ lower bound" bands);
-  passing = ≤ 3.00; Remarks (`COMPETENT`/`NOT_COMPETENT`/null) is derived, never
-  entered; re-exam % optional and only when the final failed; `hours_studied` →
-  `hours_rendered`, now mandatory (0–100), separate from curriculum hours;
-  registrar-only Total GWA (`GradeEquivalent.gwa`) in the student-record detail modal.
-- **Done:** migration `2026-08-29-grades-overhaul.sql` (idempotent — drop
-  midterm/finals, add final_percentage/re_exam_percentage/grade_status, rename hours
-  column); `GradeEquivalent` util; `Grade` entity, `SaveGradeRequest`,
-  `StudentGradeRow`, `TrainerGradeService` reworked; `DocumentGenerateDataResponse
-  .GradePart` + `DocumentGenerationService` emit pre-formatted strings; registrar
-  `StudentRecordDetailsResponse` + `RegistrarService` gained `totalGwa`;
-  `trainer-classes.html`/`.js` grade modal rebuilt (live equivalent, %↔status
-  exclusivity, re-exam hidden until failing); `registrar.html` detail card;
-  `registrar-generate-document.js` grade merge; `schema.sql`.
-- **Verified:** `./gradlew test` → **250 tests, 0 failures** (+20; new
-  `GradeEquivalentTest`, rewritten `TrainerGradeServiceTest`, revived
-  `TrainerGradeControllerWebMvcTest`). Migration tested on live + legacy shapes +
-  re-runs. `ddl-auto=validate` boot PASS. Full live HTTP smoke (%→equivalent+remark,
-  re-exam guard, status code, fail+re-exam→effective, registrar totalGwa) — fixtures
-  cleaned up.
-- **Not done:** browser click-through. Bug 10 (curriculum module codes ≠ `subjects`
-  codes) leaves the generated-document grade cells blank — Scope-B wiring is dormant.
-  Bug 11 logged (Total GWA has no home in any official document; kept per user).
-- **Branch:** `grade_input_fix` (off `edit_subjects`; user directs branch selection).
+### Student Number Export / Import / Report Page (Completed - August 30, 2026)
+- **Task:** Make bulk entry of student numbers practical — a report page with filters to find
+  who still needs one, export to CSV/Excel for encoding, and import back. (Editability already
+  shipped on 2026-08-27 and is reused, not duplicated.)
+- **Design constraint from the user:** the school's real record format is unknown, so the
+  file-reading rules must be *easily editable later*. All of it lives in one file,
+  `service/StudentNumberImportMapping.java` — header aliases, match key, normalisation, header
+  scan depth. `StudentNumberSheetParser` and the import service hold no format knowledge.
+  `StudentNumberSheetParserTest` (18 tests) is the regression net for future edits.
+- **Backend:** `StudentNumberImportMapping`, `StudentNumberSheetParser` (RFC-4180 CSV splitter;
+  XLSX via POI `DataFormatter`; header auto-detection over the first 10 rows, because
+  school-supplied sheets carry title blocks), `StudentNumberExportService` +
+  `StudentNumberExportFormat`, `StudentNumberImportService` (one `classify()` shared by preview
+  and apply; 10 outcomes; `applicable()` on the enum is the single definition of "writes"),
+  `StudentNumberController` (`GET /export`, `POST /import/preview`, `POST /import/apply`).
+  Validation constants hoisted onto `AssignStudentNumberRequest` so single-assign and bulk
+  import share one rule.
+- **Frontend:** `student-numbers.html` + `registrar-student-numbers.js` — filters, a
+  "N of M students still need a student number" summary, export (blob download reused from
+  system-logs.js), import preview→apply with per-row outcome badges, and the existing Assign
+  Number modal for single edits. 6th registrar nav link added across all registrar pages;
+  `/student-numbers.html` registered in `SecurityConfig`.
+- **Key behaviours:** preview writes nothing; apply writes only applicable rows and logs one
+  `system_logs` row per assignment plus a summary; an existing different number is never
+  overwritten without an explicit checkbox; a number repeated in one file blocks both rows;
+  the export is written as a *text* cell so leading zeros survive Excel.
+- **Verified:** `./gradlew test` → **299 tests, 0 failures** (+61). Live round trip against real
+  MySQL exercising every failure mode in one sheet; preview proven read-only (DB + system_logs
+  unchanged); POI-authored Excel file round-tripped `0012`, `2025-777`, `A/2026/03` intact;
+  header found under two pasted title rows; overwrite guard both ways. Playwright E2E **22/22**
+  run twice. Live DB restored to its pre-session state.
+- **No schema change** — `student_number` already existed.
+- **Branch:** `fix/student-ID-number`. Open: PR to main; edit the mapping file when the real
+  archive format arrives.
 
-### Model 1: Trainer Assignment Class-Level Only + Bug 8 Fixed (Completed — August 29, 2026)
-- **Task:** Fix Bug 8 (Subjects page 500: `Subject` entity mapped `subjects.trainer_id`,
-  but the drifted local DB had no such column → `Unknown column 'trainer_id'` →
-  DataTables "Ajax error"). User chose to align the code with the intended business
-  model, not restore the column.
-- **Decision (see `decisions.md` 2026-08-29):** Model 1 — trainer assignment is
-  class-level only (`classes.trainer_id`); a subject's trainers are *derived* from its
-  classes. Model 2 (an explicit trainer↔subject M:N assigned before the class) was
-  rejected as unnecessary ceremony at this scale; can be added later as a soft filter
-  if ever needed.
-- **Done:** Dropped `subjects.trainer_id` (migration `2026-08-29-drop-subjects-trainer-id.sql`,
-  idempotent/guarded) + `Subject.trainer`, `SubjectResponse.trainerId/trainerName`
-  (→ `List<String> trainers`), `assignTrainer()` service method,
-  `PUT /api/registrar/subjects/{code}/trainer`, `AssignTrainerRequest`, the
-  Subjects "Assign Trainer" modal + JS, and the Create-Class default-trainer auto-fill.
-  Added `SchoolClassRepository.findByTrainerIsNotNull()`; `getAllSubjects()` derives a
-  distinct sorted trainer list per subject. Subjects page now has a read-only
-  "Trainer(s)" column. `schema.sql` + seed updated.
-- **Verified:** `./gradlew test` → **230 tests, 0 failures** (unchanged count).
-  Migration tested on has-column / re-run / live-DB paths (backup taken first).
-  `ddl-auto=validate` boot vs live MySQL → PASS. Live smoke: `GET /api/registrar/subjects`
-  → 200; a throwaway class made the derived "Trainer(s)" list populate, then removed.
-- **Not done:** browser click-through; the user's local :8080 app instance stopped
-  during this session's builds and needs a restart. Bug 9 (trainer hard-delete guard)
-  still open with a proposed solution in `bugs.md`.
-- **Branch:** `edit_subjects` (user directs branch selection).
-
-### Subject Code Made Editable/Renameable on Edit (Completed — August 26, 2026 PM #2)
-- **Task:** Allow `subjectCode` (the PK) to be edited on the Edit Subject modal — it was
-  locked readonly since 2026-05-10 because `classes`/`grades` reference it by FK.
-- **Investigated before implementing:** confirmed both FKs had no `ON UPDATE CASCADE`, so
-  a naive unlock would have hit a raw MySQL FK error the moment a subject had real
-  classes/grades. Presented the user two real options (cascading rename vs. rename only
-  while unreferenced); user chose full cascading rename.
-- **Done:** New migration adds `ON UPDATE CASCADE` to both FKs (delete behavior
-  unchanged). `SubjectRepository.renameSubjectCode()` does the rename via a JPQL bulk
-  `UPDATE` (not load-mutate-save, since `subjectCode` is `@Id`). Service reloads the
-  entity under the new code before applying other field changes. Frontend field unlocked
-  with a hint about the cascade. `./gradlew test` → 230 tests, 0 failures (+4).
-- **Verified twice:** a raw-SQL test proved the DB-level cascade before any app code
-  changed; a full live HTTP smoke test (real login, real create, real class row, real
-  rename via the actual endpoint) proved the whole stack afterward.
-- **Not done yet:** PR to main; manual browser click-through of the rename UX.
-- **Branch:** `edit_subjects`.
-
-### Subjects: competency_type Backend + Frontend, Create & Edit (Completed — August 26, 2026 PM)
-- **Task:** Finish the Create/Edit Subject feature revision — Competency Type dropdown
-  (Basic/Common/Core) on both modals, Qualification field conditional on selecting Core,
-  backend business rule (Core requires qualification, Basic/Common don't) replacing the old
-  unconditional requirement.
-- **Done:** `Subject.java`, `CreateSubjectRequest`/`UpdateSubjectRequest`/`SubjectResponse`,
-  `ClassManagementService.createSubject()/.updateSubject()`, `subjects.html` +
-  `registrar-subjects.js` (both Create and Edit modals), and test coverage (+9 tests) all
-  updated. `./gradlew test` → 226 tests, 0 failures. Live-DB boot check with
-  `ddl-auto=validate` passed.
-- **Not done yet:** PR to main; manual browser smoke test of the show/hide toggle; seeding a
-  Food and Beverage Services NC II qualification row (pre-existing, unrelated gap).
-- **Branch:** `edit_subjects`.
-
-### Subjects: competency_type Schema/DB Change (Completed — DB layer only, August 26, 2026 AM)
-- **Task:** Step 1 of the Create/Edit Subject feature revision — add `subjects.competency_type`
-  (BASIC/COMMON/CORE) and relax `subjects.qualification_code` to nullable, matching the actual
-  TESDA Form IX/TOR document structure.
-- **Done:** Migration `2026-08-26-subjects-competency-type.sql` written (idempotent, verified by
-  double-run) and applied to the live Docker DB; backup taken first. `schema.sql` updated to
-  match (verified by a fresh build into a throwaway DB). Design rationale in `decisions.md`.
-- **Team action required:** everyone with a local `AnihanSRMS` database must run the new
-  migration before pulling the next session's code.
-- **Branch:** `edit_subjects`.
+### Registrar-Controlled Student Number (Completed - August 27, 2026)
+- **Task:** Stop auto-assigning student numbers. Per the stakeholder meeting: add a nullable
+  student number, let new students exist without one, let the (future) archive import assign
+  them, and surface which students are still missing one.
+- **Key constraint:** `student_records.student_id` is `NOT NULL UNIQUE` and the FK target of
+  **10 child tables**; the PK is `record_id`. Making `student_id` nullable would orphan every
+  child row written before a number is assigned (the wizard uploads an ID photo long before
+  the registrar sees the student). **Decision (user-confirmed): add a separate nullable
+  `student_number` column**; `student_id` stays as an internal "Reference No.". Rejected:
+  repointing all 10 child FKs to `record_id` (~40 files + 10-table migration).
+  The note's "should remain the primary key" could not be taken literally — a nullable column
+  cannot be a SQL PK, and `student_id` was never the PK. Resolved as a UNIQUE index, which in
+  MySQL permits many NULLs.
+- **Backend:** migration `2026-08-27-add-student-number.sql` (idempotent, COLUMN_NAME-based
+  guards) + `schema.sql`; `StudentRecord.studentNumber`;
+  `StudentRecordRepository.findByStudentNumber`; `AssignStudentNumberRequest`;
+  `RegistrarService.assignStudentNumber()` (trim, blank→clear, uniqueness pre-check → 400) and
+  a 5-arg `getAllRecords` with `hasStudentNumber`; free-text search matches the number;
+  `PUT /api/registrar/student-records/{id}/student-number` with `system_logs` rows.
+  **Nothing auto-generates the number** — `generateStudentId()` is untouched and still only
+  mints the internal reference.
+- **Frontend:** registrar table gains a Student Number column with a `Not Assigned` badge,
+  an Assign Number action + modal, and an All/Assigned/Not Assigned filter; "Student ID"
+  relabelled "Reference No." across list, details modal, edit form, and the portal's
+  submitted banner. Edit form shows the number read-only — the assign action is the only
+  write path, so every change is deliberate and audited.
+- **Verified:** `./gradlew test` → **238 tests, 0 failures** (+21). Migration applied twice to
+  live MySQL with byte-identical structure; `ddl-auto=validate` boot → PASS. Playwright
+  headless-Edge E2E **18/18** (run twice). Live API smoke incl. duplicate-rejection and
+  audit rows. Regression pinned by test: a full edit-form save does not wipe the number.
+  Live DB restored to its pre-session state.
+- **Two bugs the E2E caught:** the filter bar (pinned `flex-wrap: nowrap` in dashboard.css)
+  pushed the table into 86px of horizontal scroll once the new dropdown was added — fixed with
+  a page-scoped wrap under 1400px; and the details-modal handler bound to
+  `button[data-record-id]` would have fired on the new Assign button — narrowed to
+  `.js-open-details`.
+- **Branch:** `fix/student-ID-number`. Open: PR to main; follow-up ticket for the bulk import.
 
 ### Document Management Polish: Print/Logo/Filename, DOCX, Delete/Edit (Completed - July 14, 2026 PM #2)
 - **Task:** Six approved items on documents.html + generate-document.html: print formatting

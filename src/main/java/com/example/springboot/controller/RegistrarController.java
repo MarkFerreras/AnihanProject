@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.springboot.dto.registrar.AssignStudentNumberRequest;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
@@ -49,12 +50,14 @@ public class RegistrarController {
             @RequestParam(value = "q", required = false) String query,
             @RequestParam(value = "fromYear", required = false) Integer fromYear,
             @RequestParam(value = "toYear", required = false) Integer toYear,
-            @RequestParam(value = "status", required = false) String status
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "hasStudentNumber", required = false) Boolean hasStudentNumber
     ) {
         if (fromYear != null && toYear != null && fromYear > toYear) {
             throw new IllegalArgumentException("fromYear must not be greater than toYear");
         }
-        return ResponseEntity.ok(registrarService.getAllRecords(query, fromYear, toYear, status));
+        return ResponseEntity.ok(
+                registrarService.getAllRecords(query, fromYear, toYear, status, hasStudentNumber));
     }
 
     @GetMapping("/{recordId}")
@@ -76,6 +79,31 @@ public class RegistrarController {
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
                 "Updated student record: " + studentName + " (ID: " + updated.studentId() + ")",
                 ipAddress);
+
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Assigns, changes, or clears a student's student number. A blank body value clears it —
+     * a student with no number is a valid state until the registrar or the archive import
+     * supplies one.
+     */
+    @PutMapping("/{recordId}/student-number")
+    public ResponseEntity<StudentRecordDetailsResponse> assignStudentNumber(
+            @PathVariable Integer recordId,
+            @Valid @RequestBody AssignStudentNumberRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        StudentRecordDetailsResponse updated =
+                registrarService.assignStudentNumber(recordId, request.studentNumber());
+
+        LogContext ctx = getLogContext();
+        String studentName = updated.lastName() + ", " + updated.firstName();
+        String action = updated.studentNumber() == null
+                ? "Cleared student number for: " + studentName
+                : "Assigned student number " + updated.studentNumber() + " to: " + studentName;
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                action, httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(updated);
     }

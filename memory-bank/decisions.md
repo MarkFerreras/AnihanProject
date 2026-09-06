@@ -4,166 +4,94 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
-## 2026-08-29 - Trainer Grading Overhaul: Raw % → Transmuted Equivalent, TOR Status Codes, Derived Remark
+## 2026-08-30 - All Sheet-Format Knowledge Isolated in One Editable File
 
-**Decision:** Replaced the invented midterm/finals (40/60) grade model with the model
-the client's TESDA/TOR documents actually use.
+**Decision:** Every rule about how an imported sheet is recognised — header aliases per column,
+which column is the match key, header/value normalisation, how far down to scan for the header
+row — lives in `service/StudentNumberImportMapping.java`. `StudentNumberSheetParser` and
+`StudentNumberImportService` hold none of it.
 
-- **The trainer enters a raw percentage** (decimals allowed, 0–100) **OR** a TOR
-  status code — never both, never neither. The system transmutes the percentage to
-  a 1.00–5.00 equivalent (`GradeEquivalent.toEquivalent`) using the table printed
-  on the Anihan Transcript of Records, read as *"≥ the band's lower bound"* so
-  decimals resolve unambiguously (98.9 → 1.25, 74.99 → 4.00, 69.99 → 5.00).
-  Passing = equivalent ≤ 3.00 (≥ 75%).
-- **Status codes** stored as `grades.grade_status`: `C` (Complete), `FA` (Failure
-  Due to Absences), `INC` (Incomplete), `D` (Dropped). The trainer picks the
-  *meaning* from a dropdown; only the letter is encoded. A status row carries no
-  numeric equivalent; on the generated documents the FINAL cell prints the code.
-- **`remarks` is fully derived, never entered.** Token stored: `COMPETENT` /
-  `NOT_COMPETENT` / `NULL`. For a percentage it follows the *effective* equivalent
-  (re-exam substituted when the final failed): ≤ 3.00 → COMPETENT else
-  NOT_COMPETENT. For a status: `C` → COMPETENT, `FA` → NOT_COMPETENT, `INC`/`D` →
-  no remark (per the user's mapping).
-- **Re-exam** (`re_exam_percentage` → `re_exam_grade` equivalent) is optional and
-  **only accepted when the final is a failing mark** — the service rejects a
-  re-exam on a passing final; the trainer UI hides the re-exam input until the
-  final equivalent > 3.00.
-- **Hours rendered** (`hours_studied` renamed → `hours_rendered`, 0–100) is a
-  **mandatory** field per TESDA (attendance hours) — entirely separate from the
-  fixed curriculum hours, and it does **not** appear on any generated document.
-- **Two grade figures:** the per-subject equivalent (trainer sees it; printed on
-  the TOR / Form IX / Permanent Record) and **Total GWA** =
-  `Σ(effective_equivalent × subject_units) / Σ(subject_units)` — registrar-only,
-  shown in the student-record **detail modal**, not on any document. GWA math lives
-  in `GradeEquivalent.gwa()` and is reused by `RegistrarService`.
-- **Lock** stays a reversible toggle the trainer controls (no change; the
-  "once locked, cannot be altered" wording in older docs is still aspirational —
-  left as-is for now per the user).
-- **Both scopes done:** trainer input *and* document generation
-  (`DocumentGenerationService` / `GradePart` now emit pre-formatted strings —
-  equivalent-or-code for FINAL, equivalent for RE-EXAM, "Competent"/"Not Competent"
-  for Remarks; `registrar-generate-document.js` consumes them directly). Document
-  wiring is **dormant** until `bugs.md` Bug 10 (subjects codes ≠ curriculum module
-  codes) is resolved.
+**Why:** The school's real record format is not yet known. Adapting to it should be an edit to
+string lists in one commented file, verified by re-running `StudentNumberSheetParserTest`, not a
+rewrite of the parsing or classification logic.
 
-**Rejected alternatives:** keeping midterm/finals (not in any document); letting the
-trainer type the equivalent directly (the client's process is percentage-in); a
-free-text remarks field (client uses a controlled competency verdict); a single
-column holding both the code and the verdict (FINAL and Remarks are separate
-columns on the documents, so `grade_status` + `remarks` are separate).
+**Limit of the abstraction (stated so it is not discovered the hard way):** this covers *naming
+and formatting* differences. If the archive identifies a student by something the system does
+not store — an old ledger number, or a name + birthdate pair — that is a change of matching
+*strategy* and needs real design work, not a new alias.
 
-Migration `2026-08-29-grades-overhaul.sql` (idempotent, guarded): drops
-`midterm_grade`/`finals_grade`, adds `final_percentage`/`re_exam_percentage`/
-`grade_status`, renames `hours_studied` → `hours_rendered`. Live `grades` has 0
-rows so this is structural only. Verified: full suite **250/0/0**; migration tested
-on the live shape + a legacy old shape + re-runs (idempotent); fresh `schema.sql`
-build; `ddl-auto=validate` boot PASS; full live HTTP smoke (% → equivalent +
-COMPETENT, re-exam rejected on a passing final, status code `D` → no equivalent/no
-remark, fail 60 + re-exam 80 → COMPETENT via effective, registrar `totalGwa` = 2.75)
-— all fixtures cleaned up.
+## 2026-08-30 - Import Previews Before It Writes
 
-## 2026-08-29 - Trainer Assignment Is Class-Level Only (subjects.trainer_id Dropped)
+**Decision:** `POST /import/preview` parses, validates, and classifies every row while writing
+nothing; only `POST /import/apply` writes. Apply re-reads and re-classifies the uploaded file
+rather than trusting any plan the client sends back. Both share one `classify()` method.
 
-**Decision:** Removed `subjects.trainer_id` (the per-subject "default trainer",
-added 2026-05-09) entirely — column, FK `fk_subjects_trainer`, the `Subject.trainer`
-entity field, `SubjectResponse.trainerId/trainerName`, `ClassManagementService
-.assignTrainer()`, `PUT /api/registrar/subjects/{code}/trainer`,
-`AssignTrainerRequest`, the Subjects-page "Assign Trainer" modal + JS, and the
-Create-Class "auto-fill the subject's default trainer" behaviour. Trainer
-assignment now happens **only** at the class level (`classes.trainer_id`). The
-Subjects page shows a **derived, read-only "Trainer(s)" column** = the distinct set
-of trainers across that subject's classes (`SchoolClassRepository
-.findByTrainerIsNotNull()`, grouped by subject in `getAllSubjects()`).
+**Why:** A bulk write to student identity should not be discovered to be wrong afterwards. The
+shared classification means what the preview promises and what the apply does cannot drift.
+Re-uploading on apply keeps the server stateless between the two calls, which is cheap at
+~160 rows.
 
-Chosen between two models the user posed:
-1. *(chosen)* Trainer assignment happens at the class level; "what subjects does a
-   trainer teach" is derived from their classes.
-2. *(rejected)* Trainer is first assigned to a subject (an explicit
-   trainer↔subject M:N table), and only then to a class.
+**Related:** apply writes the applicable rows and reports the rest rather than failing the whole
+file. With a mandatory preview in front, that is safer than rejecting 200 good rows over one
+typo — and each write is individually logged.
 
-**Why:** The business rule is "multiple trainers can handle one or more subjects" —
-a trainer↔subject many-to-many. Both models satisfy it; the difference is whether
-that M:N is *stored* (model 2, a `subject_trainers` table to maintain) or *derived*
-(model 1, computed from `classes`). Model 1 was chosen because: the real teaching
-relationship already lives on the class (roster + grades hang off `classes`); it's
-already how the trainer-facing views work (`TrainerService.getMyAssignedSubjects()`
-groups the trainer's classes by subject); it adds no mandatory pre-step for the
-already-overloaded registrar; and it removes a drift/limbo surface. Model 2's only
-real benefit — encoding "qualified/authorised to teach" — is not a project
-requirement at this scale and, if ever needed, can be added later as a *soft filter*
-on the class-creation dropdown without restructuring. This also resolves `bugs.md`
-Bug 8 (the app expected a `subjects.trainer_id` column the drifted local DB no
-longer had): the code now matches a DB with no such column.
+## 2026-08-30 - A Bulk File Never Silently Replaces an Existing Student Number
 
-Migration `2026-08-29-drop-subjects-trainer-id.sql` (idempotent, guarded) drops the
-FK then the column; safe on a DB that never had it. Verified: full suite 230/0/0;
-`ddl-auto=validate` boot against live MySQL PASS; migration tested on a DB that had
-the column (drops it), re-run (no-op), and the live DB (no-op); live smoke
-`GET /api/registrar/subjects` → 200, and a throwaway class proved the derived
-"Trainer(s)" list populates ("Santos, Carlos").
+**Decision:** A row supplying a number for a student who already has a *different* one is
+reported as `CONFLICT_EXISTING` and skipped, unless the Registrar ticks "Allow overwriting
+existing numbers". A number appearing twice within one file blocks both of its rows.
 
-## 2026-08-26 PM #2 - subject_code Rename Uses ON UPDATE CASCADE + a JPQL Bulk Update, Not a Guard-and-Block
+**Why:** A stale spreadsheet must not be able to rewrite identities across the archive as a side
+effect of a routine import. Duplicates within a file are an encoding mistake where neither
+intent is knowable, so applying either would be a guess.
 
-**Decision:** `subjectCode` (the PK) is now editable in the Edit Subject modal
-at any time, including when the subject has live `classes`/`grades`.
-`classes.subject_code` and `grades.subject_code` were altered to `ON UPDATE
-CASCADE` (previously MySQL-default `RESTRICT`) so a rename ripples into every
-referencing row automatically. Renames are executed via a JPQL
-`@Modifying` bulk `UPDATE`
-(`SubjectRepository.renameSubjectCode`), not a normal `load → setSubjectCode →
-save()` on the entity. Rejected alternative: leave the FKs as `RESTRICT` and
-only allow the rename while `existsBySubjectSubjectCode`/`countGradesBySubjectCode`
-both report zero (mirroring the existing Delete Subject guard) — offered to the
-user as a narrower, no-migration option; they chose the cascading approach
-instead.
+## 2026-08-27 - Student Number as a Separate Nullable Column, Not a Nullable `student_id`
 
-**Why:** `subjectCode` is a JPA `@Id`. Hibernate has no well-defined way to
-change a *managed* entity's own identity through a setter followed by
-`save()` — the safe, standard pattern for a real PK rename is a direct SQL
-`UPDATE` that bypasses entity-identity tracking entirely, which is also the
-only way to actually trigger the database's `ON UPDATE CASCADE` (an
-INSERT-a-new-row-then-delete-the-old-row approach would not cascade — MySQL's
-FK cascade fires on the `UPDATE` statement itself). `ON DELETE` was left
-`RESTRICT` — deleting a subject that still has classes/grades stays blocked,
-exactly as before; only the update rule changed. Verified twice before
-shipping: a raw-SQL test proved the cascade at the database level, then a live
-HTTP smoke test proved the full stack (API → service → bulk update → cascade →
-audit log).
+**Decision:** The registrar-controlled student number lives in a NEW nullable
+`student_records.student_number VARCHAR(20) UNIQUE` column. The existing `student_id` is kept
+exactly as it is — `NOT NULL UNIQUE`, auto-generated, immutable — and demoted in the UI to an
+internal "Reference No.". Nothing auto-generates `student_number`.
 
-## 2026-08-26 - competency_type as a Plain Column on subjects, Not a New Table or a Field on qualifications
+**Why:** `student_id` is the foreign-key target of **10 child tables** (parents,
+other_guardians, documents, grades, student_education, student_school_years, student_ojt,
+student_tesda_qualifications, student_uploads, class_enrollments). Making it nullable would
+orphan every child row created before a number is assigned — starting with the ID-photo
+upload in wizard step 2, which is the very reason `startOrResume` creates the record so early.
 
-**Decision:** `subjects.competency_type VARCHAR(15) NOT NULL` (values `BASIC`,
-`COMMON`, `CORE`), validated at the service layer — same pattern as `role` and
-`student_status`. Rejected alternatives: a dedicated `competencies` lookup table
-with `subjects.competency_type_code` as an FK (mirrors how `qualifications` works),
-and putting the classification on `qualifications` itself.
+**Alternative rejected:** repointing all 10 child FKs to `record_id` (the actual PK) and
+letting `student_id` become the nullable student number. That is the cleaner end state — one
+identifier instead of two — but costs ~40 files (10 entities, ~20 repository methods, 7
+services, portal URLs) plus a 10-table data migration, with corresponding risk to the 217-test
+baseline. Deferred, not discarded: if the two-identifier split proves confusing in practice,
+this is the migration to do.
 
-**Why:** Competency type is a property of the *subject*, not the qualification — a
-qualification (e.g. "Cookery NC II") doesn't have one competency type, it's an
-aggregate of subjects spanning all three. Confirmed from the actual TESDA documents
-(`document-templates/Blank Form/FORM IX - BPP.docx`) and the existing
-`curriculum-templates.js`: Basic and Common competency subjects are identical/shared
-across all three qualifications (Cookery, BPP, FBS); only Core subjects are
-qualification-specific. A separate lookup table was rejected because Basic/Common/
-Core is a fixed, TESDA-defined set of exactly 3 values that will never be
-admin-managed via UI — unlike `qualifications`, which genuinely needs to support new
-rows as the school adds NC programs.
+**Trade-off accepted:** a student record now carries two identifiers. Mitigated by labelling —
+"Reference No." (internal) vs "Student Number" (real) — everywhere both appear.
 
-## 2026-08-26 - qualification_code Made Nullable, No "No Qualification" Sentinel Row
+## 2026-08-27 - "Primary Key" in the Requirement Read as "Unique Business Key"
 
-**Decision:** `subjects.qualification_code` relaxed from `NOT NULL` to `NULL`.
-Basic/Common subjects leave it `NULL`; only Core subjects are required to set it
-(enforced in `ClassManagementService`, not at the SQL level). Rejected alternative:
-seed a sentinel `qualifications` row named "No Qualification" and point Basic/Common
-subjects at it, keeping the FK `NOT NULL`.
+**Decision:** The meeting note "the student number should remain the primary key" is
+implemented as a UNIQUE index, not a PRIMARY KEY.
 
-**Why:** `qualifications` holds real TESDA-recognized NC programs that feed directly
-into generated official documents (TOR, Form IX, TESDA Special Orders). A sentinel
-row risks silently appearing on generated documents anywhere the app lists
-qualifications, and depends on that placeholder row never being deleted. NULL
-matches this schema's existing precedent for "not assigned" (`subjects.trainer_id`,
-`classes.trainer_id` are both nullable FKs with the same meaning) and matches the
-actual domain fact: these subjects don't belong to a qualification at all.
+**Why:** Two facts make the literal reading impossible. `student_id` has not been the primary
+key since 2026-05-02 (`record_id` is), so nothing "remains" a PK. And a column cannot be both
+nullable and a SQL primary key — the same requirement asks for nullable. A UNIQUE index is the
+faithful reading: unique when present, absent until assigned. MySQL permits multiple NULLs in
+a unique index, which is exactly the needed semantics (verified live: two NULL rows coexist;
+a duplicate real value raises ERROR 1062).
+
+## 2026-08-27 - Student Number Written Only Through a Dedicated Assign Action
+
+**Decision:** `student_number` is written solely by
+`PUT /api/registrar/student-records/{id}/student-number`. The registrar edit form displays it
+read-only and never sends it in `buildPayload`. Uniqueness is pre-checked in the service so a
+clash returns a 400 naming the student who already holds the number, rather than the generic
+409 the unique index would produce.
+
+**Why:** Assigning a student number is a records-integrity event that should be deliberate and
+individually auditable in `system_logs`, not a side effect of editing an address. Keeping it
+out of the edit payload also means a routine edit can never silently wipe it — an invariant
+now pinned by a unit test.
 
 ## 2026-07-14 - Generated-Document DOCX via Server-Side OOXML altChunk
 

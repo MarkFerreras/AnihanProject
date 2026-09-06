@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Anihan SRMS — Registrar Dashboard">
-    <title>Registrar Dashboard — Anihan SRMS</title>
+    <meta name="description" content="Anihan SRMS — Student Numbers">
+    <title>Student Numbers — Anihan SRMS</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
@@ -14,25 +14,43 @@
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
 
-        /* dashboard.css sizes .btn-surface / .btn-surface-secondary with a padding
-           and font-size that override Bootstrap's .btn-sm, so the two action buttons
-           would push this 10-column table into horizontal scroll. Scope the compact
-           size to the Actions cell only. */
+        /* dashboard.css sizes .btn-surface with padding that overrides Bootstrap's
+           .btn-sm, which would push this wide table into horizontal scroll. */
         .record-actions .btn {
             padding: 0.3rem 0.75rem;
             font-size: 0.8rem;
             white-space: nowrap;
         }
 
-        /* dashboard.css pins this filter bar to `flex-wrap: nowrap`. With the added
-           Student No. dropdown the row no longer fits under ~1400px and pushed the
-           whole DataTables wrapper into horizontal scroll. Let it wrap instead —
-           wide screens still render it on one line. */
+        /* dashboard.css pins this filter bar to `flex-wrap: nowrap`; with this many
+           controls it must be allowed to wrap or the table scrolls sideways. */
         @media (max-width: 1399.98px) {
-            #studentRecordsTable_wrapper #batchFilterBar .logs-filter-section {
+            #studentNumbersTable_wrapper #snFilterBar .logs-filter-section {
                 flex-wrap: wrap;
             }
         }
+
+        .sn-tool-card { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+        .sn-tool { flex: 1 1 320px; }
+        .sn-tool h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .sn-tool p { font-size: 0.85rem; color: var(--color-text-muted, #6c757d); margin-bottom: 0.75rem; }
+
+        .sn-summary {
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            border-radius: 0.75rem;
+            background: rgba(40, 167, 69, 0.08);
+            border: 1px solid rgba(40, 167, 69, 0.18);
+            margin-bottom: 1rem;
+        }
+        .sn-summary.has-missing {
+            background: rgba(255, 193, 7, 0.12);
+            border-color: rgba(255, 193, 7, 0.35);
+        }
+
+        #importResultTable { font-size: 0.85rem; }
+        #importResultWrapper { max-height: 420px; overflow-y: auto; }
     </style>
 </head>
 
@@ -55,8 +73,7 @@
                 <div class="collapse navbar-collapse" id="registrarNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link active" aria-current="page"
-                                href="registrar.html">Home</a>
+                            <a class="nav-link admin-nav-link" href="registrar.html">Home</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link admin-nav-link" href="subjects.html">Subjects</a>
@@ -71,7 +88,8 @@
                             <a class="nav-link admin-nav-link" href="documents.html">Documents</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link admin-nav-link" href="student-numbers.html">Student Numbers</a>
+                            <a class="nav-link admin-nav-link active" aria-current="page"
+                                href="student-numbers.html">Student Numbers</a>
                         </li>
                     </ul>
                     <div class="d-flex align-items-center gap-3 ms-lg-3">
@@ -110,26 +128,109 @@
                 <div class="page-hero-grid">
                     <div>
                         <span class="page-eyebrow">Registrar Dashboard</span>
-                        <h1 class="page-title">Student Records</h1>
-                        <p class="page-subtitle">View and manage all student records in the system.</p>
+                        <h1 class="page-title">Student Numbers</h1>
+                        <p class="page-subtitle">
+                            Find students without a student number, export them for encoding, and
+                            import the completed sheet back into the system.
+                        </p>
                     </div>
                 </div>
             </section>
 
-            <div id="recordUpdatedAlert" class="alert alert-success alert-dismissible d-none" role="alert">
-                Student record updated successfully.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+            <div class="sn-summary" id="snSummary">Loading students…</div>
 
+            <!-- ===== EXPORT / IMPORT TOOLS ===== -->
             <section class="surface-card">
                 <div class="surface-card-header">
                     <div>
-                        <h2>All Student Records</h2>
-                        <p>Browse all student records and inspect their full profile details.</p>
+                        <h2>Export &amp; Import</h2>
+                        <p>
+                            Export the students shown below, fill in the <strong>Student Number</strong>
+                            column, then import the file back. Nothing is saved until you review the
+                            preview and choose Apply.
+                        </p>
+                    </div>
+                </div>
+                <div class="surface-card-body">
+                    <div class="sn-tool-card">
+                        <div class="sn-tool">
+                            <h3>1. Export</h3>
+                            <p>Downloads exactly the students matching the filters below.</p>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <label for="exportFormat" class="filter-label">Format</label>
+                                <select class="form-select form-select-sm" id="exportFormat" style="width:auto;">
+                                    <option value="xlsx">Excel (.xlsx)</option>
+                                    <option value="csv">CSV (.csv)</option>
+                                </select>
+                                <button class="btn btn-surface btn-sm" id="exportBtn" type="button">
+                                    Export Sheet
+                                </button>
+                            </div>
+                            <div class="alert d-none mt-3" id="exportAlert" role="alert"></div>
+                        </div>
+
+                        <div class="sn-tool">
+                            <h3>2. Import</h3>
+                            <p>Upload the completed .xlsx or .csv file. You will see a preview first.</p>
+                            <input type="file" class="form-control form-control-sm mb-2" id="importFile"
+                                   accept=".csv,.xlsx">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="allowOverwrite">
+                                <label class="form-check-label" for="allowOverwrite" style="font-size:0.85rem;">
+                                    Allow overwriting existing student numbers
+                                </label>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button class="btn btn-surface-secondary btn-sm" id="previewImportBtn" type="button">
+                                    Preview Import
+                                </button>
+                                <button class="btn btn-surface btn-sm" id="applyImportBtn" type="button" disabled>
+                                    Apply
+                                </button>
+                            </div>
+                            <div class="alert d-none mt-3" id="importAlert" role="alert"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== IMPORT RESULTS ===== -->
+            <section class="surface-card d-none" id="importResultCard">
+                <div class="surface-card-header">
+                    <div>
+                        <h2 id="importResultTitle">Import Preview</h2>
+                        <p id="importResultSummary"></p>
+                    </div>
+                </div>
+                <div class="surface-card-body compact">
+                    <div class="table-responsive" id="importResultWrapper">
+                        <table id="importResultTable" class="table admin-table align-middle mb-0 w-100">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Row</th>
+                                    <th scope="col">Reference No.</th>
+                                    <th scope="col">Student</th>
+                                    <th scope="col">Student Number</th>
+                                    <th scope="col">Result</th>
+                                    <th scope="col">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== STUDENT TABLE ===== -->
+            <section class="surface-card">
+                <div class="surface-card-header">
+                    <div>
+                        <h2>Students</h2>
+                        <p>Filter to find who still needs a number. Use Assign to set one individually.</p>
                     </div>
                 </div>
 
-                <div class="logs-filter-bar" id="batchFilterBar">
+                <div class="logs-filter-bar" id="snFilterBar">
                     <div class="logs-filter-section logs-filter-custom">
                         <span class="filter-label">Batch Year</span>
                         <label for="batchFromYear" class="filter-label">From</label>
@@ -152,18 +253,17 @@
                             <option value="true">Assigned</option>
                             <option value="false">Not Assigned</option>
                         </select>
-                        <button class="btn btn-filter-apply" id="batchFilterApplyBtn" type="button">Apply</button>
-                        <button class="btn btn-filter-reset" id="batchFilterResetBtn" type="button">Reset</button>
+                        <button class="btn btn-filter-apply" id="snFilterApplyBtn" type="button">Apply</button>
+                        <button class="btn btn-filter-reset" id="snFilterResetBtn" type="button">Reset</button>
                     </div>
-                    <span class="logs-filter-feedback" id="batchFilterFeedback"></span>
+                    <span class="logs-filter-feedback" id="snFilterFeedback"></span>
                 </div>
 
                 <div class="surface-card-body compact">
                     <div class="table-responsive">
-                        <table id="studentRecordsTable" class="table admin-table align-middle mb-0 w-100">
+                        <table id="studentNumbersTable" class="table admin-table align-middle mb-0 w-100">
                             <thead class="table-light">
                                 <tr>
-                                    <th scope="col">Record ID</th>
                                     <th scope="col">Reference No.</th>
                                     <th scope="col">Student Number</th>
                                     <th scope="col">Last Name</th>
@@ -172,7 +272,7 @@
                                     <th scope="col">Course</th>
                                     <th scope="col">Section</th>
                                     <th scope="col">Status</th>
-                                    <th scope="col" class="text-end">Details</th>
+                                    <th scope="col" class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -182,130 +282,6 @@
             </section>
         </div>
     </main>
-
-    <!-- ===== STUDENT RECORD DETAILS MODAL ===== -->
-    <div class="modal fade detail-modal" id="studentRecordDetailsModal" tabindex="-1"
-         aria-labelledby="studentRecordDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="studentRecordDetailsModalLabel">Student Record Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert d-none" id="studentDetailsAlert" role="alert"></div>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Reference No.</span><p class="detail-value" id="detailsStudentId">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Student Number</span><p class="detail-value" id="detailsStudentNumber">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsLastName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Civil Status</span><p class="detail-value" id="detailsCivilStatus">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Religion</span><p class="detail-value" id="detailsReligion">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Temporary Address</span><p class="detail-value" id="detailsTemporaryAddress">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptized</span><p class="detail-value" id="detailsBaptized">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptism Date</span><p class="detail-value" id="detailsBaptismDate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptism Place</span><p class="detail-value" id="detailsBaptismPlace">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Siblings</span><p class="detail-value" id="detailsSiblingCount">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Brothers</span><p class="detail-value" id="detailsBrotherCount">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Sisters</span><p class="detail-value" id="detailsSisterCount">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Batch</span><p class="detail-value" id="detailsBatchCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Course</span><p class="detail-value" id="detailsCourseCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Section</span><p class="detail-value" id="detailsSectionCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Enrollment Date</span><p class="detail-value" id="detailsEnrollmentDate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Total GWA</span><p class="detail-value" id="detailsTotalGwa">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Father</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsFatherFamilyName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFatherFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsFatherMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsFatherBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsFatherOccupation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsFatherEstIncome">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsFatherContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsFatherEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsFatherAddress">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Mother</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsMotherFamilyName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsMotherFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMotherMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsMotherBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsMotherOccupation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsMotherEstIncome">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsMotherContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsMotherEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsMotherAddress">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Guardian</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Relation</span><p class="detail-value" id="detailsGuardianRelation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsGuardianLastName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsGuardianFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsGuardianMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsGuardianBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsGuardianAddress">null</p></article>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-danger-surface" id="deleteRecordBtn" style="margin-right:auto;">Delete</button>
-                    <a id="studentDetailsEditLink" href="#" class="btn btn-surface">Edit</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== DELETE RECORD CONFIRMATION MODAL ===== -->
-    <div class="modal fade delete-confirm-modal" id="deleteRecordConfirmModal" tabindex="-1"
-         aria-labelledby="deleteRecordConfirmModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteRecordConfirmModalLabel">Permanently Delete Student Record</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="warning-text">
-                        You are about to permanently delete student record
-                        <strong id="deleteRecordIdentifier">this record</strong> and all associated data
-                        (parents, guardian, education history, school years, OJT, TESDA qualifications,
-                        documents, grades, and uploads).
-                    </p>
-                    <div class="danger-zone">
-                        <p><strong>This action cannot be undone.</strong> Once deleted, the record cannot be recovered.</p>
-                    </div>
-                    <div class="mt-3">
-                        <label for="deleteRecordConfirmInput" class="form-label">
-                            To confirm, type <strong>delete</strong> below:
-                        </label>
-                        <input type="text" class="form-control" id="deleteRecordConfirmInput"
-                               placeholder="Type 'delete' to enable the button" autocomplete="off" spellcheck="false">
-                    </div>
-                    <div class="alert d-none mt-3" id="deleteRecordResultAlert" role="alert"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-permanent-delete" id="confirmDeleteRecordBtn" disabled>
-                        Permanently Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ===== ASSIGN STUDENT NUMBER MODAL ===== -->
     <div class="modal fade" id="assignStudentNumberModal" tabindex="-1"
@@ -442,6 +418,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-students.js?v=4"></script>
+    <script src="js/registrar-student-numbers.js?v=1"></script>
 </body>
 </html>

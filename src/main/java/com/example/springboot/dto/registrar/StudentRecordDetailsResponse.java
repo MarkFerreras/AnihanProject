@@ -14,6 +14,7 @@ import com.example.springboot.model.StudentRecord;
 public record StudentRecordDetailsResponse(
         Integer recordId,
         String studentId,
+        String studentNumber,
         String lastName,
         String firstName,
         String middleName,
@@ -57,6 +58,7 @@ public record StudentRecordDetailsResponse(
         return new StudentRecordDetailsResponse(
                 r.getRecordId(),
                 r.getStudentId(),
+                r.getStudentNumber(),
                 r.getLastName(),
                 r.getFirstName(),
                 r.getMiddleName(),
