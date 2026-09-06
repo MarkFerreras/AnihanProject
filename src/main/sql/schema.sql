@@ -1,5 +1,7 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-08-27 (added student_records.student_number — the
+--                       registrar-controlled, nullable student number)
 -- Updated: 2026-05-19 (added grades restructure for trainer grading)
 -- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
 --                       seeded qualifications + subjects)
@@ -108,10 +110,19 @@ CREATE TABLE IF NOT EXISTS users (
 -- Many columns are nullable — students fill them in during the
 -- enrollment wizard; batch/course/section are assigned later
 -- by the Registrar.
+--
+-- Two identifiers, deliberately:
+--   * student_id      — internal system reference, auto-generated when the
+--                       enrollment wizard starts. NOT NULL because it is the
+--                       FK target of 10 child tables. Never edited.
+--   * student_number  — the REAL student number, owned by the Registrar and
+--                       the archive import. NULL until assigned; nothing
+--                       auto-generates it. UNIQUE allows many NULLs in MySQL.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS student_records (
     record_id INT NOT NULL AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
+    student_number VARCHAR(20) NULL,
     last_name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) NULL,
@@ -138,6 +149,7 @@ CREATE TABLE IF NOT EXISTS student_records (
     student_status VARCHAR(25) NOT NULL DEFAULT 'Enrolling',
     PRIMARY KEY (record_id),
     UNIQUE KEY idx_student_id (student_id),
+    UNIQUE KEY uq_student_number (student_number),
     FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
     FOREIGN KEY (course_code) REFERENCES courses (course_code),
     FOREIGN KEY (section_code) REFERENCES sections (section_code)

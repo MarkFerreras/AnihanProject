@@ -181,7 +181,12 @@
                 <h5 class="text-success fw-bold mt-1">Enrollment Submitted!</h5>
                 <p class="text-muted mb-1">Your enrollment form has been received. The Registrar will verify your
                     details.</p>
-                <p class="text-muted small">Student ID: <strong id="submittedId"></strong></p>
+                <!-- This is the internal system reference, not the student number.
+                     The Registrar assigns the student number separately. -->
+                <p class="text-muted small">Reference No.: <strong id="submittedId"></strong></p>
+                <p class="text-muted small mb-0">
+                    Keep this reference. Your student number will be assigned by the Registrar.
+                </p>
                 <div class="progress mt-3" style="height: 6px;">
                     <div class="progress-bar bg-success" id="redirectProgress"
                         style="width:0%; transition: width 5s linear;"></div>

@@ -1,12 +1,166 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Document Management polish (print/logo/filename, DOCX download, delete/edit flows) — awaiting PR**
+**Student number export/import + report page — awaiting PR**
 
 ## Active Branch
-`fix/generate-document-student-picker`
+`fix/student-ID-number`
 
-## Latest Session (2026-07-14 PM #2 - Document Management Polish: Print, Logo, DOCX, Delete/Edit)
+## Latest Session (2026-08-30 - Student Number Export / Import / Report Page)
+
+### Scope
+Follow-up to the 2026-08-27 session, which made the student number registrar-controlled but
+only assignable one at a time. Per the meeting, the Registrar needs a report page listing all
+students with filters to isolate those still missing a number, **export** of that filtered set
+to CSV/Excel, and **import** of the encoded sheet back. Sir Ng's summary: Import, Export,
+Editability. (Editability already existed — the assign endpoint + modal — and is reused here
+rather than duplicated.)
+
+### The constraint that shaped the design
+**The school's real record format is not yet known.** So all knowledge of *how a file is read*
+is isolated in ONE file, `service/StudentNumberImportMapping.java`: header aliases per column,
+the match key, header normalisation, value normalisation, and how far to scan for the header
+row. Supporting a new layout should mean adding strings to lists there — the parser, service,
+controller, and UI carry no format knowledge. `StudentNumberSheetParserTest` (18 tests) is the
+safety net for those edits.
+
+### Decisions (user declined the question prompt; these were taken and flagged in the plan)
+- **Match key = Reference No.** (`student_id`) — unique, immutable, on every student, and
+  meaningful to a human reading the sheet. Record ID is exported for context, not matched on.
+- **Preview then Apply** — the upload is parsed and classified with nothing written; only
+  Apply writes. A bulk write to student identity should not be discovered wrong afterwards.
+- **Never silently overwrite** — a row renumbering a student who already has a *different*
+  number is a `CONFLICT_EXISTING` unless "Allow overwriting existing numbers" is ticked.
+- **New page `student-numbers.html`** (6th registrar nav link), keeping archive-migration
+  tooling off the day-to-day dashboard.
+- **CSV + XLSX both ways** — `poi-ooxml:5.4.1` already present and reads as well as writes,
+  so no new dependency on an air-gapped box. DOCX deliberately not offered (not round-trippable).
+
+### What was built
+- `StudentNumberImportMapping` (the editable one) + `StudentNumberSheetParser` (CSV RFC-4180
+  splitter, XLSX via POI `DataFormatter`, header auto-detection over the first 10 rows).
+- `StudentNumberExportService` — headers on row 1 using the canonical aliases so an exported
+  file re-imports untouched; Student Number last and blank; **written as a text cell so leading
+  zeros survive**. `StudentNumberExportFormat` (CSV/XLSX).
+- `StudentNumberImportService` — one `classify()` pass shared by preview and apply, so the two
+  cannot diverge. Ten outcomes (WILL_ASSIGN, WILL_OVERWRITE, NAME_MISMATCH, CONFLICT_IN_USE,
+  CONFLICT_EXISTING, UNCHANGED, UNKNOWN_REFERENCE, DUPLICATE_IN_FILE, INVALID_FORMAT, BLANK);
+  `applicable()` on the enum is the single definition of "this row writes".
+- `StudentNumberController` — `GET /export`, `POST /import/preview`, `POST /import/apply`
+  under `/api/registrar/student-numbers`. Apply writes one `system_logs` row per assignment
+  plus a summary; preview writes none.
+- `student-numbers.html` + `registrar-student-numbers.js` — filters, "N of M students still
+  need a student number", export (blob download reused from system-logs.js), import
+  preview→apply with per-row outcome badges, and the existing Assign Number modal for singles.
+- Validation constants moved onto `AssignStudentNumberRequest` (`MAX_LENGTH`, `PATTERN`,
+  `ALLOWED_CHARS_MESSAGE`) so single-assign and bulk import cannot drift apart.
+
+### Verified
+- `./gradlew test` → **299 tests, 0 failures** (was 238; +61).
+- Live round trip against real MySQL: export CSV of the 6 unnumbered students (the one already
+  numbered correctly excluded) → encode → preview → apply. Every failure mode exercised in one
+  sheet: duplicate-in-file pair, number already in use, unknown reference, blank, invalid chars.
+- **Preview proven read-only** — DB and `system_logs` unchanged after a preview.
+- **Excel round trip via POI-authored file:** `0012` (leading zero), `2025-777`, `A/2026/03`
+  all imported intact. Header auto-detection found the header under two pasted title rows.
+- Overwrite guard: refused by default with an actionable message, applied with the flag.
+- Playwright headless-Edge E2E **22/22**, run twice (self-cleaning).
+- Live DB restored to exactly its pre-session state. Backup:
+  `src/main/sql/backup-2026-08-30-pre-import-test.sql`.
+
+### Note on live data
+Record 5 (Lopez, Elise) carries `student_number = 231472`, assigned outside these sessions.
+It was preserved throughout and is still present.
+
+### Open Items
+- PR to `main` (user approval required).
+- **When the real archive format arrives:** edit `StudentNumberImportMapping` alias lists and
+  re-run `StudentNumberSheetParserTest`. If the archive identifies students by something the
+  system does not store (old ledger number, name + birthdate), that is a change of matching
+  *strategy*, not aliases — needs a design conversation.
+- Student numbers are still capped at 20 chars / `[A-Za-z0-9/-]`. If the archive uses spaces or
+  dots, widen `AssignStudentNumberRequest.PATTERN` and the `VARCHAR(20)` column together.
+
+---
+
+## Previous Session (2026-08-27 - Registrar-Controlled Student Number)
+
+### Scope
+Stakeholder decision: the system must STOP auto-assigning student numbers. The Registrar
+wants control, because the real numbers come from the 40-year paper archive and from TESDA —
+a number the system invents is wrong more often than right. Requirements: nullable student
+number, students may exist without one, the (future) archive import assigns them, and the
+Registrar must be able to see who is still missing one.
+
+### The structural problem, and the decision
+`student_records.student_id` is NOT just a label — it is `NOT NULL UNIQUE` and the
+**FK target of 10 child tables** (parents, other_guardians, documents, grades,
+student_education, student_school_years, student_ojt, student_tesda_qualifications,
+student_uploads, class_enrollments). The PK is `record_id`. Making `student_id` nullable
+would orphan every child row written before a number is assigned — including the ID-photo
+upload in wizard step 2, which is precisely why `startOrResume` creates the record so early.
+
+**Chosen (user-confirmed): add a separate nullable `student_number` column.** `student_id`
+stays untouched, demoted to an internal "Reference No."; the registrar-controlled number
+lives in the new column. Zero FK churn, no child-table data migration.
+Alternative rejected: repointing all 10 child FKs to `record_id` (correct end state, one
+identifier, but ~40 files and a 10-table migration).
+
+**On "the student number should remain the primary key"** (from the meeting note): it is not
+the PK today (`record_id` is), and a nullable column cannot be a SQL PK. Resolved as a
+UNIQUE index — MySQL allows many NULLs in one, giving "unique when present". Verified live:
+two NULL rows coexist; a duplicate real value is rejected (ERROR 1062).
+
+**Out of scope (confirmed):** the bulk import itself. Model/API/UI are ready for it; numbers
+are entered manually via the new Assign Number action meanwhile.
+
+### What was built
+- Migration `2026-08-27-add-student-number.sql` (idempotent; guards match on COLUMN_NAME,
+  not constraint name — the 2026-05-19 duplicate-FK bug). `schema.sql` updated to match.
+- `student_number VARCHAR(20) NULL` + `uq_student_number`. Nothing auto-generates it;
+  `StudentDetailsService.generateStudentId()` is deliberately unchanged.
+- `PUT /api/registrar/student-records/{id}/student-number` — assign / change / clear
+  (blank = clear). Uniqueness pre-checked in the service so a clash is an actionable 400,
+  not a generic 409. Writes "Assigned…"/"Cleared…" to `system_logs`.
+- List filter `?hasStudentNumber=true|false` (5-arg `getAllRecords` overload, mirroring how
+  the `status` filter was added); free-text search now matches the number too.
+- Registrar table: "Reference No." + new "Student Number" column with a
+  `Not Assigned` warning badge; Assign Number action + modal; All/Assigned/Not Assigned filter.
+- Edit form shows the number **read-only** — the assign action is the single write path,
+  so every change is deliberate and separately audited.
+
+### Verified
+- `./gradlew test` → **238 tests, 0 failures** (was 217; +21).
+- Migration applied to live MySQL, then re-run: `SHOW CREATE TABLE` byte-identical,
+  exactly one unique index. `ddl-auto=validate` boot against live MySQL → **PASS** (8.86s).
+- Headless-Edge Playwright E2E **18/18**, twice: badges, both action buttons, zero table
+  overflow at 1280/1440/1920, assign, duplicate rejected inline, field-level validation
+  message, both filters + Reset, details modal, edit form read-only + relabelled, cleanup.
+- Live API smoke: assign / duplicate 400 / invalid-chars 400 / clear / 404 / filters /
+  search; `system_logs` rows confirmed; a failed duplicate writes NO log row.
+- **Regression pinned:** a full edit-form update (payload carries no student number) leaves
+  the number intact — checked live and locked down by a unit test.
+- DB restored to its pre-session state (all 7 students NULL); backup at
+  `src/main/sql/backup-2026-08-27-pre-student-number.sql`.
+
+### Two frontend bugs found by the E2E and fixed
+1. **Table overflowed horizontally at 1280px (86px).** Not the new column — `dashboard.css`
+   pins `#studentRecordsTable_wrapper #batchFilterBar .logs-filter-section` to
+   `flex-wrap: nowrap`, and the added Student No. dropdown pushed that bar past the
+   container. Fixed with a page-scoped `flex-wrap: wrap` under 1400px.
+2. The existing details-modal handler bound to `button[data-record-id]`, which would have
+   caught the new Assign button too. Narrowed to `.js-open-details`.
+
+### Open Items
+- PR to `main` (user approval required).
+- Follow-up ticket: the bulk archive import that assigns numbers en masse.
+- Note: the `student_id` / `student_number` pair is two identifiers on one record. If that
+  proves confusing in use, the clean end state is repointing child FKs to `record_id` and
+  dropping `student_id` — deliberately deferred, not forgotten.
+
+---
+
+## Previous Session (2026-07-14 PM #2 - Document Management Polish: Print, Logo, DOCX, Delete/Edit)
 
 ### Scope
 Six approved tasks on documents.html + generate-document.html: (1) print formatting

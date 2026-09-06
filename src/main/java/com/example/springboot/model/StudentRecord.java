@@ -21,8 +21,23 @@ public class StudentRecord {
     @Column(name = "record_id")
     private Integer recordId;
 
+    /**
+     * Internal system reference, auto-generated when the enrollment wizard starts.
+     * NOT NULL because it is the foreign-key target of 10 child tables. Never edited.
+     * This is <em>not</em> the student number the Registrar works with — see
+     * {@link #studentNumber}.
+     */
     @Column(name = "student_id", unique = true, nullable = false, length = 20)
     private String studentId;
+
+    /**
+     * The real student number, owned by the Registrar and by the archive import.
+     * Deliberately nullable — a student exists before a number is assigned — and
+     * never auto-generated. UNIQUE when present (MySQL allows many NULLs in a
+     * unique index).
+     */
+    @Column(name = "student_number", unique = true, length = 20)
+    private String studentNumber;
 
     @Column(name = "last_name", nullable = false)
     private String lastName;
@@ -110,6 +125,9 @@ public class StudentRecord {
 
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }
+
+    public String getStudentNumber() { return studentNumber; }
+    public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
 
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }

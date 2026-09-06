@@ -4,6 +4,95 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-08-30 - All Sheet-Format Knowledge Isolated in One Editable File
+
+**Decision:** Every rule about how an imported sheet is recognised — header aliases per column,
+which column is the match key, header/value normalisation, how far down to scan for the header
+row — lives in `service/StudentNumberImportMapping.java`. `StudentNumberSheetParser` and
+`StudentNumberImportService` hold none of it.
+
+**Why:** The school's real record format is not yet known. Adapting to it should be an edit to
+string lists in one commented file, verified by re-running `StudentNumberSheetParserTest`, not a
+rewrite of the parsing or classification logic.
+
+**Limit of the abstraction (stated so it is not discovered the hard way):** this covers *naming
+and formatting* differences. If the archive identifies a student by something the system does
+not store — an old ledger number, or a name + birthdate pair — that is a change of matching
+*strategy* and needs real design work, not a new alias.
+
+## 2026-08-30 - Import Previews Before It Writes
+
+**Decision:** `POST /import/preview` parses, validates, and classifies every row while writing
+nothing; only `POST /import/apply` writes. Apply re-reads and re-classifies the uploaded file
+rather than trusting any plan the client sends back. Both share one `classify()` method.
+
+**Why:** A bulk write to student identity should not be discovered to be wrong afterwards. The
+shared classification means what the preview promises and what the apply does cannot drift.
+Re-uploading on apply keeps the server stateless between the two calls, which is cheap at
+~160 rows.
+
+**Related:** apply writes the applicable rows and reports the rest rather than failing the whole
+file. With a mandatory preview in front, that is safer than rejecting 200 good rows over one
+typo — and each write is individually logged.
+
+## 2026-08-30 - A Bulk File Never Silently Replaces an Existing Student Number
+
+**Decision:** A row supplying a number for a student who already has a *different* one is
+reported as `CONFLICT_EXISTING` and skipped, unless the Registrar ticks "Allow overwriting
+existing numbers". A number appearing twice within one file blocks both of its rows.
+
+**Why:** A stale spreadsheet must not be able to rewrite identities across the archive as a side
+effect of a routine import. Duplicates within a file are an encoding mistake where neither
+intent is knowable, so applying either would be a guess.
+
+## 2026-08-27 - Student Number as a Separate Nullable Column, Not a Nullable `student_id`
+
+**Decision:** The registrar-controlled student number lives in a NEW nullable
+`student_records.student_number VARCHAR(20) UNIQUE` column. The existing `student_id` is kept
+exactly as it is — `NOT NULL UNIQUE`, auto-generated, immutable — and demoted in the UI to an
+internal "Reference No.". Nothing auto-generates `student_number`.
+
+**Why:** `student_id` is the foreign-key target of **10 child tables** (parents,
+other_guardians, documents, grades, student_education, student_school_years, student_ojt,
+student_tesda_qualifications, student_uploads, class_enrollments). Making it nullable would
+orphan every child row created before a number is assigned — starting with the ID-photo
+upload in wizard step 2, which is the very reason `startOrResume` creates the record so early.
+
+**Alternative rejected:** repointing all 10 child FKs to `record_id` (the actual PK) and
+letting `student_id` become the nullable student number. That is the cleaner end state — one
+identifier instead of two — but costs ~40 files (10 entities, ~20 repository methods, 7
+services, portal URLs) plus a 10-table data migration, with corresponding risk to the 217-test
+baseline. Deferred, not discarded: if the two-identifier split proves confusing in practice,
+this is the migration to do.
+
+**Trade-off accepted:** a student record now carries two identifiers. Mitigated by labelling —
+"Reference No." (internal) vs "Student Number" (real) — everywhere both appear.
+
+## 2026-08-27 - "Primary Key" in the Requirement Read as "Unique Business Key"
+
+**Decision:** The meeting note "the student number should remain the primary key" is
+implemented as a UNIQUE index, not a PRIMARY KEY.
+
+**Why:** Two facts make the literal reading impossible. `student_id` has not been the primary
+key since 2026-05-02 (`record_id` is), so nothing "remains" a PK. And a column cannot be both
+nullable and a SQL primary key — the same requirement asks for nullable. A UNIQUE index is the
+faithful reading: unique when present, absent until assigned. MySQL permits multiple NULLs in
+a unique index, which is exactly the needed semantics (verified live: two NULL rows coexist;
+a duplicate real value raises ERROR 1062).
+
+## 2026-08-27 - Student Number Written Only Through a Dedicated Assign Action
+
+**Decision:** `student_number` is written solely by
+`PUT /api/registrar/student-records/{id}/student-number`. The registrar edit form displays it
+read-only and never sends it in `buildPayload`. Uniqueness is pre-checked in the service so a
+clash returns a 400 naming the student who already holds the number, rather than the generic
+409 the unique index would produce.
+
+**Why:** Assigning a student number is a records-integrity event that should be deliberate and
+individually auditable in `system_logs`, not a side effect of editing an address. Keeping it
+out of the edit payload also means a routine edit can never silently wipe it — an invariant
+now pinned by a unit test.
+
 ## 2026-07-14 - Generated-Document DOCX via Server-Side OOXML altChunk
 
 **Decision:** Generated `text/html` documents download as .docx built by `HtmlDocxConverter`:

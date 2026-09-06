@@ -215,6 +215,9 @@
         currentRecordId = r.recordId;
         setVal('editRecordId', r.recordId);
         setVal('editStudentId', r.studentId);
+        // Read-only here on purpose: the student number is written only through the
+        // dedicated Assign Number action, so the change is deliberate and audited.
+        setVal('editStudentNumber', r.studentNumber || 'Not Assigned');
         setVal('editStudentStatus', r.studentStatus);
         setVal('editLastName', r.lastName);
         setVal('editFirstName', r.firstName);

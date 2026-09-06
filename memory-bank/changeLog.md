@@ -1,5 +1,138 @@
 # Change Log - Anihan SRMS
 
+## 2026-08-30 - Student Number Export / Import / Report Page
+**Branch:** `fix/student-ID-number`
+
+### Task
+Make bulk entry of student numbers practical: a report page listing all students with filters
+to isolate those still missing a number, export of the filtered set to CSV/Excel for encoding,
+and import of the completed sheet back. Editability (single assignment) already shipped on
+2026-08-27 and is reused here.
+
+### Design constraint (from the user)
+The school's real record format is not yet known, so the file-reading rules must be **easily
+editable later**. Everything about how a sheet is recognised lives in ONE file —
+`StudentNumberImportMapping` — and the parser/service/controller/UI carry no format knowledge.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `service/StudentNumberImportMapping.java` | **The file to edit when the real format arrives.** Header alias lists per column, the match key, `normaliseHeader` (case/punctuation-insensitive), `normaliseValue` (trims, strips Excel's `.0` tail, preserves leading zeros), `HEADER_SCAN_ROWS`, `MAX_DATA_ROWS`, and the canonical export column names. |
+| `service/StudentNumberSheetParser.java` | Format mechanics only, no DB access: RFC-4180 CSV splitter (read side of `SystemLogExportService.csvEscape`), XLSX via POI `DataFormatter` (so `2026001` does not come back as `2026001.0`), UTF-8 BOM strip, and header-row auto-detection over the first 10 rows — school files carry title blocks above the real header. |
+| `service/StudentNumberExportService.java` | Builds the encoding sheet. Headers on row 1 using the canonical aliases so an export re-imports untouched; Student Number last and blank; written as a **text** cell so `0012` is not eaten by Excel. Modelled on `SystemLogExportService`. |
+| `service/StudentNumberExportFormat.java` | CSV/XLSX. Separate from `SystemLogExportFormat`, which is log-scoped and includes non-round-trippable DOCX. |
+| `service/StudentNumberImportService.java` | One `classify()` pass shared by preview and apply, so the two cannot diverge. Guard rails follow `DocumentService` (extension whitelist, 5MB cap, empty/invalid-name rejection). |
+| `dto/registrar/StudentNumberImportOutcome.java` | Ten outcomes; `applicable()` is the single definition of "this row writes", used by both the preview counts and the apply loop. |
+| `dto/registrar/StudentNumberImportRowResult.java`, `StudentNumberImportReport.java` | Per-row detail and the counts/summary. |
+| `controller/StudentNumberController.java` | `GET /export`, `POST /import/preview`, `POST /import/apply` under `/api/registrar/student-numbers`. Apply logs one row per assignment plus a summary; preview logs nothing. |
+| `static/student-numbers.html` + `static/js/registrar-student-numbers.js` | The report page: filters, "N of M students still need a student number", export, import preview→apply with outcome badges, and the existing Assign Number modal for singles. |
+| `test/.../StudentNumberSheetParserTest.java` | 18 tests — the regression net for future mapping edits. |
+| `test/.../StudentNumberExportServiceTest.java` | 8 tests incl. CSV/XLSX round-trip back through the parser and leading-zero survival. |
+| `test/.../StudentNumberImportServiceTest.java` | 22 tests — every outcome, overwrite on/off, apply writes only applicable rows. |
+| `test/.../StudentNumberControllerWebMvcTest.java` | 13 tests — export headers per format, multipart preview/apply, RBAC, logging on apply and **not** on preview. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `dto/registrar/AssignStudentNumberRequest.java` | Validation hoisted to `MAX_LENGTH` / `PATTERN` / `ALLOWED_CHARS_MESSAGE` constants used by both its own annotations and the bulk import, so a value the Assign action accepts is exactly one the import accepts. |
+| `config/SecurityConfig.java` | `/student-numbers.html` added to the REGISTRAR matcher. (`/api/registrar/**` was already REGISTRAR-only, so the new endpoints needed no change.) |
+| `static/registrar.html`, `subjects.html`, `classes.html`, `sections.html`, `documents.html`, `student-records.html`, `generate-document.html` | Registrar navbar 5 → 6 links (Student Numbers). |
+
+### Key behaviours
+- **Preview writes nothing** — verified against the live DB and `system_logs`.
+- **Apply** writes only applicable rows; the rest are reported. With the preview in front, that
+  beats failing 200 good rows over one typo.
+- **Never silently overwrite** — an existing *different* number is `CONFLICT_EXISTING` unless
+  "Allow overwriting existing numbers" is ticked.
+- **A number repeated within one file blocks both rows** — we cannot know which was intended.
+- **Name columns warn, never match** — a `NAME_MISMATCH` still applies but is surfaced, which
+  catches rows slipping out of alignment in a hand-edited sheet.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 299 tests, 0 failures, 0 errors** (was 238).
+- Live round trip against real MySQL: exported the 6 unnumbered students (the already-numbered
+  one correctly excluded), encoded a sheet containing every failure mode at once
+  (duplicate-in-file pair, number already in use, unknown reference, blank, invalid characters),
+  previewed → nothing written, applied → exactly the 2 valid rows written.
+- **Excel fidelity via a POI-authored file:** `0012` (leading zero), `2025-777` and `A/2026/03`
+  all survived export → edit → import. Header auto-detection found the header under two pasted
+  title rows.
+- `system_logs`: per-assignment rows + `"Imported student numbers from encoded.csv: 2 assigned,
+  5 skipped"` + the export row. No rows from a preview.
+- Playwright headless-Edge E2E **22/22**, run twice.
+- Live DB restored to its pre-session state; the pre-existing `231472` on record 5 preserved
+  throughout. Backup: `src/main/sql/backup-2026-08-30-pre-import-test.sql`.
+- **No schema change** — `student_number` already existed.
+
+---
+
+## 2026-08-27 - Registrar-Controlled Student Number (no auto-generation)
+**Branch:** `fix/student-ID-number`
+
+### Task
+Per the stakeholder meeting: the system must stop auto-generating student numbers. Add a
+student number that is nullable, is never invented by the system, can be assigned later by
+the archive import, and whose absence is visible to the Registrar.
+
+### Design decision (see decisions.md)
+`student_records.student_id` is `NOT NULL UNIQUE` and the **FK target of 10 child tables**;
+`record_id` is the PK. Making `student_id` nullable would orphan child rows written before a
+number exists. So `student_id` is kept untouched as an internal **Reference No.**, and a new
+nullable `student_number` column carries the registrar-controlled value. The meeting note's
+"should remain the primary key" is not literally satisfiable (a nullable column cannot be a
+SQL PK, and it was never the PK) — a UNIQUE index provides "unique when present".
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-08-27-add-student-number.sql` | Adds `student_number VARCHAR(20) NULL` + `uq_student_number`. Idempotent; guards match on `COLUMN_NAME`/`NON_UNIQUE`, never a constraint name (the name-based guard caused the 2026-05-19 duplicate-FK bug). Ends with read-only verification queries. |
+| `dto/registrar/AssignStudentNumberRequest.java` | Deliberately NOT `@NotBlank` — blank/null means "clear". `@Size(max=20)` + `@Pattern` allowing letters, digits, `-`, `/` (the shapes real archive numbers take). |
+| `test/.../RegistrarStudentNumberServiceTest.java` | 11 tests: assign, trim, overwrite, same-number-same-record, blank/null clear, duplicate rejection (target untouched, no save), unknown record, **edit-form update preserves the number**, filter partitioning, search-by-number. |
+| `test/.../RegistrarStudentNumberControllerWebMvcTest.java` | 9 tests: assign 200 + log, clear 200 + log, null accepted, duplicate 400, bad chars 400 (field error), too long 400, 404, 403 trainer, 401 anonymous. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | `student_number` column + `uq_student_number` on `student_records`; header dated; comment explains the two-identifier split. Seed INSERT uses an explicit column list, so sample students correctly start with NULL. |
+| `model/StudentRecord.java` | `studentNumber` field + accessors, with Javadoc distinguishing it from the internal `studentId`. |
+| `repository/StudentRecordRepository.java` | `findByStudentNumber` for the uniqueness pre-check. |
+| `dto/registrar/StudentRecordSummaryResponse.java`, `StudentRecordDetailsResponse.java` | `studentNumber` added and mapped. |
+| `service/RegistrarService.java` | `assignStudentNumber()` (trim via existing `emptyToNull`, blank→clear, uniqueness pre-check throwing an actionable `IllegalArgumentException` → 400 rather than a generic 409 from the index); 5-arg `getAllRecords` with `hasStudentNumber` (4-arg delegates, mirroring the `status` filter); `matchesQuery` now also matches the number. |
+| `controller/RegistrarController.java` | `PUT /{recordId}/student-number` (logs "Assigned student number X to: …" / "Cleared student number for: …"); `list()` accepts `hasStudentNumber`. |
+| `static/registrar.html` | "Student ID" → "Reference No."; new "Student Number" column + detail card; Student No. filter select; `#assignStudentNumberModal`; page-scoped `.record-actions .btn` compact sizing and a `flex-wrap` override for the filter bar; JS `?v=4`. |
+| `static/js/registrar-students.js` | `renderStudentNumber` (warning badge when absent — a missing number is an action item, not merely absent data); Assign Number button in a `record-actions` group; details handler narrowed to `.js-open-details`; `hasStudentNumber` in `buildAjaxUrl` + Reset; `openAssignNumberModal` / `setupAssignStudentNumber` (PUT, inline errors, Enter-to-save, table reload). |
+| `static/student-records.html` + `js/registrar-student-records-edit.js` | Identifiers row now 4 columns: Record ID, Reference No., **read-only** Student Number (with a pointer to the Assign action), Status. Populated but never sent in `buildPayload` — the edit form must not be a second write path. JS `?v=4`. |
+| `static/student-details.html` | Submitted banner relabelled "Reference No." with a line telling the student the Registrar assigns their student number. |
+| `test/.../RegistrarBulkLoadWebMvcTest.java` | Stubs updated to the 5-arg `getAllRecords`; fixture gives every third student a null number; new test asserting `?hasStudentNumber=false` is forwarded. |
+
+**Deliberately unchanged:** `StudentDetailsService.generateStudentId()` and the
+"Student ID cannot be changed." guard. The internal reference is still generated and still
+immutable; only the new column is registrar-owned.
+
+### Two frontend bugs found by the browser E2E
+1. **86px of horizontal table scroll at 1280px.** The table itself fit (1045px in 1069px) —
+   the culprit was `dashboard.css:683` pinning
+   `#studentRecordsTable_wrapper #batchFilterBar .logs-filter-section` to `flex-wrap: nowrap`;
+   the added dropdown pushed that bar to 1155px. Fixed with a page-scoped `flex-wrap: wrap`
+   below 1400px. Now 0px overflow at 1280/1440/1920.
+2. The existing details handler bound to `button[data-record-id]` — which the new Assign
+   button also matched. Narrowed to `button.js-open-details`.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 238 tests, 0 failures, 0 errors** (was 217).
+- Migration applied to live MySQL, then re-run: `SHOW CREATE TABLE student_records`
+  byte-identical, exactly one unique index on the column. Two NULL rows coexist; a duplicate
+  real value is rejected with `ERROR 1062`.
+- `ddl-auto=validate` boot against live MySQL → **PASS** (started in 8.86s, all 19 entities).
+- Playwright headless-Edge E2E **18/18**, run twice.
+- Live API smoke: assign, duplicate → 400 with the naming message, invalid chars → field-level
+  400, clear, 404, both filters, combined filter, search-by-number. `system_logs` rows present;
+  a rejected duplicate writes no log row.
+- Live DB restored to its pre-session state (all 7 students NULL). Backup:
+  `src/main/sql/backup-2026-08-27-pre-student-number.sql`.
+
+---
+
 ## 2026-07-14 PM #2 - Document Management Polish: Print, Logo, Filenames, DOCX, Delete/Edit
 **Branch:** `fix/generate-document-student-picker`
 
