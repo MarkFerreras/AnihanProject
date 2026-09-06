@@ -25,6 +25,7 @@ import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.GradeRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.SectionRepository;
@@ -58,6 +59,7 @@ class RegistrarStudentNumberServiceTest {
     @Mock private StudentEducationRepository educationRepository;
     @Mock private StudentUploadRepository uploadRepository;
     @Mock private StorageService storageService;
+    @Mock private GradeRepository gradeRepository;
 
     @InjectMocks
     private RegistrarService registrarService;
@@ -80,6 +82,7 @@ class RegistrarStudentNumberServiceTest {
         when(schoolYearRepository.findByStudentIdOrderByRowIndex(any())).thenReturn(List.of());
         when(parentRepository.findByStudentStudentIdAndRelation(any(), any())).thenReturn(Optional.empty());
         when(guardianRepository.findByStudentStudentId(any())).thenReturn(List.of());
+        when(gradeRepository.findByStudentStudentId(any())).thenReturn(List.of());
     }
 
     // ----- Assigning -----
