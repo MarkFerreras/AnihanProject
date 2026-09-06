@@ -1,13 +1,13 @@
 /**
- * registrar-subjects.js — Subjects DataTable + Create / Edit / Delete + Trainer Assignment
+ * registrar-subjects.js — Subjects DataTable + Create / Edit / Delete.
+ * Trainers are assigned per class (see classes.html); this page only shows the
+ * derived, read-only Trainer(s) column.
  */
 (function () {
     'use strict';
 
     let subjectsTable;
-    let trainers = [];
     let qualifications = [];
-    let currentSubjectCode = null;
 
     let createSubjectModal = null;
     let editSubjectModal = null;
@@ -15,12 +15,8 @@
     let deleteSubjectModal = null;
     let deleteSubjectCurrentCode = null;
 
-    const assignTrainerModal = new bootstrap.Modal(document.getElementById('assignTrainerModal'));
-
     $(document).ready(function () {
-        loadTrainers();
         initTable();
-        setupAssignTrainer();
         // CRUD modals — must be called after initTable() so subjectsTable is defined
         setupCreateSubject(subjectsTable);
         setupEditSubject(subjectsTable);
@@ -37,6 +33,12 @@
                 { data: 'subjectCode' },
                 { data: 'subjectName' },
                 {
+                    data: 'competencyType',
+                    render: function (data) {
+                        return formatCompetencyType(data);
+                    }
+                },
+                {
                     data: 'qualificationName',
                     render: function (data) {
                         return data || '<span class="text-muted fst-italic">Not Available</span>';
@@ -44,12 +46,15 @@
                 },
                 { data: 'units', className: 'text-center' },
                 {
-                    data: 'trainerName',
+                    data: 'trainers',
+                    orderable: false,
                     render: function (data) {
-                        if (data) {
-                            return '<span class="status-badge status-badge-active">' + escapeHtml(data) + '</span>';
+                        if (data && data.length) {
+                            return data.map(function (name) {
+                                return '<span class="status-badge status-badge-active">' + escapeHtml(name) + '</span>';
+                            }).join(' ');
                         }
-                        return '<span class="text-muted fst-italic">Unassigned</span>';
+                        return '<span class="text-muted fst-italic">None</span>';
                     }
                 },
                 {
@@ -60,10 +65,6 @@
                         return (
                             '<button class="btn btn-surface btn-sm edit-subject-btn me-1" ' +
                             'data-code="' + escapeHtml(data.subjectCode) + '">Edit</button>' +
-                            '<button class="btn btn-surface btn-sm assign-trainer-btn me-1" ' +
-                            'data-code="' + escapeHtml(data.subjectCode) + '" ' +
-                            'data-name="' + escapeHtml(data.subjectName) + '" ' +
-                            'data-trainer="' + (data.trainerId || '') + '">Assign Trainer</button>' +
                             '<button class="btn btn-sm btn-outline-danger delete-subject-btn" ' +
                             'data-code="' + escapeHtml(data.subjectCode) + '" ' +
                             'data-name="' + escapeHtml(data.subjectName) + '">Delete</button>'
@@ -76,55 +77,6 @@
                 emptyTable: 'No subjects found.',
                 zeroRecords: 'No matching subjects.'
             }
-        });
-
-        // Delegate click on assign buttons
-        $('#subjectsTable').on('click', '.assign-trainer-btn', function () {
-            currentSubjectCode = $(this).data('code');
-            const subjectName = $(this).data('name');
-            const trainerId = $(this).data('trainer');
-
-            $('#assignTrainerSubjectName').text(subjectName);
-            $('#trainerSelect').val(trainerId || '');
-            hideAlert('assignTrainerAlert');
-            assignTrainerModal.show();
-        });
-    }
-
-    function loadTrainers() {
-        $.ajax({
-            url: '/api/registrar/trainers',
-            method: 'GET',
-            success: function (data) {
-                trainers = data;
-                const select = $('#trainerSelect');
-                select.find('option:not(:first)').remove();
-                trainers.forEach(function (t) {
-                    select.append('<option value="' + t.userId + '">' + escapeHtml(t.fullName) + '</option>');
-                });
-            }
-        });
-    }
-
-    function setupAssignTrainer() {
-        $('#saveTrainerBtn').on('click', function () {
-            const trainerId = $('#trainerSelect').val();
-            const payload = { trainerId: trainerId ? parseInt(trainerId) : null };
-
-            $.ajax({
-                url: '/api/registrar/subjects/' + encodeURIComponent(currentSubjectCode) + '/trainer',
-                method: 'PUT',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function () {
-                    assignTrainerModal.hide();
-                    subjectsTable.ajax.reload(null, false);
-                },
-                error: function (xhr) {
-                    const msg = xhr.responseJSON?.message || 'Failed to assign trainer.';
-                    showAlert('assignTrainerAlert', msg, 'danger');
-                }
-            });
         });
     }
 
@@ -151,30 +103,72 @@
     }
 
     // -------------------------------------------------------
+    // Competency Type <-> Qualification visibility (shared by Create + Edit)
+    // -------------------------------------------------------
+
+    // Only Core subjects are qualification-specific. Basic/Common subjects are
+    // shared across all qualifications, so the qualification field only makes
+    // sense — and is only required — when Core is selected.
+    function setupCompetencyTypeToggle(competencyTypeId, qualificationGroupId, qualificationSelectId) {
+        const $competencyType = $('#' + competencyTypeId);
+        const $group = $('#' + qualificationGroupId);
+
+        function apply() {
+            const isCore = $competencyType.val() === 'CORE';
+            $group.toggleClass('d-none', !isCore);
+            if (!isCore) {
+                $('#' + qualificationSelectId).val('');
+            }
+        }
+
+        $competencyType.off('change.competencyToggle').on('change.competencyToggle', apply);
+        return apply;
+    }
+
+    function formatCompetencyType(value) {
+        if (value === 'BASIC') return 'Basic';
+        if (value === 'COMMON') return 'Common';
+        if (value === 'CORE') return 'Core';
+        return '<span class="text-muted fst-italic">Not Available</span>';
+    }
+
+    // -------------------------------------------------------
     // Create Subject
     // -------------------------------------------------------
 
     function setupCreateSubject(dataTable) {
         createSubjectModal = new bootstrap.Modal(document.getElementById('createSubjectModal'));
+        const applyCreateToggle = setupCompetencyTypeToggle(
+            'createSubjectCompetencyType', 'createSubjectQualificationGroup', 'createSubjectQualification');
 
         $('#createSubjectModal').on('show.bs.modal', function () {
             hideAlert('createSubjectAlert');
             $('#createSubjectCode').val('');
             $('#createSubjectName').val('');
+            $('#createSubjectCompetencyType').val('');
             $('#createSubjectUnits').val(3);
             loadQualificationsDropdown('createSubjectQualification');
+            applyCreateToggle();
         });
 
         $('#saveCreateSubjectBtn').on('click', function () {
+            const competencyType = $('#createSubjectCompetencyType').val();
+            const isCore = competencyType === 'CORE';
+
             const payload = {
                 subjectCode: $('#createSubjectCode').val().trim(),
                 subjectName: $('#createSubjectName').val().trim(),
-                qualificationCode: parseInt($('#createSubjectQualification').val(), 10) || null,
+                competencyType: competencyType,
+                qualificationCode: isCore ? (parseInt($('#createSubjectQualification').val(), 10) || null) : null,
                 units: parseInt($('#createSubjectUnits').val(), 10) || null
             };
 
-            if (!payload.subjectCode || !payload.subjectName || !payload.qualificationCode || !payload.units) {
+            if (!payload.subjectCode || !payload.subjectName || !payload.competencyType || !payload.units) {
                 showAlert('createSubjectAlert', 'Please fill in all required fields.', 'danger');
+                return;
+            }
+            if (isCore && !payload.qualificationCode) {
+                showAlert('createSubjectAlert', 'Qualification is required for Core subjects.', 'danger');
                 return;
             }
 
@@ -201,6 +195,8 @@
 
     function setupEditSubject(dataTable) {
         editSubjectModal = new bootstrap.Modal(document.getElementById('editSubjectModal'));
+        const applyEditToggle = setupCompetencyTypeToggle(
+            'editSubjectCompetencyType', 'editSubjectQualificationGroup', 'editSubjectQualification');
 
         $('#subjectsTable').on('click', '.edit-subject-btn', function () {
             const code = $(this).data('code');
@@ -213,13 +209,13 @@
 
             $('#editSubjectCode').val(rowData.subjectCode);
             $('#editSubjectName').val(rowData.subjectName);
+            $('#editSubjectCompetencyType').val(rowData.competencyType || '');
             $('#editSubjectUnits').val(rowData.units);
+            applyEditToggle();
 
             loadQualificationsDropdown('editSubjectQualification').done(function () {
-                const matching = qualifications
-                    .find(function (q) { return q.qualificationName === rowData.qualificationName; });
-                if (matching) {
-                    $('#editSubjectQualification').val(matching.qualificationCode);
+                if (rowData.qualificationCode) {
+                    $('#editSubjectQualification').val(rowData.qualificationCode);
                 }
             });
 
@@ -229,14 +225,23 @@
         $('#saveEditSubjectBtn').on('click', function () {
             if (!editSubjectCurrentCode) return;
 
+            const competencyType = $('#editSubjectCompetencyType').val();
+            const isCore = competencyType === 'CORE';
+
             const payload = {
+                subjectCode: $('#editSubjectCode').val().trim(),
                 subjectName: $('#editSubjectName').val().trim(),
-                qualificationCode: parseInt($('#editSubjectQualification').val(), 10) || null,
+                competencyType: competencyType,
+                qualificationCode: isCore ? (parseInt($('#editSubjectQualification').val(), 10) || null) : null,
                 units: parseInt($('#editSubjectUnits').val(), 10) || null
             };
 
-            if (!payload.subjectName || !payload.qualificationCode || !payload.units) {
+            if (!payload.subjectCode || !payload.subjectName || !payload.competencyType || !payload.units) {
                 showAlert('editSubjectAlert', 'Please fill in all required fields.', 'danger');
+                return;
+            }
+            if (isCore && !payload.qualificationCode) {
+                showAlert('editSubjectAlert', 'Qualification is required for Core subjects.', 'danger');
                 return;
             }
 

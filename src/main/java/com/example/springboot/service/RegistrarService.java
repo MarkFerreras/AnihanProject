@@ -26,6 +26,7 @@ import com.example.springboot.model.StudentTesdaQualification;
 import com.example.springboot.model.StudentUpload;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.CourseRepository;
+import com.example.springboot.repository.GradeRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.SectionRepository;
@@ -51,6 +52,7 @@ public class RegistrarService {
     private final StudentEducationRepository educationRepository;
     private final StudentUploadRepository uploadRepository;
     private final StorageService storageService;
+    private final GradeRepository gradeRepository;
 
     public RegistrarService(StudentRecordRepository studentRecordRepository,
                             BatchRepository batchRepository,
@@ -63,7 +65,8 @@ public class RegistrarService {
                             OtherGuardianRepository guardianRepository,
                             StudentEducationRepository educationRepository,
                             StudentUploadRepository uploadRepository,
-                            StorageService storageService) {
+                            StorageService storageService,
+                            GradeRepository gradeRepository) {
         this.studentRecordRepository = studentRecordRepository;
         this.batchRepository = batchRepository;
         this.courseRepository = courseRepository;
@@ -76,6 +79,7 @@ public class RegistrarService {
         this.educationRepository = educationRepository;
         this.uploadRepository = uploadRepository;
         this.storageService = storageService;
+        this.gradeRepository = gradeRepository;
     }
 
     public List<StudentRecordSummaryResponse> getAllRecords() {
@@ -348,7 +352,9 @@ public class RegistrarService {
         GuardianDto guardian = guardianRepository.findByStudentStudentId(studentId).stream()
                 .findFirst().map(this::toGuardianDto).orElse(null);
 
-        return StudentRecordDetailsResponse.from(record, ojt, tesda, schoolYears, father, mother, guardian);
+        java.math.BigDecimal totalGwa = GradeEquivalent.gwa(gradeRepository.findByStudentStudentId(studentId));
+
+        return StudentRecordDetailsResponse.from(record, ojt, tesda, schoolYears, father, mother, guardian, totalGwa);
     }
 
     // ----- Parents / Guardian -----

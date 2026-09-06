@@ -156,15 +156,6 @@
             $('#classSemesterInput').val(currentSemester);
         });
 
-        // When subject changes, auto-select subject's default trainer
-        $('#classSubjectSelect').on('change', function () {
-            const selected = $(this).find(':selected');
-            const defaultTrainerId = selected.data('trainer');
-            if (defaultTrainerId) {
-                $('#classTrainerSelect').val(defaultTrainerId);
-            }
-        });
-
         $('#saveClassBtn').on('click', function () {
             const payload = {
                 sectionCode: $('#classSectionSelect').val(),
@@ -265,8 +256,7 @@
                 const select = $('#classSubjectSelect');
                 select.find('option:not(:first)').remove();
                 data.forEach(function (s) {
-                    select.append('<option value="' + escapeHtml(s.subjectCode) + '" data-trainer="' +
-                        (s.trainerId || '') + '">' +
+                    select.append('<option value="' + escapeHtml(s.subjectCode) + '">' +
                         escapeHtml(s.subjectName) + ' (' + escapeHtml(s.subjectCode) + ')</option>');
                 });
             }

@@ -119,6 +119,7 @@
         setText('detailsSectionCode', r.sectionCode);
         setText('detailsEnrollmentDate', r.enrollmentDate);
         setText('detailsStudentStatus', r.studentStatus);
+        setText('detailsTotalGwa', r.totalGwa);
 
         const f = r.father || {};
         setText('detailsFatherFamilyName', f.familyName);

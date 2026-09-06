@@ -1,7 +1,6 @@
 package com.example.springboot.service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +25,10 @@ import com.example.springboot.repository.UserRepository;
 @Service
 public class TrainerGradeService {
 
+    private static final BigDecimal MIN_PCT = BigDecimal.ZERO;
+    private static final BigDecimal MAX_PCT = new BigDecimal("100");
+    private static final BigDecimal MAX_HOURS = new BigDecimal("100");
+
     private final GradeRepository gradeRepository;
     private final SchoolClassRepository classRepository;
     private final ClassEnrollmentRepository enrollmentRepository;
@@ -42,105 +45,49 @@ public class TrainerGradeService {
         this.userRepository = userRepository;
     }
 
-    private BigDecimal computeFinalGrade(BigDecimal midterm, BigDecimal finals) {
-        if (midterm == null || finals == null) {
-            return null;
-        }
-        return midterm.multiply(new BigDecimal("0.4"))
-                .add(finals.multiply(new BigDecimal("0.6")))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private void validateGradeRanges(SaveGradeRequest request) {
-        checkRange(request.midtermGrade(), "Midterm grade");
-        checkRange(request.finalsGrade(), "Finals grade");
-        checkRange(request.reExamGrade(), "Re-exam grade");
-    }
-
-    private void checkRange(BigDecimal value, String name) {
-        if (value == null) return;
-        if (value.compareTo(new BigDecimal("1.0")) < 0 || value.compareTo(new BigDecimal("5.0")) > 0) {
-            throw new IllegalArgumentException(name + " must be between 1.0 and 5.0, got: " + value);
-        }
-    }
-
-    private BigDecimal getEffectiveGrade(BigDecimal finalGrade, BigDecimal reExamGrade) {
-        if (finalGrade == null) {
-            return null;
-        }
-        if (reExamGrade != null && finalGrade.compareTo(new BigDecimal("3.0")) > 0) {
-            return reExamGrade;
-        }
-        return finalGrade;
-    }
-
-    private BigDecimal computeGwa(List<Grade> gradesForStudent) {
-        BigDecimal totalWeighted = BigDecimal.ZERO;
-        BigDecimal totalUnits = BigDecimal.ZERO;
-
-        for (Grade grade : gradesForStudent) {
-            if (grade.getSchoolClass() == null || grade.getSchoolClass().getSubject() == null) {
-                continue;
-            }
-            BigDecimal effective = getEffectiveGrade(grade.getFinalGrade(), grade.getReExamGrade());
-            if (effective == null) {
-                continue;
-            }
-            Integer units = grade.getSchoolClass().getSubject().getUnits();
-            if (units == null) {
-                continue;
-            }
-            totalWeighted = totalWeighted.add(effective.multiply(new BigDecimal(units)));
-            totalUnits = totalUnits.add(new BigDecimal(units));
-        }
-
-        if (totalUnits.compareTo(BigDecimal.ZERO) == 0) {
-            return null;
-        }
-        return totalWeighted.divide(totalUnits, 2, RoundingMode.HALF_UP);
-    }
+    // -------------------------------------------------------
+    // Read
+    // -------------------------------------------------------
 
     @Transactional(readOnly = true)
     public GradeSummaryResponse getGradesForClass(Integer classId) {
-        SchoolClass schoolClass = classRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
+        SchoolClass schoolClass = requireOwnedClass(classId);
 
-        Integer trainerId = resolveCurrentTrainerId();
-        if (schoolClass.getTrainer() == null || !schoolClass.getTrainer().getUserId().equals(trainerId)) {
-            throw new IllegalArgumentException("You are not assigned to this class");
-        }
-
-        // Get existing grades for this class
         List<Grade> existingGrades = gradeRepository.findBySchoolClassClassId(classId);
-
-        // Get all enrolled students for this class
         List<ClassEnrollment> enrollments = enrollmentRepository.findBySchoolClassClassId(classId);
 
         String subjectName = schoolClass.getSubject() != null ? schoolClass.getSubject().getSubjectName() : "Unknown";
         String sectionName = schoolClass.getSection() != null ? schoolClass.getSection().getSection() : "Unknown";
-
         boolean classLocked = !existingGrades.isEmpty() && existingGrades.get(0).isLocked();
 
-        // Build student rows from enrollments, attaching existing grade data if available
         List<StudentGradeRow> students = enrollments.stream()
                 .map(enrollment -> {
                     var student = enrollment.getStudent();
-                    // Look for existing grade for this student in this class
                     Optional<Grade> gradeOpt = existingGrades.stream()
                             .filter(g -> g.getStudent().getStudentId().equals(student.getStudentId()))
                             .findFirst();
-
                     if (gradeOpt.isPresent()) {
-                        return gradeToStudentRow(gradeOpt.get());
-                    } else {
-                        // No grade row yet — return an empty row for this enrolled student
+                        Grade g = gradeOpt.get();
                         return new StudentGradeRow(
                                 student.getStudentId(),
                                 student.getLastName(),
                                 student.getFirstName(),
                                 student.getMiddleName(),
-                                null, null, null, null, null, null, null, false);
+                                g.getFinalPercentage(),
+                                g.getFinalGrade(),
+                                g.getGradeStatus(),
+                                g.getReExamPercentage(),
+                                g.getReExamGrade(),
+                                g.getRemarks(),
+                                g.getHoursRendered(),
+                                g.isLocked());
                     }
+                    return new StudentGradeRow(
+                            student.getStudentId(),
+                            student.getLastName(),
+                            student.getFirstName(),
+                            student.getMiddleName(),
+                            null, null, null, null, null, null, null, false);
                 })
                 .sorted((a, b) -> {
                     int cmp = nullSafeCompare(a.lastName(), b.lastName());
@@ -150,12 +97,156 @@ public class TrainerGradeService {
                 .toList();
 
         return new GradeSummaryResponse(
-                classId,
-                subjectName,
-                sectionName,
-                schoolClass.getSemester(),
-                classLocked,
-                students);
+                classId, subjectName, sectionName, schoolClass.getSemester(), classLocked, students);
+    }
+
+    // -------------------------------------------------------
+    // Write
+    // -------------------------------------------------------
+
+    @Transactional
+    public void saveGrades(Integer classId, List<SaveGradeRequest> gradeUpdates) {
+        SchoolClass schoolClass = requireOwnedClass(classId);
+
+        for (SaveGradeRequest request : gradeUpdates) {
+            if (!enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, request.studentId())) {
+                throw new IllegalArgumentException("Student not enrolled in this class: " + request.studentId());
+            }
+
+            Grade grade = gradeRepository
+                    .findBySchoolClassClassIdAndStudentStudentId(classId, request.studentId())
+                    .orElseGet(() -> {
+                        ClassEnrollment enrollment = enrollmentRepository.findBySchoolClassClassId(classId).stream()
+                                .filter(e -> e.getStudent().getStudentId().equals(request.studentId()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Enrollment not found for student: " + request.studentId()));
+                        Grade g = new Grade();
+                        g.setStudent(enrollment.getStudent());
+                        g.setSubject(schoolClass.getSubject());
+                        g.setSchoolClass(schoolClass);
+                        return g;
+                    });
+
+            if (grade.isLocked()) {
+                throw new IllegalArgumentException("Grade is locked and cannot be modified: " + request.studentId());
+            }
+
+            applyRequest(grade, request);
+            gradeRepository.save(grade);
+        }
+    }
+
+    /**
+     * Validates one request and maps it onto the grade row: transmutes the
+     * percentage(s) to equivalents, or records a status code, and derives the
+     * competency remark.
+     */
+    private void applyRequest(Grade grade, SaveGradeRequest request) {
+        boolean hasPercentage = request.finalPercentage() != null;
+        boolean hasStatus = request.gradeStatus() != null && !request.gradeStatus().isBlank();
+
+        if (hasPercentage == hasStatus) {
+            throw new IllegalArgumentException(
+                    "Each graded student needs exactly one of a final percentage or a status code: "
+                            + request.studentId());
+        }
+        if (request.hoursRendered() == null) {
+            throw new IllegalArgumentException("Hours rendered is required: " + request.studentId());
+        }
+        checkRange(request.hoursRendered(), MIN_PCT, MAX_HOURS, "Hours rendered", request.studentId());
+
+        grade.setHoursRendered(request.hoursRendered());
+
+        if (hasStatus) {
+            String status = request.gradeStatus().trim().toUpperCase();
+            if (request.reExamPercentage() != null) {
+                throw new IllegalArgumentException(
+                        "A re-exam grade cannot be recorded alongside a status code: " + request.studentId());
+            }
+            grade.setGradeStatus(status);
+            grade.setFinalPercentage(null);
+            grade.setFinalGrade(null);
+            grade.setReExamPercentage(null);
+            grade.setReExamGrade(null);
+            grade.setRemarks(remarkForStatus(status));
+            return;
+        }
+
+        // Percentage path
+        checkRange(request.finalPercentage(), MIN_PCT, MAX_PCT, "Final percentage", request.studentId());
+        BigDecimal finalEquivalent = GradeEquivalent.toEquivalent(request.finalPercentage());
+        grade.setGradeStatus(null);
+        grade.setFinalPercentage(request.finalPercentage());
+        grade.setFinalGrade(finalEquivalent);
+
+        if (request.reExamPercentage() != null) {
+            if (!GradeEquivalent.isFailing(finalEquivalent)) {
+                throw new IllegalArgumentException(
+                        "A re-exam grade is only allowed when the final grade is a failing mark: "
+                                + request.studentId());
+            }
+            checkRange(request.reExamPercentage(), MIN_PCT, MAX_PCT, "Re-exam percentage", request.studentId());
+            grade.setReExamPercentage(request.reExamPercentage());
+            grade.setReExamGrade(GradeEquivalent.toEquivalent(request.reExamPercentage()));
+        } else {
+            grade.setReExamPercentage(null);
+            grade.setReExamGrade(null);
+        }
+
+        grade.setRemarks(GradeEquivalent.remarkFor(GradeEquivalent.effective(grade)));
+    }
+
+    /** C / D / INC → Complete = Competent, Failure Due to Absences = Not Competent, the rest carry no remark. */
+    private static String remarkForStatus(String status) {
+        return switch (status) {
+            case "C" -> GradeEquivalent.COMPETENT;
+            case "FA" -> GradeEquivalent.NOT_COMPETENT;
+            default -> null; // INC, D
+        };
+    }
+
+    private static void checkRange(BigDecimal value, BigDecimal min, BigDecimal max, String name, String studentId) {
+        if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+            throw new IllegalArgumentException(
+                    name + " must be between " + min.toPlainString() + " and " + max.toPlainString()
+                            + " (" + studentId + "), got: " + value.toPlainString());
+        }
+    }
+
+    @Transactional
+    public void lockGrades(Integer classId) {
+        requireOwnedClass(classId);
+        LocalDateTime now = LocalDateTime.now();
+        for (Grade grade : gradeRepository.findBySchoolClassClassId(classId)) {
+            grade.setLocked(true);
+            grade.setLockedAt(now);
+            gradeRepository.save(grade);
+        }
+    }
+
+    @Transactional
+    public void unlockGrades(Integer classId) {
+        requireOwnedClass(classId);
+        for (Grade grade : gradeRepository.findBySchoolClassClassId(classId)) {
+            grade.setLocked(false);
+            grade.setLockedAt(null);
+            gradeRepository.save(grade);
+        }
+    }
+
+    // -------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------
+
+    private SchoolClass requireOwnedClass(Integer classId) {
+        SchoolClass schoolClass = classRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
+        Integer trainerId = resolveCurrentTrainerId();
+        if (schoolClass.getTrainer() == null || !schoolClass.getTrainer().getUserId().equals(trainerId)) {
+            throw new IllegalArgumentException("You are not assigned to this class");
+        }
+        return schoolClass;
     }
 
     private int nullSafeCompare(String a, String b) {
@@ -165,118 +256,6 @@ public class TrainerGradeService {
         return a.compareToIgnoreCase(b);
     }
 
-    private StudentGradeRow gradeToStudentRow(Grade grade) {
-        String studentId = grade.getStudent().getStudentId();
-        List<Grade> allStudentGrades = gradeRepository.findByStudentStudentId(studentId);
-        BigDecimal gwa = computeGwa(allStudentGrades);
-
-        return new StudentGradeRow(
-                studentId,
-                grade.getStudent().getLastName(),
-                grade.getStudent().getFirstName(),
-                grade.getStudent().getMiddleName(),
-                grade.getMidtermGrade(),
-                grade.getFinalsGrade(),
-                grade.getFinalGrade(),
-                grade.getReExamGrade(),
-                grade.getHoursStudied(),
-                grade.getRemarks(),
-                gwa,
-                grade.isLocked());
-    }
-
-    @Transactional
-    public void saveGrades(Integer classId, List<SaveGradeRequest> gradeUpdates) {
-        SchoolClass schoolClass = classRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
-
-        Integer trainerId = resolveCurrentTrainerId();
-        if (schoolClass.getTrainer() == null || !schoolClass.getTrainer().getUserId().equals(trainerId)) {
-            throw new IllegalArgumentException("You are not assigned to this class");
-        }
-
-        for (SaveGradeRequest request : gradeUpdates) {
-            // Verify student is enrolled in this class
-            if (!enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, request.studentId())) {
-                throw new IllegalArgumentException("Student not enrolled in this class: " + request.studentId());
-            }
-
-            // Find existing grade or create a new one (upsert)
-            Grade grade = gradeRepository.findBySchoolClassClassIdAndStudentStudentId(classId, request.studentId())
-                    .orElseGet(() -> {
-                        // Auto-create the grade row for this enrolled student
-                        ClassEnrollment enrollment = enrollmentRepository.findBySchoolClassClassId(classId).stream()
-                                .filter(e -> e.getStudent().getStudentId().equals(request.studentId()))
-                                .findFirst()
-                                .orElseThrow(() -> new IllegalArgumentException(
-                                        "Enrollment not found for student: " + request.studentId()));
-                        Grade newGrade = new Grade();
-                        newGrade.setStudent(enrollment.getStudent());
-                        newGrade.setSubject(schoolClass.getSubject());
-                        newGrade.setSchoolClass(schoolClass);
-                        return newGrade;
-                    });
-
-            if (grade.isLocked()) {
-                throw new IllegalArgumentException("Grade is locked and cannot be modified: " + request.studentId());
-            }
-
-            validateGradeRanges(request);
-
-            grade.setMidtermGrade(request.midtermGrade());
-            grade.setFinalsGrade(request.finalsGrade());
-            grade.setReExamGrade(request.reExamGrade());
-            grade.setHoursStudied(request.hoursStudied());
-            grade.setRemarks(request.remarks());
-            grade.setFinalGrade(computeFinalGrade(request.midtermGrade(), request.finalsGrade()));
-
-            gradeRepository.save(grade);
-        }
-    }
-
-    @Transactional
-    public void lockGrades(Integer classId) {
-        SchoolClass schoolClass = classRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
-
-        Integer trainerId = resolveCurrentTrainerId();
-        if (schoolClass.getTrainer() == null || !schoolClass.getTrainer().getUserId().equals(trainerId)) {
-            throw new IllegalArgumentException("You are not assigned to this class");
-        }
-
-        List<Grade> grades = gradeRepository.findBySchoolClassClassId(classId);
-        LocalDateTime now = LocalDateTime.now();
-
-        for (Grade grade : grades) {
-            grade.setLocked(true);
-            grade.setLockedAt(now);
-            gradeRepository.save(grade);
-        }
-    }
-
-    @Transactional
-    public void unlockGrades(Integer classId) {
-        SchoolClass schoolClass = classRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Class not found: " + classId));
-
-        Integer trainerId = resolveCurrentTrainerId();
-        if (schoolClass.getTrainer() == null || !schoolClass.getTrainer().getUserId().equals(trainerId)) {
-            throw new IllegalArgumentException("You are not assigned to this class");
-        }
-
-        List<Grade> grades = gradeRepository.findBySchoolClassClassId(classId);
-
-        for (Grade grade : grades) {
-            grade.setLocked(false);
-            grade.setLockedAt(null);
-            gradeRepository.save(grade);
-        }
-    }
-
-    /**
-     * Resolves the current authenticated trainer's user ID from the database.
-     * Uses the same proven pattern as TrainerService.resolveCurrentTrainerId().
-     */
     private Integer resolveCurrentTrainerId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {

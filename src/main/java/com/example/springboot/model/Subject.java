@@ -19,15 +19,14 @@ public class Subject {
     private String subjectName;
 
     @ManyToOne
-    @JoinColumn(name = "qualification_code", nullable = false)
+    @JoinColumn(name = "qualification_code")
     private Qualification qualification;
+
+    @Column(name = "competency_type", nullable = false, length = 15)
+    private String competencyType;
 
     @Column(name = "units", nullable = false)
     private Integer units;
-
-    @ManyToOne
-    @JoinColumn(name = "trainer_id")
-    private User trainer;
 
     public Subject() {
     }
@@ -58,19 +57,19 @@ public class Subject {
         this.qualification = qualification;
     }
 
+    public String getCompetencyType() {
+        return competencyType;
+    }
+
+    public void setCompetencyType(String competencyType) {
+        this.competencyType = competencyType;
+    }
+
     public Integer getUnits() {
         return units;
     }
 
     public void setUnits(Integer units) {
         this.units = units;
-    }
-
-    public User getTrainer() {
-        return trainer;
-    }
-
-    public void setTrainer(User trainer) {
-        this.trainer = trainer;
     }
 }

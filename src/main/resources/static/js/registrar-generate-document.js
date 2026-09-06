@@ -544,12 +544,13 @@
             html += '<tr class="section-row"><td></td><td colspan="' + (cols - 1) + '">' +
                 esc(section.label) + '</td></tr>';
             section.subjects.forEach(function (subj) {
+                // GradePart fields are pre-formatted strings from the backend:
+                // finalGrade = the 1.00–5.00 equivalent or a status code (C/FA/INC/D);
+                // reExamGrade = the equivalent or null; remarks = "Competent" / "Not Competent" / null.
                 const grade = gradesByCode[subj.code];
-                const finalGrade = grade && grade.finalGrade != null ? fmtGrade(grade.finalGrade) : '';
-                const reExam = grade && grade.reExamGrade != null ? fmtGrade(grade.reExamGrade) : '';
-                const remarks = grade
-                    ? (grade.remarks || (grade.finalGrade != null ? 'Competent' : ''))
-                    : '';
+                const finalGrade = grade && grade.finalGrade != null ? esc(String(grade.finalGrade)) : '';
+                const reExam = grade && grade.reExamGrade != null ? esc(String(grade.reExamGrade)) : '';
+                const remarks = grade && grade.remarks != null ? esc(grade.remarks) : '';
                 totalHours += parseFloat(subj.hours);
                 totalUnits += parseFloat(subj.units);
 

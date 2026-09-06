@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
@@ -100,9 +99,13 @@ public class ClassManagementController {
             HttpServletRequest httpRequest) {
         SubjectResponse result = classManagementService.updateSubject(code, request);
 
+        String logMessage = code.equals(result.subjectCode())
+                ? "Updated subject " + code
+                : "Updated subject " + code + " (renamed to " + result.subjectCode() + ")";
+
         LogContext ctx = getLogContext();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Updated subject " + code,
+                logMessage,
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(result);
@@ -119,23 +122,6 @@ public class ClassManagementController {
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
                 "Deleted subject " + code,
                 httpRequest.getRemoteAddr());
-    }
-
-    @PutMapping("/subjects/{code}/trainer")
-    public ResponseEntity<SubjectResponse> assignTrainer(
-            @PathVariable String code,
-            @RequestBody AssignTrainerRequest request,
-            HttpServletRequest httpRequest) {
-        SubjectResponse result = classManagementService.assignTrainer(code, request);
-
-        LogContext ctx = getLogContext();
-        String action = request.trainerId() != null
-                ? "Assigned trainer " + result.trainerName() + " to subject " + code
-                : "Unassigned trainer from subject " + code;
-        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                action, httpRequest.getRemoteAddr());
-
-        return ResponseEntity.ok(result);
     }
 
     // -------------------------------------------------------

@@ -33,11 +33,33 @@ public class Grade {
     @JoinColumn(name = "class_id")
     private SchoolClass schoolClass;
 
-    @Column(name = "midterm_grade", precision = 5, scale = 2)
-    private BigDecimal midtermGrade;
+    /** Raw percentage the trainer enters. Null when {@link #gradeStatus} is used instead. */
+    @Column(name = "final_percentage", precision = 5, scale = 2)
+    private BigDecimal finalPercentage;
 
-    @Column(name = "finals_grade", precision = 5, scale = 2)
-    private BigDecimal finalsGrade;
+    /** Raw percentage for the optional re-exam. Only meaningful when the final is a failing mark. */
+    @Column(name = "re_exam_percentage", precision = 5, scale = 2)
+    private BigDecimal reExamPercentage;
+
+    /** 1.00–5.00 grade equivalent, transmuted from {@link #finalPercentage}. */
+    @Column(name = "final_grade", precision = 5, scale = 2)
+    private BigDecimal finalGrade;
+
+    /** 1.00–5.00 grade equivalent, transmuted from {@link #reExamPercentage}. */
+    @Column(name = "re_exam_grade", precision = 5, scale = 2)
+    private BigDecimal reExamGrade;
+
+    /** C / FA / INC / D — a TOR status used INSTEAD of a numeric grade. Null for percentage grades. */
+    @Column(name = "grade_status", length = 5)
+    private String gradeStatus;
+
+    /** Derived token: COMPETENT / NOT_COMPETENT / null. Never entered directly by the trainer. */
+    @Column(name = "remarks", length = 20)
+    private String remarks;
+
+    /** Attendance hours (TESDA requirement); separate from the fixed curriculum hours. */
+    @Column(name = "hours_rendered", precision = 5, scale = 2)
+    private BigDecimal hoursRendered;
 
     @Column(name = "locked")
     private boolean locked = false;
@@ -45,22 +67,8 @@ public class Grade {
     @Column(name = "locked_at")
     private LocalDateTime lockedAt;
 
-    @Column(name = "final_grade", precision = 5, scale = 2)
-    private BigDecimal finalGrade;
-
-    @Column(name = "re_exam_grade", precision = 5, scale = 2)
-    private BigDecimal reExamGrade;
-
-    @Column(name = "hours_studied", precision = 5, scale = 2)
-    private BigDecimal hoursStudied;
-
-    @Column(name = "remarks")
-    private String remarks;
-
     public Grade() {
     }
-
-    // Getters and Setters
 
     public Integer getGradeId() {
         return gradeId;
@@ -86,6 +94,30 @@ public class Grade {
         this.subject = subject;
     }
 
+    public SchoolClass getSchoolClass() {
+        return schoolClass;
+    }
+
+    public void setSchoolClass(SchoolClass schoolClass) {
+        this.schoolClass = schoolClass;
+    }
+
+    public BigDecimal getFinalPercentage() {
+        return finalPercentage;
+    }
+
+    public void setFinalPercentage(BigDecimal finalPercentage) {
+        this.finalPercentage = finalPercentage;
+    }
+
+    public BigDecimal getReExamPercentage() {
+        return reExamPercentage;
+    }
+
+    public void setReExamPercentage(BigDecimal reExamPercentage) {
+        this.reExamPercentage = reExamPercentage;
+    }
+
     public BigDecimal getFinalGrade() {
         return finalGrade;
     }
@@ -102,12 +134,12 @@ public class Grade {
         this.reExamGrade = reExamGrade;
     }
 
-    public BigDecimal getHoursStudied() {
-        return hoursStudied;
+    public String getGradeStatus() {
+        return gradeStatus;
     }
 
-    public void setHoursStudied(BigDecimal hoursStudied) {
-        this.hoursStudied = hoursStudied;
+    public void setGradeStatus(String gradeStatus) {
+        this.gradeStatus = gradeStatus;
     }
 
     public String getRemarks() {
@@ -118,28 +150,12 @@ public class Grade {
         this.remarks = remarks;
     }
 
-    public SchoolClass getSchoolClass() {
-        return schoolClass;
+    public BigDecimal getHoursRendered() {
+        return hoursRendered;
     }
 
-    public void setSchoolClass(SchoolClass schoolClass) {
-        this.schoolClass = schoolClass;
-    }
-
-    public BigDecimal getMidtermGrade() {
-        return midtermGrade;
-    }
-
-    public void setMidtermGrade(BigDecimal midtermGrade) {
-        this.midtermGrade = midtermGrade;
-    }
-
-    public BigDecimal getFinalsGrade() {
-        return finalsGrade;
-    }
-
-    public void setFinalsGrade(BigDecimal finalsGrade) {
-        this.finalsGrade = finalsGrade;
+    public void setHoursRendered(BigDecimal hoursRendered) {
+        this.hoursRendered = hoursRendered;
     }
 
     public boolean isLocked() {

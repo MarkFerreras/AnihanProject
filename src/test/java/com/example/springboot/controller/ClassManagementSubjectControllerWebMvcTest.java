@@ -37,13 +37,13 @@ class ClassManagementSubjectControllerWebMvcTest {
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void postSubjectsCreatesAndLogs() throws Exception {
-        var resp = new SubjectResponse("CK-101", "Basic Cookery", "Cookery NC II", 3, null, null);
+        var resp = new SubjectResponse("CK-101", "Basic Cookery", "CORE", 1, "Cookery NC II", 3, java.util.List.of());
         when(service.createSubject(any())).thenReturn(resp);
 
         mvc.perform(post("/api/registrar/subjects").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","qualificationCode":1,"units":3}
+                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","competencyType":"CORE","qualificationCode":1,"units":3}
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.subjectCode").value("CK-101"));
@@ -58,27 +58,95 @@ class ClassManagementSubjectControllerWebMvcTest {
         mvc.perform(post("/api/registrar/subjects").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"subjectCode":"","subjectName":"Basic Cookery","qualificationCode":1,"units":3}
+                        {"subjectCode":"","subjectName":"Basic Cookery","competencyType":"CORE","qualificationCode":1,"units":3}
                         """))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
-    void putSubjectUpdatesAndLogs() throws Exception {
-        var resp = new SubjectResponse("CK-101", "Updated", "Cookery NC II", 4, null, null);
+    void postSubjectsRejectsMissingCompetencyType() throws Exception {
+        mvc.perform(post("/api/registrar/subjects").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","qualificationCode":1,"units":3}
+                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void postSubjectsRejectsInvalidCompetencyType() throws Exception {
+        mvc.perform(post("/api/registrar/subjects").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"subjectCode":"CK-101","subjectName":"Basic Cookery","competencyType":"SPECIALIZED","qualificationCode":1,"units":3}
+                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void postSubjectsAllowsBasicSubjectWithNoQualificationCode() throws Exception {
+        // Bean Validation alone must accept a Basic subject with no qualificationCode —
+        // the CORE-requires-qualification rule is enforced in the service, not here.
+        var resp = new SubjectResponse("BFS-100", "Basic Food Safety", "BASIC", null, null, 1, java.util.List.of());
+        when(service.createSubject(any())).thenReturn(resp);
+
+        mvc.perform(post("/api/registrar/subjects").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"subjectCode":"BFS-100","subjectName":"Basic Food Safety","competencyType":"BASIC","units":1}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.competencyType").value("BASIC"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void putSubjectUpdatesAndLogsWithoutRename() throws Exception {
+        var resp = new SubjectResponse("CK-101", "Updated", "CORE", 1, "Cookery NC II", 4, java.util.List.of());
         when(service.updateSubject(eq("CK-101"), any())).thenReturn(resp);
 
         mvc.perform(put("/api/registrar/subjects/CK-101").with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"subjectName":"Updated","qualificationCode":1,"units":4}
+                        {"subjectCode":"CK-101","subjectName":"Updated","competencyType":"CORE","qualificationCode":1,"units":4}
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.subjectName").value("Updated"));
 
         verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
-                contains("Updated subject"), any());
+                eq("Updated subject CK-101"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void putSubjectRejectsBlankSubjectCode() throws Exception {
+        mvc.perform(put("/api/registrar/subjects/CK-101").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"subjectCode":"","subjectName":"Updated","competencyType":"CORE","qualificationCode":1,"units":4}
+                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void putSubjectRenameLogsOldAndNewCode() throws Exception {
+        var resp = new SubjectResponse("CK-101-NEW", "Updated", "CORE", 1, "Cookery NC II", 4, java.util.List.of());
+        when(service.updateSubject(eq("CK-101"), any())).thenReturn(resp);
+
+        mvc.perform(put("/api/registrar/subjects/CK-101").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"subjectCode":"CK-101-NEW","subjectName":"Updated","competencyType":"CORE","qualificationCode":1,"units":4}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subjectCode").value("CK-101-NEW"));
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Updated subject CK-101 (renamed to CK-101-NEW)"), any());
     }
 
     @Test

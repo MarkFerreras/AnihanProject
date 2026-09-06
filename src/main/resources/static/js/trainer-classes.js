@@ -7,6 +7,47 @@ $(function () {
     let gradesLocked = false;
     const classRosterModal = new bootstrap.Modal(document.getElementById('classRosterModal'));
 
+    const STATUS_OPTIONS = [
+        { code: '', label: '—' },
+        { code: 'C', label: 'Complete' },
+        { code: 'FA', label: 'Failure Due to Absences' },
+        { code: 'INC', label: 'Incomplete' },
+        { code: 'D', label: 'Dropped' }
+    ];
+
+    // Mirror of GradeEquivalent.toEquivalent — bands read as ">= lower bound".
+    function toEquivalent(pct) {
+        if (pct === '' || pct === null || pct === undefined || isNaN(pct)) return null;
+        const p = parseFloat(pct);
+        if (p < 0 || p > 100) return null;
+        if (p >= 99) return '1.00';
+        if (p >= 96) return '1.25';
+        if (p >= 93) return '1.50';
+        if (p >= 90) return '1.75';
+        if (p >= 87) return '2.00';
+        if (p >= 84) return '2.25';
+        if (p >= 81) return '2.50';
+        if (p >= 78) return '2.75';
+        if (p >= 75) return '3.00';
+        if (p >= 70) return '4.00';
+        return '5.00';
+    }
+
+    function isFailingEquiv(equiv) {
+        return equiv !== null && parseFloat(equiv) > 3.0;
+    }
+
+    function remarkLabel(finalEquiv, reExamEquiv, statusCode) {
+        if (statusCode) {
+            if (statusCode === 'C') return 'Competent';
+            if (statusCode === 'FA') return 'Not Competent';
+            return '';
+        }
+        if (finalEquiv === null) return '';
+        const effective = (reExamEquiv !== null && isFailingEquiv(finalEquiv)) ? reExamEquiv : finalEquiv;
+        return parseFloat(effective) <= 3.0 ? 'Competent' : 'Not Competent';
+    }
+
     classesTable = $('#classesTable').DataTable({
         ajax: {
             url: '/api/trainer/classes',
@@ -21,10 +62,7 @@ $(function () {
             { data: 'sectionName' },
             { data: 'subjectCode' },
             { data: 'subjectName' },
-            {
-                data: 'courseName',
-                render: val => val || '<em class="text-muted">Not Available</em>'
-            },
+            { data: 'courseName', render: val => val || '<em class="text-muted">Not Available</em>' },
             { data: 'enrolledCount' },
             {
                 data: null,
@@ -50,7 +88,7 @@ $(function () {
         $('#classRosterModalLabel').text('Grade Input — ' + subjectName);
         $('#classRosterSubtitle').text(sectionName + ' | Semester: ' + (semester || 'N/A'));
         $('#gradeInputAlert').addClass('d-none').attr('class', 'd-none');
-        clearGradeInputTable();
+        $('#gradeInputTable tbody').empty();
         classRosterModal.show();
 
         $.ajax({
@@ -63,10 +101,7 @@ $(function () {
                 updateGradeActionButtons();
             },
             error: function (xhr) {
-                const msg = xhr.responseJSON && xhr.responseJSON.message
-                    ? xhr.responseJSON.message
-                    : 'Failed to load grades.';
-                showAlert(msg, 'danger');
+                showAlert(gradeErrorMessage(xhr, 'Failed to load grades.'), 'danger');
             }
         });
     }
@@ -74,60 +109,95 @@ $(function () {
     function buildGradeInputTable() {
         const tbody = $('#gradeInputTable tbody');
         tbody.empty();
+
         currentGrades.forEach(function (student) {
-            const row = $('<tr>');
+            const row = $('<tr>').data('studentId', student.studentId);
             row.append($('<td>').text(student.studentId));
             row.append($('<td>').text(student.lastName || '—'));
             row.append($('<td>').text(student.firstName || '—'));
-            row.append($('<td>').append(
-                $('<input>').attr('type', 'number').attr('step', '0.01').attr('min', '1').attr('max', '5')
-                    .attr('placeholder', '1.0–5.0').attr('data-field', 'midtermGrade')
-                    .addClass('form-control form-control-sm grade-input').val(student.midtermGrade || '')
-                    .prop('disabled', gradesLocked)
-            ));
-            row.append($('<td>').append(
-                $('<input>').attr('type', 'number').attr('step', '0.01').attr('min', '1').attr('max', '5')
-                    .attr('placeholder', '1.0–5.0').attr('data-field', 'finalsGrade')
-                    .addClass('form-control form-control-sm grade-input').val(student.finalsGrade || '')
-                    .prop('disabled', gradesLocked)
-            ));
-            row.append($('<td>').append(
-                $('<input>').attr('type', 'number').attr('step', '0.01').attr('min', '1').attr('max', '5')
-                    .attr('placeholder', '1.0–5.0 (opt)').attr('data-field', 'reExamGrade')
-                    .addClass('form-control form-control-sm grade-input').val(student.reExamGrade || '')
-                    .prop('disabled', gradesLocked)
-            ));
-            row.append($('<td>').append(
-                $('<input>').attr('type', 'number').attr('step', '0.01').attr('min', '0').attr('max', '9.99')
-                    .attr('placeholder', '0–9.99 (opt)').attr('data-field', 'hoursStudied')
-                    .addClass('form-control form-control-sm grade-input').val(student.hoursStudied || '')
-                    .prop('disabled', gradesLocked)
-            ));
-            row.append($('<td>').append(
-                $('<input>').attr('type', 'text').attr('placeholder', 'Max 255 chars (opt)')
-                    .attr('data-field', 'remarks').attr('maxlength', '255')
-                    .addClass('form-control form-control-sm grade-input').val(student.remarks || '')
-                    .prop('disabled', gradesLocked)
-            ));
-            row.data('studentId', student.studentId);
+
+            const finalPctInput = $('<input>')
+                .attr({ type: 'number', step: '0.01', min: '0', max: '100', placeholder: '0–100' })
+                .addClass('form-control form-control-sm grade-final-pct')
+                .val(student.finalPercentage != null ? student.finalPercentage : '')
+                .prop('disabled', gradesLocked);
+            row.append($('<td>').append(finalPctInput));
+
+            const statusSelect = $('<select>')
+                .addClass('form-select form-select-sm grade-status')
+                .prop('disabled', gradesLocked);
+            STATUS_OPTIONS.forEach(function (o) {
+                statusSelect.append($('<option>').val(o.code).text(o.label));
+            });
+            statusSelect.val(student.gradeStatus || '');
+            row.append($('<td>').append(statusSelect));
+
+            row.append($('<td>').append($('<span>').addClass('grade-equiv text-muted')));
+
+            const reExamPctInput = $('<input>')
+                .attr({ type: 'number', step: '0.01', min: '0', max: '100', placeholder: '0–100' })
+                .addClass('form-control form-control-sm grade-reexam-pct')
+                .val(student.reExamPercentage != null ? student.reExamPercentage : '')
+                .prop('disabled', gradesLocked);
+            row.append($('<td>').append(reExamPctInput));
+
+            row.append($('<td>').append($('<span>').addClass('grade-reexam-equiv text-muted')));
+            row.append($('<td>').append($('<span>').addClass('grade-remark')));
+
+            const hoursInput = $('<input>')
+                .attr({ type: 'number', step: '0.01', min: '0', max: '100', placeholder: '0–100' })
+                .addClass('form-control form-control-sm grade-hours')
+                .val(student.hoursRendered != null ? student.hoursRendered : '')
+                .prop('disabled', gradesLocked);
+            row.append($('<td>').append(hoursInput));
+
             tbody.append(row);
+            refreshRow(row);
         });
+
+        tbody.off('input.grade change.grade')
+            .on('input.grade change.grade', 'input, select', function () {
+                refreshRow($(this).closest('tr'));
+            });
     }
 
-    function clearGradeInputTable() {
-        $('#gradeInputTable tbody').empty();
+    // Recompute the derived cells for one row and enforce percentage <-> status exclusivity.
+    function refreshRow(row) {
+        const finalPct = row.find('.grade-final-pct').val();
+        const statusSel = row.find('.grade-status');
+        const status = statusSel.val();
+        const reExamPct = row.find('.grade-reexam-pct').val();
+
+        const usingStatus = status !== '';
+        const usingPct = finalPct !== '' && !usingStatus;
+
+        // Exclusivity: a chosen status disables the percentage inputs, and vice versa.
+        row.find('.grade-final-pct').prop('disabled', gradesLocked || usingStatus);
+        statusSel.prop('disabled', gradesLocked || (finalPct !== '' && !usingStatus));
+
+        const finalEquiv = usingPct ? toEquivalent(finalPct) : null;
+        row.find('.grade-equiv').text(finalEquiv !== null ? finalEquiv : (usingStatus ? status : '—'))
+            .toggleClass('text-danger', finalEquiv !== null && isFailingEquiv(finalEquiv));
+
+        // Re-exam column only when the final is a failing mark.
+        const reExamCell = row.find('.grade-reexam-pct').closest('td');
+        const reExamEquivCell = row.find('.grade-reexam-equiv').closest('td');
+        const showReExam = finalEquiv !== null && isFailingEquiv(finalEquiv);
+        reExamCell.css('visibility', showReExam ? 'visible' : 'hidden');
+        reExamEquivCell.css('visibility', showReExam ? 'visible' : 'hidden');
+        if (!showReExam) {
+            row.find('.grade-reexam-pct').val('');
+        }
+        const reExamEquiv = showReExam ? toEquivalent(reExamPct) : null;
+        row.find('.grade-reexam-equiv').text(reExamEquiv !== null ? reExamEquiv : '');
+
+        row.find('.grade-remark').text(remarkLabel(finalEquiv, reExamEquiv, usingStatus ? status : ''));
     }
 
     function updateGradeActionButtons() {
-        if (gradesLocked) {
-            $('#lockGradesBtn').prop('disabled', true).addClass('disabled');
-            $('#unlockGradesBtn').prop('disabled', false).removeClass('disabled');
-            $('#saveGradesBtn').prop('disabled', true).addClass('disabled');
-        } else {
-            $('#lockGradesBtn').prop('disabled', false).removeClass('disabled');
-            $('#unlockGradesBtn').prop('disabled', true).addClass('disabled');
-            $('#saveGradesBtn').prop('disabled', false).removeClass('disabled');
-        }
+        $('#lockGradesBtn').prop('disabled', gradesLocked).toggleClass('disabled', gradesLocked);
+        $('#saveGradesBtn').prop('disabled', gradesLocked).toggleClass('disabled', gradesLocked);
+        $('#unlockGradesBtn').prop('disabled', !gradesLocked).toggleClass('disabled', !gradesLocked);
     }
 
     function collectGradeUpdates() {
@@ -135,23 +205,22 @@ $(function () {
         $('#gradeInputTable tbody tr').each(function () {
             const row = $(this);
             const studentId = row.data('studentId');
-            const midtermGrade = row.find('[data-field="midtermGrade"]').val();
-            const finalsGrade = row.find('[data-field="finalsGrade"]').val();
-            const reExamGrade = row.find('[data-field="reExamGrade"]').val();
-            const hoursStudied = row.find('[data-field="hoursStudied"]').val();
-            const remarks = row.find('[data-field="remarks"]').val();
+            const finalPct = row.find('.grade-final-pct').val();
+            const status = row.find('.grade-status').val();
+            const reExamPct = row.find('.grade-reexam-pct').val();
+            const hours = row.find('.grade-hours').val();
 
-            // Only include rows where at least one grade field is filled
-            if (midtermGrade || finalsGrade || reExamGrade || hoursStudied || remarks) {
-                updates.push({
-                    studentId: studentId,
-                    midtermGrade: midtermGrade ? parseFloat(midtermGrade) : null,
-                    finalsGrade: finalsGrade ? parseFloat(finalsGrade) : null,
-                    reExamGrade: reExamGrade ? parseFloat(reExamGrade) : null,
-                    hoursStudied: hoursStudied ? parseFloat(hoursStudied) : null,
-                    remarks: remarks || null
-                });
+            // A row is only submitted when it has been graded (percentage or status).
+            if (finalPct === '' && status === '') {
+                return;
             }
+            updates.push({
+                studentId: studentId,
+                finalPercentage: status === '' && finalPct !== '' ? parseFloat(finalPct) : null,
+                gradeStatus: status !== '' ? status : null,
+                reExamPercentage: status === '' && reExamPct !== '' ? parseFloat(reExamPct) : null,
+                hoursRendered: hours !== '' ? parseFloat(hours) : null
+            });
         });
         return updates;
     }
@@ -159,7 +228,13 @@ $(function () {
     function saveGrades() {
         const updates = collectGradeUpdates();
         if (updates.length === 0) {
-            showAlert('No grade data entered. Please fill in at least Midterm or Finals for one student.', 'warning');
+            showAlert('No grades entered. Fill in a Final % or a Status for at least one student.', 'warning');
+            return;
+        }
+        const missingHours = updates.filter(u => u.hoursRendered === null || isNaN(u.hoursRendered));
+        if (missingHours.length > 0) {
+            showAlert('Hours Rendered is required for every graded student (' +
+                missingHours.map(u => u.studentId).join(', ') + ').', 'warning');
             return;
         }
         $.ajax({
@@ -169,7 +244,6 @@ $(function () {
             data: JSON.stringify(updates),
             success: function () {
                 showAlert('Grades saved successfully.', 'success');
-                // Reload grade data to show computed final grades
                 $.ajax({
                     url: '/api/trainer/classes/' + encodeURIComponent(currentClassId) + '/grades',
                     method: 'GET',
@@ -182,10 +256,7 @@ $(function () {
                 });
             },
             error: function (xhr) {
-                const msg = xhr.responseJSON && xhr.responseJSON.message
-                    ? xhr.responseJSON.message
-                    : 'Failed to save grades.';
-                showAlert(msg, 'danger');
+                showAlert(gradeErrorMessage(xhr, 'Failed to save grades.'), 'danger');
             }
         });
     }
@@ -197,14 +268,11 @@ $(function () {
             success: function () {
                 gradesLocked = true;
                 updateGradeActionButtons();
-                $('#gradeInputTable tbody tr').find('.grade-input').prop('disabled', true);
+                $('#gradeInputTable tbody :input').prop('disabled', true);
                 showAlert('Grades locked successfully.', 'success');
             },
             error: function (xhr) {
-                const msg = xhr.responseJSON && xhr.responseJSON.message
-                    ? xhr.responseJSON.message
-                    : 'Failed to lock grades.';
-                showAlert(msg, 'danger');
+                showAlert(gradeErrorMessage(xhr, 'Failed to lock grades.'), 'danger');
             }
         });
     }
@@ -216,30 +284,27 @@ $(function () {
             success: function () {
                 gradesLocked = false;
                 updateGradeActionButtons();
-                $('#gradeInputTable tbody tr').find('.grade-input').prop('disabled', false);
+                buildGradeInputTable();
                 showAlert('Grades unlocked successfully.', 'success');
             },
             error: function (xhr) {
-                const msg = xhr.responseJSON && xhr.responseJSON.message
-                    ? xhr.responseJSON.message
-                    : 'Failed to unlock grades.';
-                showAlert(msg, 'danger');
+                showAlert(gradeErrorMessage(xhr, 'Failed to unlock grades.'), 'danger');
             }
         });
     }
 
+    function gradeErrorMessage(xhr, fallback) {
+        return xhr && xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : fallback;
+    }
+
     function showAlert(message, type) {
-        const alertElement = $('#gradeInputAlert');
-        alertElement.removeClass('d-none alert-danger alert-success alert-warning alert-info');
-        alertElement.addClass('alert-' + type);
-        alertElement.text(message);
+        const el = $('#gradeInputAlert');
+        el.removeClass('d-none alert-danger alert-success alert-warning alert-info');
+        el.addClass('alert alert-' + type);
+        el.text(message);
     }
 
     $('#saveGradesBtn').on('click', saveGrades);
     $('#lockGradesBtn').on('click', lockGrades);
     $('#unlockGradesBtn').on('click', unlockGrades);
-
-    $('#classRosterModal').on('shown.bs.modal', function () {
-        // Modal shown
-    });
 });

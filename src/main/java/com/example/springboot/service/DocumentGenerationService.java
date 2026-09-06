@@ -13,6 +13,7 @@ import com.example.springboot.dto.registrar.DocumentGenerateDataResponse.OjtPart
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse.ParentPart;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse.StudentPart;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse.TesdaPart;
+import com.example.springboot.model.Grade;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.repository.GradeRepository;
@@ -88,11 +89,34 @@ public class DocumentGenerationService {
                 .orElse(null);
 
         List<GradePart> grades = gradeRepository.findByStudentStudentId(studentId).stream()
-                .map(g -> new GradePart(g.getSubject().getSubjectCode(), g.getFinalGrade(),
-                        g.getReExamGrade(), g.getHoursStudied(), g.getRemarks()))
+                .map(g -> new GradePart(
+                        g.getSubject().getSubjectCode(),
+                        gradeCell(g),
+                        g.getReExamGrade() != null ? g.getReExamGrade().toPlainString() : null,
+                        remarkLabel(g.getRemarks())))
                 .toList();
 
         return new DocumentGenerateDataResponse(student, parents, education, tesda, ojt, grades);
+    }
+
+    /** The printed FINAL cell: a status code when present, otherwise the equivalent as a string. */
+    private static String gradeCell(Grade g) {
+        if (g.getGradeStatus() != null && !g.getGradeStatus().isBlank()) {
+            return g.getGradeStatus();
+        }
+        return g.getFinalGrade() != null ? g.getFinalGrade().toPlainString() : null;
+    }
+
+    /** Maps the stored remark token to the label printed in the Remarks column. */
+    private static String remarkLabel(String token) {
+        if (token == null) {
+            return null;
+        }
+        return switch (token) {
+            case "COMPETENT" -> "Competent";
+            case "NOT_COMPETENT" -> "Not Competent";
+            default -> null;
+        };
     }
 
     private static String parentFullName(Parent p) {

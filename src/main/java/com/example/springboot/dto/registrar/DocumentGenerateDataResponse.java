@@ -53,7 +53,14 @@ public record DocumentGenerateDataResponse(
     public record OjtPart(String companyName, String companyAddress, BigDecimal hoursRendered) {
     }
 
-    public record GradePart(String subjectCode, BigDecimal finalGrade, BigDecimal reExamGrade,
-                            BigDecimal hoursStudied, String remarks) {
+    /**
+     * One graded subject for the document tables. {@code finalGrade} is the
+     * printed FINAL cell — the 1.00–5.00 equivalent as a string, or a status
+     * code (C / FA / INC / D). {@code reExamGrade} is the equivalent string or
+     * null. {@code remarks} is the human label (Competent / Not Competent) or
+     * null. Attendance hours are internal and are not carried here — the
+     * document's HOURS column comes from the fixed curriculum.
+     */
+    public record GradePart(String subjectCode, String finalGrade, String reExamGrade, String remarks) {
     }
 }

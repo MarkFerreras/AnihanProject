@@ -2,13 +2,16 @@ package com.example.springboot.service;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.springboot.dto.registrar.AssignTrainerRequest;
 import com.example.springboot.dto.registrar.ClassResponse;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
@@ -46,8 +49,9 @@ import com.example.springboot.repository.SubjectRepository;
 import com.example.springboot.repository.UserRepository;
 
 /**
- * Service handling Subjects (trainer assignment), Classes (CRUD + enrollment),
- * and Sections (CRUD) for the registrar portal.
+ * Service handling Subjects (CRUD), Classes (CRUD + trainer assignment +
+ * enrollment), and Sections (CRUD) for the registrar portal. Trainer assignment
+ * is class-level only — see {@code decisions.md} (2026-08-27).
  */
 @Service
 public class ClassManagementService {
@@ -87,8 +91,20 @@ public class ClassManagementService {
     // -------------------------------------------------------
 
     public List<SubjectResponse> getAllSubjects() {
+        // Trainer assignment lives on classes, not subjects. A subject's
+        // "trainers" is therefore the distinct set of trainers across its
+        // classes — derived here rather than stored.
+        Map<String, Set<String>> trainersBySubject = new HashMap<>();
+        for (SchoolClass c : classRepository.findByTrainerIsNotNull()) {
+            String name = c.getTrainer().getLastName() + ", " + c.getTrainer().getFirstName();
+            trainersBySubject
+                    .computeIfAbsent(c.getSubject().getSubjectCode(), k -> new TreeSet<>())
+                    .add(name);
+        }
+
         return subjectRepository.findAll().stream()
-                .map(SubjectResponse::from)
+                .map(s -> SubjectResponse.from(s,
+                        List.copyOf(trainersBySubject.getOrDefault(s.getSubjectCode(), Set.of()))))
                 .collect(Collectors.toList());
     }
 
@@ -104,13 +120,13 @@ public class ClassManagementService {
         if (subjectRepository.existsById(code)) {
             throw new IllegalArgumentException("Subject code already exists: " + code);
         }
-        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Qualification not found: " + request.qualificationCode()));
+        Qualification qualification = resolveQualificationForCompetencyType(
+                request.competencyType(), request.qualificationCode());
 
         Subject subject = new Subject();
         subject.setSubjectCode(code);
         subject.setSubjectName(request.subjectName().trim());
+        subject.setCompetencyType(request.competencyType());
         subject.setQualification(qualification);
         subject.setUnits(request.units());
 
@@ -120,19 +136,55 @@ public class ClassManagementService {
 
     @Transactional
     public SubjectResponse updateSubject(String subjectCode, UpdateSubjectRequest request) {
-        Subject subject = subjectRepository.findById(subjectCode)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
+        if (!subjectRepository.existsById(subjectCode)) {
+            throw new IllegalArgumentException("Subject not found: " + subjectCode);
+        }
 
-        Qualification qualification = qualificationRepository.findById(request.qualificationCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Qualification not found: " + request.qualificationCode()));
+        String newCode = request.subjectCode().trim();
+        String effectiveCode = subjectCode;
+        if (!newCode.equals(subjectCode)) {
+            if (subjectRepository.existsById(newCode)) {
+                throw new IllegalArgumentException("Subject code already exists: " + newCode);
+            }
+            // subjectCode is the @Id — a managed entity's identity can't be
+            // changed via setter + save(). Rename via a direct bulk UPDATE;
+            // the ON UPDATE CASCADE foreign keys on classes/grades then
+            // repoint every referencing row automatically.
+            subjectRepository.renameSubjectCode(subjectCode, newCode);
+            effectiveCode = newCode;
+        }
+
+        String lookupCode = effectiveCode;
+        Subject subject = subjectRepository.findById(lookupCode)
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + lookupCode));
+
+        Qualification qualification = resolveQualificationForCompetencyType(
+                request.competencyType(), request.qualificationCode());
 
         subject.setSubjectName(request.subjectName().trim());
+        subject.setCompetencyType(request.competencyType());
         subject.setQualification(qualification);
         subject.setUnits(request.units());
 
         Subject saved = subjectRepository.save(subject);
         return SubjectResponse.from(saved);
+    }
+
+    /**
+     * CORE subjects are qualification-specific and must resolve a real
+     * qualification. BASIC/COMMON subjects are shared across all qualifications
+     * and are never tied to one — any qualificationCode submitted for them is
+     * ignored so the subject is saved with no qualification.
+     */
+    private Qualification resolveQualificationForCompetencyType(String competencyType, Integer qualificationCode) {
+        if (!"CORE".equals(competencyType)) {
+            return null;
+        }
+        if (qualificationCode == null) {
+            throw new IllegalArgumentException("Qualification is required for Core subjects.");
+        }
+        return qualificationRepository.findById(qualificationCode)
+                .orElseThrow(() -> new IllegalArgumentException("Qualification not found: " + qualificationCode));
     }
 
     @Transactional
@@ -150,29 +202,6 @@ public class ClassManagementService {
                     "Cannot delete subject: grades have already been recorded under it.");
         }
         subjectRepository.deleteById(subjectCode);
-    }
-
-    @Transactional
-    public SubjectResponse assignTrainer(String subjectCode, AssignTrainerRequest request) {
-        Subject subject = subjectRepository.findById(subjectCode)
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectCode));
-
-        if (request.trainerId() == null) {
-            subject.setTrainer(null);
-        } else {
-            User trainer = userRepository.findById(request.trainerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Trainer not found: " + request.trainerId()));
-            if (!"ROLE_TRAINER".equals(trainer.getRole())) {
-                throw new IllegalArgumentException("User is not a trainer: " + trainer.getUsername());
-            }
-            if (!Boolean.TRUE.equals(trainer.getEnabled())) {
-                throw new IllegalArgumentException("Trainer account is disabled: " + trainer.getUsername());
-            }
-            subject.setTrainer(trainer);
-        }
-
-        subjectRepository.save(subject);
-        return SubjectResponse.from(subject);
     }
 
     // -------------------------------------------------------

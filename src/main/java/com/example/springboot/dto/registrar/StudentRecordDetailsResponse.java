@@ -1,5 +1,6 @@
 package com.example.springboot.dto.registrar;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -42,7 +43,8 @@ public record StudentRecordDetailsResponse(
         List<SchoolYearDto> schoolYears,
         ParentDto father,
         ParentDto mother,
-        GuardianDto guardian
+        GuardianDto guardian,
+        BigDecimal totalGwa
 ) {
 
     public static StudentRecordDetailsResponse from(StudentRecord r,
@@ -51,7 +53,8 @@ public record StudentRecordDetailsResponse(
                                                     List<SchoolYearDto> schoolYears,
                                                     ParentDto father,
                                                     ParentDto mother,
-                                                    GuardianDto guardian) {
+                                                    GuardianDto guardian,
+                                                    BigDecimal totalGwa) {
         return new StudentRecordDetailsResponse(
                 r.getRecordId(),
                 r.getStudentId(),
@@ -84,18 +87,29 @@ public record StudentRecordDetailsResponse(
                 schoolYears != null ? schoolYears : List.of(),
                 father,
                 mother,
-                guardian
+                guardian,
+                totalGwa
         );
     }
 
     public static StudentRecordDetailsResponse from(StudentRecord r,
                                                     OjtDto ojt,
                                                     List<TesdaQualDto> tesdaQualifications,
+                                                    List<SchoolYearDto> schoolYears,
+                                                    ParentDto father,
+                                                    ParentDto mother,
+                                                    GuardianDto guardian) {
+        return from(r, ojt, tesdaQualifications, schoolYears, father, mother, guardian, null);
+    }
+
+    public static StudentRecordDetailsResponse from(StudentRecord r,
+                                                    OjtDto ojt,
+                                                    List<TesdaQualDto> tesdaQualifications,
                                                     List<SchoolYearDto> schoolYears) {
-        return from(r, ojt, tesdaQualifications, schoolYears, null, null, null);
+        return from(r, ojt, tesdaQualifications, schoolYears, null, null, null, null);
     }
 
     public static StudentRecordDetailsResponse from(StudentRecord r) {
-        return from(r, null, List.of(), List.of(), null, null, null);
+        return from(r, null, List.of(), List.of(), null, null, null, null);
     }
 }
