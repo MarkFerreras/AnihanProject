@@ -129,8 +129,11 @@ public class ClassManagementController {
     // -------------------------------------------------------
 
     @GetMapping("/trainers")
-    public ResponseEntity<List<TrainerResponse>> listTrainers() {
-        return ResponseEntity.ok(classManagementService.getActiveTrainers());
+    public ResponseEntity<List<TrainerResponse>> listTrainers(
+            @RequestParam(value = "includeDisabled", defaultValue = "false") boolean includeDisabled) {
+        return ResponseEntity.ok(includeDisabled
+                ? classManagementService.getAllTrainers()
+                : classManagementService.getActiveTrainers());
     }
 
     // -------------------------------------------------------

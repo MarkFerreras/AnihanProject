@@ -214,6 +214,18 @@ public class ClassManagementService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * All trainers, enabled and deactivated, each flagged via
+     * {@link TrainerResponse#enabled()}. Used by the Edit Trainer dropdown so a
+     * class whose trainer was deactivated still shows its current assignment and
+     * the registrar can replace it.
+     */
+    public List<TrainerResponse> getAllTrainers() {
+        return userRepository.findByRole("ROLE_TRAINER").stream()
+                .map(TrainerResponse::from)
+                .collect(Collectors.toList());
+    }
+
     // -------------------------------------------------------
     // Classes
     // -------------------------------------------------------

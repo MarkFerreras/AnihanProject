@@ -1,6 +1,6 @@
 # Known Bugs & Technical Debt — Anihan SRMS
 
-> **Last updated:** August 29, 2026
+> **Last updated:** September 6, 2026
 
 ## Fixed Bugs (one-line summary)
 
@@ -10,6 +10,7 @@
 - **Bug 6** ✅ Duplicate `requestMatchers` rules in `SecurityConfig` — consolidated into one block. (2026-04-30)
 - **Bug 7** ✅ `saveDraft()` failure swallowed before submit — refactored to return `boolean`; submit blocks on failure. (2026-04-30) — *Note: `saveDraft()` was later removed entirely on 2026-05-05; see RC-2 in changeLog.*
 - **Bug 8** ✅ Subjects page 500 (`GET /api/registrar/subjects` → `Unknown column 'trainer_id'`, DataTables "Ajax error"). The `Subject` entity mapped `subjects.trainer_id` but the drifted local DB had no such column (rebuilt from a pre-2026-05-09 snapshot). **Fixed by choosing Model 1** (trainer assignment is class-level only) rather than restoring the column: dropped `subjects.trainer_id` + the whole subject-trainer feature; the Subjects page now shows a derived read-only "Trainer(s)" column. Migration `2026-08-29-drop-subjects-trainer-id.sql`. See `changeLog.md` / `decisions.md` (2026-08-29). (2026-08-29)
+- **Bug 9** ✅ Trainer hard-delete was unguarded — could null `classes.trainer_id` and orphan classes holding locked grades (no trainer could ever unlock them). `AdminService.hardDeleteUser` now **blocks** (400) a `ROLE_TRAINER` delete when they hold locked grades; otherwise it proceeds and the count of unassigned classes is logged. `softDeleteUser` returns a non-blocking "still assigned to N class(es)" warning. Edit Trainer dropdown shows deactivated trainers (`/trainers?includeDisabled=true`). `AdminServiceTest` +5, `AdminControllerWebMvcTest` +3; suite 340/0. See full Resolution note under Open Bugs. (2026-09-06)
 - **Merge integration (2026-09-06)** ✅ After merging grade_input_fix + student-ID-number: StudentRecordDetailsResponse arity mismatch in RegistrarStudentNumberControllerWebMvcTest, and a missing @Mock GradeRepository in RegistrarStudentNumberServiceTest (7 NPEs). Both fixed test-only (1916904, fec8004). Suite: 332 tests, 0 failures.
 
 ## Open Bugs
@@ -46,10 +47,38 @@
   + `RegistrarService` + the detail card, and `GradeEquivalent.gwa` becomes dead
   code. No migration needed (GWA is computed on read, never stored).
 
-### Bug 9 — Trainer (user) hard-delete is silent, unguarded, and can orphan classes/locked grades 🟡→🔴
-- **Severity:** Medium today (0 classes/grades), High once real classes exist ·
-  **Status:** Open — analysis complete, solution proposed below, not implemented ·
-  **Logged:** 2026-08-29
+### Bug 9 — Trainer (user) hard-delete is silent, unguarded, and can orphan classes/locked grades ✅ RESOLVED
+- **Severity:** was Medium→High · **Status:** ✅ Resolved 2026-09-06 (kept here for
+  traceability; see Resolution) · **Logged:** 2026-08-29
+- **Resolution (2026-09-06) — proposal points 1, 2, 3 & 5; point 4 out of scope:**
+  - `AdminService.hardDeleteUser` **blocks** with `IllegalArgumentException` → HTTP
+    400 when a `ROLE_TRAINER` has locked grades in ≥1 of their classes
+    (*"This trainer has locked grades in N class(es). Deactivate the account
+    instead, or reassign those classes first."*) — nothing is deleted and **no
+    `system_logs` row is written**. New native query
+    `GradeRepository.countLockedGradeClassesByTrainerId`.
+  - With no locked grades the hard-delete proceeds and returns the number of
+    classes the DB `ON DELETE SET NULL` just unassigned; `AdminController` appends
+    *"(unassigned from N class(es))"* to the audit message and the response tells
+    the admin those classes now have no trainer.
+  - `AdminService.softDeleteUser` stays **non-blocking** but returns how many
+    classes the deactivated trainer remains trainer-of-record for; the endpoint
+    logs *"(still trainer-of-record on N class(es))"* and the JSON response
+    carries a `warning` flag that `admin-users.js` renders as a held warning
+    banner.
+  - Edit Trainer dropdown: `GET /api/registrar/trainers?includeDisabled=true`
+    (`ClassManagementService.getAllTrainers`, `TrainerResponse.enabled`) so a
+    class whose trainer was deactivated still shows its current assignment,
+    labelled "(deactivated)". Create Class dropdown is unchanged (active only).
+  - Tests: `AdminServiceTest` +5, `AdminControllerWebMvcTest` +3 — full suite
+    **340 tests, 0 failures**. The guard's native query was run against the live
+    MySQL schema to confirm it is valid.
+  - **Follow-ups deliberately NOT done:** (a) proposal point 4 — a registrar
+    view/filter for "classes with no trainer" so orphaned classes are
+    discoverable; (b) mark deactivated `<option>`s `disabled` (except the
+    currently-selected one) so re-saving a class without changing the trainer
+    can't hit `updateClassTrainer`'s existing "trainer account is disabled" 400.
+- *Original analysis retained below for reference.*
 - **Where:** `AdminService.hardDeleteUser()` / `softDeleteUser()`,
   `AdminController` DELETE endpoints. DB FKs: `classes.trainer_id`
   (`classes_ibfk_3`, `ON DELETE SET NULL`) and `subjects.trainer_id`

@@ -4,12 +4,14 @@ import com.example.springboot.model.User;
 
 public record TrainerResponse(
     Integer userId,
-    String fullName
+    String fullName,
+    boolean enabled
 ) {
     public static TrainerResponse from(User u) {
         return new TrainerResponse(
                 u.getUserId(),
-                u.getLastName() + ", " + u.getFirstName()
+                u.getLastName() + ", " + u.getFirstName(),
+                Boolean.TRUE.equals(u.getEnabled())
         );
     }
 }

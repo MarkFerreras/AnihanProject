@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -105,7 +106,7 @@ public class AdminController {
      * Soft delete — deactivates the user account (sets enabled = false).
      */
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<Map<String, String>> softDeleteUser(
+    public ResponseEntity<Map<String, Object>> softDeleteUser(
             @PathVariable Integer id,
             Principal principal,
             HttpServletRequest httpRequest
@@ -113,21 +114,27 @@ public class AdminController {
         // Capture target username before deactivation
         AdminUserResponse target = adminService.getUserById(id);
 
-        adminService.softDeleteUser(id, principal.getName());
+        int stillAssignedClasses = adminService.softDeleteUser(id, principal.getName());
 
         String ipAddress = httpRequest.getRemoteAddr();
         LogContext ctx = getLogContext();
-        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Deactivated account: " + target.username(), ipAddress);
+        String logMessage = "Deactivated account: " + target.username();
+        String responseMessage = "User account has been deactivated.";
+        if (stillAssignedClasses > 0) {
+            logMessage += " (still trainer-of-record on " + stillAssignedClasses + " class(es))";
+            responseMessage += " This trainer is still assigned to " + stillAssignedClasses
+                    + " class(es) — reassign them on the Classes page.";
+        }
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(), logMessage, ipAddress);
 
-        return ResponseEntity.ok(Map.of("message", "User account has been deactivated."));
+        return deleteResponse(responseMessage, stillAssignedClasses > 0);
     }
 
     /**
      * Hard delete — permanently removes the user record from the database.
      */
     @DeleteMapping("/users/{id}/permanent")
-    public ResponseEntity<Map<String, String>> hardDeleteUser(
+    public ResponseEntity<Map<String, Object>> hardDeleteUser(
             @PathVariable Integer id,
             Principal principal,
             HttpServletRequest httpRequest
@@ -135,14 +142,32 @@ public class AdminController {
         // Capture target username BEFORE deletion
         AdminUserResponse target = adminService.getUserById(id);
 
-        adminService.hardDeleteUser(id, principal.getName());
+        int unassignedClasses = adminService.hardDeleteUser(id, principal.getName());
 
         String ipAddress = httpRequest.getRemoteAddr();
         LogContext ctx = getLogContext();
-        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Permanently deleted account: " + target.username(), ipAddress);
+        String logMessage = "Permanently deleted account: " + target.username();
+        String responseMessage = "User account has been permanently deleted.";
+        if (unassignedClasses > 0) {
+            logMessage += " (unassigned from " + unassignedClasses + " class(es))";
+            responseMessage += " " + unassignedClasses
+                    + " class(es) now have no trainer — reassign them on the Classes page.";
+        }
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(), logMessage, ipAddress);
 
-        return ResponseEntity.ok(Map.of("message", "User account has been permanently deleted."));
+        return deleteResponse(responseMessage, unassignedClasses > 0);
+    }
+
+    /**
+     * Response body for the two delete endpoints: the user-facing {@code message}
+     * plus an explicit {@code warning} flag so the frontend need not sniff the
+     * message text to decide how prominently to show it.
+     */
+    private ResponseEntity<Map<String, Object>> deleteResponse(String message, boolean warning) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("message", message);
+        body.put("warning", warning);
+        return ResponseEntity.ok(body);
     }
 
     /**

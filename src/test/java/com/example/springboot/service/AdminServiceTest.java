@@ -1,7 +1,9 @@
 package com.example.springboot.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,6 +24,8 @@ import com.example.springboot.dto.AdminCreateUserRequest;
 import com.example.springboot.dto.AdminUpdateUserRequest;
 import com.example.springboot.dto.AdminUserResponse;
 import com.example.springboot.model.User;
+import com.example.springboot.repository.GradeRepository;
+import com.example.springboot.repository.SchoolClassRepository;
 import com.example.springboot.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +36,12 @@ class AdminServiceTest {
 
         @Mock
         private PasswordEncoder passwordEncoder;
+
+        @Mock
+        private SchoolClassRepository schoolClassRepository;
+
+        @Mock
+        private GradeRepository gradeRepository;
 
         @InjectMocks
         private AdminService adminService;
@@ -171,6 +181,74 @@ class AdminServiceTest {
                 AdminUserResponse response = adminService.createUser(request);
 
                 assertEquals("newtrainer@anihan.local", response.email());
+        }
+
+        @Test
+        void hardDeleteOfTrainerWithLockedGradesIsBlocked() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+                when(gradeRepository.countLockedGradeClassesByTrainerId(9)).thenReturn(2L);
+
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.hardDeleteUser(9, "admin"));
+
+                assertTrue(ex.getMessage().contains("locked grades in 2 class(es)"));
+                verify(userRepository, never()).delete(any(User.class));
+        }
+
+        @Test
+        void hardDeleteOfTrainerWithoutLockedGradesReturnsUnassignedClassCount() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+                when(gradeRepository.countLockedGradeClassesByTrainerId(9)).thenReturn(0L);
+                when(schoolClassRepository.countByTrainerUserId(9)).thenReturn(3L);
+
+                int unassigned = adminService.hardDeleteUser(9, "admin");
+
+                assertEquals(3, unassigned);
+                verify(userRepository).delete(trainer);
+        }
+
+        @Test
+        void hardDeleteOfNonTrainerSkipsClassChecksAndReturnsZero() {
+                User registrar = buildUser(4, "registrar", "registrar@anihan.edu",
+                                "ROLE_REGISTRAR", "Reyes", "Ana", "Lim");
+                when(userRepository.findById(4)).thenReturn(Optional.of(registrar));
+
+                int unassigned = adminService.hardDeleteUser(4, "admin");
+
+                assertEquals(0, unassigned);
+                verify(userRepository).delete(registrar);
+                verify(gradeRepository, never()).countLockedGradeClassesByTrainerId(any());
+                verify(schoolClassRepository, never()).countByTrainerUserId(any());
+        }
+
+        @Test
+        void softDeleteOfTrainerReturnsRemainingClassCount() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+                when(schoolClassRepository.countByTrainerUserId(9)).thenReturn(2L);
+
+                int remaining = adminService.softDeleteUser(9, "admin");
+
+                assertEquals(2, remaining);
+                assertFalse(trainer.getEnabled());
+                verify(userRepository).save(trainer);
+        }
+
+        @Test
+        void softDeleteOfNonTrainerReturnsZeroAndDoesNotQueryClasses() {
+                User registrar = buildUser(4, "registrar", "registrar@anihan.edu",
+                                "ROLE_REGISTRAR", "Reyes", "Ana", "Lim");
+                when(userRepository.findById(4)).thenReturn(Optional.of(registrar));
+
+                int remaining = adminService.softDeleteUser(4, "admin");
+
+                assertEquals(0, remaining);
+                verify(schoolClassRepository, never()).countByTrainerUserId(any());
         }
 
         private User buildUser(

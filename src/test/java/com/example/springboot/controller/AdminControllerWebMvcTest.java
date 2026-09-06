@@ -1,7 +1,14 @@
 package com.example.springboot.controller;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -97,5 +104,54 @@ class AdminControllerWebMvcTest {
                                 .andExpect(jsonPath("$.message").value("Validation failed"))
                                 .andExpect(jsonPath("$.errors.email").exists())
                                 .andExpect(jsonPath("$.errors.role").exists());
+        }
+
+        @Test
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        void permanentDeleteBlockedWhenTrainerHasLockedGrades() throws Exception {
+                when(adminService.getUserById(9)).thenReturn(adminUser(9, "trainer"));
+                when(adminService.hardDeleteUser(eq(9), any())).thenThrow(new IllegalArgumentException(
+                                "This trainer has locked grades in 2 class(es). "
+                                                + "Deactivate the account instead, or reassign those classes first."));
+
+                mockMvc.perform(delete("/api/admin/users/9/permanent").with(csrf()))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message").value(containsString("locked grades in 2 class(es)")));
+
+                // The block must abort before any audit row is written.
+                verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        void permanentDeleteOfTrainerReportsUnassignedClassCount() throws Exception {
+                when(adminService.getUserById(9)).thenReturn(adminUser(9, "trainer"));
+                when(adminService.hardDeleteUser(eq(9), any())).thenReturn(2);
+
+                mockMvc.perform(delete("/api/admin/users/9/permanent").with(csrf()))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.message").value(containsString("2 class(es) now have no trainer")));
+
+                verify(systemLogService).logAction(any(), any(), any(),
+                                contains("Permanently deleted account: trainer (unassigned from 2 class(es))"), any());
+        }
+
+        @Test
+        @WithMockUser(username = "admin", roles = "ADMIN")
+        void softDeleteOfTrainerReportsRemainingClassCount() throws Exception {
+                when(adminService.getUserById(9)).thenReturn(adminUser(9, "trainer"));
+                when(adminService.softDeleteUser(eq(9), any())).thenReturn(1);
+
+                mockMvc.perform(delete("/api/admin/users/9").with(csrf()))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.message").value(containsString("still assigned to 1 class(es)")));
+
+                verify(systemLogService).logAction(any(), any(), any(),
+                                contains("Deactivated account: trainer (still trainer-of-record on 1 class(es))"), any());
+        }
+
+        private AdminUserResponse adminUser(int id, String username) {
+                return new AdminUserResponse(id, username, username + "@anihan.edu", "ROLE_TRAINER",
+                                "Cruz", "Maria", "Santos", 30, LocalDate.of(1996, 4, 11), true, null);
         }
 }

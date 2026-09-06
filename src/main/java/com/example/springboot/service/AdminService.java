@@ -14,17 +14,26 @@ import com.example.springboot.dto.AdminCreateUserRequest;
 import com.example.springboot.dto.AdminUpdateUserRequest;
 import com.example.springboot.dto.AdminUserResponse;
 import com.example.springboot.model.User;
+import com.example.springboot.repository.GradeRepository;
+import com.example.springboot.repository.SchoolClassRepository;
 import com.example.springboot.repository.UserRepository;
 
 @Service
 public class AdminService {
 
+    private static final String ROLE_TRAINER = "ROLE_TRAINER";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SchoolClassRepository schoolClassRepository;
+    private final GradeRepository gradeRepository;
 
-    public AdminService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AdminService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            SchoolClassRepository schoolClassRepository, GradeRepository gradeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.schoolClassRepository = schoolClassRepository;
+        this.gradeRepository = gradeRepository;
     }
 
     /**
@@ -132,26 +141,54 @@ public class AdminService {
     /**
      * Soft delete — sets enabled = false so the user can no longer log in.
      * The record is preserved for auditing purposes.
+     *
+     * @return for a {@code ROLE_TRAINER}, the number of classes they remain
+     *         trainer-of-record for (a non-blocking warning for the caller to
+     *         surface); 0 for any other role.
      */
     @Transactional
-    public void softDeleteUser(Integer userId, String currentUsername) {
+    public int softDeleteUser(Integer userId, String currentUsername) {
         User user = findUserById(userId);
         preventSelfDeletion(user, currentUsername);
 
         user.setEnabled(false);
         userRepository.save(user);
+
+        return trainerClassCount(user);
     }
 
     /**
      * Hard delete — permanently removes the user record from the database.
      * This action cannot be undone.
+     *
+     * <p>For a {@code ROLE_TRAINER} this is blocked when the trainer still has
+     * locked grades in one or more of their classes: the delete would null those
+     * classes' {@code trainer_id} (DB {@code ON DELETE SET NULL}) and no trainer
+     * could ever unlock those grades again. The admin must deactivate the account
+     * or reassign the classes first.
+     *
+     * @return for a {@code ROLE_TRAINER}, the number of classes that were
+     *         unassigned (their {@code trainer_id} nulled) by this delete;
+     *         0 for any other role.
      */
     @Transactional
-    public void hardDeleteUser(Integer userId, String currentUsername) {
+    public int hardDeleteUser(Integer userId, String currentUsername) {
         User user = findUserById(userId);
         preventSelfDeletion(user, currentUsername);
 
+        int unassignedClassCount = 0;
+        if (ROLE_TRAINER.equals(user.getRole())) {
+            long lockedGradeClasses = gradeRepository.countLockedGradeClassesByTrainerId(user.getUserId());
+            if (lockedGradeClasses > 0) {
+                throw new IllegalArgumentException(
+                        "This trainer has locked grades in " + lockedGradeClasses + " class(es). "
+                        + "Deactivate the account instead, or reassign those classes first.");
+            }
+            unassignedClassCount = trainerClassCount(user);
+        }
+
         userRepository.delete(user);
+        return unassignedClassCount;
     }
 
     /**
@@ -168,6 +205,13 @@ public class AdminService {
         if (user.getUsername().equals(currentUsername)) {
             throw new AccessDeniedException("You cannot delete your own account.");
         }
+    }
+
+    /** Classes this user is trainer-of-record for; 0 unless they are a trainer. */
+    private int trainerClassCount(User user) {
+        return ROLE_TRAINER.equals(user.getRole())
+                ? (int) schoolClassRepository.countByTrainerUserId(user.getUserId())
+                : 0;
     }
 
     private User findUserById(Integer userId) {

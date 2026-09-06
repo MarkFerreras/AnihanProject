@@ -19,6 +19,9 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Intege
 
     List<SchoolClass> findByTrainerUserId(Integer userId);
 
+    /** How many classes this user is the trainer-of-record for. */
+    long countByTrainerUserId(Integer userId);
+
     List<SchoolClass> findByTrainerUserIdAndSubjectSubjectCode(Integer userId, String subjectCode);
 
     /** Classes that have a trainer assigned — used to derive the trainers-per-subject list. */

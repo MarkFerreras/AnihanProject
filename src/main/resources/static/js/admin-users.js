@@ -187,15 +187,17 @@
                 hideAlert('deleteResultAlert');
 
                 try {
-                    await deleteUser(currentDeleteUserId, false);
-                    setAlert('deleteResultAlert', 'Account deactivated successfully.', 'success');
+                    const result = await deleteUser(currentDeleteUserId, false);
+                    const msg = result.message || 'Account deactivated successfully.';
+                    const hasWarning = result.warning === true;
+                    setAlert('deleteResultAlert', msg, hasWarning ? 'warning' : 'success');
                     confirmSoftDeleteBtn.style.display = 'none';
                     confirmHardDeleteBtn.style.display = 'none';
 
                     window.setTimeout(function () {
                         deleteConfirmModal.hide();
                         dataTable.ajax.reload(null, false);
-                    }, 1200);
+                    }, hasWarning ? 4000 : 1200);
                 } catch (error) {
                     setAlert('deleteResultAlert', error.message, 'danger');
                 } finally {
@@ -366,13 +368,15 @@
             hideAlert('permanentDeleteResultAlert');
 
             try {
-                await deleteUser(currentDeleteUserId, true);
-                setAlert('permanentDeleteResultAlert', 'Account permanently deleted.', 'success');
+                const result = await deleteUser(currentDeleteUserId, true);
+                const msg = result.message || 'Account permanently deleted.';
+                const hasNote = result.warning === true;
+                setAlert('permanentDeleteResultAlert', msg, hasNote ? 'warning' : 'success');
 
                 window.setTimeout(function () {
                     permanentDeleteConfirmModal.hide();
                     dataTable.ajax.reload(null, false);
-                }, 1200);
+                }, hasNote ? 4000 : 1200);
             } catch (error) {
                 setAlert('permanentDeleteResultAlert', error.message, 'danger');
                 btn.disabled = false;

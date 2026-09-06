@@ -226,7 +226,7 @@
         $('#editClassSubject').text(data.subject || '—');
         $('#editClassSemester').text(data.semester || '—');
 
-        loadTrainersDropdown('editClassTrainerSelect').done(function () {
+        loadTrainersDropdown('editClassTrainerSelect', true).done(function () {
             $('#editClassTrainerSelect').val(data.trainerId ? String(data.trainerId) : '');
         });
 
@@ -263,15 +263,16 @@
         });
     }
 
-    function loadTrainersDropdown(selectId) {
+    function loadTrainersDropdown(selectId, includeDisabled) {
         return $.ajax({
-            url: '/api/registrar/trainers',
+            url: '/api/registrar/trainers' + (includeDisabled ? '?includeDisabled=true' : ''),
             method: 'GET',
             success: function (data) {
                 const select = $('#' + selectId);
                 select.find('option:not(:first)').remove();
                 data.forEach(function (t) {
-                    select.append('<option value="' + t.userId + '">' + escapeHtml(t.fullName) + '</option>');
+                    const label = t.enabled === false ? t.fullName + ' (deactivated)' : t.fullName;
+                    select.append('<option value="' + t.userId + '">' + escapeHtml(label) + '</option>');
                 });
             }
         });
