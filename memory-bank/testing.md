@@ -38,7 +38,19 @@
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **299 tests, 0 failures, 0 errors** (August 30, 2026, after the student-number export/import session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **332 tests, 0 failures, 0 errors** (2026-09-06, after the post-merge bug fix + live DB sync session).
+
+## Live Verification — 2026-09-06 (post-merge DB sync)
+
+- 5 migrations applied to live MySQL in date order, then re-run once more — idempotent
+  (byte-identical, no duplicate columns/FKs): `2026-08-26-subjects-competency-type`,
+  `2026-08-26-subjects-code-update-cascade`, `2026-08-27-add-student-number`,
+  `2026-08-29-drop-subjects-trainer-id`, `2026-08-29-grades-overhaul`.
+- Structural diff (live `--no-data` dump vs a throwaway DB built from `schema.sql`) →
+  **cosmetic only**: FK / unique-index auto-names, secondary-index listing order, `grades`
+  physical column order. Name-stripped column definition set byte-identical — no real drift.
+- Hibernate `ddl-auto=validate` boot against live MySQL → **PASS** (started in 10.192s,
+  19 JPA repositories, zero schema-validation errors).
 
 ## Browser E2E — 2026-08-30 (Student Numbers Report Page)
 

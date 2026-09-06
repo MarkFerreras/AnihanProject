@@ -2,6 +2,43 @@
 
 ## Recent Sessions (detail)
 
+### Post-Merge Bug Fix + Live DB Sync (Completed - September 6, 2026)
+- **Task:** Get `main` green after the `grade_input_fix` (TESDA grading overhaul —
+  `GradeEquivalent`, changed `Grade` entity, a trailing `BigDecimal totalGwa` on the
+  `StudentRecordDetailsResponse` record, new `GradeRepository` dependency in
+  `RegistrarService.buildDetailsResponse`) and `student-ID-number` (registrar-controlled
+  `student_number`) merges, then sync the live `AnihanSRMS` MySQL DB to the updated
+  `src/main/sql/schema.sql`.
+- **Test fixes (already committed this session):** `1916904` — `RegistrarStudentNumberControllerWebMvcTest.details(...)`
+  passed 32 args to the now-33-component `StudentRecordDetailsResponse` record (merge
+  reconciled the production factory, not this cross-branch test); added a trailing `null`
+  for `totalGwa`. `fec8004` — `RegistrarStudentNumberServiceTest` lacked `@Mock GradeRepository`,
+  so `@InjectMocks` left it null → 7 NPEs at `RegistrarService.buildDetailsResponse` (computes
+  `totalGwa` from `gradeRepository.findByStudentStudentId(...)`); added the mock +
+  `thenReturn(List.of())` in `stubEmptyChildLookups()`. Both test-only.
+- **DB:** backup first (`src/main/sql/backup-2026-09-06-pre-merge-sync.sql`, 116,859 bytes).
+  Deleted the 4 disposable test rows from `grades` (`grade_id` 1–4, all `locked=0`) so the
+  overhaul runs against an empty table. Edited `2026-08-29-grades-overhaul.sql`: corrected
+  the stale "0 rows" header note; added a guarded step 6 shrinking `grades.remarks` to
+  `VARCHAR(20)` to match `schema.sql`. Applied 5 migrations to live in date order, verified
+  each, then re-ran all 5 (idempotent, byte-identical): `2026-08-26-subjects-competency-type`
+  (`competency_type VARCHAR(15) NOT NULL`, backfill `CORE`; `qualification_code` nullable),
+  `2026-08-26-subjects-code-update-cascade` (subject-code FKs → `ON UPDATE CASCADE`),
+  `2026-08-27-add-student-number` (`student_records.student_number VARCHAR(20) NULL` +
+  `uq_student_number`), `2026-08-29-drop-subjects-trainer-id` (column + FK dropped),
+  `2026-08-29-grades-overhaul` (drop `midterm_grade`/`finals_grade`; add `final_percentage`,
+  `re_exam_percentage`, `grade_status`; rename `hours_studied` → `hours_rendered`; `remarks`
+  → `VARCHAR(20)`; `grades` now 13 columns).
+- **Docs:** `schema.sql` header — added the `2026-08-29` "Updated:" line and an "existing
+  databases should also run…" note for the two 2026-08-29 migrations. No `schema.sql` table
+  body changed — the target state was already described there.
+- **Verified:** `./gradlew test` → **332 tests, 0 failures, 0 errors, 0 skipped** (was 299).
+  Structural diff (live `--no-data` vs a DB built from `schema.sql`) → cosmetic only (FK/index
+  auto-names, secondary-index order, `grades` physical column order; name-stripped column set
+  byte-identical) — no real drift. `ddl-auto=validate` boot against live MySQL → **PASS**
+  (started in 10.192s, 19 repositories, zero schema-validation errors). Live DB still 19 tables.
+- **Branch:** `main` (user-approved — DB-sync task + one-line test fixes).
+
 ### Student Number Export / Import / Report Page (Completed - August 30, 2026)
 - **Task:** Make bulk entry of student numbers practical — a report page with filters to find
   who still needs one, export to CSV/Excel for encoding, and import back. (Editability already

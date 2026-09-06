@@ -1,5 +1,8 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-08-29 (dropped subjects.trainer_id; grades overhauled to the
+--            TESDA model: final_percentage / re_exam_percentage / grade_status /
+--            hours_rendered replace midterm_grade / finals_grade / hours_studied)
 -- Updated: 2026-08-27 (added student_records.student_number — the
 --                       registrar-controlled, nullable student number)
 -- Updated: 2026-05-19 (added grades restructure for trainer grading)
@@ -41,6 +44,11 @@
 -- so that renaming a subject's code (Edit Subject) cascades into
 -- classes.subject_code and grades.subject_code instead of being
 -- rejected by MySQL's default FK behavior.
+--
+-- Existing databases that predate 2026-08-29 should also run
+-- src/main/sql/migrations/2026-08-29-drop-subjects-trainer-id.sql and
+-- src/main/sql/migrations/2026-08-29-grades-overhaul.sql (delete any existing
+-- grade rows first — the overhaul drops the old component-grade columns).
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS AnihanSRMS

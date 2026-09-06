@@ -10,6 +10,7 @@
 - **Bug 6** ✅ Duplicate `requestMatchers` rules in `SecurityConfig` — consolidated into one block. (2026-04-30)
 - **Bug 7** ✅ `saveDraft()` failure swallowed before submit — refactored to return `boolean`; submit blocks on failure. (2026-04-30) — *Note: `saveDraft()` was later removed entirely on 2026-05-05; see RC-2 in changeLog.*
 - **Bug 8** ✅ Subjects page 500 (`GET /api/registrar/subjects` → `Unknown column 'trainer_id'`, DataTables "Ajax error"). The `Subject` entity mapped `subjects.trainer_id` but the drifted local DB had no such column (rebuilt from a pre-2026-05-09 snapshot). **Fixed by choosing Model 1** (trainer assignment is class-level only) rather than restoring the column: dropped `subjects.trainer_id` + the whole subject-trainer feature; the Subjects page now shows a derived read-only "Trainer(s)" column. Migration `2026-08-29-drop-subjects-trainer-id.sql`. See `changeLog.md` / `decisions.md` (2026-08-29). (2026-08-29)
+- **Merge integration (2026-09-06)** ✅ After merging grade_input_fix + student-ID-number: StudentRecordDetailsResponse arity mismatch in RegistrarStudentNumberControllerWebMvcTest, and a missing @Mock GradeRepository in RegistrarStudentNumberServiceTest (7 NPEs). Both fixed test-only (1916904, fec8004). Suite: 332 tests, 0 failures.
 
 ## Open Bugs
 

@@ -1,12 +1,75 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Student number export/import + report page — awaiting PR**
+**Post-merge stabilization complete — `main` green at 332 tests, live DB synced to `schema.sql`**
 
 ## Active Branch
-`fix/student-ID-number`
+`main` (user-approved — post-merge bug fix + DB-sync task, no feature branch)
 
-## Latest Session (2026-08-30 - Student Number Export / Import / Report Page)
+## Latest Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
+
+### Scope
+Two branches had been merged into `main` before this session — `grade_input_fix` (TESDA
+grading overhaul: `GradeEquivalent`, changed `Grade` entity, a trailing `BigDecimal totalGwa`
+component on the `StudentRecordDetailsResponse` record, a new `GradeRepository` dependency in
+`RegistrarService.buildDetailsResponse`) and `student-ID-number` (registrar-controlled
+`student_number`). Task: get the full test suite green again, then bring the live `AnihanSRMS`
+MySQL database into line with the updated `src/main/sql/schema.sql` (still on the pre-2026-08-26
+schema — 5 migrations outstanding).
+
+### Test fixes (already committed this session)
+- `1916904` — `RegistrarStudentNumberControllerWebMvcTest.details(...)` passed 32 args to the
+  now-33-component `StudentRecordDetailsResponse` record. The merge reconciled the production
+  `StudentRecordDetailsResponse.from(...)` factory but not this cross-branch test. Added a
+  trailing `null` for `totalGwa`. Test-only.
+- `fec8004` — `RegistrarStudentNumberServiceTest` had no `@Mock GradeRepository`, so
+  `@InjectMocks` left it null → 7 NPEs at `RegistrarService.buildDetailsResponse` (~line 355,
+  computes `totalGwa` via `GradeEquivalent.gwa(gradeRepository.findByStudentStudentId(...))`).
+  Added the mock + `thenReturn(List.of())` in the existing `stubEmptyChildLookups()` helper.
+  Test-only; no production code changed.
+
+### Live DB sync (Docker `mysql-server`, DB `AnihanSRMS`)
+- Backup first: `src/main/sql/backup-2026-09-06-pre-merge-sync.sql` (116,859 bytes,
+  `mysqldump --databases AnihanSRMS --routines --triggers`, 19 `CREATE TABLE`).
+- Deleted the 4 disposable test rows from `grades` (`grade_id` 1–4, all `locked=0`) — user
+  approved — so the overhaul runs against an empty table. `grades` now 0 rows.
+- Edited `src/main/sql/migrations/2026-08-29-grades-overhaul.sql`: corrected the stale header
+  comment that claimed 0 live rows; added a guarded/idempotent step 6 shrinking `grades.remarks`
+  to `VARCHAR(20)` to match `schema.sql`.
+- Applied all 5 outstanding migrations in date order, verified each, then re-ran all 5
+  (idempotent — byte-identical, no duplicate columns/FKs): `2026-08-26-subjects-competency-type`
+  (`competency_type VARCHAR(15) NOT NULL`, 6 subjects backfilled `CORE`; `qualification_code`
+  nullable) · `2026-08-26-subjects-code-update-cascade` (subject-code FKs recreated
+  `ON UPDATE CASCADE`, `ON DELETE RESTRICT`) · `2026-08-27-add-student-number`
+  (`student_records.student_number VARCHAR(20) NULL` + `uq_student_number`; all 10 students NULL)
+  · `2026-08-29-drop-subjects-trainer-id` (column + FK dropped) · `2026-08-29-grades-overhaul`
+  (drop `midterm_grade`/`finals_grade`; add `final_percentage`, `re_exam_percentage`,
+  `grade_status`; rename `hours_studied` → `hours_rendered`; `remarks` → `VARCHAR(20)`;
+  `grades` now 13 columns).
+- `schema.sql` — header comment only: added the `2026-08-29` "Updated:" line and an "existing
+  databases should also run…" note for the two 2026-08-29 migrations. No table body touched.
+
+### Verified
+- `./gradlew test` → **332 tests, 0 failures, 0 errors, 0 skipped** (was 299 on
+  `student-ID-number`; `grade_input_fix` added `GradeEquivalentTest` and rewrote the trainer
+  grade tests).
+- Structural diff (live `--no-data` dump vs a throwaway DB built from `schema.sql`) → cosmetic
+  only: FK auto-names (`classes_ibfk_2` vs `classes_ibfk_3`; `grades_ibfk_2` vs
+  `fk_grades_class`), unique-index name (`username` vs `uq_username`), secondary-index listing
+  order, `grades` physical column order. Name-stripped column definition set byte-identical.
+  **No real structural drift** — same conclusion as 2026-07-14.
+- `ddl-auto=validate` boot against live MySQL → **PASS** (`Started SpringbootApplication in
+  10.192 seconds`, 19 JPA repositories, zero `Schema-validation` / `SchemaManagementException`).
+- Live DB still 19 tables. `schema.sql` table bodies already described the target state.
+
+### Open Items
+- `student-ID-number` / `grade_input_fix` follow-ups tracked elsewhere (Bug 10, curriculum vs
+  `subjects` codes) remain open — out of scope this session.
+- The 3 session commits (`1916904`, `fec8004`, the doc commit) are unpushed on `main`.
+
+---
+
+## Previous Session (2026-08-30 - Student Number Export / Import / Report Page)
 
 ### Scope
 Follow-up to the 2026-08-27 session, which made the student number registrar-controlled but

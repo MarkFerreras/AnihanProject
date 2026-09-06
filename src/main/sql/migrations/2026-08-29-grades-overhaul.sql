@@ -11,8 +11,9 @@
 --       separate from the fixed curriculum hours).
 --   See memory-bank/decisions.md (2026-08-29 - Trainer Grading Overhaul).
 --
---   Idempotent — guarded via information_schema. The live grades table has
---   0 rows, so this is a structural change only (no data migration).
+--   Idempotent — guarded via information_schema. Structural change only —
+--   any pre-existing grade rows must be dealt with before running this
+--   (the 2026-09-06 post-merge sync deleted the 4 live test rows first).
 -- ============================================================
 
 USE AnihanSRMS;
@@ -65,6 +66,15 @@ SET @sql = IF(
     (SELECT COUNT(*) FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = 'AnihanSRMS' AND TABLE_NAME = 'grades' AND COLUMN_NAME = 'hours_rendered') = 0,
     'ALTER TABLE grades ADD COLUMN hours_rendered DECIMAL(5,2) NULL', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 6. Shrink remarks to the derived-token width used by schema.sql
+--    (COMPETENT / NOT_COMPETENT — never free text under the new model).
+--    MODIFY COLUMN is naturally idempotent.
+SET @sql = IF(
+    (SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = 'AnihanSRMS' AND TABLE_NAME = 'grades' AND COLUMN_NAME = 'remarks') <> 20,
+    'ALTER TABLE grades MODIFY COLUMN remarks VARCHAR(20) NULL', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Verification

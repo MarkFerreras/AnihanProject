@@ -1,5 +1,74 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-06 - Post-Merge Bug Fix + Live DB Sync
+**Branch:** `main`
+
+### Task
+Get `main` green again after two branches were merged into it — `grade_input_fix`
+(TESDA grading overhaul — `GradeEquivalent`, changed `Grade` entity, a trailing
+`BigDecimal totalGwa` component on the `StudentRecordDetailsResponse` record, a new
+`GradeRepository` dependency in `RegistrarService.buildDetailsResponse`) and
+`student-ID-number` (registrar-controlled `student_number` +
+`StudentNumberController`/service/tests) — then bring the live `AnihanSRMS` MySQL
+database into line with the updated `src/main/sql/schema.sql` by applying the five
+outstanding migrations.
+
+### Already-committed test fixes (this session, before this doc commit)
+| Commit | Fix |
+|--------|-----|
+| `1916904` | `RegistrarStudentNumberControllerWebMvcTest.details(...)` helper passed 32 args to the now-33-component `StudentRecordDetailsResponse` record. The merge reconciled the production `StudentRecordDetailsResponse.from(...)` factory but not this test from the other branch. Added one trailing `null` for `totalGwa`. Test-only. |
+| `fec8004` | `RegistrarStudentNumberServiceTest` (from `student-ID-number`) had no `@Mock GradeRepository`, so `@InjectMocks` left it null → 7 NPEs at `RegistrarService.buildDetailsResponse` (~line 355, which computes `totalGwa` via `GradeEquivalent.gwa(gradeRepository.findByStudentStudentId(...))`). Added the mock + `when(gradeRepository.findByStudentStudentId(any())).thenReturn(List.of());` in the existing `stubEmptyChildLookups()` helper. Test-only; no production code changed. |
+
+Full suite after both fixes: **`./gradlew test` → 332 tests, 0 failures, 0 errors,
+0 skipped** (was 299 on `student-ID-number`; `grade_input_fix` added `GradeEquivalentTest`
+and rewrote `TrainerGradeServiceTest` / `TrainerGradeControllerWebMvcTest`).
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | **Header comment only** — no table body touched. Added a `-- Updated: 2026-08-29` changelog line (dropped `subjects.trainer_id`; grades overhauled to the TESDA model) and an "existing databases that predate 2026-08-29 should also run…" note pointing at the two 2026-08-29 migrations (with "delete any existing grade rows first"). |
+| `src/main/sql/migrations/2026-08-29-grades-overhaul.sql` | (a) Corrected the stale header comment that claimed the live table had 0 rows — it had 4 test rows, deleted this session before applying. (b) Added a guarded/idempotent **step 6** that shrinks `grades.remarks` to `VARCHAR(20)` to match `schema.sql` (`MODIFY COLUMN` — naturally idempotent). |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md`, `testing.md`, `bugs.md` | Session notes. |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/backup-2026-09-06-pre-merge-sync.sql` | Full pre-sync `mysqldump --databases AnihanSRMS --routines --triggers` (116,859 bytes, 19 `CREATE TABLE`). Taken before any live DDL. |
+| `docs/superpowers/plans/2026-09-06-post-merge-db-sync.md` | The approved plan for this session. |
+
+### Live DB Changes (Docker `mysql-server`, DB `AnihanSRMS` — backup taken first)
+Deleted the 4 test rows from `grades` (`grade_id` 1–4: `SR20260007`/`BPP-102`,
+`SR20260004`/`COOK-101`, `SR20260014` & `SR20260015`/`CAP-111`; all `locked=0`) —
+user-approved disposable test data, so the grades overhaul runs against an empty table.
+`grades` now has 0 rows.
+
+Applied these 5 migrations **in date order**, verified each, then re-applied all 5 once
+more (idempotent — byte-identical result, no duplicate columns/FKs):
+| Migration | Effect on live DB |
+|-----------|-------------------|
+| `2026-08-26-subjects-competency-type.sql` | `subjects.competency_type VARCHAR(15) NOT NULL` (6 existing subjects backfilled `CORE`); `subjects.qualification_code` relaxed to nullable. |
+| `2026-08-26-subjects-code-update-cascade.sql` | `grades`→`subjects` and `classes`→`subjects` FKs recreated as `fk_grades_subject` / `fk_classes_subject`, `ON UPDATE CASCADE`, `ON DELETE RESTRICT`. |
+| `2026-08-27-add-student-number.sql` | `student_records.student_number VARCHAR(20) NULL` after `student_id` + `uq_student_number` UNIQUE index (all 10 students NULL — expected). |
+| `2026-08-29-drop-subjects-trainer-id.sql` | `subjects.trainer_id` column + its FK dropped. |
+| `2026-08-29-grades-overhaul.sql` | Dropped `midterm_grade` / `finals_grade`; added `final_percentage`, `re_exam_percentage` (`DECIMAL(5,2)`), `grade_status VARCHAR(5)`; renamed `hours_studied` → `hours_rendered`; `remarks` → `VARCHAR(20)`. `grades` now has 13 columns. |
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 332 tests, 0 failures, 0 errors, 0 skipped**.
+- **Structural diff** (live `--no-data` dump vs a throwaway DB built from `schema.sql`):
+  only cosmetic differences — FK auto-names (`classes_ibfk_2` vs `classes_ibfk_3`;
+  `grades_ibfk_2` vs `fk_grades_class`), unique-index name (`username` vs `uq_username`),
+  secondary-index listing order, and `grades` physical column order (the name-stripped
+  column definition set is byte-identical). **No real structural drift** — same result as
+  the 2026-07-14 comparison.
+- **`ddl-auto=validate` boot against live MySQL → PASS**: `Started SpringbootApplication
+  in 10.192 seconds`, 19 JPA repositories, zero `Schema-validation` /
+  `SchemaManagementException` lines. The merged `main` entities validate against the
+  synced live schema.
+- Live DB still 19 tables. No `schema.sql` structural change was needed — its table bodies
+  already describe the target state; only the header notes lagged.
+
+---
+
 ## 2026-08-30 - Student Number Export / Import / Report Page
 **Branch:** `fix/student-ID-number`
 
