@@ -16,7 +16,8 @@ public record AdminUserResponse(
         Integer age,
         LocalDate birthdate,
         Boolean enabled,
-        LocalDateTime passwordChangedAt
+        LocalDateTime passwordChangedAt,
+        Boolean securityLocked
 ) {
 
     public static AdminUserResponse from(User user) {
@@ -31,7 +32,8 @@ public record AdminUserResponse(
                 user.getAge(),
                 user.getBirthdate(),
                 user.getEnabled(),
-                user.getPasswordChangedAt()
+                user.getPasswordChangedAt(),
+                user.getSecurityLocked()
         );
     }
 }

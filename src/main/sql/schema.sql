@@ -1,5 +1,10 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-09-19 (added security_questions + user_security_answers for
+--            the "forgot password" feature; added users.security_locked /
+--            failed_security_attempts / security_lockout_started_at;
+--            users.email is now UNIQUE; the 3 seed accounts now use
+--            @anihan.local addresses instead of @example.com placeholders)
 -- Updated: 2026-08-29 (dropped subjects.trainer_id; grades overhauled to the
 --            TESDA model: final_percentage / re_exam_percentage / grade_status /
 --            hours_rendered replace midterm_grade / finals_grade / hours_studied)
@@ -28,6 +33,10 @@
 -- Existing databases that still have subjects.trainer_id should run
 -- src/main/sql/migrations/2026-08-29-drop-subjects-trainer-id.sql to
 -- drop it (trainer assignment is class-level only).
+--
+-- Existing databases that predate 2026-09-19 should run
+-- src/main/sql/migrations/2026-09-19-security-questions.sql to add the
+-- security-questions tables/columns and fix the 3 seed-account emails.
 --
 -- Existing databases that predate 2026-05-19 should also run
 -- src/main/sql/migrations/2026-05-19-grades-restructure.sql to add
@@ -127,10 +136,53 @@ CREATE TABLE IF NOT EXISTS users (
     middlename VARCHAR(255) NOT NULL,
     birthdate DATE NOT NULL DEFAULT '2000-01-01',
     age INT NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
     role VARCHAR(15) NOT NULL,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
-    password_changed_at DATETIME NULL
+    password_changed_at DATETIME NULL,
+    -- Security-question lockout state — deliberately separate from `enabled`
+    -- (admin deactivate/re-enable). See migrations/2026-09-19-security-questions.sql.
+    security_locked TINYINT(1) NOT NULL DEFAULT 0,
+    failed_security_attempts TINYINT NOT NULL DEFAULT 0,
+    security_lockout_started_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: security_questions
+-- Catalog of the 6 fixed default security questions. Wording is fixed —
+-- do not alter. Users may also supply their own custom question instead of
+-- picking from this list (stored per-user in user_security_answers).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS security_questions (
+    question_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    question_text VARCHAR(255) NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- TABLE: user_security_answers
+-- Each user picks exactly 2 questions for "forgot password" recovery — one
+-- row per slot. A row references a default question (question_id) OR
+-- carries its own custom_question text, never both (chk_question_xor_custom).
+-- Custom question text is plaintext (it's not the secret); answer_hash is
+-- BCrypt, same as account passwords. uq_user_question stops picking the
+-- same default question twice; MySQL allows multiple NULLs in a unique
+-- index, so custom-question rows (question_id NULL) never collide there.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS user_security_answers (
+    answer_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    question_id INT NULL,
+    custom_question VARCHAR(255) NULL,
+    answer_hash VARCHAR(255) NOT NULL,
+    slot TINYINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES security_questions (question_id),
+    UNIQUE KEY uq_user_question (user_id, question_id),
+    UNIQUE KEY uq_user_slot (user_id, slot),
+    CONSTRAINT chk_question_xor_custom
+        CHECK ((question_id IS NULL) <> (custom_question IS NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
@@ -395,9 +447,20 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- BCrypt hash: $2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6
 -- ============================================================
 INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age, email, role, enabled, password_changed_at) VALUES
-('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'juan.delacruz@example.com', 'ROLE_ADMIN',     1, NULL),
-('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'maria.reyes@example.com',   'ROLE_REGISTRAR', 1, NULL),
-('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'carlos.santos@example.com', 'ROLE_TRAINER',   1, NULL);
+('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'admin@anihan.local',     'ROLE_ADMIN',     1, NULL),
+('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'registrar@anihan.local', 'ROLE_REGISTRAR', 1, NULL),
+('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'trainer@anihan.local',   'ROLE_TRAINER',   1, NULL);
+
+-- ============================================================
+-- SEED DATA: Default Security Questions (fixed wording — do not alter)
+-- ============================================================
+INSERT INTO security_questions (question_text) VALUES
+('What is your favorite color'),
+('What is your favorite vacation place?'),
+('What is your favorite song?'),
+('Who is your favorite artist?'),
+('What is your favorite food?'),
+('What is the name of your pet?');
 
 -- ============================================================
 -- SEED DATA: Lookup Tables (course, batches, sections)

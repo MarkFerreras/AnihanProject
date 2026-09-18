@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Anihan SRMS — Set Up Security Questions">
+    <title>Set Up Security Questions — Anihan SRMS</title>
+
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body>
+
+    <header>
+        <nav class="navbar login-navbar">
+            <div class="container">
+                <span class="navbar-brand">
+                    <img src="images/logo.png" alt="Anihan Logo" class="navbar-logo">
+                </span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="login-main">
+        <div class="login-card" style="max-width: 640px;">
+            <h1 class="login-card-title">Set Up Security Questions</h1>
+            <p class="login-card-subtitle">
+                This is required before you can access your account. These questions are used
+                to verify your identity if you ever forget your password.
+            </p>
+
+            <div class="alert alert-danger d-none" id="setupError" role="alert"></div>
+
+            <form id="setupForm">
+                <div class="sq-slot mb-4" data-slot="1">
+                    <label class="form-label fw-semibold">Question 1</label>
+                    <select class="form-select sq-question-select mb-2" required></select>
+                    <input type="text" class="form-control sq-custom-question mb-2 d-none"
+                           placeholder="Type your custom question" maxlength="255">
+                    <input type="text" class="form-control sq-answer" placeholder="Your answer"
+                           maxlength="100" required>
+                </div>
+                <div class="sq-slot mb-4" data-slot="2">
+                    <label class="form-label fw-semibold">Question 2</label>
+                    <select class="form-select sq-question-select mb-2" required></select>
+                    <input type="text" class="form-control sq-custom-question mb-2 d-none"
+                           placeholder="Type your custom question" maxlength="255">
+                    <input type="text" class="form-control sq-answer" placeholder="Your answer"
+                           maxlength="100" required>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-login" id="setupButton">Save and Continue</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer class="login-footer">
+        <div class="container">
+            <span>&copy; 2026 Anihan SRMS. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/security-question-setup.js"></script>
+</body>
+
+</html>

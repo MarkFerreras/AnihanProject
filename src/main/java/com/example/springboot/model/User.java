@@ -52,6 +52,19 @@ public class User {
     @Column(name = "password_changed_at")
     private LocalDateTime passwordChangedAt;
 
+    // Security-question lockout state — deliberately separate from `enabled`
+    // (admin deactivate/re-enable). See CustomUserDetailsService, which maps
+    // this into Spring Security's accountNonLocked, and
+    // memory-bank/decisions.md for why the two flags are kept distinct.
+    @Column(name = "security_locked", nullable = false)
+    private Boolean securityLocked = false;
+
+    @Column(name = "failed_security_attempts", nullable = false)
+    private Integer failedSecurityAttempts = 0;
+
+    @Column(name = "security_lockout_started_at")
+    private LocalDateTime securityLockoutStartedAt;
+
     public User() {
     }
 
@@ -158,5 +171,29 @@ public class User {
 
     public void setPasswordChangedAt(LocalDateTime passwordChangedAt) {
         this.passwordChangedAt = passwordChangedAt;
+    }
+
+    public Boolean getSecurityLocked() {
+        return securityLocked;
+    }
+
+    public void setSecurityLocked(Boolean securityLocked) {
+        this.securityLocked = securityLocked;
+    }
+
+    public Integer getFailedSecurityAttempts() {
+        return failedSecurityAttempts;
+    }
+
+    public void setFailedSecurityAttempts(Integer failedSecurityAttempts) {
+        this.failedSecurityAttempts = failedSecurityAttempts;
+    }
+
+    public LocalDateTime getSecurityLockoutStartedAt() {
+        return securityLockoutStartedAt;
+    }
+
+    public void setSecurityLockoutStartedAt(LocalDateTime securityLockoutStartedAt) {
+        this.securityLockoutStartedAt = securityLockoutStartedAt;
     }
 }

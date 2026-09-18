@@ -105,7 +105,8 @@ class AdminBulkLoadWebMvcTest {
                     20 + (i % 40),
                     LocalDate.of(2000, 1, 1).plusDays(i),
                     true,
-                    null
+                    null,
+                    false
             ));
         }
         return list;

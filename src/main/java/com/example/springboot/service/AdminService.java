@@ -201,6 +201,24 @@ public class AdminService {
         userRepository.save(user);
     }
 
+    /**
+     * Clears whichever of the two independent "can't log in" states applies:
+     * a soft-deleted ({@code enabled=false}) account, a security-question
+     * lockout ({@code security_locked=true}), or both at once (e.g. an
+     * account was locked from failed answers, then separately deactivated
+     * for an unrelated reason). One admin action regardless of which
+     * condition(s) are set — see memory-bank/decisions.md.
+     */
+    @Transactional
+    public void unlockUser(Integer userId) {
+        User user = findUserById(userId);
+        user.setEnabled(true);
+        user.setSecurityLocked(false);
+        user.setFailedSecurityAttempts(0);
+        user.setSecurityLockoutStartedAt(null);
+        userRepository.save(user);
+    }
+
     private void preventSelfDeletion(User user, String currentUsername) {
         if (user.getUsername().equals(currentUsername)) {
             throw new AccessDeniedException("You cannot delete your own account.");

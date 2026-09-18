@@ -40,6 +40,22 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", "Invalid username or password"));
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.LockedException.class)
+    public ResponseEntity<Map<String, String>> handleLocked(
+            org.springframework.security.authentication.LockedException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message",
+                        "Account is locked due to repeated failed security question attempts. "
+                        + "Contact your administrator."));
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<Map<String, String>> handleDisabled(
+            org.springframework.security.authentication.DisabledException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "This account has been deactivated. Contact your administrator."));
+    }
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(
             org.springframework.security.access.AccessDeniedException ex) {

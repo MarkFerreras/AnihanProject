@@ -44,6 +44,18 @@
             const data = await response.json();
             currentUserData = data;
 
+            // Mandatory, non-skippable security-question setup: a session
+            // that hasn't finished setup carries ONLY ROLE_PENDING_SETUP
+            // (never a real dashboard role — see AuthController.login), so
+            // any dashboard page redirects there before anything else runs.
+            // This is the *client* half of the gate; SecurityConfig enforces
+            // the same restriction server-side so a direct API call can't
+            // bypass it.
+            if (data.role === 'ROLE_PENDING_SETUP') {
+                window.location.replace('/security-question-setup.html');
+                return;
+            }
+
             if (requiredRole && data.role !== requiredRole) {
                 window.location.replace(ROLE_DASHBOARDS[data.role] || '/index.html');
                 return;
@@ -434,6 +446,159 @@
         });
     }
 
+    // — Edit "Forgot Password" security questions (from the Account Settings tab) —
+    let defaultSecurityQuestions = null;
+
+    async function loadDefaultSecurityQuestions() {
+        if (defaultSecurityQuestions) {
+            return defaultSecurityQuestions;
+        }
+        try {
+            const response = await fetch('/api/account/security-questions/default-questions', {
+                credentials: 'same-origin'
+            });
+            defaultSecurityQuestions = response.ok ? await response.json() : [];
+        } catch (error) {
+            defaultSecurityQuestions = [];
+        }
+        return defaultSecurityQuestions;
+    }
+
+    function renderSlotOptions(selectEl, questions) {
+        selectEl.innerHTML = '<option value="">Select a question...</option>';
+        questions.forEach(function (q) {
+            const option = document.createElement('option');
+            option.value = q.questionId;
+            option.textContent = q.questionText;
+            selectEl.appendChild(option);
+        });
+        const customOption = document.createElement('option');
+        customOption.value = 'custom';
+        customOption.textContent = 'Write your own question';
+        selectEl.appendChild(customOption);
+    }
+
+    function wireSlotToggle(slotEl) {
+        const select = slotEl.querySelector('.sq-question-select');
+        const customInput = slotEl.querySelector('.sq-custom-question');
+        if (!select || !customInput || select.dataset.wired === 'done') {
+            return;
+        }
+        select.dataset.wired = 'done';
+        select.addEventListener('change', function () {
+            const isCustom = select.value === 'custom';
+            customInput.classList.toggle('d-none', !isCustom);
+            customInput.required = isCustom;
+            if (!isCustom) {
+                customInput.value = '';
+            }
+        });
+    }
+
+    function readSlot(slotEl) {
+        const select = slotEl.querySelector('.sq-question-select');
+        const customInput = slotEl.querySelector('.sq-custom-question');
+        const answerInput = slotEl.querySelector('.sq-answer');
+        const isCustom = select.value === 'custom';
+        return {
+            questionId: isCustom || !select.value ? null : parseInt(select.value, 10),
+            customQuestion: isCustom ? customInput.value.trim() : null,
+            answer: answerInput.value
+        };
+    }
+
+    function setupEditSecurityQuestions() {
+        const openBtn = document.getElementById('openEditSecurityQuestionsBtn');
+        const modalEl = document.getElementById('editSecurityQuestionsModal');
+        const accountModalEl = document.getElementById('editAccountModal');
+        const form = document.getElementById('securityQuestionsForm');
+        if (!openBtn || !modalEl || !form) {
+            return;
+        }
+
+        const slots = modalEl.querySelectorAll('.sq-slot');
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        openBtn.addEventListener('click', async function () {
+            hideAlert('securityQuestionsAlert');
+            form.reset();
+            slots.forEach(function (slot) {
+                slot.querySelector('.sq-custom-question').classList.add('d-none');
+                slot.querySelector('.sq-custom-question').required = false;
+            });
+
+            const questions = await loadDefaultSecurityQuestions();
+            slots.forEach(function (slot) {
+                renderSlotOptions(slot.querySelector('.sq-question-select'), questions);
+                wireSlotToggle(slot);
+            });
+
+            if (accountModalEl) {
+                const accountModal = bootstrap.Modal.getInstance(accountModalEl);
+                if (accountModal) {
+                    accountModal.hide();
+                }
+            }
+            bsModal.show();
+        });
+
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            hideAlert('securityQuestionsAlert');
+
+            const currentPassword = document.getElementById('sqCurrentPassword').value;
+            const slotData = Array.from(slots).map(readSlot);
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            if (slotData.some(function (s) { return !s.questionId && !s.customQuestion; })) {
+                showAlert('securityQuestionsAlert', 'Please choose or write both questions.', 'danger');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Saving...';
+
+            try {
+                const response = await fetch('/api/account/security-questions', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ currentPassword: currentPassword, slots: slotData })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('securityQuestionsAlert', 'Security questions updated.', 'success');
+                    document.getElementById('sqCurrentPassword').value = '';
+                } else {
+                    const errorMessage = data.errors
+                        ? Object.values(data.errors).join('. ')
+                        : data.message || 'Failed to update security questions.';
+                    showAlert('securityQuestionsAlert', errorMessage, 'danger');
+                }
+            } catch (error) {
+                showAlert('securityQuestionsAlert', 'Unable to connect to the server.', 'danger');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Save Security Questions';
+            }
+        });
+    }
+
+    function setupSecurityQuestionsModalReset() {
+        const modal = document.getElementById('editSecurityQuestionsModal');
+        if (!modal) {
+            return;
+        }
+        modal.addEventListener('hidden.bs.modal', function () {
+            hideAlert('securityQuestionsAlert');
+            const form = document.getElementById('securityQuestionsForm');
+            if (form) {
+                form.reset();
+            }
+        });
+    }
+
     function setupModalReset() {
         const modal = document.getElementById('editAccountModal');
         if (!modal) {
@@ -521,6 +686,8 @@
         setupPersonalDetailsForm();
         setupUsernameChange();
         setupPasswordChange();
+        setupEditSecurityQuestions();
+        setupSecurityQuestionsModalReset();
         setupModalReset();
         setupPasswordToggles();
     });
