@@ -68,7 +68,8 @@ class AdminControllerWebMvcTest {
                                                 30,
                                                 LocalDate.of(1996, 4, 11),
                                                 true,
-                                                null)));
+                                                null,
+                                                false)));
 
                 mockMvc.perform(get("/api/admin/users"))
                                 .andExpect(status().isOk())
@@ -152,6 +153,6 @@ class AdminControllerWebMvcTest {
 
         private AdminUserResponse adminUser(int id, String username) {
                 return new AdminUserResponse(id, username, username + "@anihan.edu", "ROLE_TRAINER",
-                                "Cruz", "Maria", "Santos", 30, LocalDate.of(1996, 4, 11), true, null);
+                                "Cruz", "Maria", "Santos", 30, LocalDate.of(1996, 4, 11), true, null, false);
         }
 }

@@ -80,6 +80,10 @@
                         Log In
                     </button>
                 </div>
+
+                <div class="text-center mt-3">
+                    <a href="forgot-password.html" id="forgotPasswordLink">Forgot Password?</a>
+                </div>
             </form>
         </div>
     </main>
@@ -105,7 +109,8 @@
                     const routes = {
                         'ROLE_ADMIN': '/admin.html',
                         'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_TRAINER': '/trainer.html',
+                        'ROLE_PENDING_SETUP': '/security-question-setup.html'
                     };
                     const destination = routes[data.role];
                     if (destination) {
@@ -168,7 +173,8 @@
                     const routes = {
                         'ROLE_ADMIN': '/admin.html',
                         'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_TRAINER': '/trainer.html',
+                        'ROLE_PENDING_SETUP': '/security-question-setup.html'
                     };
                     const destination = routes[data.role] ?? '/index.html';
                     window.location.href = destination;

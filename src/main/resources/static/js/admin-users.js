@@ -112,6 +112,7 @@
         const logsLink = document.getElementById('detailsLogsLink');
         const deleteBtn = document.getElementById('detailsDeleteBtn');
         const reEnableBtn = document.getElementById('detailsReEnableBtn');
+        const unlockBtn = document.getElementById('detailsUnlockBtn');
 
         if (editLink) {
             editLink.href = 'edit-user.html?id=' + encodeURIComponent(user.userId);
@@ -143,6 +144,12 @@
         if (reEnableBtn) {
             // Show re-enable only for disabled users
             reEnableBtn.style.display = (user.enabled === false) ? '' : 'none';
+        }
+        if (unlockBtn) {
+            // Show unlock only for accounts locked from failed security-question
+            // attempts — a separate condition from "disabled", so both buttons
+            // can show at once if an account is somehow both at the same time.
+            unlockBtn.style.display = (user.securityLocked === true) ? '' : 'none';
         }
 
         detailsModal.show();
@@ -319,6 +326,7 @@
         setupDeleteHandlers(dataTable);
         setupPermanentDeleteFlow(dataTable);
         setupReEnableHandler(dataTable);
+        setupUnlockHandler(dataTable);
 
         window.jQuery('#usersTable tbody').on('click', 'button[data-user-id]', async function () {
             try {
@@ -420,6 +428,38 @@
             } finally {
                 reEnableBtn.disabled = false;
                 reEnableBtn.textContent = 'Re-enable Account';
+            }
+        });
+    }
+
+    function setupUnlockHandler(dataTable) {
+        var unlockBtn = document.getElementById('detailsUnlockBtn');
+        if (!unlockBtn) {
+            return;
+        }
+
+        unlockBtn.addEventListener('click', async function () {
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = 'Unlocking...';
+
+            try {
+                var response = await fetch('/api/admin/users/' + encodeURIComponent(currentDeleteUserId) + '/unlock', {
+                    method: 'PUT',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    var data = await response.json().catch(function () { return {}; });
+                    throw new Error(data.message || 'Failed to unlock account.');
+                }
+
+                detailsModal.hide();
+                dataTable.ajax.reload(null, false);
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                unlockBtn.disabled = false;
+                unlockBtn.textContent = 'Unlock Account';
             }
         });
     }

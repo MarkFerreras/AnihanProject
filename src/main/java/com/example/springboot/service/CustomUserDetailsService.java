@@ -44,10 +44,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-                user.getEnabled(),  // enabled — soft-deleted users are blocked
-                true,               // accountNonExpired
-                true,               // credentialsNonExpired
-                true,               // accountNonLocked
+                user.getEnabled(),               // enabled — soft-deleted users are blocked
+                true,                            // accountNonExpired
+                true,                            // credentialsNonExpired
+                !user.getSecurityLocked(),       // accountNonLocked — 3 failed security-question
+                                                  // answers locks this; separate from `enabled`
+                                                  // and only an admin can clear it
                 List.of(new SimpleGrantedAuthority(user.getRole()))
         );
     }

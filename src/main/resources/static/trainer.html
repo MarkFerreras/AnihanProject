@@ -194,8 +194,52 @@
                                 </div>
                                 <button type="submit" class="btn btn-save">Save Password</button>
                             </form>
+                            <hr>
+                            <h6 class="section-title">Account Recovery</h6>
+                            <p class="text-muted small">Used to verify your identity if you ever forget your password.</p>
+                            <button type="button" class="btn btn-surface-secondary" id="openEditSecurityQuestionsBtn"
+                                    data-bs-toggle="modal" data-bs-target="#editSecurityQuestionsModal">
+                                Edit "Forgot Password" Security Questions
+                            </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT SECURITY QUESTIONS MODAL ===== -->
+    <div class="modal fade" id="editSecurityQuestionsModal" tabindex="-1"
+         aria-labelledby="editSecurityQuestionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editSecurityQuestionsModalLabel">Edit "Forgot Password" Security Questions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert d-none" id="securityQuestionsAlert" role="alert"></div>
+                    <p class="text-muted small">For your security, your previous answers cannot be shown — choose and answer both questions again.</p>
+                    <form id="securityQuestionsForm">
+                        <div class="mb-3">
+                            <label for="sqCurrentPassword" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="sqCurrentPassword" placeholder="Enter current password" autocomplete="current-password" required>
+                        </div>
+                        <hr>
+                        <div class="sq-slot mb-3" data-slot="1">
+                            <label class="form-label">Question 1</label>
+                            <select class="form-select sq-question-select mb-2" required></select>
+                            <input type="text" class="form-control sq-custom-question mb-2 d-none" placeholder="Type your custom question" maxlength="255">
+                            <input type="text" class="form-control sq-answer" placeholder="Your answer" maxlength="100" required>
+                        </div>
+                        <div class="sq-slot mb-3" data-slot="2">
+                            <label class="form-label">Question 2</label>
+                            <select class="form-select sq-question-select mb-2" required></select>
+                            <input type="text" class="form-control sq-custom-question mb-2 d-none" placeholder="Type your custom question" maxlength="255">
+                            <input type="text" class="form-control sq-answer" placeholder="Your answer" maxlength="100" required>
+                        </div>
+                        <button type="submit" class="btn btn-save">Save Security Questions</button>
+                    </form>
                 </div>
             </div>
         </div>

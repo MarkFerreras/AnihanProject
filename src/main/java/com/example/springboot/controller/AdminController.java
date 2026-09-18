@@ -192,6 +192,27 @@ public class AdminController {
     }
 
     /**
+     * Clears an account's "can't log in" state — soft-deactivated, security-
+     * question locked, or both at once — in one action.
+     */
+    @PutMapping("/users/{id}/unlock")
+    public ResponseEntity<Map<String, String>> unlockUser(
+            @PathVariable Integer id,
+            HttpServletRequest httpRequest
+    ) {
+        AdminUserResponse target = adminService.getUserById(id);
+
+        adminService.unlockUser(id);
+
+        String ipAddress = httpRequest.getRemoteAddr();
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Unlocked account: " + target.username(), ipAddress);
+
+        return ResponseEntity.ok(Map.of("message", "Account unlocked."));
+    }
+
+    /**
      * Helper to extract the current admin's userId, username, and role from the security context.
      */
     private LogContext getLogContext() {

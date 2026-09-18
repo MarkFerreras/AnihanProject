@@ -54,6 +54,24 @@ public class SecurityConfig {
                 .requestMatchers("/student-portal.html", "/student-details.html").permitAll()
                 .requestMatchers("/api/student-portal/**").permitAll()
                 .requestMatchers("/api/student/**").permitAll()
+                // Forgot-password flow — publicly reachable start (the email lookup
+                // page itself, and the lookup call that issues a PENDING_VERIFICATION
+                // session). The 3 steps after that are each gated to their own
+                // short-lived, single-purpose synthetic role below, not permitAll —
+                // see SecurityQuestionService / PasswordRecoveryController.
+                .requestMatchers("/forgot-password.html", "/api/password-recovery/lookup").permitAll()
+                // Mandatory security-question setup — a user who just logged in but
+                // hasn't set up their 2 questions yet gets ONLY this synthetic role
+                // (not their real ROLE_*), so they cannot reach any dashboard or API
+                // until setup is complete.
+                .requestMatchers("/security-question-setup.html",
+                        "/api/account/security-questions/setup",
+                        "/api/account/security-questions/default-questions").hasAnyRole(
+                                "PENDING_SETUP", "ADMIN", "REGISTRAR", "TRAINER")
+                .requestMatchers("/forgot-password-questions.html", "/api/password-recovery/verify")
+                        .hasRole("PENDING_VERIFICATION")
+                .requestMatchers("/reset-password.html", "/api/password-recovery/reset")
+                        .hasRole("PENDING_RESET")
                 // Role-based access — HTML pages
                 .requestMatchers("/admin.html", "/logs.html", "/edit-user.html", "/add-user.html").hasRole("ADMIN")
                 .requestMatchers("/registrar.html", "/subjects.html", "/student-records.html", "/classes.html", "/sections.html", "/documents.html", "/generate-document.html", "/student-numbers.html").hasRole("REGISTRAR")
@@ -63,8 +81,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/logs/**").hasRole("ADMIN")
                 .requestMatchers("/api/registrar/**").hasRole("REGISTRAR")
                 .requestMatchers("/api/trainer/**").hasRole("TRAINER")
-                // Account endpoints require authentication (any role)
-                .requestMatchers("/api/account/**").authenticated()
+                // Account endpoints require one of the real roles — deliberately NOT
+                // just authenticated(), so a PENDING_SETUP/VERIFICATION/RESET session
+                // (which IS "authenticated" as far as Spring Security is concerned)
+                // cannot reach account settings, only the specific setup/verify/reset
+                // paths carved out above.
+                .requestMatchers("/api/account/**").hasAnyRole("ADMIN", "REGISTRAR", "TRAINER")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
