@@ -4,6 +4,7 @@
     let isDirty = false;
     let allowNavigation = false;
     let currentRecordId = null;
+    let currentStudentId = null;
 
     // ----- Helpers -----
 
@@ -213,6 +214,7 @@
 
     function populateForm(r) {
         currentRecordId = r.recordId;
+        currentStudentId = r.studentId;
         setVal('editRecordId', r.recordId);
         setVal('editStudentId', r.studentId);
         // Read-only here on purpose: the student number is written only through the
@@ -471,6 +473,123 @@
         }
     }
 
+    // ----- ID picture -----
+
+    function setPictureAlert(message, type) {
+        const el = document.getElementById('idPictureAlert');
+        if (!el) return;
+        el.textContent = message;
+        el.className = 'alert alert-' + type + ' mt-2';
+    }
+
+    function hidePictureAlert() {
+        const el = document.getElementById('idPictureAlert');
+        if (el) el.className = 'alert mt-2 d-none';
+    }
+
+    function showIdPicture(hasPicture) {
+        const img    = document.getElementById('idPicturePreview');
+        const empty  = document.getElementById('idPictureEmpty');
+        const remove = document.getElementById('removeIdPictureBtn');
+        if (!img || !empty || !remove) return;
+
+        if (hasPicture) {
+            // Cache-bust so a freshly replaced picture is not served from cache.
+            img.src = '/api/registrar/documents/id-picture/'
+                + encodeURIComponent(currentStudentId) + '?t=' + Date.now();
+            img.classList.remove('d-none');
+            empty.classList.add('d-none');
+            remove.classList.remove('d-none');
+        } else {
+            img.removeAttribute('src');
+            img.classList.add('d-none');
+            empty.classList.remove('d-none');
+            remove.classList.add('d-none');
+        }
+    }
+
+    async function refreshIdPicture() {
+        if (!currentStudentId) return;
+        try {
+            const response = await fetch(
+                '/api/registrar/documents/id-picture/' + encodeURIComponent(currentStudentId),
+                { method: 'HEAD', credentials: 'same-origin' });
+            showIdPicture(response.ok);
+        } catch (error) {
+            showIdPicture(false);
+        }
+    }
+
+    async function uploadIdPicture() {
+        const input = document.getElementById('idPictureFile');
+        if (!input || !input.files.length || !currentStudentId) return;
+
+        hidePictureAlert();
+        const button = document.getElementById('uploadIdPictureBtn');
+        button.disabled = true;
+        button.textContent = 'Uploading...';
+
+        const formData = new FormData();
+        formData.append('studentId', currentStudentId);
+        formData.append('file', input.files[0]);
+
+        try {
+            const response = await fetch('/api/registrar/documents/id-picture', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+            });
+            const data = await response.json().catch(function () { return {}; });
+
+            if (!response.ok) {
+                setPictureAlert(data.message || 'Could not upload the ID picture.', 'danger');
+                return;
+            }
+
+            input.value = '';
+            showIdPicture(true);
+            setPictureAlert('ID picture saved.', 'success');
+        } catch (error) {
+            setPictureAlert('Could not upload the ID picture. Check your connection.', 'danger');
+        } finally {
+            button.disabled = true;   // re-armed by the change listener on a new selection
+            button.textContent = 'Upload Picture';
+        }
+    }
+
+    async function removeIdPicture() {
+        if (!currentStudentId) return;
+        hidePictureAlert();
+        try {
+            const response = await fetch(
+                '/api/registrar/documents/id-picture/' + encodeURIComponent(currentStudentId),
+                { method: 'DELETE', credentials: 'same-origin' });
+
+            if (!response.ok) {
+                setPictureAlert('Could not remove the ID picture.', 'danger');
+                return;
+            }
+            showIdPicture(false);
+            setPictureAlert('ID picture removed.', 'success');
+        } catch (error) {
+            setPictureAlert('Could not remove the ID picture. Check your connection.', 'danger');
+        }
+    }
+
+    function setupIdPicture() {
+        const input  = document.getElementById('idPictureFile');
+        const upload = document.getElementById('uploadIdPictureBtn');
+        const remove = document.getElementById('removeIdPictureBtn');
+        if (!input || !upload || !remove) return;
+
+        input.addEventListener('change', function () {
+            upload.disabled = !input.files.length;
+            hidePictureAlert();
+        });
+        upload.addEventListener('click', uploadIdPicture);
+        remove.addEventListener('click', removeIdPicture);
+    }
+
     // ----- Boot -----
 
     document.addEventListener('DOMContentLoaded', async function () {
@@ -502,6 +621,8 @@
         }
 
         setupSchoolYearHandlers();
+        setupIdPicture();
+        await refreshIdPicture();
         setupDirtyTracking();
 
         const saveBtn = document.getElementById('saveRecordBtn');
