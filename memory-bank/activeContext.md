@@ -1,12 +1,127 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Post-merge stabilization complete — `main` green at 332 tests, live DB synced to `schema.sql`**
+**Security Questions / Forgot Password feature implemented end-to-end and verified live — 363 tests green, live DB migrated**
 
 ## Active Branch
-`main` (user-approved — post-merge bug fix + DB-sync task, no feature branch)
+`security_questions` (feature branch, not yet merged to `main`)
 
-## Latest Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
+## Latest Session (2026-09-19 - Security Questions / Forgot Password Feature)
+
+### Scope
+Full implementation of the 10-point security-questions/forgot-password plan agreed with the
+user over an extended design discussion (see `decisions.md` for the resulting design calls).
+Covers: mandatory first-login setup of 2 security questions (6 fixed defaults or a custom
+question per slot), editing them later from the account settings modal, a public
+forgot-password flow (email → answer both questions → reset password), a 3-strike lockout
+with 15-minute decay that only an admin can clear, and an admin "Unlock Account" action.
+
+### Backend
+- **DB**: two new tables — `security_questions` (6 fixed default questions, seeded, wording
+  owned by the user, not to be altered) and `user_security_answers` (row-per-slot: a nullable
+  FK to a default question XOR a plaintext `custom_question`, plus a BCrypt `answer_hash`;
+  `UNIQUE(user_id, question_id)` stops picking the same default twice, MySQL's multi-NULL
+  unique-index behavior already relied on elsewhere in this schema). Three new lockout columns
+  on `users` (`security_locked`, `failed_security_attempts`, `security_lockout_started_at`),
+  kept deliberately separate from `enabled`. Closed a real pre-existing gap: `users.email` had
+  no DB-level uniqueness — added `uq_email`, and fixed the 3 seed accounts' placeholder
+  `@example.com` addresses to `admin@anihan.local` / `registrar@anihan.local` /
+  `trainer@anihan.local` (this feature depends on email being real and looked-up-by).
+  Migration: `src/main/sql/migrations/2026-09-19-security-questions.sql`.
+- **Entities/repos**: `SecurityQuestion`, `UserSecurityAnswer` + repositories.
+- **`User.java`**: 3 new lockout fields.
+- **`CustomUserDetailsService`**: the `accountNonLocked` parameter (previously hardcoded
+  `true`) now reads `!user.getSecurityLocked()` — this alone makes Spring Security's own
+  `LockedException` enforce the lockout on every login attempt, not just the forgot-password
+  path, with no custom filter needed.
+- **`GlobalExceptionHandler`**: added distinct `LockedException` / `DisabledException`
+  handlers — previously both silently fell through to one generic message.
+- **`SecurityQuestionService`**: setup/edit validation (exactly one of default-question-id or
+  custom-question per slot; no duplicate default question; a custom question that word-for-word
+  matches a default, case/whitespace/punctuation-insensitive, is rejected), the lockout state
+  machine (3 wrong answers locks the account; the failed-attempt counter decays to 0 after 15
+  minutes measured from the *first* failure in the streak, but only while not yet locked; a
+  correct answer resets it immediately), and the email lookup / password reset logic.
+- **Session mechanism**: three restricted, single-purpose session states — `ROLE_PENDING_SETUP`
+  (after login, before the mandatory setup is done), `ROLE_PENDING_VERIFICATION` (after a
+  successful forgot-password email lookup), `ROLE_PENDING_RESET` (after answering both
+  questions correctly, expires after 10 minutes) — implemented as one shared mechanism
+  (`SessionAuthenticationHelper`) reused three times, gated by ordinary `SecurityConfig`
+  `hasRole(...)` matchers rather than new filter infrastructure.
+- **Controllers**: `SecurityQuestionController` (setup/edit, under `/api/account/security-questions`),
+  `PasswordRecoveryController` (`lookup`/`verify`/`reset`, under `/api/password-recovery`).
+  `AuthController.login()` now checks setup status and issues the restricted session instead of
+  a full one when incomplete; `/api/auth/me` gained `securityQuestionsSetUp`.
+- **Admin**: `AdminService.unlockUser()` + `PUT /api/admin/users/{id}/unlock` — clears both
+  `security_locked` and `enabled` at once (a single admin action regardless of which
+  condition(s) actually apply); `AdminUserResponse` gained `securityLocked`.
+
+### Frontend
+- 4 new standalone pages (each with its own dedicated JS, matching the rest of the app's
+  per-page-JS convention): `security-question-setup.html` (mandatory, non-skippable),
+  `forgot-password.html` (email entry), `forgot-password-questions.html` (answer both),
+  `reset-password.html` (new password twice).
+- `index.html`: "Forgot Password?" link; role-routing extended for `ROLE_PENDING_SETUP`.
+- `auth-guard.js`: the mandatory-setup client-side redirect gate (server-side enforcement is
+  the `SecurityConfig` matcher, not this); the "Edit 'Forgot Password' Security Questions"
+  modal wiring, added to the Account Settings tab on all 3 dashboards.
+- `admin.html` / `admin-users.js`: "Unlock Account" button in the user-details modal, shown
+  when `securityLocked` is true.
+- `js/password-toggle.js`: extracted the password reveal-toggle logic (previously only in
+  `auth-guard.js`, so only dashboard pages had it) into its own small shared file, so
+  `index.html`'s login field and `reset-password.html`'s two password fields get the same
+  eye-icon toggle without pulling in `auth-guard.js`'s session-guard machinery.
+
+### Two real bugs found during live verification (both fixed)
+1. **Login broke for every account** right after implementation — the migration file existed
+   but had never actually been *run* against the live MySQL database (only the throwaway test
+   DB reflected it), so `users` was missing the 3 new columns the entity now expects on every
+   query, and still had the old placeholder emails. Fixed by backing up
+   (`backup-2026-09-19-pre-security-questions.sql`), applying the migration, and verifying
+   idempotency by re-running it. **Lesson: applying the migration to the live DB is part of
+   finishing the feature, not an optional follow-up — this is the same mistake this project's
+   own history has flagged repeatedly (see the 2026-07-09 and 2026-09-06 changeLog entries).**
+2. **A CSS fix appeared not to take effect no matter how the browser was refreshed or
+   cache-cleared.** Root cause was not a stylesheet conflict at all: `./gradlew bootRun` copies
+   `src/main/resources` into `build/resources/main` once at startup and does not watch for
+   live edits, so the already-running server kept serving a stale compiled copy of
+   `dashboard.css` regardless of what the browser did. Confirmed by diffing
+   `build/resources/main/static/css/dashboard.css` against the source file. **Lesson: a static
+   frontend file edit needs the app process restarted (not just the browser refreshed) to take
+   effect under `bootRun` — flag this to the user whenever diagnosing "my CSS/JS change isn't
+   showing up."** Also added `?v=2` cache-busting to `dashboard.css`'s `<link>` tag across all
+   16 pages that load it (it never had one before) as a belt-and-suspenders fix, and a
+   diagnostic technique worth remembering: an isolated headless-Edge screenshot of just the
+   affected markup + real stylesheets, run via `msedge.exe --headless --screenshot=...`,
+   conclusively proved the CSS itself was correct before the real cause was found.
+
+### Verified
+- `./gradlew test` → **363 tests, 0 failures, 0 errors** (was 340 immediately pre-feature;
+  +21 `SecurityQuestionServiceTest`, +2 `AdminServiceTest` for `unlockUser`). 3 existing tests
+  fixed for `AdminUserResponse`'s new `securityLocked` component (arity bump 11→12, same class
+  of fix as this project's earlier `StudentRecordDetailsResponse` arity incidents).
+- Live round trip against real MySQL after the migration: `admin`/`password123` login → 200
+  `ROLE_PENDING_SETUP` → fetched default questions → completed setup → session upgraded to
+  `ROLE_ADMIN`, `/api/auth/me` shows `securityQuestionsSetUp: true` → forgot-password lookup by
+  `admin@anihan.local` now returns the 2 question texts. Test data (the security-question
+  answers created during this check) was deleted afterward so the user could go through the
+  real setup flow themselves rather than inherit throwaway test answers. Stopped short of
+  testing the live password-reset step to avoid changing the real admin password.
+
+### Open Items
+- WebMvc tests for `SecurityQuestionController`, `PasswordRecoveryController`, and the new
+  `PUT /api/admin/users/{id}/unlock` endpoint are not yet written (only service-level Mockito
+  tests exist so far).
+- A full Playwright/manual browser pass of the end-to-end journeys (mandatory setup, edit from
+  account settings, forgot-password happy path, 3-strike lockout blocking normal login, admin
+  unlock, reset → dashboard) has not been run — only spot-checked via curl.
+- PR to `main` (user approval required).
+- The `admin` account's live security-question answers were deliberately left unset after this
+  session's verification (see above) — first real login will hit the mandatory setup page.
+
+---
+
+## Previous Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
 
 ### Scope
 Two branches had been merged into `main` before this session — `grade_input_fix` (TESDA

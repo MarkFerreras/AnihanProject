@@ -1,5 +1,93 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-19 - Security Questions / Forgot Password Feature
+**Branch:** `security_questions`
+
+### Task
+Implement the full security-questions/forgot-password feature reached after an extended
+design discussion with the user (every point below reflects an explicit decision made in
+that discussion — see `decisions.md`): mandatory first-login setup of 2 security questions,
+editing them later, a public forgot-password flow, a 3-strike lockout with 15-minute decay
+clearable only by an admin, and an admin unlock action.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-09-19-security-questions.sql` | New tables + lockout columns + `uq_email` + seed-account email fix. Idempotent, guarded on column/index existence (never constraint name). |
+| `src/main/sql/BREAKGLASS-account-unlock.md` | Manual DB procedure for the case where the sole admin account itself gets locked/disabled and there's no other admin to click "Unlock" in the UI. |
+| `model/SecurityQuestion.java`, `model/UserSecurityAnswer.java` | The 6-question catalog entity and the per-user, per-slot answer entity (default question XOR plaintext custom question, BCrypt answer hash). |
+| `repository/SecurityQuestionRepository.java`, `repository/UserSecurityAnswerRepository.java` | — |
+| `service/SecurityQuestionService.java` | Setup/edit validation (exactly one of default/custom per slot, no duplicate default question, custom question rejected if it word-for-word matches a default), the lockout state machine, email lookup, password reset. |
+| `service/SessionAuthenticationHelper.java` | One shared mechanism for issuing either a full session (real role) or a restricted, single-purpose session (a synthetic `ROLE_PENDING_*` authority) — reused for all three "not fully authenticated yet" states in this feature. |
+| `controller/SecurityQuestionController.java` | `/api/account/security-questions/**` — default-questions list, setup, get-current-for-edit, edit. |
+| `controller/PasswordRecoveryController.java` | `/api/password-recovery/**` — lookup, verify, reset. |
+| `dto/SecurityQuestionResponse.java`, `SecurityAnswerSlotRequest.java`, `SetupSecurityAnswersRequest.java`, `EditSecurityAnswersRequest.java`, `EmailLookupRequest.java`, `VerifyAnswersRequest.java`, `ResetPasswordRequest.java`, `SecurityQuestionTextsResponse.java` | Request/response shapes. `ResetPasswordRequest` reuses `UpdatePasswordRequest`'s hoisted password-policy constants rather than re-typing the regex. |
+| `static/security-question-setup.html` + `js/security-question-setup.js` | Mandatory, non-skippable first-login setup page. |
+| `static/forgot-password.html` + `js/forgot-password.js` | Email entry. |
+| `static/forgot-password-questions.html` + `js/forgot-password-questions.js` | Answer both questions. |
+| `static/reset-password.html` + `js/reset-password.js` | New password twice. |
+| `static/js/password-toggle.js` | Password reveal-toggle logic extracted out of `auth-guard.js` so pages that don't include it (login, reset-password) still get the eye-icon toggle. |
+| `src/main/sql/backup-2026-09-19-pre-security-questions.sql` | Pre-migration live DB backup. |
+| `test/.../SecurityQuestionServiceTest.java` | 21 tests: setup validation (duplicate default, custom-matches-default, both-custom, both-fields-set), replace-answers password gate, email lookup (not found / disabled / locked / setup-incomplete / happy path), the full lockout state machine (immediate reject when locked, success resets counter, wrong answer increments, 3rd strike locks, 15-minute decay), password reset (mismatch, same-as-current, happy path). |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | New tables, 3 new `users` columns, `email` now `UNIQUE`, seed accounts' emails changed to `@anihan.local`, header dated. |
+| `model/User.java` | `securityLocked`, `failedSecurityAttempts`, `securityLockoutStartedAt` fields. |
+| `service/CustomUserDetailsService.java` | `accountNonLocked` (previously hardcoded `true`) now reads `!user.getSecurityLocked()` — Spring Security's own `LockedException` now enforces the lockout on every login, not just forgot-password. |
+| `exception/GlobalExceptionHandler.java` | Distinct `LockedException` / `DisabledException` handlers (previously both fell through to one generic message). |
+| `controller/AuthController.java` | `login()` checks setup status and issues a `ROLE_PENDING_SETUP`-only session instead of the real role when incomplete; `/me` gained `securityQuestionsSetUp`. |
+| `service/AdminService.java`, `controller/AdminController.java` | `unlockUser()` + `PUT /api/admin/users/{id}/unlock` — clears `security_locked` and `enabled` together, one action regardless of which condition(s) apply. |
+| `dto/AdminUserResponse.java` | Added `securityLocked` (arity 11→12 — fixed 3 existing test call sites, same class of fix as this project's earlier `StudentRecordDetailsResponse` arity incidents). |
+| `dto/UpdatePasswordRequest.java` | Hoisted the password-policy regex/length into public constants so `ResetPasswordRequest` can reuse them exactly. |
+| `config/SecurityConfig.java` | Matchers for the 4 new pages/endpoint groups and the 3 synthetic `ROLE_PENDING_*` roles; `/api/account/**` narrowed from `authenticated()` to the 3 real roles specifically, so a pending-role session (which Spring Security still considers "authenticated") can't reach account settings. |
+| `static/index.html` | "Forgot Password?" link; role-routing extended for `ROLE_PENDING_SETUP`; password-toggle include. |
+| `static/js/auth-guard.js` | Mandatory-setup client-side redirect; "Edit Security Questions" modal wiring. |
+| `static/admin.html`, `registrar.html`, `trainer.html` | "Edit 'Forgot Password' Security Questions" button + modal in the Account Settings tab. |
+| `static/admin.html` / `static/js/admin-users.js` | "Unlock Account" button in the user-details modal. |
+| `static/reset-password.html`, `static/reset-password.js` | Password-toggle include. |
+| `static/css/login.css` | `.password-toggle-btn` styling (previously only in `dashboard.css`, which the public pre-login pages don't load). |
+| `static/css/dashboard.css` | Green `.btn-save` styling extended to `#editSecurityQuestionsModal` (it was scoped to `.edit-account-modal` only); `?v=2` cache-buster added to the `<link>` tag across all 16 pages that load this file. |
+| `test/.../AdminServiceTest.java`, `AdminControllerWebMvcTest.java`, `AdminBulkLoadWebMvcTest.java` | +2 new tests for `unlockUser`; 3 existing `AdminUserResponse` call sites fixed for the new arity. |
+
+### Two Real Bugs Found During Live Verification (both fixed)
+1. **Login failed for every account** immediately after implementation. The migration file
+   had been written and verified against the throwaway H2 test database, but never actually
+   *applied* to the live MySQL database — so `users` was missing the 3 new lockout columns
+   the entity now queries on every login, and the seed accounts still had their old
+   `@example.com` placeholder emails. Fixed: backed up the live DB
+   (`backup-2026-09-19-pre-security-questions.sql`), applied the migration, verified it's
+   idempotent by re-running it, confirmed live via `curl` that login and the forgot-password
+   email lookup both work. This is the same class of mistake flagged repeatedly elsewhere in
+   this changelog (2026-07-09, 2026-09-06) — applying a migration to the live database is
+   part of finishing a schema change, not a follow-up step.
+2. **A CSS button-color fix appeared to have no effect** no matter how the browser was
+   refreshed, hard-refreshed, or tested in a private window. Root cause: `./gradlew bootRun`
+   copies `src/main/resources` into `build/resources/main` once at startup and does not watch
+   for live edits — the already-running server process kept serving a stale compiled copy of
+   `dashboard.css` regardless of browser-side caching. Confirmed by diffing
+   `build/resources/main/static/css/dashboard.css` against the source file, and by an isolated
+   headless-Edge screenshot test (`msedge.exe --headless --screenshot=...` against a minimal
+   repro page using the real served stylesheets) that proved the CSS itself rendered correctly
+   before the real cause was identified. Fix: restart the app process, not just the browser;
+   added `?v=2` cache-busting to `dashboard.css` as a belt-and-suspenders measure since it
+   never had one.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 363 tests, 0 failures, 0 errors** (was 340).
+- Live round trip against real MySQL (post-migration): `admin`/`password123` login → 200
+  `ROLE_PENDING_SETUP` → fetched the 6 default questions → completed setup → session upgraded
+  to `ROLE_ADMIN`, `/api/auth/me` → `securityQuestionsSetUp: true` → forgot-password lookup by
+  `admin@anihan.local` returns the 2 question texts. The test security-question answers
+  created during this check were deleted afterward so the user can go through the real setup
+  flow themselves; the live password-reset step was deliberately not exercised to avoid
+  changing the real admin password.
+- Not yet done: WebMvc tests for the 2 new controllers and the admin unlock endpoint; a full
+  Playwright/manual browser pass of the end-to-end journeys.
+
+---
+
 ## 2026-09-06 - Post-Merge Bug Fix + Live DB Sync
 **Branch:** `main`
 

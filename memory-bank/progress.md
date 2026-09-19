@@ -2,6 +2,56 @@
 
 ## Recent Sessions (detail)
 
+### Security Questions / Forgot Password Feature (Completed - September 19, 2026)
+- **Task:** Implement the full 10-point security-questions/forgot-password plan reached after
+  an extended design discussion with the user (see `decisions.md`): mandatory first-login
+  setup of 2 security questions (6 fixed defaults or a custom question per slot, never both
+  default/custom in the same slot, no duplicate default across the 2 slots), editable later
+  from the account settings modal, a public forgot-password flow (email → both questions
+  correct → new password), a 3-strike/15-minute-decay lockout only an admin can clear, and an
+  admin "Unlock Account" action.
+- **Database:** two new tables (`security_questions` seeded with the 6 fixed questions;
+  `user_security_answers`, row-per-slot, BCrypt-hashed answers, plaintext custom-question
+  text since it isn't the secret) plus 3 new lockout columns on `users`, kept separate from
+  `enabled`. Also closed a pre-existing gap — `users.email` had no DB uniqueness — via
+  `uq_email`, and fixed the 3 seed accounts' emails from `@example.com` placeholders to
+  `@anihan.local` addresses the account holders actually recognize.
+- **Backend:** `SecurityQuestionService` owns setup/edit validation and the full lockout
+  state machine; `CustomUserDetailsService`'s previously-hardcoded `accountNonLocked` now
+  reads the new lockout flag, so Spring Security's own `LockedException` blocks *all* login
+  attempts once locked, not just forgot-password ones — no custom filter needed.
+  `SessionAuthenticationHelper` implements one restricted-session mechanism reused for all
+  three "in-progress, not fully authenticated yet" states (`ROLE_PENDING_SETUP`,
+  `ROLE_PENDING_VERIFICATION`, `ROLE_PENDING_RESET`), gated by ordinary `SecurityConfig`
+  role matchers. New `SecurityQuestionController` + `PasswordRecoveryController`. Admin
+  `unlockUser()` clears both `security_locked` and `enabled` in one action.
+- **Frontend:** 4 new standalone pages (setup, forgot-password email entry, answer questions,
+  reset password), each with its own JS; "Forgot Password?" link and mandatory-setup redirect
+  gate; "Edit 'Forgot Password' Security Questions" modal added to all 3 dashboards' account
+  settings tab; admin "Unlock Account" button. Extracted the password reveal-toggle into a
+  standalone `js/password-toggle.js` so the two pages outside `auth-guard.js` (login, reset
+  password) get it too — previously only dashboard pages had a reveal toggle.
+- **Two real bugs hit during live verification, both fixed:**
+  1. Login broke for every account immediately after implementation — the migration file was
+     written but never actually *run* against the live database (only the throwaway test DB
+     reflected the new columns/schema), so every query against `users` failed and the seed
+     accounts still had their old placeholder emails. Fixed by backing up, applying the
+     migration live, and verifying it's idempotent by re-running it.
+  2. A CSS fix appeared to have no effect no matter how the browser was refreshed — root cause
+     was that `./gradlew bootRun` only copies `src/main/resources` into `build/resources/main`
+     at startup and doesn't watch for edits, so the *server process* itself needed a restart,
+     not just a browser hard-refresh. Confirmed via an isolated headless-Edge screenshot test
+     proving the CSS itself was correct before finding the real cause. Also added `?v=2`
+     cache-busting to `dashboard.css` across all 16 pages that load it as a belt-and-suspenders
+     fix, since it never had one before.
+- **Verified:** `./gradlew test` → **363 tests, 0 failures** (was 340; +21
+  `SecurityQuestionServiceTest`, +2 `AdminServiceTest`). Live round trip against real MySQL:
+  login → mandatory setup → session upgrade to real role → forgot-password lookup by the new
+  email succeeds. Test data cleaned up afterward; live password reset was deliberately not
+  exercised to avoid changing the real admin password.
+- **Branch:** `security_questions`. Open: WebMvc tests for the 2 new controllers + the admin
+  unlock endpoint, a full Playwright/manual browser pass, PR to main.
+
 ### Post-Merge Bug Fix + Live DB Sync (Completed - September 6, 2026)
 - **Task:** Get `main` green after the `grade_input_fix` (TESDA grading overhaul —
   `GradeEquivalent`, changed `Grade` entity, a trailing `BigDecimal totalGwa` on the

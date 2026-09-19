@@ -37,8 +37,50 @@
 | `StudentNumberExportServiceTest` | Pure unit | 8 | Canonical header row, blank Student Number cell for unassigned, CSV escaping, filename extension, **CSV and XLSX round-trip back through the parser**, leading-zero survival, header-only export |
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
+| `SecurityQuestionServiceTest` | Mockito | 21 | setup (happy path 2 defaults, already-complete throws, duplicate default rejected, custom matching a default word-for-word rejected regardless of case/punctuation, two custom questions allowed, both-fields-set-on-one-slot rejected), replaceAnswers (wrong current password throws with no writes, correct password deletes-then-inserts), lookupByEmail (not found / disabled / locked / setup-incomplete all throw, happy path returns question texts in slot order), verifyAnswers lockout state machine (already-locked rejects immediately without querying answers, correct answer resets the counter, wrong answer increments, 3rd wrong answer locks, 15-minute decay from the first failure in a stale streak), resetPassword (mismatch throws, same-as-current throws, happy path updates password + timestamp) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **332 tests, 0 failures, 0 errors** (2026-09-06, after the post-merge bug fix + live DB sync session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **363 tests, 0 failures, 0 errors** (2026-09-19, after the security-questions feature; +2 more in `AdminServiceTest` for `unlockUser`, listed above).
+
+## Live Verification — 2026-09-19 (Security Questions / Forgot Password)
+
+Two real bugs were found and fixed only by testing against the live app + live MySQL, not by
+the automated suite (which runs against a throwaway H2 database built fresh from the JPA
+entities, so it can't catch "the migration was never applied to the real database" — the
+Gradle suite passing is not, by itself, evidence the live app works after a schema change):
+
+1. **Migration never applied to live MySQL.** Login failed for every account and the
+   forgot-password email lookup failed for all 3 seed accounts immediately after
+   implementation, because the new columns/tables and the seed-email fix existed only in the
+   migration *file*, never actually run against the real database. Fixed by backing up
+   (`backup-2026-09-19-pre-security-questions.sql`), applying the migration via
+   `docker exec -i mysql-server mysql -u root -p... < migrations/2026-09-19-security-questions.sql`,
+   and confirming idempotency by re-running it (still exactly 6 default-question rows, same
+   column set, no duplicates).
+2. **A CSS fix appeared to have zero effect through repeated hard refreshes / private-window
+   testing.** Root cause was not a stylesheet conflict — `./gradlew bootRun` only copies
+   `src/main/resources` into `build/resources/main` at startup and does not watch for edits, so
+   the browser was correctly asking for a fresh file while the *server process* kept serving a
+   stale compiled one. Confirmed two ways: diffing `build/resources/main/static/css/dashboard.css`
+   against the edited source (0 matches for the new rule before a restart), and an isolated
+   headless-Edge screenshot (`msedge.exe --headless --disable-gpu --screenshot=... file:///repro.html`
+   against a minimal reproduction using the real served stylesheets) that proved the CSS itself
+   rendered correctly, which is what narrowed the search away from "wrong CSS" and toward
+   "stale server" as the real cause. **Technique worth reusing**: when a static asset change
+   "isn't showing up" no matter what the browser does, compare `build/resources/main` against
+   `src/main/resources` directly before assuming a CSS/cache problem — and remember the app
+   process itself needs restarting for static file changes under plain `bootRun`, not
+   `--continuous` and not Spring DevTools.
+
+Live round trip performed after the migration was applied (curl-based, not yet a browser
+E2E pass): `admin`/`password123` login → 200 `ROLE_PENDING_SETUP` → `GET default-questions` →
+`POST setup` (2 default questions) → session upgraded to `ROLE_ADMIN` → `GET /api/auth/me`
+shows `securityQuestionsSetUp: true` → `POST /api/password-recovery/lookup` with
+`admin@anihan.local` returns the 2 question texts. The test security-question answers created
+during this check were deleted from the live database afterward (`DELETE ... FROM
+user_security_answers ... WHERE username = 'admin'`) so the account is back to "setup not yet
+done" for the user to complete themselves. The live password-reset step (`verify` → `reset`)
+was **not** exercised against production data, to avoid changing the real admin password —
+that logic is covered instead by `SecurityQuestionServiceTest`'s `resetPassword*` tests.
 
 ## Live Verification — 2026-09-06 (post-merge DB sync)
 
@@ -128,6 +170,9 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 
 ## Coverage Gaps (open)
 
+- No WebMvc tests yet for `SecurityQuestionController`, `PasswordRecoveryController`, or the
+  new `PUT /api/admin/users/{id}/unlock` endpoint — only service-level Mockito coverage exists
+  for the security-questions feature so far.
 - No tests for `StudentDetailsController`, `StudentPortalController`, `StorageService`
 - `ClassManagementService`/`ClassManagementController` subject CRUD covered (May 10). Classes, sections, trainer-assign, and enrollment endpoints still untested.
 - E2E browser smoke tests not yet executed for the May 9/10 Subjects/Classes/Sections pages
@@ -143,6 +188,14 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
 
 ## Pending Manual Checks
 
+- [ ] Full browser/Playwright pass of the security-questions feature: mandatory setup on first
+      login (including attempting a direct API call while still `ROLE_PENDING_SETUP`, to prove
+      the server-side gate works and not just the frontend redirect); edit security questions
+      from the account settings modal; forgot-password happy path end-to-end; 3 wrong answers
+      → confirm lockout also blocks *normal* password login, not just forgot-password; admin
+      "Unlock Account" clears it; reset password → lands on dashboard without a second login.
+      Only curl-based spot checks have been done so far (see `activeContext.md` /
+      `changeLog.md` 2026-09-19 entries).
 - [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
 - [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
 - [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).
