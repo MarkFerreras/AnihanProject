@@ -1,5 +1,31 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-20 - Remove Admin Statistics Panel
+**Branch:** `admin_stats_and_SR_overhaul`
+
+### Task
+Remove the admin statistics panel (Total Users / Admins / Registrars / Trainers stat cards)
+from the admin dashboard hero section, without affecting any other admin dashboard
+functionality.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/admin.html` | Removed the `.hero-stats` block (4 `.stat-card` articles) from the page hero, leaving the same plain single-column hero already used by every other dashboard page. |
+| `static/js/admin-users.js` | Removed the `updateStats()` helper and its call inside the DataTable `ajax.dataSrc`. Replaced the now-empty `dataSrc` callback with `dataSrc: ''` — required because `/api/admin/users` returns a bare array and DataTables' default `dataSrc` (`"data"`) expects `{data:[...]}`; simply deleting the callback would have broken the table. |
+| `static/css/dashboard.css` | Removed `.hero-stats`, `.stat-card`, `.stat-label`, `.stat-value`, `.stat-caption` and their 2 responsive `@media` overrides — confirmed via repo-wide grep unused anywhere else. |
+
+### Verification
+- Repo-wide grep for every removed identifier (`hero-stats`, `stat-card`, `stat-label`,
+  `stat-value`, `stat-caption`, `totalUsersStat`, `adminUsersStat`, `registrarUsersStat`,
+  `trainerUsersStat`, `updateStats`) → zero remaining references.
+- No backend/DTO/test code referenced these identifiers — the stats were pure client-side
+  arithmetic over the same `/api/admin/users` payload already powering the table.
+- Frontend-only change; no `./gradlew` build required. Manual browser smoke test still
+  recommended (see `activeContext.md`) before merge.
+
+---
+
 ## 2026-09-19 (follow-up 3) - Duplicate "Account Locked" Audit Log Entries
 **Branch:** `security_questions`
 

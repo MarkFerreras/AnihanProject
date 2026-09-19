@@ -1,15 +1,58 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**`main`'s work — the ID-photo-to-Registrar feature and a live-DB sync that fixed two SQL
-type mismatches — merged into `security_questions`, on top of the already-completed Security
-Questions / Forgot Password feature. Full combined test suite verified after the merge (see
-below).**
+**Admin dashboard cleanup: the hero statistics panel (Total Users / Admins / Registrars /
+Trainers cards) has been removed from `admin.html`. Pure frontend change — no backend, DTO,
+or DB impact. See Latest Session below.**
 
 ## Active Branch
-`security_questions` (feature branch, not yet merged to `main`)
+`admin_stats_and_SR_overhaul` (not yet merged to `main`)
 
-## Latest Session (2026-09-19 - Merging `main` into `security_questions`)
+## Latest Session (2026-09-20 - Remove Admin Statistics Panel)
+
+### Task
+User asked to remove the admin statistics panel (Total Users / Admins / Registrars /
+Trainers stat cards) from the admin dashboard hero section, without affecting any other
+functionality.
+
+### What was removed
+- `static/admin.html` — the `.hero-stats` block (4 `.stat-card` articles) inside the page
+  hero, matching the plain single-column hero pattern already used by every other dashboard
+  page (e.g. `registrar.html`).
+- `static/js/admin-users.js` — the `updateStats()` helper (computed counts from the loaded
+  user list) and its call site inside the DataTable's `ajax.dataSrc`.
+- `static/css/dashboard.css` — `.hero-stats`, `.stat-card`, `.stat-label`, `.stat-value`,
+  `.stat-caption`, and their two responsive (`@media`) overrides. Confirmed via repo-wide
+  grep that no other page referenced these classes before deleting them.
+
+### One behavior-preserving fix made during removal
+The DataTable's `ajax.dataSrc` callback was doing double duty: computing the stats AND
+telling DataTables where to find the row array in the response. `/api/admin/users` returns
+a bare JSON array (not `{data: [...]}`), and DataTables' default `dataSrc` is `"data"` — so
+simply deleting the callback would have broken the table (DataTables would look for
+`json.data`, find nothing, and render empty). Replaced it with `dataSrc: ''`, which is the
+documented way to tell DataTables "the response root IS the array," preserving the exact
+same table behavior with the stats computation gone.
+
+### Verified
+- Repo-wide grep for `hero-stats`, `stat-card`, `stat-label`, `stat-value`, `stat-caption`,
+  `totalUsersStat`, `adminUsersStat`, `registrarUsersStat`, `trainerUsersStat`, and
+  `updateStats` → zero remaining references anywhere in `src/`.
+- No backend/DTO/test code ever referenced these identifiers — the stats were purely
+  client-side arithmetic over the same `/api/admin/users` payload the table already used,
+  so no `/api/admin/**` endpoint or test needed touching.
+- `git status` confirms exactly 3 files changed: `admin.html`, `dashboard.css`,
+  `admin-users.js`. No Java/Gradle build needed (frontend-only change).
+
+### Open Items
+- Manual browser smoke test: load `/admin.html`, confirm the hero now shows only the title
+  block (no stat cards, no layout gap), and the User Directory DataTable still populates,
+  paginates, searches, and opens the details modal correctly.
+- PR to `main` (user approval required).
+
+---
+
+## Previous Session (2026-09-19 - Merging `main` into `security_questions`)
 
 ### Scope
 Brought `origin/main`'s 13 commits into this branch ahead of the final PR back into `main`:

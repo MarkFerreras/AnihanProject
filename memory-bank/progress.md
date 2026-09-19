@@ -2,6 +2,26 @@
 
 ## Recent Sessions (detail)
 
+### Remove Admin Statistics Panel (Completed - September 20, 2026)
+- **Task:** Remove the Total Users / Admins / Registrars / Trainers stat-card panel from the
+  admin dashboard hero, without breaking any other admin dashboard functionality.
+- **Change:** Deleted the `.hero-stats` markup block from `admin.html`, the `updateStats()`
+  helper from `admin-users.js`, and the now-unused `.hero-stats`/`.stat-*` CSS rules (incl.
+  2 responsive overrides) from `dashboard.css`. The admin hero now matches the plain
+  single-column pattern already used by every other dashboard page.
+- **One functional fix needed during removal:** the DataTable's `ajax.dataSrc` callback was
+  doing double duty — computing the stats AND telling DataTables the response root is the
+  row array (`/api/admin/users` returns a bare array, not `{data:[...]}`). Deleting the
+  callback outright would have broken the User Directory table. Replaced with
+  `dataSrc: ''`, DataTables' documented way to say "the response IS the array," which
+  preserves the table exactly while removing the stats computation.
+- **Verified:** repo-wide grep confirms zero remaining references to any removed
+  identifier/class; no backend, DTO, or test code touched these (the stats were pure
+  client-side math over data the table already had). Frontend-only — no Gradle build
+  needed.
+- **Branch:** `admin_stats_and_SR_overhaul`. Open: manual browser smoke test of the admin
+  dashboard hero + User Directory table; PR to main.
+
 ### Security Questions / Forgot Password Feature (Completed - September 19, 2026)
 - **Task:** Implement the full 10-point security-questions/forgot-password plan reached after
   an extended design discussion with the user (see `decisions.md`): mandatory first-login
