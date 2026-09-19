@@ -2,6 +2,52 @@
 
 ## Recent Sessions (detail)
 
+### Move ID Photo Upload from Student Portal to Registrar (Completed - September 19, 2026)
+- **Task:** Remove all document-upload features from the public student enrollment wizard
+  (including the 1x1/2x2 ID photo), clean up the leftover UI, and give the Registrar an
+  ID-picture upload on the per-student record screens — without disturbing the Registrar's
+  existing document upload/download/view features.
+- **Part A (removal):** Deleted `StorageService`, `StudentUpload` entity + repository, and
+  `UploadRefDto`. Stripped the two upload endpoints from `StudentDetailsController`, the
+  three upload methods from `StudentDetailsService` (corrected a now-false comment on
+  `startOrResume`), and the two upload fields from `StudentDetailsResponse` (31 → 29
+  components). `RegistrarService.deleteRecord()` no longer purges filesystem uploads.
+  Removed the Document Upload section + dead CSS from the wizard; Religion is now Step 1's
+  closing section. Deleted 2 confirmed-orphan files under `uploads/students/` (0 matching
+  `student_uploads` rows) — they turned out to be git-tracked, not gitignored as the plan
+  assumed, so a small follow-up commit was needed to actually remove them from history.
+- **Part B (registrar replacement):** The ID picture is stored as a `documents` row
+  (`document_type = "ID Picture (1x1 / 2x2)"`), not a new filesystem path — inherits
+  REGISTRAR RBAC, `system_logs` auditing, and the existing per-student document purge for
+  free. New `DocumentService.uploadIdPicture()` (image-only whitelist: jpg/jpeg/png/webp,
+  2MB cap, replace-in-place on re-upload) and `findIdPicture()`/`deleteIdPicture()`; three
+  new `DocumentController` endpoints. Registrar edit form and details modal both show the
+  picture; the Documents page's *upload* dropdown excludes it (still shown in the *filter*),
+  and its view modal now previews any `image/*` type inline.
+- **Verified:** `./gradlew test` → **374 tests, 0 failures** (was 363; +11). `ddl-auto=
+  validate` boot against live MySQL → **PASS** — confirms the now-unmapped `student_uploads`
+  table (kept, not dropped) doesn't break startup. Full live-API verification via curl
+  against real MySQL (no browser automation was available this session — see Environment
+  note below): upload → replace-in-place (same `documentId`, DB count stays 1) → both
+  rejection paths (wrong type, over 2MB) write nothing → remove → 404 afterward →
+  `system_logs` rows for all three actions. Existing PDF upload/view/download and TOR
+  generation on the general documents endpoint confirmed unaffected. Test student and its
+  documents deleted afterward; live DB back to its pre-session state (10 students).
+- **Two pre-existing bugs found (not fixed, logged as Bug 12/13 in `bugs.md`):**
+  `documents.file_type VARCHAR(50)` is too short for the docx/xlsx MIME strings
+  `DocumentService` itself declares (docx/xlsx upload has always failed against a real DB —
+  only the mocked test suite never caught it), and `GlobalExceptionHandler`'s catch-all
+  turns any genuinely-missing route under a public prefix into a 500 instead of a 404. Both
+  are out of scope for this plan (decision 2 keeps the Documents module untouched).
+- **Environment note:** Playwright's browser extension and `playwright-core` were both
+  unavailable this session, so Task 14's browser walkthrough was done at the API level
+  (curl + live MySQL) rather than a rendered-DOM click-through. Purely visual pieces
+  (preview rendering, the empty-state placeholder, button enable/disable, console cleanliness)
+  were not independently confirmed.
+- **Branch:** `feature/move-id-photo-to-registrar`. Open: PR to `main` (user approval
+  required); drop `student_uploads` in a future schema-sync session; a full browser
+  walkthrough of the new UI is still recommended before merge.
+
 ### schema.sql vs Live DB Comparison + Sync (Completed - September 19, 2026)
 - **Task:** Compare `src/main/sql/schema.sql` with the live `AnihanSRMS` database and update
   the live DB to match if they differed.

@@ -41,7 +41,6 @@ import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
-import com.example.springboot.repository.StudentUploadRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StudentDetailsServiceTest {
@@ -51,7 +50,6 @@ class StudentDetailsServiceTest {
     @Mock private OtherGuardianRepository guardianRepo;
     @Mock private StudentEducationRepository educationRepo;
     @Mock private StudentSchoolYearRepository schoolYearRepo;
-    @Mock private StudentUploadRepository uploadRepo;
     @Mock private BatchRepository batchRepo;
 
     @InjectMocks
@@ -78,8 +76,6 @@ class StudentDetailsServiceTest {
                 .thenReturn(Collections.emptyList());
         Mockito.lenient().when(schoolYearRepo.findByStudentIdOrderByRowIndex(anyString()))
                 .thenReturn(Collections.emptyList());
-        Mockito.lenient().when(uploadRepo.findByStudentIdAndKind(anyString(), anyString()))
-                .thenReturn(Optional.empty());
     }
 
     private StudentDetailsRequest buildFullRequest() {
@@ -225,9 +221,6 @@ class StudentDetailsServiceTest {
                     .thenReturn(Collections.emptyList());
             Mockito.lenient().when(schoolYearRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            // Uploads (for buildResponse)
-            Mockito.lenient().when(uploadRepo.findByStudentIdAndKind(anyString(), anyString()))
-                    .thenReturn(Optional.empty());
 
             // Education list (for buildResponse)
             Mockito.lenient().when(educationRepo.findByStudentIdOrderByLevel(anyString()))

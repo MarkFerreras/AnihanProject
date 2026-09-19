@@ -3,7 +3,6 @@
 // ─── State ──────────────────────────────────────────────────────────────────
 let studentId = null;
 let currentStep = 1;
-let pendingIdPhoto = null;
 const TOTAL_STEPS = 3;
 const REDIRECT_DELAY_MS = 5000;
 
@@ -47,7 +46,6 @@ const ALL_REQUIRED = Object.entries(STEP_REQUIRED).flatMap(([step, fields]) =>
 document.addEventListener('DOMContentLoaded', async () => {
     setupBirthdateAgeCalc();
     setupPhoneFormatting();
-    setupFileUploads();
 
     const params = new URLSearchParams(window.location.search);
     const lastName   = params.get('lastName')   || '';
@@ -196,13 +194,6 @@ async function submitForm() {
             return;
         }
 
-        // Upload any files selected before submit
-        if (pendingIdPhoto) {
-            submitBtn.textContent = 'Uploading files…';
-            await uploadPendingFile(pendingIdPhoto, 'ID_PHOTO', 'idPhotoStatus');
-            pendingIdPhoto = null;
-        }
-
         showSubmittedBanner(studentId);
         sessionStorage.removeItem('studentId');
     } catch {
@@ -210,27 +201,6 @@ async function submitForm() {
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit';
-    }
-}
-
-async function uploadPendingFile(file, kind, statusId) {
-    const statusEl = document.getElementById(statusId);
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-        const res = await fetch(`/api/student/${studentId}/upload?kind=${kind}`, {
-            method: 'POST',
-            body: fd
-        });
-        if (!res.ok) {
-            const msg = await res.text().catch(() => 'Upload failed.');
-            if (statusEl) statusEl.textContent = `Error: ${msg}`;
-            return;
-        }
-        const ref = await res.json();
-        if (statusEl) statusEl.textContent = `Uploaded: ${ref.originalName}`;
-    } catch {
-        if (statusEl) statusEl.textContent = 'Upload error.';
     }
 }
 
@@ -326,13 +296,6 @@ function populateForm(data) {
 
     set('religion', data.religion);
 
-    if (data.idPhotoRef) {
-        document.getElementById('idPhotoStatus').textContent = `Uploaded: ${data.idPhotoRef.originalName}`;
-        const img = document.getElementById('idPhotoPreview');
-        img.src = `/api/student/files/${data.idPhotoRef.uploadId}`;
-        img.classList.add('show');
-    }
-
     const f = data.father;
     if (f) {
         set('fatherFamilyName', f.familyName); set('fatherFirstName', f.firstName);
@@ -419,37 +382,6 @@ function setupPhoneFormatting() {
     ['contactNo', 'fatherContactNo', 'motherContactNo'].forEach(attachPhoneFormatter);
 }
 
-// ─── File uploads ─────────────────────────────────────────────────────────────
-function setupFileUploads() {
-    setupFileInput('idPhotoFile',  'idPhotoPreview',  'idPhotoStatus',  'ID_PHOTO');
-}
-
-function setupFileInput(inputId, previewId, statusId, kind) {
-    document.getElementById(inputId).addEventListener('change', function () {
-        if (!this.files.length) return;
-        const file      = this.files[0];
-        const statusEl  = document.getElementById(statusId);
-        const previewEl = document.getElementById(previewId);
-
-        // Store for deferred upload on final submit
-        if (kind === 'ID_PHOTO') pendingIdPhoto = file;
-
-        statusEl.textContent = `Selected: ${file.name}`;
-
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                previewEl.src = e.target.result;
-                previewEl.classList.add('show');
-            };
-            reader.readAsDataURL(file);
-        } else {
-            previewEl.classList.remove('show');
-            statusEl.textContent += ' (PDF)';
-        }
-    });
-}
-
 // ─── Client-side validation ───────────────────────────────────────────────────
 function validateStep(step) {
     const fieldErrors = (STEP_REQUIRED[step] || []).filter(f => {
@@ -499,8 +431,10 @@ function highlightErrors(errors) {
     );
 }
 
-// IDs that may receive is-invalid from custom validators (uploads + conditional fields)
-const CUSTOM_VALIDATED_IDS = ['idPhotoFile'];
+// IDs that may receive is-invalid from custom validators (conditional fields).
+// Empty today: STEP_CUSTOM_VALIDATORS holds no validators. Kept so a future
+// conditional field has an obvious place to register itself for clearing.
+const CUSTOM_VALIDATED_IDS = [];
 
 function clearValidation() {
     ALL_REQUIRED.forEach(f => document.getElementById(f.id)?.classList.remove('is-invalid'));

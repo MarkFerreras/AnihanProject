@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -20,6 +21,9 @@ import com.example.springboot.repository.StudentRecordRepository;
 @Service
 public class DocumentService {
 
+    /** Document type reserved for the student's 1x1 / 2x2 ID picture. */
+    public static final String ID_PICTURE_TYPE = "ID Picture (1x1 / 2x2)";
+
     /** Document categories per R3.2 (AGILE-76) — the four generated templates plus common uploads. */
     private static final List<String> DOCUMENT_TYPES = List.of(
             "Transcript of Records (TOR)",
@@ -30,7 +34,8 @@ public class DocumentService {
             "PSA Birth Certificate",
             "OJT Report",
             "Certificate of TVET Program",
-            "Others"
+            "Others",
+            ID_PICTURE_TYPE
     );
 
     /** Upload whitelist per R3.1 (AGILE-75): pdf, docx, xlsx. */
@@ -41,6 +46,21 @@ public class DocumentService {
     );
 
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+
+    /**
+     * Image whitelist for the ID picture only. Deliberately separate from
+     * {@link #ALLOWED_EXTENSIONS} so the general Documents page keeps accepting
+     * exactly pdf/docx/xlsx and nothing else.
+     */
+    private static final Map<String, String> ID_PICTURE_EXTENSIONS = Map.of(
+            "jpg",  "image/jpeg",
+            "jpeg", "image/jpeg",
+            "png",  "image/png",
+            "webp", "image/webp"
+    );
+
+    /** ID pictures are small by nature; 2MB matches the limit the old student portal used. */
+    private static final long ID_PICTURE_MAX_BYTES = 2L * 1024 * 1024;
 
     /**
      * Short template names used for friendly download filenames of generated
@@ -218,6 +238,66 @@ public class DocumentService {
     public Document getDocument(Integer documentId) {
         return documentRepository.findById(documentId)
                 .orElseThrow(() -> new NoSuchElementException("Document not found: " + documentId));
+    }
+
+    /** The student's ID picture, if one has been uploaded. */
+    public Optional<Document> findIdPicture(String studentId) {
+        return documentRepository.findByStudentStudentIdAndDocumentType(studentId, ID_PICTURE_TYPE);
+    }
+
+    /**
+     * Stores (or replaces) a student's 1x1 / 2x2 ID picture as a row in the
+     * {@code documents} table. One picture per student: re-uploading updates the
+     * existing row in place rather than accumulating copies, mirroring the
+     * replace-on-reupload behaviour the student portal used to have.
+     */
+    public DocumentSummaryResponse uploadIdPicture(String studentId, MultipartFile file) {
+        StudentRecord student = requireStudent(studentId);
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("No picture was provided.");
+        }
+        if (file.getSize() > ID_PICTURE_MAX_BYTES) {
+            throw new IllegalArgumentException("ID picture exceeds the 2MB size limit.");
+        }
+
+        String originalName = StringUtils.cleanPath(
+                file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
+        if (originalName.isBlank() || originalName.contains("..")) {
+            throw new IllegalArgumentException("Invalid file name.");
+        }
+
+        String mimeType = ID_PICTURE_EXTENSIONS.get(extensionOf(originalName));
+        if (mimeType == null) {
+            throw new IllegalArgumentException(
+                    "Unsupported picture type. Allowed: jpg, jpeg, png, webp");
+        }
+
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not read the uploaded picture. Please try again.");
+        }
+
+        Document document = documentRepository
+                .findByStudentStudentIdAndDocumentType(studentId, ID_PICTURE_TYPE)
+                .orElseGet(Document::new);
+
+        document.setStudent(student);
+        document.setDocumentType(ID_PICTURE_TYPE);
+        document.setFileName(originalName);
+        document.setFileType(mimeType);
+        document.setFileSize(content.length);
+        document.setContentData(content);
+
+        return toSummary(documentRepository.save(document));
+    }
+
+    /** Removes a student's ID picture. No-op when none exists. */
+    public void deleteIdPicture(String studentId) {
+        documentRepository.findByStudentStudentIdAndDocumentType(studentId, ID_PICTURE_TYPE)
+                .ifPresent(documentRepository::delete);
     }
 
     private Document save(StudentRecord student, String documentType,

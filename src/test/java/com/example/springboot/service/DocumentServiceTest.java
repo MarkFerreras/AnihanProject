@@ -147,6 +147,103 @@ class DocumentServiceTest {
     }
 
     // -------------------------------------------------------
+    // ID picture
+    // -------------------------------------------------------
+
+    @Test
+    void findIdPictureReturnsEmptyWhenStudentHasNone() {
+        when(documentRepository.findByStudentStudentIdAndDocumentType(
+                "SR20260001", DocumentService.ID_PICTURE_TYPE))
+                .thenReturn(Optional.empty());
+
+        assertTrue(service.findIdPicture("SR20260001").isEmpty());
+    }
+
+    @Test
+    void idPictureTypeIsAKnownDocumentType() {
+        assertTrue(service.getDocumentTypes().contains(DocumentService.ID_PICTURE_TYPE));
+    }
+
+    @Test
+    void uploadIdPictureSavesJpegAndReturnsSummary() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        when(documentRepository.findByStudentStudentIdAndDocumentType(
+                "SR20260001", DocumentService.ID_PICTURE_TYPE)).thenReturn(Optional.empty());
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var file = new MockMultipartFile("file", "maria-1x1.jpg", "image/jpeg",
+                "jpeg-bytes".getBytes(StandardCharsets.UTF_8));
+
+        DocumentSummaryResponse summary = service.uploadIdPicture("SR20260001", file);
+
+        assertEquals("maria-1x1.jpg", summary.fileName());
+        assertEquals("image/jpeg", summary.fileType());
+        assertEquals(DocumentService.ID_PICTURE_TYPE, summary.documentType());
+    }
+
+    @Test
+    void uploadIdPictureReplacesTheExistingPictureInPlace() {
+        Document existing = new Document();
+        existing.setDocumentId(42);
+        existing.setStudent(student);
+        existing.setDocumentType(DocumentService.ID_PICTURE_TYPE);
+        existing.setFileName("old.png");
+        existing.setFileType("image/png");
+        existing.setContentData("old".getBytes(StandardCharsets.UTF_8));
+
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        when(documentRepository.findByStudentStudentIdAndDocumentType(
+                "SR20260001", DocumentService.ID_PICTURE_TYPE)).thenReturn(Optional.of(existing));
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var file = new MockMultipartFile("file", "new.jpg", "image/jpeg",
+                "new-bytes".getBytes(StandardCharsets.UTF_8));
+
+        DocumentSummaryResponse summary = service.uploadIdPicture("SR20260001", file);
+
+        // Same row reused: no second ID picture accumulates for this student.
+        assertEquals(42, summary.documentId());
+        assertEquals("new.jpg", summary.fileName());
+        verify(documentRepository, never()).delete(any(Document.class));
+    }
+
+    @Test
+    void uploadIdPictureRejectsNonImageFile() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var file = new MockMultipartFile("file", "scan.pdf", "application/pdf",
+                "pdf-bytes".getBytes(StandardCharsets.UTF_8));
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.uploadIdPicture("SR20260001", file));
+        assertTrue(ex.getMessage().toLowerCase().contains("jpg"));
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    @Test
+    void uploadIdPictureRejectsFileOverTwoMegabytes() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        byte[] tooBig = new byte[2 * 1024 * 1024 + 1];
+        var file = new MockMultipartFile("file", "huge.png", "image/png", tooBig);
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.uploadIdPicture("SR20260001", file));
+        assertTrue(ex.getMessage().contains("2MB"));
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    @Test
+    void uploadIdPictureRejectsUnknownStudent() {
+        when(studentRecordRepository.findByStudentId("NOPE")).thenReturn(Optional.empty());
+
+        var file = new MockMultipartFile("file", "a.jpg", "image/jpeg", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadIdPicture("NOPE", file));
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    // -------------------------------------------------------
     // Delete
     // -------------------------------------------------------
 

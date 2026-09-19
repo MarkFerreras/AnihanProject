@@ -74,7 +74,7 @@ Controller → Service → Repository → Model (JPA Entity)
 - `controller/` — REST endpoints + HTML page routing: Auth, Admin, Account, Lookup, SystemLog, Registrar, ClassManagement, StudentPortal, StudentDetails
 - `service/` — business logic including `AgeCalculator` (auto-computes age from birthdate; returns `Integer null` for null birthdate)
 - `repository/` — Spring Data JPA interfaces
-- `model/` — 19 JPA entities: User, StudentRecord, Batch, Course, Section, Subject, Qualification, Grade, Parent, OtherGuardian, Document, SystemLog, StudentEducation, StudentSchoolYear, StudentOjt, StudentTesdaQualification, StudentUpload, SchoolClass, ClassEnrollment
+- `model/` — 20 JPA entities: User, StudentRecord, Batch, Course, Section, Subject, Qualification, Grade, Parent, OtherGuardian, Document, SystemLog, StudentEducation, StudentSchoolYear, StudentOjt, StudentTesdaQualification, SchoolClass, ClassEnrollment, SecurityQuestion, UserSecurityAnswer
 - `dto/` — top-level DTOs (login, admin user CRUD, account updates, log queries) + sub-packages `dto/registrar/` (subjects, classes, sections, student record details) and `dto/student/` (enrollment wizard payloads)
 - `exception/` — `GlobalExceptionHandler` for centralized error responses
 - `config/SecurityConfig.java` — RBAC, session config, CSRF rules
@@ -93,6 +93,8 @@ Controller → Service → Repository → Model (JPA Entity)
 | TRAINER | View assigned subjects, input/lock grades | `/trainer.html`, `/api/trainer/**` |
 
 ## Key Conventions
+
+**Student ID picture:** The public student portal has **no file upload of any kind** — that feature was removed entirely (2026-09-19). The student's 1x1/2x2 ID picture is uploaded by the Registrar from `student-records.html` (or replaced from the `registrar.html` details modal) and stored as a row in the `documents` table under `document_type = "ID Picture (1x1 / 2x2)"`, not as a filesystem upload. It never appears in the Documents page's upload dropdown, only its filter dropdown.
 
 **Schema changes:** JPA DDL is `none` — all DB changes must be written as SQL and applied manually. Never rely on Hibernate to auto-migrate.
 

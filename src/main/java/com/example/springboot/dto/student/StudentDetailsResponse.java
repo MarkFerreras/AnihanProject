@@ -28,10 +28,6 @@ public record StudentDetailsResponse(
     LocalDate baptismDate,
     String baptismPlace,
 
-    // Uploads
-    UploadRefDto idPhotoRef,
-    UploadRefDto baptismalCertRef,
-
     // Family
     ParentDto father,
     ParentDto mother,
