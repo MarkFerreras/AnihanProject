@@ -1,5 +1,86 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-19 (follow-up 3) - Duplicate "Account Locked" Audit Log Entries
+**Branch:** `security_questions`
+
+### Task
+User asked to confirm the audit log records lockout events and which account — it already
+did (`system_logs` correctly showed "Account locked due to repeated failed security question
+attempts" with the right username/role for `registrar`), but checking the live data surfaced a
+real bug: the same lock event was being logged multiple times.
+
+### Root Cause
+`PasswordRecoveryController.verify()`'s `logIfNewlyLocked()` logged whenever the account was
+*currently* locked after a failed attempt — with no way to tell "this attempt just caused the
+lock" apart from "this account was already locked before this attempt, and got rejected
+immediately without changing anything." Every subsequent attempt against an already-locked
+account re-logged the same "Account locked..." message.
+
+### Fix
+`verify()` now checks whether the account was locked *before* calling the service, and only
+logs on the failure path when it wasn't — i.e. only at the actual transition into lockout, not
+on repeated bounces off an already-locked account.
+
+### Verification
+`./gradlew test` → 363 tests, 0 failures (unchanged — no test covered this controller-level
+timing distinction yet; still only service-level Mockito coverage exists for this feature, per
+the earlier-noted open item).
+
+### Also noted (also two frontend gaps closed this session, not yet written up until now)
+- The admin Users table's status column only ever checked `enabled`, never the new
+  `securityLocked` field, so a locked account still showed "Active" — fixed in
+  `admin-users.js` (`renderStatusBadge` now takes both, renders a distinct amber "Locked"
+  badge) and `admin.html` (DataTables column `render` callback now passes the full `row`).
+- `admin-users.js` is loaded as `admin-users.js?v=2` on `admin.html` — editing the file without
+  bumping that number meant browsers kept serving the pre-fix cached copy indefinitely, since
+  the URL itself never changed. Bumped to `?v=3`. **Lesson, stated plainly for next time: any
+  edit to a JS/CSS file loaded with an explicit `?v=N` on its `<link>`/`<script>` tag must bump
+  that number in the same change, every time — this project relies on that convention instead
+  of cache headers, and skipping it silently defeats it.**
+
+---
+
+## 2026-09-19 (follow-up) - Lockout Counter Was Silently Rolled Back on Every Wrong Answer
+**Branch:** `security_questions`
+
+### Task
+User reported that failing the security questions 3 times did not lock the account.
+
+### Root Cause
+`SecurityQuestionService.verifyAnswers()` is `@Transactional`. On a wrong answer it correctly
+incremented `failed_security_attempts` (and set `security_locked` on the 3rd) and called
+`userRepository.save(user)` — then threw `IllegalArgumentException` so the controller could
+return a 400 to the caller. Spring rolls back the *entire* transaction by default whenever an
+unchecked exception escapes a `@Transactional` method, so that save was silently undone every
+time. The 21 `SecurityQuestionServiceTest` cases all passed because they mock `UserRepository`
+directly and never exercise real Spring transaction/rollback semantics — this is a real gap in
+that test file's coverage, not just a code bug, and is worth remembering for any other
+service method that deliberately throws after a write it needs to keep.
+
+### Fix
+`@Transactional(noRollbackFor = IllegalArgumentException.class)` on `verifyAnswers()`.
+
+### Verification
+Recompiled, restarted the app, and ran the real 3-attempt sequence against the live database
+via the actual HTTP endpoints (not mocks): attempt 1 → counter 1, attempt 2 → counter 2,
+attempt 3 → counter 3 **and `security_locked=1`**, a 4th attempt rejected immediately without
+checking answers, and a subsequent login with the correct password also blocked with the
+locked-account message — confirming the lockout blocks normal login, not just forgot-password,
+as designed. Since `admin` is the only admin account, this also locked itself out with no
+other admin available — used `BREAKGLASS-account-unlock.md` for the first time for real,
+confirming that procedure works as written. Noted in passing: `admin`'s password no longer
+matches the `password123` seed value and `password_changed_at` is set, consistent with the
+user having already exercised the reset-password step themselves during their own testing —
+not a bug, just means a live login re-check needs the user's current password, not the seed.
+
+### Open follow-up
+Add a `@DataJpaTest` or full-context integration test for `verifyAnswers()` that exercises a
+real transaction (not a mocked repository), specifically to catch this class of "state change
+made right before a deliberate throw gets rolled back" bug — Mockito-based service tests
+structurally cannot catch it.
+
+---
+
 ## 2026-09-19 - Security Questions / Forgot Password Feature
 **Branch:** `security_questions`
 

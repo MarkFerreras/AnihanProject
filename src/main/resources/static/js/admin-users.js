@@ -37,7 +37,13 @@
         return '<span class="' + roleClass + '">' + escapeHtml(ROLE_LABELS[role] || role) + '</span>';
     }
 
-    function renderStatusBadge(enabled) {
+    function renderStatusBadge(enabled, securityLocked) {
+        // Locked (failed security-question attempts) and Disabled (admin deactivated) are
+        // deliberately separate states — see memory-bank/decisions.md — so they get distinct
+        // badges rather than both collapsing into "Disabled".
+        if (securityLocked === true) {
+            return '<span class="status-badge status-badge-enrolling">Locked</span>';
+        }
         if (enabled === false) {
             return '<span class="status-badge status-badge-disabled">Disabled</span>';
         }
@@ -303,8 +309,8 @@
                 },
                 {
                     data: 'enabled',
-                    render: function (data) {
-                        return renderStatusBadge(data);
+                    render: function (data, type, row) {
+                        return renderStatusBadge(data, row.securityLocked);
                     }
                 },
                 {

@@ -95,11 +95,18 @@ public class PasswordRecoveryController {
             HttpServletRequest httpRequest) {
 
         String username = currentUsername();
+        boolean wasLockedBefore = isCurrentlyLocked(username);
 
         try {
             securityQuestionService.verifyAnswers(username, request.answers());
         } catch (IllegalArgumentException ex) {
-            logIfNewlyLocked(username, httpRequest);
+            // Only log the transition into lockout, not every subsequent rejected
+            // attempt against an account that was already locked before this call —
+            // otherwise repeated attempts against a locked account spam the audit
+            // trail with duplicate "Account locked" entries for the same event.
+            if (!wasLockedBefore) {
+                logIfNewlyLocked(username, httpRequest);
+            }
             throw ex;
         }
 
@@ -152,6 +159,13 @@ public class PasswordRecoveryController {
     private String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth.getName();
+    }
+
+    private boolean isCurrentlyLocked(String username) {
+        return userRepository.findByUsername(username)
+                .map(User::getSecurityLocked)
+                .map(Boolean.TRUE::equals)
+                .orElse(false);
     }
 
     private void logIfNewlyLocked(String username, HttpServletRequest httpRequest) {

@@ -191,8 +191,14 @@ public class SecurityQuestionService {
      * failed-attempt count decays back to 0 after 15 minutes measured from
      * the first failure in the streak, but only while not yet locked; a
      * correct answer resets the count immediately.
+     *
+     * <p>{@code noRollbackFor} is required here: this method deliberately
+     * throws {@link IllegalArgumentException} to signal a wrong answer or an
+     * existing lockout to the caller, but Spring rolls back the whole
+     * transaction on any unchecked exception by default — which would silently
+     * undo the very failed-attempt increment (or lock) this method just saved.
      */
-    @Transactional
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
     public void verifyAnswers(String username, List<String> answers) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new NoSuchElementException("Account not found"));

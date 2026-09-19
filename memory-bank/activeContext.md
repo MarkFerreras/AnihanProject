@@ -108,10 +108,27 @@ with 15-minute decay that only an admin can clear, and an admin "Unlock Account"
   real setup flow themselves rather than inherit throwaway test answers. Stopped short of
   testing the live password-reset step to avoid changing the real admin password.
 
+### Follow-up fix (same day) — Lockout Counter Wasn't Actually Persisting
+User reported 3 wrong answers didn't lock the account. Root cause: `verifyAnswers()` is
+`@Transactional`, and Spring rolls back the whole transaction by default on any unchecked
+exception — the method deliberately throws `IllegalArgumentException` after saving the
+incremented counter, so that save was silently undone every time. All 21 unit tests passed
+regardless because they mock the repository and never exercise real transaction rollback.
+Fixed with `@Transactional(noRollbackFor = IllegalArgumentException.class)`. Verified live
+end-to-end this time (not just unit tests): 3 real wrong attempts via the actual HTTP
+endpoints correctly reached `security_locked=1` on the 3rd, a 4th was rejected immediately,
+and a subsequent login with the right password was also blocked. `admin` locked itself out in
+the process (sole admin) — used `BREAKGLASS-account-unlock.md` for real for the first time,
+confirming it works. See `changeLog.md` for full detail. **Open follow-up: add a real
+transactional (`@DataJpaTest` or full-context) test for this method — Mockito-based service
+tests structurally can't catch this class of bug.**
+
 ### Open Items
 - WebMvc tests for `SecurityQuestionController`, `PasswordRecoveryController`, and the new
   `PUT /api/admin/users/{id}/unlock` endpoint are not yet written (only service-level Mockito
   tests exist so far).
+- A transactional/integration test for `verifyAnswers()`'s rollback behavior (see above) is
+  needed to actually guard against the bug just fixed — service-level mocked tests can't.
 - A full Playwright/manual browser pass of the end-to-end journeys (mandatory setup, edit from
   account settings, forgot-password happy path, 3-strike lockout blocking normal login, admin
   unlock, reset → dashboard) has not been run — only spot-checked via curl.
