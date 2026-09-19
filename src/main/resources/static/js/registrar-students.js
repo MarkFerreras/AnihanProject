@@ -93,6 +93,30 @@
 
         setText('detailsRecordId', r.recordId);
         setText('detailsStudentId', r.studentId);
+
+        // ID picture: HEAD first so a missing picture never renders a broken image.
+        const idPictureImg   = document.getElementById('detailsIdPicture');
+        const idPictureEmpty = document.getElementById('detailsIdPictureEmpty');
+        if (idPictureImg && idPictureEmpty && r.studentId) {
+            const pictureUrl = '/api/registrar/documents/id-picture/'
+                + encodeURIComponent(r.studentId);
+            fetch(pictureUrl, { method: 'HEAD', credentials: 'same-origin' })
+                .then(function (response) {
+                    if (response.ok) {
+                        idPictureImg.src = pictureUrl + '?t=' + Date.now();
+                        idPictureImg.classList.remove('d-none');
+                        idPictureEmpty.classList.add('d-none');
+                    } else {
+                        idPictureImg.removeAttribute('src');
+                        idPictureImg.classList.add('d-none');
+                        idPictureEmpty.classList.remove('d-none');
+                    }
+                })
+                .catch(function () {
+                    idPictureImg.classList.add('d-none');
+                    idPictureEmpty.classList.remove('d-none');
+                });
+        }
         setText('detailsStudentNumber', isBlank(r.studentNumber) ? 'Not Assigned' : r.studentNumber);
         setText('detailsLastName', r.lastName);
         setText('detailsFirstName', r.firstName);

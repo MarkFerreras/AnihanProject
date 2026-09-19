@@ -1,12 +1,50 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Security Questions / Forgot Password feature implemented end-to-end and verified live — 363 tests green, live DB migrated**
+**`main`'s work — the ID-photo-to-Registrar feature and a live-DB sync that fixed two SQL
+type mismatches — merged into `security_questions`, on top of the already-completed Security
+Questions / Forgot Password feature. Full combined test suite verified after the merge (see
+below).**
 
 ## Active Branch
 `security_questions` (feature branch, not yet merged to `main`)
 
-## Latest Session (2026-09-19 - Security Questions / Forgot Password Feature)
+## Latest Session (2026-09-19 - Merging `main` into `security_questions`)
+
+### Scope
+Brought `origin/main`'s 13 commits into this branch ahead of the final PR back into `main`:
+the ID-photo-to-Registrar feature (a separate branch, merged into `main` after this branch
+had already split off) and a live-DB sync session that caught and fixed two real SQL type
+mismatches in the security-questions migration (`user_security_answers.slot` and
+`users.failed_security_attempts` were declared `TINYINT`, but their JPA entity fields are
+`Integer` — `ddl-auto=validate` would fail to boot against a database built from the
+original migration file). Conflicts appeared in exactly 5 memory-bank files; the actual
+application code — including both branches' independent edits to the very same SQL
+migration file — merged automatically with zero conflicts.
+
+### Conflict resolution
+- `changeLog.md`, `decisions.md`, `progress.md` — both sides had simply added their own
+  dated, self-contained entry to the same spot; kept both, no rewrite needed.
+- `activeContext.md` (this file) — both sides had written a different "Current Phase" /
+  "Active Branch" statement, which can't both be true at once; rewrote the top section into
+  one statement reflecting the actual combined state, and relabeled both prior "Latest
+  Session" write-ups below as "Previous Session".
+- `testing.md` — both sides had a "Latest full-suite result" line with a different test
+  count (363 vs. 374); neither number is the real one once the code is actually combined,
+  so that line was left until the full suite was run fresh against the merged code — see
+  Verified below.
+
+### Verified
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL — the combined code compiles;
+  Git reporting zero text conflicts didn't by itself guarantee this (two branches can
+  interleave cleanly at the line level while still breaking a cross-file dependency), so this
+  was checked explicitly rather than assumed.
+- `./gradlew test` → BUILD SUCCESSFUL — **374 tests, 0 failures, 0 errors**. See
+  `testing.md` for why this lands exactly on the ID-photo branch's own pre-merge number.
+
+---
+
+## Previous Session (2026-09-19 - Security Questions / Forgot Password Feature)
 
 ### Scope
 Full implementation of the 10-point security-questions/forgot-password plan agreed with the
@@ -135,6 +173,97 @@ tests structurally can't catch this class of bug.**
 - PR to `main` (user approval required).
 - The `admin` account's live security-question answers were deliberately left unset after this
   session's verification (see above) — first real login will hit the mandatory setup page.
+
+---
+
+## Previous Session (2026-09-19 - ID Photo Upload Moved from Student Portal to Registrar)
+
+Branch was `feature/move-id-photo-to-registrar` (user-approved, branched from `main`),
+merged into `main` before this session. Branch was green at 374 tests (was 363),
+`ddl-auto=validate` PASS, live-API verification complete.
+
+### Open Items (as of the ID-photo-to-registrar session)
+- PR to `main` — user approval required.
+- `student_uploads` still sits in live MySQL, empty and unmapped — drop it in a future
+  routine schema-sync session (see `decisions.md`).
+- No browser automation was available this session (Playwright extension not installed,
+  `playwright-core` not present locally); Task 14 was verified at the API level instead.
+  A full rendered-DOM walkthrough of the new ID Picture UI (edit form section, details
+  modal card, console cleanliness) is still recommended before merge.
+- Two pre-existing, unrelated bugs surfaced during live verification and logged in
+  `bugs.md` as Bug 12 (`documents.file_type VARCHAR(50)` too short for docx/xlsx MIME
+  strings — docx/xlsx upload has always failed against real MySQL) and Bug 13
+  (`GlobalExceptionHandler` 500s on genuinely-missing routes instead of 404ing). Neither
+  was fixed — both are out of scope for this plan.
+- The `registrar` seed account's mandatory security-question setup was completed during
+  this session's live verification (it was the only way to get a REGISTRAR-role session);
+  this is real onboarding progress, not test data, and was left in place.
+
+## Previous Session (2026-09-19 - schema.sql vs Live DB Comparison + Sync)
+
+### Scope
+User asked to compare `src/main/sql/schema.sql` against the live `AnihanSRMS` database
+and, if they differed, update the live DB to match. The `security_questions` branch had
+been merged into `main` (commits `b17c031`, `64be20e`) but its migration had never been
+applied to the live database.
+
+### Drift found (real)
+`schema.sql` declared **21 tables**, live DB had **19**. Missing entirely:
+- `security_questions` and `user_security_answers` tables
+- `users.security_locked`, `users.failed_security_attempts`,
+  `users.security_lockout_started_at`
+- the `users.email` UNIQUE index
+
+Everything else diffed **cosmetic only** — FK/unique-index auto-names
+(`classes_ibfk_3` vs `_ibfk_2`, `fk_grades_class` vs `grades_ibfk_2`, `uq_username` vs
+`username`), secondary-index listing order, and `grades` physical column order. Same
+four categories as the 2026-07-14 and 2026-09-06 comparisons. No real drift beyond the
+security-questions delta.
+
+### Two genuine bugs in the merged SQL, caught by `ddl-auto=validate`
+The migration applied cleanly, but the app then **failed to boot** — so the
+security-questions feature could not have run against any DB built from these files.
+Both were type mismatches between the SQL and the JPA entities:
+
+| Column | Was | Entity field | Fixed to |
+|--------|-----|--------------|----------|
+| `user_security_answers.slot` | `TINYINT` | `UserSecurityAnswer.slot` (`Integer`) | `INT` |
+| `users.failed_security_attempts` | `TINYINT` | `User.failedSecurityAttempts` (`Integer`) | `INT` |
+
+`INT` also matches the pre-existing `student_tesda_qualifications.slot INT` convention.
+`users.security_locked` correctly stays `TINYINT(1)` (maps to `Boolean`) and
+`security_lockout_started_at` stays `DATETIME` (`LocalDateTime`) — both already right.
+
+Fixed in **`schema.sql`, the migration's CREATE/ADD statements, and two new guarded
+`MODIFY COLUMN` steps** (2b and 3b) so databases that already ran the old revision are
+repaired on re-run rather than left broken.
+
+### Verified
+- Backup taken before any write: `src/main/sql/backup-2026-09-19-pre-schema-sync.sql`
+  (116,733 bytes, 19 `CREATE TABLE`).
+- **Dry run first:** restored the live backup into a throwaway `schema_check` DB and
+  applied the migration there before touching live. Re-ran it — structure byte-identical,
+  `security_questions` still 6 rows (not 12). Idempotent.
+- Pre-flight data check: no duplicate or NULL emails, so `uq_email` could not fail.
+- `ddl-auto=validate` boot against live MySQL → **PASS**
+  (`Started SpringbootApplication in 9.368 seconds`, zero `Schema-validation` /
+  `SchemaManagementException` lines). This is the check that caught both bugs — the
+  Gradle suite runs on H2 and cannot detect live-DB or SQL-file type drift.
+- `./gradlew test` → **363 tests, 0 failures, 0 errors**.
+- Final structural diff (live vs a fresh DB built from the corrected `schema.sql`) →
+  cosmetic only. Live DB now **21 tables**.
+- Data preserved: 10 students, 5 users, 323 system_logs, 8 classes.
+
+### Note on live data
+The 3 seed accounts' emails were rewritten by the migration from `@example.com`
+placeholders to `admin@anihan.local` / `registrar@anihan.local` /
+`trainer@anihan.local` — intended, since the forgot-password flow looks accounts up by
+email. The 2 real accounts (`trainer2`, `wilkins`) were untouched.
+
+### Open Items
+- The two SQL type fixes have since been committed to `main` and are now part of this merge.
+- `user_security_answers` is still empty (0 rows) as of that session — no user had set
+  security questions yet at that point.
 
 ---
 

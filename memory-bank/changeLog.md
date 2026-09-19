@@ -111,6 +111,132 @@ clearable only by an admin, and an admin unlock action.
 | `src/main/sql/backup-2026-09-19-pre-security-questions.sql` | Pre-migration live DB backup. |
 | `test/.../SecurityQuestionServiceTest.java` | 21 tests: setup validation (duplicate default, custom-matches-default, both-custom, both-fields-set), replace-answers password gate, email lookup (not found / disabled / locked / setup-incomplete / happy path), the full lockout state machine (immediate reject when locked, success resets counter, wrong answer increments, 3rd strike locks, 15-minute decay), password reset (mismatch, same-as-current, happy path). |
 
+---
+
+## 2026-09-19 - Move ID Photo Upload from Student Portal to Registrar
+**Branch:** `feature/move-id-photo-to-registrar`
+
+### Task
+Per the user's request: remove every document-upload feature from the public student
+enrollment wizard (including the 1x1/2x2 ID photo), clean up the UI it leaves behind, and
+give the Registrar an ID-picture upload on the per-student record screens instead — while
+making sure the Registrar's existing document upload/download/view features keep working.
+Plan: `docs/superpowers/plans/2026-09-19-move-id-photo-to-registrar.md`.
+
+### Part A — Removed the student-portal upload feature entirely
+**Deleted:** `service/StorageService.java`, `model/StudentUpload.java`,
+`repository/StudentUploadRepository.java`, `dto/student/UploadRefDto.java`.
+
+**Modified:** `controller/StudentDetailsController.java` (removed the `/{studentId}/upload`
+and `/files/{uploadId}` endpoints and the `StorageService` field); `service/
+StudentDetailsService.java` (removed `saveUpload`/`getEnrollingUpload`/`toUploadRef` and the
+upload lookups in `buildResponse`; corrected the now-false comment on `startOrResume` — the
+record is still created early, but now purely so the wizard can resume from
+`sessionStorage`, not for an upload FK); `dto/student/StudentDetailsResponse.java` (record
+31 → 29 components, `idPhotoRef`/`baptismalCertRef` removed); `service/RegistrarService.java`
+(`deleteRecord()` no longer purges filesystem uploads — the `documents` table it already
+purges now covers the Registrar-side ID picture; constructor 12 → 10 params).
+
+**Frontend:** `static/student-details.html` — removed the "Document Upload" section (Religion
+is now the closing section of Step 1) and the dead `.upload-preview`/`.upload-link` CSS.
+`static/js/student-details.js` — removed `pendingIdPhoto` state, `setupFileUploads`,
+`setupFileInput`, `uploadPendingFile`, the deferred-upload block in `submitForm`, and the
+`idPhotoRef` populate block; `CUSTOM_VALIDATED_IDS` emptied (no conditional fields need it
+now). Cache-buster bumped `?v=6` → `?v=7`.
+
+**Cleanup:** 2 stranded files under `uploads/students/SR20260001/` (confirmed 0 matching
+rows in `student_uploads` before deleting) — these turned out to be git-tracked rather than
+gitignored as the plan assumed, so their deletion needed its own follow-up commit.
+`application.properties` — `app.storage.root` commented as unused (kept, decision 3).
+
+### Part B — Registrar ID picture, stored in `documents`
+**Backend:** `DocumentRepository.findByStudentStudentIdAndDocumentType` (exact lookup — the
+existing `searchSummaries` LIKE-search is too loose to key one photo on).
+`DocumentService.ID_PICTURE_TYPE = "ID Picture (1x1 / 2x2)"`, a separate
+`ID_PICTURE_EXTENSIONS` whitelist (jpg/jpeg/png/webp) and `ID_PICTURE_MAX_BYTES` (2MB) —
+deliberately apart from `ALLOWED_EXTENSIONS` so the general Documents page keeps accepting
+only pdf/docx/xlsx. `uploadIdPicture()` replaces the existing row in place on re-upload (no
+accumulation); `findIdPicture()`/`deleteIdPicture()`. `DocumentController` gains
+`POST/GET/DELETE .../documents/id-picture[/{studentId}]`, each writing `system_logs`; no
+`SecurityConfig` change needed (`/api/registrar/**` is already REGISTRAR-only).
+
+**Frontend:** `static/student-records.html` — new "ID Picture" section on the edit form
+(preview, file input, Upload/Remove buttons, inline alert); matches the page's actual
+`<h6 class="section-title">` convention (the plan's own snippet used `.section-heading`,
+undefined on this page — corrected during implementation, IDs unchanged).
+`static/js/registrar-student-records-edit.js` — picture load/upload/remove logic, kept out
+of `buildPayload()` so Save Changes can never disturb it (same invariant as the student
+number). `static/registrar.html` — ID picture card in the details modal.
+`static/js/registrar-students.js` — populates it via a `HEAD` request first, so a missing
+picture never renders a broken image. `static/js/registrar-documents.js` — excludes "ID
+Picture (1x1 / 2x2)" from the upload-type dropdown while keeping it in the filter dropdown
+(decision 4), and widens the view-modal's inline-preview test to include `image/*`.
+Cache-busters bumped across all four files.
+
+### Verified
+- `./gradlew test` → **BUILD SUCCESSFUL — 374 tests, 0 failures, 0 errors** (363 baseline +
+  11: 1 for the repository/service lookup, 6 for `uploadIdPicture`, 4 for the controller
+  endpoints).
+- `ddl-auto=validate` boot against live MySQL → **PASS** (started in 12.7s). Confirms an
+  unmapped `student_uploads` (still present, per decision) does not break startup.
+- Live API verification (curl, real MySQL, session cookie): upload → preview fetch → replace
+  with a second picture reuses the same `documentId` (no accumulation, DB count stayed 1) →
+  non-image rejected ("Allowed: jpg, jpeg, png, webp") → oversized (2MB+1 byte) rejected
+  ("exceeds the 2MB size limit") → neither rejection wrote a row → remove → 404 on re-fetch,
+  DB count back to 0 → `system_logs` rows for all three actions confirmed. Existing PDF
+  upload/view/download and TOR generation against the *general* documents endpoint verified
+  unaffected. Test student + its documents deleted afterward; live DB returned to its
+  pre-session state (10 students).
+- **No schema change** — `documents` table already existed; no migration needed.
+
+### Two pre-existing, unrelated findings from live verification (not fixed — out of scope)
+Logged as **Bug 12** and **Bug 13** in `bugs.md`:
+1. `documents.file_type VARCHAR(50)` is too short for the docx/xlsx MIME strings
+   `DocumentService.ALLOWED_EXTENSIONS` itself declares (73/65 chars) — docx/xlsx upload has
+   always failed against a real database with a truncation error; the mocked test suite
+   never exercises a real column-length constraint so this was never caught.
+2. `GlobalExceptionHandler`'s catch-all turns any genuinely non-existent route under a
+   `permitAll()` prefix into a 500 (`NoResourceFoundException` has no dedicated handler)
+   instead of a 404 — reproduced on the now-deleted `/api/student/{id}/upload` and
+   `/api/student/files/{id}` paths, and confirmed pre-existing (any nonsense path under
+   `/api/student/**` does the same; authenticated prefixes 401 first, which is why this went
+   unnoticed elsewhere).
+
+### Environment note
+No Playwright browser extension / `playwright-core` was available in this session, so Task
+14's browser-click verification was done at the API level (curl + live MySQL) instead of a
+rendered-DOM walkthrough. Everything server-side, DB-backed, and audit-logged was verified;
+the purely visual pieces (preview image rendering, the "No ID picture on file" placeholder,
+button enable/disable state, a clean browser console) were not independently confirmed this
+session.
+
+---
+
+## 2026-09-19 - schema.sql vs Live DB Comparison + Sync (security questions)
+**Branch:** `main` (DB-sync task)
+
+### Task
+Compare `src/main/sql/schema.sql` against the live `AnihanSRMS` MySQL database and, if
+they differ, bring the live DB into line with the file.
+
+### Drift found
+The `security_questions` branch had been merged into `main` (`b17c031`, `64be20e`) but
+its migration had never been applied to the live database. `schema.sql` described **21
+tables**; live had **19**.
+
+| Missing from live | Kind |
+|---|---|
+| `security_questions` table | whole table |
+| `user_security_answers` table | whole table |
+| `users.security_locked` | column |
+| `users.failed_security_attempts` | column |
+| `users.security_lockout_started_at` | column |
+| `users.email` UNIQUE index | index |
+
+All other differences were the four known **cosmetic** categories (FK/unique-index
+auto-names, secondary-index listing order, `grades` physical column order) — identical
+to the 2026-07-14 and 2026-09-06 findings.
+
 ### Files Modified
 | File | Change |
 |------|--------|
@@ -166,6 +292,64 @@ clearable only by an admin, and an admin unlock action.
   changing the real admin password.
 - Not yet done: WebMvc tests for the 2 new controllers and the admin unlock endpoint; a full
   Playwright/manual browser pass of the end-to-end journeys.
+| `src/main/sql/schema.sql` | `user_security_answers.slot` `TINYINT` → **`INT`**; `users.failed_security_attempts` `TINYINT` → **`INT`**. Both were type mismatches against the JPA entities that broke `ddl-auto=validate` (see below). |
+| `src/main/sql/migrations/2026-09-19-security-questions.sql` | Same two declarations corrected in the `CREATE TABLE` / `ADD COLUMN` statements, **plus two new guarded idempotent steps** — **2b** (`MODIFY COLUMN slot INT`) and **3b** (`MODIFY COLUMN failed_security_attempts INT`) — so a database that already ran the previous revision is repaired on re-run instead of staying unbootable. Added a verification query asserting `slot` is `int`. |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md`, `testing.md` | Session notes. |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/backup-2026-09-19-pre-schema-sync.sql` | Full pre-sync `mysqldump --databases AnihanSRMS --routines --triggers` (116,733 bytes, 19 `CREATE TABLE`). Taken before any live DDL. |
+
+### Two real bugs in the merged SQL — found by `ddl-auto=validate`, not by the tests
+The migration applied cleanly and every one of its own verification queries passed, but
+the application then **refused to boot** against the result. Two columns had been
+declared `TINYINT` while their JPA fields are `Integer`:
+
+```
+Schema validation: wrong column type encountered in column [slot]
+in table [user_security_answers]; found [tinyint], but expecting [integer]
+
+Schema validation: wrong column type encountered in column [failed_security_attempts]
+in table [users]; found [tinyint], but expecting [integer]
+```
+
+Both corrected to `INT`, which also matches the pre-existing
+`student_tesda_qualifications.slot INT` convention. Deliberately left alone:
+`users.security_locked` stays `TINYINT(1)` (the correct MySQL mapping for its `Boolean`
+field) and `security_lockout_started_at` stays `DATETIME` (`LocalDateTime`).
+
+This means the security-questions feature could not have worked against **any** database
+built from the merged files — the defect was in the SQL sources, not in the live DB.
+
+### Live DB Changes (Docker `mysql-server`, DB `AnihanSRMS` — backup taken first)
+Applied `2026-09-19-security-questions.sql`: created both tables, seeded the 6 default
+questions, added the 3 lockout columns, rewrote the 3 seed-account emails from
+`@example.com` placeholders to `admin@anihan.local` / `registrar@anihan.local` /
+`trainer@anihan.local`, and added the `uq_email` UNIQUE index. Then re-applied twice more
+as the two type fixes landed. Live DB: 19 → **21 tables**.
+
+Pre-flight check before adding `uq_email`: no duplicate and no NULL/empty emails in
+`users`, so the constraint could not fail mid-migration.
+
+### Method — dry run before touching live
+The live backup was restored into a throwaway `schema_check` database and the migration
+applied **there** first, so the real run was against a proven path. Re-running it on that
+copy produced a byte-identical structure and left `security_questions` at 6 rows (not 12),
+confirming idempotency. A second throwaway DB built from `schema.sql` supplied the
+comparison target. Both dropped afterwards; `schema.sql`'s hard-coded
+`CREATE DATABASE`/`USE AnihanSRMS` lines were stripped first so nothing could redirect
+into the live database.
+
+### Verification
+- **`ddl-auto=validate` boot against live MySQL → PASS**: `Started SpringbootApplication
+  in 9.368 seconds`, zero `ERROR` / `Schema-validation` / `SchemaManagementException`
+  lines. The authoritative check — the Gradle suite runs on H2 and cannot catch this.
+- `./gradlew test` → **BUILD SUCCESSFUL — 363 tests, 0 failures, 0 errors** (was 332).
+- Final structural diff (live `--no-data` dump vs a fresh DB built from the corrected
+  `schema.sql`) → **cosmetic only**; no functional drift.
+- Data preserved: 10 students, 5 users, 323 `system_logs`, 8 classes.
+  `user_security_answers` is empty (0 rows) — nobody has set questions yet.
 
 ---
 

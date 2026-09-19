@@ -118,6 +118,36 @@ the UI/action is unified.
 
 ---
 
+## 2026-09-19 - ID Picture Stored in the `documents` Table, Not a Filesystem Upload
+
+**Decision:** The student's 1x1/2x2 ID picture, now uploaded by the Registrar instead of
+the student portal, is stored as a row in the existing `documents` LONGBLOB table
+(`document_type = "ID Picture (1x1 / 2x2)"`) via `DocumentService`, not re-implemented as a
+filesystem upload the way the old student-portal feature worked.
+
+**Why:** The `documents` table is already covered by the routine database backup — on an
+air-gapped box, filesystem and DB backups can diverge, and a photo living only on disk is a
+silent data-loss risk. Storing it as a document also means it automatically inherits
+REGISTRAR-only RBAC, `system_logs` auditing on upload/delete, and the per-student purge
+`RegistrarService.deleteRecord()` already performs — no new cleanup code was needed.
+
+**Alternative rejected:** keeping `StorageService` and `student_uploads` alive for the
+Registrar's use instead of the student portal's. That would have preserved a second,
+parallel storage mechanism (filesystem + DB) for a single photo per student, doubling the
+things that can drift out of sync for no benefit.
+
+## 2026-09-19 - `student_uploads` Left in Place, Unmapped, Not Dropped
+
+**Decision:** The `student_uploads` table stays in the live MySQL database — empty, but not
+`DROP`ped — after the `StudentUpload` JPA entity and repository were deleted.
+
+**Why:** The table is empty (0 rows, confirmed before deletion), so dropping it has no data
+benefit, and `DROP TABLE` is destructive DDL with no upside here. Once no entity maps a
+table, `ddl-auto=validate` simply ignores it — verified live: the app started clean against
+a database that still has `student_uploads` sitting alongside 20 mapped tables. Dropping it
+is flagged as a future routine schema-sync cleanup rather than done as a side effect of this
+feature.
+
 ## 2026-08-30 - All Sheet-Format Knowledge Isolated in One Editable File
 
 **Decision:** Every rule about how an imported sheet is recognised — header aliases per column,

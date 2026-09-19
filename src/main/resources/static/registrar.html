@@ -33,6 +33,15 @@
                 flex-wrap: wrap;
             }
         }
+
+        .id-picture-preview {
+            width: 140px;
+            height: 140px;
+            object-fit: cover;
+            border: 1px solid #d8d8d8;
+            border-radius: 6px;
+            background: #f7f7f7;
+        }
     </style>
 </head>
 
@@ -194,6 +203,13 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert d-none" id="studentDetailsAlert" role="alert"></div>
+                    <div class="text-center mb-3">
+                        <img id="detailsIdPicture" class="id-picture-preview d-none"
+                             alt="Student ID picture">
+                        <p id="detailsIdPictureEmpty" class="text-muted small mb-0">
+                            No ID picture on file.
+                        </p>
+                    </div>
                     <div class="detail-grid">
                         <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
                         <article class="detail-card"><span class="detail-label">Reference No.</span><p class="detail-value" id="detailsStudentId">null</p></article>
@@ -486,6 +502,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-students.js?v=4"></script>
+    <script src="js/registrar-students.js?v=5"></script>
 </body>
 </html>

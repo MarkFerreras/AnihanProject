@@ -52,6 +52,84 @@
 - **Branch:** `security_questions`. Open: WebMvc tests for the 2 new controllers + the admin
   unlock endpoint, a full Playwright/manual browser pass, PR to main.
 
+### Move ID Photo Upload from Student Portal to Registrar (Completed - September 19, 2026)
+- **Task:** Remove all document-upload features from the public student enrollment wizard
+  (including the 1x1/2x2 ID photo), clean up the leftover UI, and give the Registrar an
+  ID-picture upload on the per-student record screens — without disturbing the Registrar's
+  existing document upload/download/view features.
+- **Part A (removal):** Deleted `StorageService`, `StudentUpload` entity + repository, and
+  `UploadRefDto`. Stripped the two upload endpoints from `StudentDetailsController`, the
+  three upload methods from `StudentDetailsService` (corrected a now-false comment on
+  `startOrResume`), and the two upload fields from `StudentDetailsResponse` (31 → 29
+  components). `RegistrarService.deleteRecord()` no longer purges filesystem uploads.
+  Removed the Document Upload section + dead CSS from the wizard; Religion is now Step 1's
+  closing section. Deleted 2 confirmed-orphan files under `uploads/students/` (0 matching
+  `student_uploads` rows) — they turned out to be git-tracked, not gitignored as the plan
+  assumed, so a small follow-up commit was needed to actually remove them from history.
+- **Part B (registrar replacement):** The ID picture is stored as a `documents` row
+  (`document_type = "ID Picture (1x1 / 2x2)"`), not a new filesystem path — inherits
+  REGISTRAR RBAC, `system_logs` auditing, and the existing per-student document purge for
+  free. New `DocumentService.uploadIdPicture()` (image-only whitelist: jpg/jpeg/png/webp,
+  2MB cap, replace-in-place on re-upload) and `findIdPicture()`/`deleteIdPicture()`; three
+  new `DocumentController` endpoints. Registrar edit form and details modal both show the
+  picture; the Documents page's *upload* dropdown excludes it (still shown in the *filter*),
+  and its view modal now previews any `image/*` type inline.
+- **Verified:** `./gradlew test` → **374 tests, 0 failures** (was 363; +11). `ddl-auto=
+  validate` boot against live MySQL → **PASS** — confirms the now-unmapped `student_uploads`
+  table (kept, not dropped) doesn't break startup. Full live-API verification via curl
+  against real MySQL (no browser automation was available this session — see Environment
+  note below): upload → replace-in-place (same `documentId`, DB count stays 1) → both
+  rejection paths (wrong type, over 2MB) write nothing → remove → 404 afterward →
+  `system_logs` rows for all three actions. Existing PDF upload/view/download and TOR
+  generation on the general documents endpoint confirmed unaffected. Test student and its
+  documents deleted afterward; live DB back to its pre-session state (10 students).
+- **Two pre-existing bugs found (not fixed, logged as Bug 12/13 in `bugs.md`):**
+  `documents.file_type VARCHAR(50)` is too short for the docx/xlsx MIME strings
+  `DocumentService` itself declares (docx/xlsx upload has always failed against a real DB —
+  only the mocked test suite never caught it), and `GlobalExceptionHandler`'s catch-all
+  turns any genuinely-missing route under a public prefix into a 500 instead of a 404. Both
+  are out of scope for this plan (decision 2 keeps the Documents module untouched).
+- **Environment note:** Playwright's browser extension and `playwright-core` were both
+  unavailable this session, so Task 14's browser walkthrough was done at the API level
+  (curl + live MySQL) rather than a rendered-DOM click-through. Purely visual pieces
+  (preview rendering, the empty-state placeholder, button enable/disable, console cleanliness)
+  were not independently confirmed.
+- **Branch:** `feature/move-id-photo-to-registrar`. Open: PR to `main` (user approval
+  required); drop `student_uploads` in a future schema-sync session; a full browser
+  walkthrough of the new UI is still recommended before merge.
+
+### schema.sql vs Live DB Comparison + Sync (Completed - September 19, 2026)
+- **Task:** Compare `src/main/sql/schema.sql` with the live `AnihanSRMS` database and update
+  the live DB to match if they differed.
+- **Drift found:** the merged `security_questions` branch (`b17c031`, `64be20e`) had never
+  been applied to live. `schema.sql` described 21 tables, live had 19 — missing the
+  `security_questions` and `user_security_answers` tables, the three
+  `users.security_locked` / `failed_security_attempts` / `security_lockout_started_at`
+  columns, and the `users.email` UNIQUE index. Everything else was the four known cosmetic
+  categories (FK/index auto-names, index order, `grades` column order).
+- **Two real bugs found in the merged SQL** — the migration applied and self-verified fine,
+  but the app then **would not boot**: `user_security_answers.slot` and
+  `users.failed_security_attempts` were declared `TINYINT` while their JPA fields are
+  `Integer`. Corrected to `INT` in `schema.sql` **and** the migration, plus two new guarded
+  `MODIFY COLUMN` steps (2b, 3b) so already-migrated databases repair themselves on re-run.
+  `security_locked` (`TINYINT(1)` ↔ `Boolean`) and `security_lockout_started_at`
+  (`DATETIME` ↔ `LocalDateTime`) were already correct and left alone. The feature could not
+  have run against any DB built from the merged files.
+- **Method:** backup first
+  (`src/main/sql/backup-2026-09-19-pre-schema-sync.sql`, 116,733 bytes); restored that backup
+  into a throwaway DB and **dry-ran the migration there** before touching live; verified
+  idempotency (byte-identical re-run, questions stayed at 6 not 12); pre-checked `users` for
+  duplicate/NULL emails so `uq_email` could not fail.
+- **Verified:** `ddl-auto=validate` boot against live MySQL → **PASS** (started in 9.368s,
+  zero schema-validation errors) — the check that caught both bugs, since the Gradle suite
+  runs on H2. `./gradlew test` → **363 tests, 0 failures, 0 errors** (was 332). Final diff
+  live vs corrected `schema.sql` → cosmetic only. Live DB now 21 tables; 10 students,
+  5 users, 323 log rows, 8 classes all preserved.
+- **Note:** the 3 seed accounts' emails were intentionally rewritten from `@example.com` to
+  `@anihan.local` by the migration (the forgot-password flow looks accounts up by email);
+  the 2 real accounts were untouched.
+- **Branch:** `main` (user-approved DB-sync task). Open: the two SQL type fixes are uncommitted.
+
 ### Post-Merge Bug Fix + Live DB Sync (Completed - September 6, 2026)
 - **Task:** Get `main` green after the `grade_input_fix` (TESDA grading overhaul —
   `GradeEquivalent`, changed `Grade` entity, a trailing `BigDecimal totalGwa` on the

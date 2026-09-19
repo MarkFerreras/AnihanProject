@@ -21,6 +21,15 @@
         main {
             flex: 1;
         }
+
+        .id-picture-preview {
+            width: 140px;
+            height: 140px;
+            object-fit: cover;
+            border: 1px solid #d8d8d8;
+            border-radius: 6px;
+            background: #f7f7f7;
+        }
     </style>
 </head>
 
@@ -147,6 +156,34 @@
                                     <option value="Active">Active</option>
                                     <option value="Graduated">Graduated</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="section-title">ID Picture</h6>
+                        <div class="row g-3 align-items-start mb-3">
+                            <div class="col-md-3">
+                                <img id="idPicturePreview"
+                                     class="id-picture-preview d-none"
+                                     alt="Student ID picture">
+                                <p id="idPictureEmpty" class="text-muted small mb-0">
+                                    No ID picture on file.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="idPictureFile">
+                                    Upload 1x1 or 2x2 ID picture
+                                    <span class="text-muted fw-normal">(JPG, PNG or WebP, max 2 MB)</span>
+                                </label>
+                                <input type="file" class="form-control" id="idPictureFile"
+                                       accept="image/jpeg,image/png,image/webp">
+                                <div class="d-flex gap-2 mt-2">
+                                    <button type="button" class="btn btn-surface btn-sm"
+                                            id="uploadIdPictureBtn" disabled>Upload Picture</button>
+                                    <button type="button" class="btn btn-surface-secondary btn-sm d-none"
+                                            id="removeIdPictureBtn">Remove Picture</button>
+                                </div>
+                                <div id="idPictureAlert" class="alert mt-2 d-none" role="alert"></div>
                             </div>
                         </div>
 
@@ -608,7 +645,7 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js?v=4"></script>
+    <script src="js/registrar-student-records-edit.js?v=5"></script>
 
 </body>
 

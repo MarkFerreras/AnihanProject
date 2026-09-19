@@ -1,6 +1,6 @@
 # Known Bugs & Technical Debt — Anihan SRMS
 
-> **Last updated:** September 6, 2026
+> **Last updated:** September 19, 2026
 
 ## Fixed Bugs (one-line summary)
 
@@ -14,6 +14,47 @@
 - **Merge integration (2026-09-06)** ✅ After merging grade_input_fix + student-ID-number: StudentRecordDetailsResponse arity mismatch in RegistrarStudentNumberControllerWebMvcTest, and a missing @Mock GradeRepository in RegistrarStudentNumberServiceTest (7 NPEs). Both fixed test-only (1916904, fec8004). Suite: 332 tests, 0 failures.
 
 ## Open Bugs
+
+### Bug 12 — `documents.file_type VARCHAR(50)` too short for the docx/xlsx MIME strings the code itself declares 🔴
+- **Severity:** High (uploads silently fail against real MySQL) · **Status:** Open ·
+  **Logged:** 2026-09-19, found during live browser verification of the
+  `feature/move-id-photo-to-registrar` branch (Task 14).
+- **What:** `DocumentService.ALLOWED_EXTENSIONS` maps `docx` →
+  `"application/vnd.openxmlformats-officedocument.wordprocessingml.document"` (73
+  chars) and `xlsx` → `"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
+  (65 chars), both stored into `documents.file_type`, which `schema.sql` declares
+  `VARCHAR(50)`. Every docx/xlsx upload therefore throws
+  `DataIntegrityViolationException: Data truncation: Data too long for column
+  'file_type'` → HTTP 409 with the generic conflict message.
+- **Why it was never caught:** `DocumentServiceTest`/`DocumentControllerWebMvcTest`
+  mock `DocumentRepository` — they never hit a real column-length constraint. Only
+  a live-MySQL exercise (as done here) surfaces it. pdf (16 chars), the four image
+  MIME types (≤10 chars), and `text/html` (9 chars) all fit fine, which is why the
+  general PDF path, the ID picture feature, and TOR generation all verified clean.
+- **Not fixed here:** out of scope for the ID-photo-to-registrar plan (decision 2:
+  "Registrar Documents module stays... untouched"). Fix is either widening
+  `documents.file_type` (needs a migration + `schema.sql` update) or storing a
+  shorter type label and mapping it back on download — a real design call, not a
+  drive-by patch.
+
+### Bug 13 — `GlobalExceptionHandler`'s catch-all turns any genuinely-missing route into a 500 instead of 404 🟡
+- **Severity:** Medium (misleading status code, not a security issue) · **Status:**
+  Open · **Logged:** 2026-09-19, found during live verification that the removed
+  student-portal upload endpoints (`POST /api/student/{id}/upload`,
+  `GET /api/student/files/{id}`) were truly gone.
+- **What:** Spring throws `NoResourceFoundException` for any path under a
+  `permitAll()` prefix (e.g. `/api/student/**`) that matches no controller mapping
+  and no static resource. `GlobalExceptionHandler` has no
+  `@ExceptionHandler(NoResourceFoundException.class)`, so it falls through to the
+  generic `@ExceptionHandler(Exception.class)` → HTTP 500 with
+  `"An unexpected error occurred."`, logged as an `ERROR`-level "Unhandled
+  exception" even though nothing is actually broken.
+- **Confirmed pre-existing and unrelated to the upload removal:** any nonsense path
+  under a public prefix reproduces this (`/api/student/anything-that-does-not-exist`
+  also 500s); a nonsense path under an authenticated prefix correctly 401s first,
+  which is why this was never noticed on `/api/registrar/**` or `/api/admin/**`.
+- **Not fixed here:** out of scope for the ID-photo-to-registrar plan. Fix is a
+  dedicated `@ExceptionHandler(NoResourceFoundException.class)` returning 404.
 
 ### Bug 10 — Generated documents can't show grades: `subjects` codes ≠ curriculum module codes 🟡
 - **Severity:** Medium · **Status:** Open (known, deferred by the user during the 2026-08-29 grading overhaul) · **Logged:** 2026-08-29

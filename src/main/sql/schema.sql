@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS users (
     -- Security-question lockout state — deliberately separate from `enabled`
     -- (admin deactivate/re-enable). See migrations/2026-09-19-security-questions.sql.
     security_locked TINYINT(1) NOT NULL DEFAULT 0,
-    failed_security_attempts TINYINT NOT NULL DEFAULT 0,
+    failed_security_attempts INT NOT NULL DEFAULT 0,
     security_lockout_started_at DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS user_security_answers (
     question_id INT NULL,
     custom_question VARCHAR(255) NULL,
     answer_hash VARCHAR(255) NOT NULL,
-    slot TINYINT NOT NULL,
+    slot INT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES security_questions (question_id),

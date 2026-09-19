@@ -26,9 +26,9 @@
 | `ClassManagementSectionControllerWebMvcTest` | WebMvc | 7 | PUT/GET/POST/DELETE section-student endpoints, POST enroll-section — RBAC + log verify |
 | `TrainerServiceTest` | Mockito | 12 | getMyAssignedSubjects, getStudentsForSubject (not-assigned throws), getMyClasses, getStudentsForClass (ownership guard, class-not-found, null-trainer) |
 | `TrainerControllerWebMvcTest` | WebMvc | 9 | All 4 GET endpoints — 200 happy path, 403 non-trainer, 401 anonymous, 400 on service throws |
-| `DocumentServiceTest` | Mockito | 17 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document, delete (success/missing), prepareDownload (html→docx + friendly name, uploads unchanged), update-in-place (success / wrong student / uploaded-file rejected) |
+| `DocumentServiceTest` | Mockito | 24 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document, delete (success/missing), prepareDownload (html→docx + friendly name, uploads unchanged), update-in-place (success / wrong student / uploaded-file rejected), **ID picture** (findIdPicture empty, known-type registration, upload saves + returns summary, replace-in-place reuses documentId, reject non-image, reject over 2MB, reject unknown student) |
 | `DocumentGenerationServiceTest` | Mockito | 3 | Aggregated generate-data payload, null OJT, missing student throws |
-| `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
+| `DocumentControllerWebMvcTest` | WebMvc | 21 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401), **ID picture** (upload 201+log, forbidden for trainer, get 404 when none, delete 204+log) |
 | `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
 | `RegistrarStudentNumberServiceTest` | Mockito | 11 | assignStudentNumber — assign to a numberless record, trim, overwrite, same-number-same-record, blank clears, null clears, duplicate on another record throws (target untouched, no save), unknown record; **edit-form update preserves the number**; `hasStudentNumber` filter partitioning (blank counts as missing); free-text search by number |
 | `RegistrarStudentNumberControllerWebMvcTest` | WebMvc | 9 | PUT student-number — 200 + "Assigned…" log, 200 + "Cleared…" log, null body accepted, 400 duplicate (message passthrough, no log written), 400 invalid characters (field-level error), 400 too long, 404 unknown record, 403 trainer, 401 anonymous |
@@ -39,7 +39,13 @@
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 | `SecurityQuestionServiceTest` | Mockito | 21 | setup (happy path 2 defaults, already-complete throws, duplicate default rejected, custom matching a default word-for-word rejected regardless of case/punctuation, two custom questions allowed, both-fields-set-on-one-slot rejected), replaceAnswers (wrong current password throws with no writes, correct password deletes-then-inserts), lookupByEmail (not found / disabled / locked / setup-incomplete all throw, happy path returns question texts in slot order), verifyAnswers lockout state machine (already-locked rejects immediately without querying answers, correct answer resets the counter, wrong answer increments, 3rd wrong answer locks, 15-minute decay from the first failure in a stale streak), resetPassword (mismatch throws, same-as-current throws, happy path updates password + timestamp) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **363 tests, 0 failures, 0 errors** (2026-09-19, after the security-questions feature; +2 more in `AdminServiceTest` for `unlockUser`, listed above).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **374 tests, 0 failures,
+0 errors** (2026-09-19, verified against the actual merged code after bringing `main`'s
+13 commits — the ID-photo-to-Registrar feature and the schema.sql/live-DB sync session —
+into `security_questions`). This is the same 374 as the ID-photo branch's own pre-merge
+count, which makes sense: this session's own follow-up commits (the lockout-rollback fix,
+the admin-table/audit-log fixes) only changed existing code and didn't add new test methods
+of their own — see the "Open follow-up" note under `SecurityQuestionServiceTest`'s row above.
 
 ## Live Verification — 2026-09-19 (Security Questions / Forgot Password)
 
@@ -81,6 +87,68 @@ user_security_answers ... WHERE username = 'admin'`) so the account is back to "
 done" for the user to complete themselves. The live password-reset step (`verify` → `reset`)
 was **not** exercised against production data, to avoid changing the real admin password —
 that logic is covered instead by `SecurityQuestionServiceTest`'s `resetPassword*` tests.
+
+## Live Verification — 2026-09-19 (ID Photo Moved to Registrar)
+
+No browser automation was available this session (Playwright's browser extension was not
+installed, and `playwright-core` was not present locally to drive headless Edge the way
+prior sessions did). Verification was done at the API level instead: `curl` against the
+running app + real MySQL, with a `registrar`-role session cookie.
+
+- `ddl-auto=validate` boot against live MySQL → **PASS** (started in 12.727s). Confirms the
+  now-unmapped `student_uploads` table (still present, per decision) does not break startup.
+- **Old endpoints confirmed dead:** `POST /api/student/{id}/upload` and
+  `GET /api/student/files/{id}` both return an error (not 200) — see the Bug 13 note below
+  for why it's a 500 rather than the expected 404.
+- **ID picture full round trip:** upload a JPEG → 201 with the right name/type/size →
+  `HEAD`/`GET` returns it (`image/jpeg`) → DB shows exactly 1 `documents` row of that type →
+  upload a second picture for the same student → same `documentId` returned (replace in
+  place, not a second row) → DB count stays at 1.
+- **Rejection paths:** a `.pdf` → 400 "Unsupported picture type. Allowed: jpg, jpeg, png,
+  webp"; a 2MB+1-byte file → 400 "ID picture exceeds the 2MB size limit"; neither wrote a
+  row. Delete → 204, DB count back to 0, subsequent `GET` → 404.
+- **Audit trail:** `system_logs` carries "Uploaded ID picture '…' for student …" (×2, one
+  per upload) and "Removed ID picture for student …", all under the `registrar` username.
+- **Existing document features confirmed unaffected:** PDF upload against a normal type
+  still succeeds; `GET /types` still lists `ID Picture (1x1 / 2x2)` (for the Documents page
+  filter); `/{id}/view` and `/{id}/download` on the PDF both still work; `/{id}/view` on the
+  ID picture itself also works (backing the widened inline-image preview);
+  generate-data + TOR generation both succeed.
+- **docx/xlsx upload could not be verified** — both fail with a 409 against real MySQL. Root
+  cause traced to a pre-existing, unrelated defect: `documents.file_type VARCHAR(50)` is too
+  short for the MIME strings `DocumentService.ALLOWED_EXTENSIONS` maps those extensions to
+  (73/65 characters). Logged as **Bug 12** in `bugs.md` — not fixed, out of scope.
+- **The dead-endpoint 404 check actually returns 500** — traced to a second pre-existing,
+  unrelated defect: `GlobalExceptionHandler` has no handler for `NoResourceFoundException`,
+  so any genuinely-missing route under a `permitAll()` prefix 500s instead of 404ing.
+  Reproduced with an unrelated nonsense path under the same prefix to confirm it predates
+  this session. Logged as **Bug 13** — not fixed, out of scope.
+- Test student (`SR20260017`) and its 3 documents (ID picture + PDF + generated TOR) were
+  all deleted afterward via the app's own cascade-safe delete; live DB confirmed back to its
+  pre-session state (10 students).
+- The `registrar` seed account's mandatory security-question setup was completed as part of
+  this verification (needed to get a REGISTRAR-role session at all — `ROLE_PENDING_SETUP`
+  otherwise blocks every `/api/registrar/**` call). This is real onboarding, not test
+  pollution, and was left in place rather than reverted.
+
+## Live Verification — 2026-09-19 (schema.sql vs live DB sync)
+
+- Live DB was missing the entire security-questions delta (2 tables, 3 `users` columns, the
+  `users.email` UNIQUE index) — the merged migration had never been applied. Applied it;
+  live DB 19 → **21 tables**.
+- **`ddl-auto=validate` boot against live MySQL caught two bugs the 363-test suite could
+  not**: `user_security_answers.slot` and `users.failed_security_attempts` were `TINYINT`
+  in the SQL while their JPA fields are `Integer`
+  (`found [tinyint], but expecting [integer]`). The Gradle suite runs on H2 with
+  `create-drop`, so Hibernate generates the columns itself and never compares them to the
+  checked-in SQL. **Lesson: a green suite does not prove `schema.sql` is correct — only a
+  `ddl-auto=validate` boot does.** Both fixed to `INT` in the schema, the migration, and via
+  two guarded `MODIFY COLUMN` steps for already-migrated databases.
+- After the fixes: boot → **PASS** (started in 9.368s, zero schema-validation errors).
+- Migration proven idempotent on a throwaway restore of the live backup **before** being run
+  against live: byte-identical structure on re-run, `security_questions` stayed at 6 rows.
+- Final structural diff (live vs a DB built from the corrected `schema.sql`) → cosmetic only
+  (FK/index auto-names, index order, `grades` column order).
 
 ## Live Verification — 2026-09-06 (post-merge DB sync)
 
