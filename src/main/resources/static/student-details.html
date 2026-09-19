@@ -100,23 +100,6 @@
             margin-top: 0;
         }
 
-        .upload-preview {
-            max-width: 100%;
-            max-height: 160px;
-            border-radius: 6px;
-            display: none;
-            margin-top: 0.5rem;
-        }
-
-        .upload-preview.show {
-            display: block;
-        }
-
-        .upload-link {
-            font-size: 0.8rem;
-            color: #2d7a3a;
-        }
-
         .alert-wizard {
             font-size: 0.9rem;
         }
@@ -308,17 +291,6 @@
                     </div>
                 </div>
 
-                <div class="section-heading">Document Upload</div>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">ID Photo <span class="text-muted fw-normal">(JPEG/PNG/WebP, max 2
-                                MB)</span></label>
-                        <input type="file" class="form-control" id="idPhotoFile"
-                            accept="image/jpeg,image/png,image/gif,image/webp">
-                        <img class="upload-preview" id="idPhotoPreview" alt="ID Photo preview">
-                        <div id="idPhotoStatus" class="upload-link mt-1"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- ========== STEP 2: Family ========== -->
@@ -513,7 +485,7 @@
     </footer>
 
     <script src="js/bootstrap.bundle.min.js"></script>
-    <script src="js/student-details.js?v=6"></script>
+    <script src="js/student-details.js?v=7"></script>
 </body>
 
 </html>
