@@ -1,5 +1,63 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock
+**Branch:** `admin_stats_and_SR_overhaul`
+
+### Task
+Reorganize the registrar's Student Record edit page (`student-records.html`) — a single
+12-section, 65+ field scrolling form — into detail categories the way the student portal
+wizard already groups its own fields, with each category viewed/edited in place (tabs, not
+a new page or a modal). Per user follow-up: each category must start read-only, requiring an
+explicit "Edit Section" click before its fields become editable.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/student-records.html` | Wrapped the form's 12 flat sections into 3 Bootstrap tabs — **Personal Information** (Identifiers, ID Picture, Personal Details, Contact, "Religion & Siblings" — renamed from the ambiguous "Family / Religion" now that a real Family tab exists), **Family Background** (Father/Mother/Guardian, unchanged), **Enrollment & Academics** (Enrollment, OJT, TESDA, School Years). Each tab-pane's content is wrapped in `<fieldset data-edit-section="..." disabled>` with an "Edit Section" toggle button above it. No field `id` was changed, so `populateForm()`/`buildPayload()` in the JS needed no changes to their field mapping. Subtitle text updated to explain the new Edit-Section gate. `dashboard.css?v=2→3`, `registrar-student-records-edit.js?v=5→6`. |
+| `static/js/registrar-student-records-edit.js` | Added `setSectionEditable()` / `setupSectionEditToggles()` — toggles each tab's `<fieldset>` `disabled` attribute, which natively cascades to every descendant control including ones added later (new School Year rows). `setupDirtyTracking()` no longer skips fields that start disabled (safe: disabled fields never fire input/change events, so nothing extra fires). |
+| `static/css/dashboard.css` | Added `.record-edit-tabs`, `.tab-pane-toolbar`, `.tab-pane-hint`, `.edit-section-fieldset` (resets default fieldset chrome to stay layout-invisible), and `#editRecordForm .section-title` — scoped to this one form's ID rather than unscoped, after a repo-wide grep showed `.section-title` is used on 15 other pages that must not be visually affected. |
+| 15 other `*.html` pages | `dashboard.css?v=2` → `?v=3` — this project's cache-buster convention requires bumping the version on every page that loads an edited shared CSS file in the same change, or `bootRun` keeps serving the stale compiled copy. |
+
+### A bug caught before shipping, not after
+The new tab/pane IDs were initially `tab-personal`/`pane-personal` — duplicating IDs already
+used by this same page's pre-existing "Edit Account" modal (present on every dashboard page).
+Duplicate IDs make `getElementById`/Bootstrap's `data-bs-target` resolution ambiguous, which
+would have silently broken the unrelated Edit Account modal's own tab switching. Renamed to
+`tab-record-personal`/`pane-record-personal` etc.; verified via grep that only the original
+Edit Account modal instance of the generic IDs remains.
+
+### Design decisions
+- **Save stayed a single global button/endpoint.** The backend has no per-category save
+  route, and the task was a display/interaction reorg, not a request to add granular
+  persistence. A locked field's value is simply whatever the server already has, so it
+  round-trips correctly through the existing whole-record PUT regardless of which tabs were
+  ever unlocked.
+- **Native `<fieldset disabled>` over manual per-field enable/disable bookkeeping** — it
+  cascades to descendants automatically and dynamically (verified this holds for elements
+  added after the fieldset renders, e.g. a new School Year `<tr>`), so locking a whole
+  category is one attribute write, not a loop over every input/select/button in it.
+- **Education was not added as a 4th tab.** DTO inspection confirmed
+  `StudentRecordUpdateRequest`/`StudentRecordDetailsResponse` have never exposed the
+  student's Educational Background — the registrar edit form has no such section today, and
+  adding one would be new functionality outside a reorg task's scope.
+
+### Verified
+- Repo-wide grep of `.section-title` usage (15 files) before deciding to scope the new CSS
+  rule to `#editRecordForm` rather than unscoped.
+- Live: started `./gradlew bootRun` against local MySQL and fetched the served page/JS over
+  HTTP — grep on the raw response confirms all 3 tab/pane IDs, all 3 Edit Section buttons,
+  and the expected fieldset count are present in what the server actually sends (not a stale
+  build).
+- **Not completed:** a full interactive click-through (unlock a tab, confirm the others stay
+  locked, edit, save) — blocked by this machine's local MySQL missing the `student_number`
+  column (`Unknown column 'sr1_0.student_number'` on every `/api/registrar/student-records/**`
+  call), confirmed via `DESCRIBE student_records` to be pre-existing local schema drift
+  unrelated to this session's diff (no SQL/Java file was touched). No browser automation
+  tooling was available in this environment either. See `activeContext.md` for the open
+  question to the user about syncing the local DB to unblock this.
+
+---
+
 ## 2026-09-20 - Remove Admin Statistics Panel
 **Branch:** `admin_stats_and_SR_overhaul`
 

@@ -404,6 +404,70 @@ body.dashboard-page {
     padding-bottom: 0.25rem;
 }
 
+/* --- Student Record Edit Form: category tabs --- */
+/* Scoped to #editRecordForm so it only affects student-records.html. */
+#editRecordForm .section-title {
+    border-bottom: 2px solid var(--color-green-primary);
+    color: var(--color-text-dark);
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
+}
+
+.record-edit-tabs.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 1.5rem;
+}
+
+.record-edit-tabs.nav-tabs .nav-link {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: -2px;
+    padding: 0.65rem 1.1rem;
+}
+
+.record-edit-tabs.nav-tabs .nav-link:hover,
+.record-edit-tabs.nav-tabs .nav-link:focus {
+    border-bottom-color: rgba(40, 167, 69, 0.3);
+    color: var(--color-green-primary);
+}
+
+.record-edit-tabs.nav-tabs .nav-link.active {
+    background: transparent;
+    border-bottom-color: var(--color-green-primary);
+    color: var(--color-green-primary);
+}
+
+.tab-pane-toolbar {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.tab-pane-hint {
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+}
+
+.edit-section-fieldset {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.edit-section-fieldset:disabled .section-title {
+    color: var(--color-text-muted);
+}
+
 .edit-account-modal .btn-save,
 #editSecurityQuestionsModal .btn-save {
     background: var(--gradient-button) !important;
@@ -699,6 +763,11 @@ body.dashboard-page {
 
     .admin-table {
         min-width: 44rem;
+    }
+
+    .tab-pane-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 

@@ -98,8 +98,11 @@
         const form = document.getElementById('editRecordForm');
         if (!form) return;
 
+        // Fields start disabled (locked behind a per-section Edit button — see
+        // setupSectionEditToggles) and disabled fields never fire input/change events,
+        // so it's safe to attach listeners unconditionally here rather than skipping
+        // fields that happen to be locked at setup time.
         form.querySelectorAll('input, select, textarea').forEach(function (field) {
-            if (field.disabled) return;
             field.addEventListener('input', markDirty);
             field.addEventListener('change', markDirty);
         });
@@ -208,6 +211,52 @@
                 }
             });
         }
+    }
+
+    // ----- Per-category edit locking -----
+    //
+    // Each tab (personal / family / enrollment) is wrapped in a <fieldset disabled>.
+    // Native fieldset disabling cascades to every descendant form control — including
+    // ones added later, like a new school-year row — so locking/unlocking a whole
+    // category is just toggling one attribute; no per-field bookkeeping needed. Fields
+    // that must always stay read-only (Record ID, Enrollment Date, Reference No.,
+    // Student Number) keep their own explicit disabled/readonly attribute, which is
+    // unaffected by the surrounding fieldset becoming enabled.
+
+    function setSectionEditable(section, editable) {
+        const fieldset = document.querySelector('fieldset[data-edit-section="' + section + '"]');
+        if (fieldset) {
+            fieldset.disabled = !editable;
+        }
+
+        const toggleBtn = document.querySelector('.js-toggle-edit[data-section="' + section + '"]');
+        if (toggleBtn) {
+            toggleBtn.textContent = editable ? 'Lock Section' : 'Edit Section';
+            toggleBtn.classList.toggle('btn-surface', editable);
+            toggleBtn.classList.toggle('btn-surface-secondary', !editable);
+        }
+
+        // The ID-picture upload button has its own file-selection-based disabled rule
+        // (see setupIdPicture); re-apply it so unlocking Personal doesn't wrongly enable
+        // an upload button when no file has been chosen yet.
+        if (section === 'personal') {
+            const uploadBtn = document.getElementById('uploadIdPictureBtn');
+            const fileInput = document.getElementById('idPictureFile');
+            if (uploadBtn && fileInput) {
+                uploadBtn.disabled = !editable || !fileInput.files.length;
+            }
+        }
+    }
+
+    function setupSectionEditToggles() {
+        document.querySelectorAll('.js-toggle-edit').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const section = btn.dataset.section;
+                const fieldset = document.querySelector('fieldset[data-edit-section="' + section + '"]');
+                const currentlyEditable = fieldset ? !fieldset.disabled : false;
+                setSectionEditable(section, !currentlyEditable);
+            });
+        });
     }
 
     // ----- Form population -----
@@ -622,6 +671,7 @@
 
         setupSchoolYearHandlers();
         setupIdPicture();
+        setupSectionEditToggles();
         await refreshIdPicture();
         setupDirtyTracking();
 
