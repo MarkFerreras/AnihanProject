@@ -133,7 +133,11 @@
                 uploadSel.empty().append('<option value="">-- Select Type --</option>');
                 types.forEach(function (t) {
                     filterSel.append('<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>');
-                    uploadSel.append('<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>');
+                    // The ID picture is uploaded from the student record screens
+                    // (student-records.html), not from this page.
+                    if (t !== 'ID Picture (1x1 / 2x2)') {
+                        uploadSel.append('<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>');
+                    }
                 });
             }
         });
@@ -270,7 +274,9 @@
                     + '&fileName=' + encodeURIComponent(name));
             }
 
-            const previewable = mime === 'application/pdf' || mime.indexOf('text/html') === 0;
+            const previewable = mime === 'application/pdf'
+                || mime.indexOf('text/html') === 0
+                || mime.indexOf('image/') === 0;
             if (previewable) {
                 notice.classList.add('d-none');
                 frame.style.display = '';
