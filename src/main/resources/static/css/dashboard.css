@@ -443,24 +443,33 @@ body.dashboard-page {
     padding-bottom: 0.25rem;
 }
 
-.edit-account-modal .btn-save {
-    background: var(--gradient-button);
-    border: none;
+.edit-account-modal .btn-save,
+#editSecurityQuestionsModal .btn-save {
+    background: var(--gradient-button) !important;
+    border: none !important;
     border-radius: 0.6rem;
-    color: var(--color-white);
+    color: var(--color-white) !important;
     cursor: pointer;
     font-size: 0.92rem;
     font-weight: 600;
     padding: 0.6rem 1.4rem;
+    max-width: 100%;
 }
 
-.edit-account-modal .btn-save:hover {
+.edit-account-modal .btn-save:hover,
+#editSecurityQuestionsModal .btn-save:hover {
     box-shadow: 0 4px 16px rgba(40, 167, 69, 0.35);
 }
 
-.edit-account-modal .btn-save:disabled {
+.edit-account-modal .btn-save:disabled,
+#editSecurityQuestionsModal .btn-save:disabled {
     cursor: not-allowed;
     opacity: 0.7;
+}
+
+#editSecurityQuestionsModal .alert {
+    border-radius: 0.65rem;
+    font-size: 0.88rem;
 }
 
 .edit-account-modal .alert {

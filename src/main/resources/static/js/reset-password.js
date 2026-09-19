@@ -15,6 +15,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        if (window.setupPasswordToggles) {
+            window.setupPasswordToggles();
+        }
+
         const form = document.getElementById('resetForm');
         const errorEl = document.getElementById('resetError');
         const button = document.getElementById('resetButton');

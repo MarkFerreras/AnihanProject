@@ -568,8 +568,14 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('securityQuestionsAlert', 'Security questions updated.', 'success');
+                    showAlert('securityQuestionsAlert', 'Security questions updated. Returning to Account Settings...', 'success');
                     document.getElementById('sqCurrentPassword').value = '';
+                    setTimeout(function () {
+                        bsModal.hide();
+                        if (accountModalEl) {
+                            bootstrap.Modal.getOrCreateInstance(accountModalEl).show();
+                        }
+                    }, 1200);
                 } else {
                     const errorMessage = data.errors
                         ? Object.values(data.errors).join('. ')
