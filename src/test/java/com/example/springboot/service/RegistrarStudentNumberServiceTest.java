@@ -34,7 +34,6 @@ import com.example.springboot.repository.StudentOjtRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
 import com.example.springboot.repository.StudentTesdaQualificationRepository;
-import com.example.springboot.repository.StudentUploadRepository;
 
 /**
  * Tests the registrar-controlled student number: assigning, changing, clearing,
@@ -57,8 +56,6 @@ class RegistrarStudentNumberServiceTest {
     @Mock private ParentRepository parentRepository;
     @Mock private OtherGuardianRepository guardianRepository;
     @Mock private StudentEducationRepository educationRepository;
-    @Mock private StudentUploadRepository uploadRepository;
-    @Mock private StorageService storageService;
     @Mock private GradeRepository gradeRepository;
 
     @InjectMocks

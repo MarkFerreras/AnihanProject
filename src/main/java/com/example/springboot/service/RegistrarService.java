@@ -23,7 +23,6 @@ import com.example.springboot.model.StudentOjt;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
 import com.example.springboot.model.StudentTesdaQualification;
-import com.example.springboot.model.StudentUpload;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.CourseRepository;
 import com.example.springboot.repository.GradeRepository;
@@ -35,7 +34,6 @@ import com.example.springboot.repository.StudentOjtRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
 import com.example.springboot.repository.StudentTesdaQualificationRepository;
-import com.example.springboot.repository.StudentUploadRepository;
 
 @Service
 public class RegistrarService {
@@ -50,8 +48,6 @@ public class RegistrarService {
     private final ParentRepository parentRepository;
     private final OtherGuardianRepository guardianRepository;
     private final StudentEducationRepository educationRepository;
-    private final StudentUploadRepository uploadRepository;
-    private final StorageService storageService;
     private final GradeRepository gradeRepository;
 
     public RegistrarService(StudentRecordRepository studentRecordRepository,
@@ -64,8 +60,6 @@ public class RegistrarService {
                             ParentRepository parentRepository,
                             OtherGuardianRepository guardianRepository,
                             StudentEducationRepository educationRepository,
-                            StudentUploadRepository uploadRepository,
-                            StorageService storageService,
                             GradeRepository gradeRepository) {
         this.studentRecordRepository = studentRecordRepository;
         this.batchRepository = batchRepository;
@@ -77,8 +71,6 @@ public class RegistrarService {
         this.parentRepository = parentRepository;
         this.guardianRepository = guardianRepository;
         this.educationRepository = educationRepository;
-        this.uploadRepository = uploadRepository;
-        this.storageService = storageService;
         this.gradeRepository = gradeRepository;
     }
 
@@ -415,12 +407,7 @@ public class RegistrarService {
 
         String studentId = record.getStudentId();
 
-        // Delete physical files before removing DB rows
-        List<StudentUpload> uploads = uploadRepository.findByStudentId(studentId);
-        uploads.forEach(storageService::delete);
-
         // Delete child rows in FK dependency order
-        uploadRepository.deleteByStudentId(studentId);
         parentRepository.deleteByStudentStudentId(studentId);
         guardianRepository.deleteByStudentStudentId(studentId);
         educationRepository.deleteByStudentId(studentId);
