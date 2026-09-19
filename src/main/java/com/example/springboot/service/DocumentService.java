@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -19,6 +20,9 @@ import com.example.springboot.repository.StudentRecordRepository;
 
 @Service
 public class DocumentService {
+
+    /** Document type reserved for the student's 1x1 / 2x2 ID picture. */
+    public static final String ID_PICTURE_TYPE = "ID Picture (1x1 / 2x2)";
 
     /** Document categories per R3.2 (AGILE-76) — the four generated templates plus common uploads. */
     private static final List<String> DOCUMENT_TYPES = List.of(
@@ -218,6 +222,11 @@ public class DocumentService {
     public Document getDocument(Integer documentId) {
         return documentRepository.findById(documentId)
                 .orElseThrow(() -> new NoSuchElementException("Document not found: " + documentId));
+    }
+
+    /** The student's ID picture, if one has been uploaded. */
+    public Optional<Document> findIdPicture(String studentId) {
+        return documentRepository.findByStudentStudentIdAndDocumentType(studentId, ID_PICTURE_TYPE);
     }
 
     private Document save(StudentRecord student, String documentType,

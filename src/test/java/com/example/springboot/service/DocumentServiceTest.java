@@ -147,6 +147,19 @@ class DocumentServiceTest {
     }
 
     // -------------------------------------------------------
+    // ID picture
+    // -------------------------------------------------------
+
+    @Test
+    void findIdPictureReturnsEmptyWhenStudentHasNone() {
+        when(documentRepository.findByStudentStudentIdAndDocumentType(
+                "SR20260001", DocumentService.ID_PICTURE_TYPE))
+                .thenReturn(Optional.empty());
+
+        assertTrue(service.findIdPicture("SR20260001").isEmpty());
+    }
+
+    // -------------------------------------------------------
     // Delete
     // -------------------------------------------------------
 
