@@ -288,6 +288,62 @@ class DocumentControllerWebMvcTest {
         verify(documentService, never()).delete(any());
     }
 
+    // -------------------------------------------------------
+    // ID picture
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadIdPictureReturns201AndWritesLog() throws Exception {
+        var file = new MockMultipartFile("file", "maria-1x1.jpg", "image/jpeg", "bytes".getBytes());
+        var summary = new DocumentSummaryResponse(7, "SR20260001", "Dela Cruz", "Maria",
+                DocumentService.ID_PICTURE_TYPE, "maria-1x1.jpg", "image/jpeg", 5, null);
+
+        when(documentService.uploadIdPicture(eq("SR20260001"), any())).thenReturn(summary);
+
+        mvc.perform(multipart("/api/registrar/documents/id-picture")
+                        .file(file)
+                        .param("studentId", "SR20260001")
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fileName").value("maria-1x1.jpg"));
+
+        verify(systemLogService).logAction(any(), any(), any(),
+                contains("ID picture"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void uploadIdPictureForbiddenForTrainer() throws Exception {
+        var file = new MockMultipartFile("file", "a.jpg", "image/jpeg", "x".getBytes());
+
+        mvc.perform(multipart("/api/registrar/documents/id-picture")
+                        .file(file)
+                        .param("studentId", "SR20260001")
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void getIdPictureReturns404WhenStudentHasNone() throws Exception {
+        when(documentService.findIdPicture("SR20260001")).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(get("/api/registrar/documents/id-picture/SR20260001"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void deleteIdPictureReturns204AndWritesLog() throws Exception {
+        mvc.perform(delete("/api/registrar/documents/id-picture/SR20260001").with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(documentService).deleteIdPicture("SR20260001");
+        verify(systemLogService).logAction(any(), any(), any(),
+                contains("Removed ID picture"), any());
+    }
+
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void generateDataReturnsAggregatedPayload() throws Exception {

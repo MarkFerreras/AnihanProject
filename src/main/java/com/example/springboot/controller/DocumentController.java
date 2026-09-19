@@ -121,6 +121,49 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Uploads (or replaces) a student's 1x1 / 2x2 ID picture. Lives under the
+     * documents API because the picture is stored as a document row, but it is
+     * driven from the student-record screens, not the Documents page.
+     */
+    @PostMapping("/id-picture")
+    public ResponseEntity<DocumentSummaryResponse> uploadIdPicture(
+            @RequestParam("studentId") String studentId,
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest httpRequest
+    ) {
+        DocumentSummaryResponse saved = documentService.uploadIdPicture(studentId, file);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Uploaded ID picture '" + saved.fileName() + "' for student " + saved.studentId(),
+                httpRequest.getRemoteAddr());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    /** Serves a student's ID picture inline for the record screens. 404 when none. */
+    @GetMapping("/id-picture/{studentId}")
+    public ResponseEntity<byte[]> idPicture(@PathVariable String studentId) {
+        return documentService.findIdPicture(studentId)
+                .map(d -> fileResponse(d.getFileName(), d.getFileType(), d.getContentData(), true))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /** Removes a student's ID picture. */
+    @DeleteMapping("/id-picture/{studentId}")
+    public ResponseEntity<Void> deleteIdPicture(@PathVariable String studentId,
+                                                HttpServletRequest httpRequest) {
+        documentService.deleteIdPicture(studentId);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Removed ID picture for student " + studentId,
+                httpRequest.getRemoteAddr());
+
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/generate-data/{studentId}")
     public ResponseEntity<DocumentGenerateDataResponse> generateData(@PathVariable String studentId) {
         return ResponseEntity.ok(documentGenerationService.getGenerateData(studentId));
