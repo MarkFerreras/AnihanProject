@@ -26,9 +26,9 @@
 | `ClassManagementSectionControllerWebMvcTest` | WebMvc | 7 | PUT/GET/POST/DELETE section-student endpoints, POST enroll-section — RBAC + log verify |
 | `TrainerServiceTest` | Mockito | 12 | getMyAssignedSubjects, getStudentsForSubject (not-assigned throws), getMyClasses, getStudentsForClass (ownership guard, class-not-found, null-trainer) |
 | `TrainerControllerWebMvcTest` | WebMvc | 9 | All 4 GET endpoints — 200 happy path, 403 non-trainer, 401 anonymous, 400 on service throws |
-| `DocumentServiceTest` | Mockito | 17 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document, delete (success/missing), prepareDownload (html→docx + friendly name, uploads unchanged), update-in-place (success / wrong student / uploaded-file rejected) |
+| `DocumentServiceTest` | Mockito | 24 | Upload whitelist (extension/size/empty), unknown student/type, generated-HTML save (.html appended, text/html), blank-filter normalization, missing document, delete (success/missing), prepareDownload (html→docx + friendly name, uploads unchanged), update-in-place (success / wrong student / uploaded-file rejected), **ID picture** (findIdPicture empty, known-type registration, upload saves + returns summary, replace-in-place reuses documentId, reject non-image, reject over 2MB, reject unknown student) |
 | `DocumentGenerationServiceTest` | Mockito | 3 | Aggregated generate-data payload, null OJT, missing student throws |
-| `DocumentControllerWebMvcTest` | WebMvc | 17 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401) |
+| `DocumentControllerWebMvcTest` | WebMvc | 21 | List (200/403/401), types, multipart upload 201+log, 400 on service reject, download attachment+log, docx download headers, view inline no-log, generate 201+log, generate-update log, blank-fields 400, generate-data, DELETE (204+log / 404 / 403 / 401), **ID picture** (upload 201+log, forbidden for trainer, get 404 when none, delete 204+log) |
 | `HtmlDocxConverterTest` | Pure unit | 4 | OOXML parts present, original HTML preserved as altChunk part, altChunk references wired, empty-content rejection |
 | `RegistrarStudentNumberServiceTest` | Mockito | 11 | assignStudentNumber — assign to a numberless record, trim, overwrite, same-number-same-record, blank clears, null clears, duplicate on another record throws (target untouched, no save), unknown record; **edit-form update preserves the number**; `hasStudentNumber` filter partitioning (blank counts as missing); free-text search by number |
 | `RegistrarStudentNumberControllerWebMvcTest` | WebMvc | 9 | PUT student-number — 200 + "Assigned…" log, 200 + "Cleared…" log, null body accepted, 400 duplicate (message passthrough, no log written), 400 invalid characters (field-level error), 400 too long, 404 unknown record, 403 trainer, 401 anonymous |
@@ -38,7 +38,50 @@
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **363 tests, 0 failures, 0 errors** (2026-09-19, after the schema.sql/live-DB sync session; was 332 — the security-questions merge added ~31 tests).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **374 tests, 0 failures, 0 errors** (2026-09-19, after the ID-photo-to-registrar session; was 363 — 11 new tests for the ID picture feature).
+
+## Live Verification — 2026-09-19 (ID Photo Moved to Registrar)
+
+No browser automation was available this session (Playwright's browser extension was not
+installed, and `playwright-core` was not present locally to drive headless Edge the way
+prior sessions did). Verification was done at the API level instead: `curl` against the
+running app + real MySQL, with a `registrar`-role session cookie.
+
+- `ddl-auto=validate` boot against live MySQL → **PASS** (started in 12.727s). Confirms the
+  now-unmapped `student_uploads` table (still present, per decision) does not break startup.
+- **Old endpoints confirmed dead:** `POST /api/student/{id}/upload` and
+  `GET /api/student/files/{id}` both return an error (not 200) — see the Bug 13 note below
+  for why it's a 500 rather than the expected 404.
+- **ID picture full round trip:** upload a JPEG → 201 with the right name/type/size →
+  `HEAD`/`GET` returns it (`image/jpeg`) → DB shows exactly 1 `documents` row of that type →
+  upload a second picture for the same student → same `documentId` returned (replace in
+  place, not a second row) → DB count stays at 1.
+- **Rejection paths:** a `.pdf` → 400 "Unsupported picture type. Allowed: jpg, jpeg, png,
+  webp"; a 2MB+1-byte file → 400 "ID picture exceeds the 2MB size limit"; neither wrote a
+  row. Delete → 204, DB count back to 0, subsequent `GET` → 404.
+- **Audit trail:** `system_logs` carries "Uploaded ID picture '…' for student …" (×2, one
+  per upload) and "Removed ID picture for student …", all under the `registrar` username.
+- **Existing document features confirmed unaffected:** PDF upload against a normal type
+  still succeeds; `GET /types` still lists `ID Picture (1x1 / 2x2)` (for the Documents page
+  filter); `/{id}/view` and `/{id}/download` on the PDF both still work; `/{id}/view` on the
+  ID picture itself also works (backing the widened inline-image preview);
+  generate-data + TOR generation both succeed.
+- **docx/xlsx upload could not be verified** — both fail with a 409 against real MySQL. Root
+  cause traced to a pre-existing, unrelated defect: `documents.file_type VARCHAR(50)` is too
+  short for the MIME strings `DocumentService.ALLOWED_EXTENSIONS` maps those extensions to
+  (73/65 characters). Logged as **Bug 12** in `bugs.md` — not fixed, out of scope.
+- **The dead-endpoint 404 check actually returns 500** — traced to a second pre-existing,
+  unrelated defect: `GlobalExceptionHandler` has no handler for `NoResourceFoundException`,
+  so any genuinely-missing route under a `permitAll()` prefix 500s instead of 404ing.
+  Reproduced with an unrelated nonsense path under the same prefix to confirm it predates
+  this session. Logged as **Bug 13** — not fixed, out of scope.
+- Test student (`SR20260017`) and its 3 documents (ID picture + PDF + generated TOR) were
+  all deleted afterward via the app's own cascade-safe delete; live DB confirmed back to its
+  pre-session state (10 students).
+- The `registrar` seed account's mandatory security-question setup was completed as part of
+  this verification (needed to get a REGISTRAR-role session at all — `ROLE_PENDING_SETUP`
+  otherwise blocks every `/api/registrar/**` call). This is real onboarding, not test
+  pollution, and was left in place rather than reverted.
 
 ## Live Verification — 2026-09-19 (schema.sql vs live DB sync)
 

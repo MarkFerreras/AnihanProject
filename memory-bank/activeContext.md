@@ -1,11 +1,28 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Security-questions merge synced to live DB — `main` green at 363 tests, live DB
-matches `schema.sql`, `ddl-auto=validate` PASS**
+**ID photo upload moved from the student portal to the Registrar — branch green at
+374 tests (was 363), `ddl-auto=validate` PASS, live-API verification complete**
 
 ## Active Branch
-`main` (user-approved — DB-sync task, no feature branch)
+`feature/move-id-photo-to-registrar` (user-approved, branched from `main`)
+
+## Open Items (as of 2026-09-19, ID-photo-to-registrar session)
+- PR to `main` — user approval required.
+- `student_uploads` still sits in live MySQL, empty and unmapped — drop it in a future
+  routine schema-sync session (see `decisions.md`).
+- No browser automation was available this session (Playwright extension not installed,
+  `playwright-core` not present locally); Task 14 was verified at the API level instead.
+  A full rendered-DOM walkthrough of the new ID Picture UI (edit form section, details
+  modal card, console cleanliness) is still recommended before merge.
+- Two pre-existing, unrelated bugs surfaced during live verification and logged in
+  `bugs.md` as Bug 12 (`documents.file_type VARCHAR(50)` too short for docx/xlsx MIME
+  strings — docx/xlsx upload has always failed against real MySQL) and Bug 13
+  (`GlobalExceptionHandler` 500s on genuinely-missing routes instead of 404ing). Neither
+  was fixed — both are out of scope for this plan.
+- The `registrar` seed account's mandatory security-question setup was completed during
+  this session's live verification (it was the only way to get a REGISTRAR-role session);
+  this is real onboarding progress, not test data, and was left in place.
 
 ## Latest Session (2026-09-19 - schema.sql vs Live DB Comparison + Sync)
 
