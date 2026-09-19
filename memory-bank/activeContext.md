@@ -1,12 +1,80 @@
 # Active Context - Anihan SRMS
 
 ## Current Phase
-**Post-merge stabilization complete — `main` green at 332 tests, live DB synced to `schema.sql`**
+**Security-questions merge synced to live DB — `main` green at 363 tests, live DB
+matches `schema.sql`, `ddl-auto=validate` PASS**
 
 ## Active Branch
-`main` (user-approved — post-merge bug fix + DB-sync task, no feature branch)
+`main` (user-approved — DB-sync task, no feature branch)
 
-## Latest Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
+## Latest Session (2026-09-19 - schema.sql vs Live DB Comparison + Sync)
+
+### Scope
+User asked to compare `src/main/sql/schema.sql` against the live `AnihanSRMS` database
+and, if they differed, update the live DB to match. The `security_questions` branch had
+been merged into `main` (commits `b17c031`, `64be20e`) but its migration had never been
+applied to the live database.
+
+### Drift found (real)
+`schema.sql` declared **21 tables**, live DB had **19**. Missing entirely:
+- `security_questions` and `user_security_answers` tables
+- `users.security_locked`, `users.failed_security_attempts`,
+  `users.security_lockout_started_at`
+- the `users.email` UNIQUE index
+
+Everything else diffed **cosmetic only** — FK/unique-index auto-names
+(`classes_ibfk_3` vs `_ibfk_2`, `fk_grades_class` vs `grades_ibfk_2`, `uq_username` vs
+`username`), secondary-index listing order, and `grades` physical column order. Same
+four categories as the 2026-07-14 and 2026-09-06 comparisons. No real drift beyond the
+security-questions delta.
+
+### Two genuine bugs in the merged SQL, caught by `ddl-auto=validate`
+The migration applied cleanly, but the app then **failed to boot** — so the
+security-questions feature could not have run against any DB built from these files.
+Both were type mismatches between the SQL and the JPA entities:
+
+| Column | Was | Entity field | Fixed to |
+|--------|-----|--------------|----------|
+| `user_security_answers.slot` | `TINYINT` | `UserSecurityAnswer.slot` (`Integer`) | `INT` |
+| `users.failed_security_attempts` | `TINYINT` | `User.failedSecurityAttempts` (`Integer`) | `INT` |
+
+`INT` also matches the pre-existing `student_tesda_qualifications.slot INT` convention.
+`users.security_locked` correctly stays `TINYINT(1)` (maps to `Boolean`) and
+`security_lockout_started_at` stays `DATETIME` (`LocalDateTime`) — both already right.
+
+Fixed in **`schema.sql`, the migration's CREATE/ADD statements, and two new guarded
+`MODIFY COLUMN` steps** (2b and 3b) so databases that already ran the old revision are
+repaired on re-run rather than left broken.
+
+### Verified
+- Backup taken before any write: `src/main/sql/backup-2026-09-19-pre-schema-sync.sql`
+  (116,733 bytes, 19 `CREATE TABLE`).
+- **Dry run first:** restored the live backup into a throwaway `schema_check` DB and
+  applied the migration there before touching live. Re-ran it — structure byte-identical,
+  `security_questions` still 6 rows (not 12). Idempotent.
+- Pre-flight data check: no duplicate or NULL emails, so `uq_email` could not fail.
+- `ddl-auto=validate` boot against live MySQL → **PASS**
+  (`Started SpringbootApplication in 9.368 seconds`, zero `Schema-validation` /
+  `SchemaManagementException` lines). This is the check that caught both bugs — the
+  Gradle suite runs on H2 and cannot detect live-DB or SQL-file type drift.
+- `./gradlew test` → **363 tests, 0 failures, 0 errors**.
+- Final structural diff (live vs a fresh DB built from the corrected `schema.sql`) →
+  cosmetic only. Live DB now **21 tables**.
+- Data preserved: 10 students, 5 users, 323 system_logs, 8 classes.
+
+### Note on live data
+The 3 seed accounts' emails were rewritten by the migration from `@example.com`
+placeholders to `admin@anihan.local` / `registrar@anihan.local` /
+`trainer@anihan.local` — intended, since the forgot-password flow looks accounts up by
+email. The 2 real accounts (`trainer2`, `wilkins`) were untouched.
+
+### Open Items
+- The two SQL type fixes are uncommitted on `main`.
+- `user_security_answers` is still empty (0 rows) — no user has set security questions yet.
+
+---
+
+## Previous Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
 
 ### Scope
 Two branches had been merged into `main` before this session — `grade_input_fix` (TESDA

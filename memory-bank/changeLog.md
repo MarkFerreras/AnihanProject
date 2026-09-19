@@ -1,5 +1,94 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-19 - schema.sql vs Live DB Comparison + Sync (security questions)
+**Branch:** `main` (DB-sync task)
+
+### Task
+Compare `src/main/sql/schema.sql` against the live `AnihanSRMS` MySQL database and, if
+they differ, bring the live DB into line with the file.
+
+### Drift found
+The `security_questions` branch had been merged into `main` (`b17c031`, `64be20e`) but
+its migration had never been applied to the live database. `schema.sql` described **21
+tables**; live had **19**.
+
+| Missing from live | Kind |
+|---|---|
+| `security_questions` table | whole table |
+| `user_security_answers` table | whole table |
+| `users.security_locked` | column |
+| `users.failed_security_attempts` | column |
+| `users.security_lockout_started_at` | column |
+| `users.email` UNIQUE index | index |
+
+All other differences were the four known **cosmetic** categories (FK/unique-index
+auto-names, secondary-index listing order, `grades` physical column order) — identical
+to the 2026-07-14 and 2026-09-06 findings.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/sql/schema.sql` | `user_security_answers.slot` `TINYINT` → **`INT`**; `users.failed_security_attempts` `TINYINT` → **`INT`**. Both were type mismatches against the JPA entities that broke `ddl-auto=validate` (see below). |
+| `src/main/sql/migrations/2026-09-19-security-questions.sql` | Same two declarations corrected in the `CREATE TABLE` / `ADD COLUMN` statements, **plus two new guarded idempotent steps** — **2b** (`MODIFY COLUMN slot INT`) and **3b** (`MODIFY COLUMN failed_security_attempts INT`) — so a database that already ran the previous revision is repaired on re-run instead of staying unbootable. Added a verification query asserting `slot` is `int`. |
+| `memory-bank/activeContext.md`, `progress.md`, `changeLog.md`, `testing.md` | Session notes. |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/backup-2026-09-19-pre-schema-sync.sql` | Full pre-sync `mysqldump --databases AnihanSRMS --routines --triggers` (116,733 bytes, 19 `CREATE TABLE`). Taken before any live DDL. |
+
+### Two real bugs in the merged SQL — found by `ddl-auto=validate`, not by the tests
+The migration applied cleanly and every one of its own verification queries passed, but
+the application then **refused to boot** against the result. Two columns had been
+declared `TINYINT` while their JPA fields are `Integer`:
+
+```
+Schema validation: wrong column type encountered in column [slot]
+in table [user_security_answers]; found [tinyint], but expecting [integer]
+
+Schema validation: wrong column type encountered in column [failed_security_attempts]
+in table [users]; found [tinyint], but expecting [integer]
+```
+
+Both corrected to `INT`, which also matches the pre-existing
+`student_tesda_qualifications.slot INT` convention. Deliberately left alone:
+`users.security_locked` stays `TINYINT(1)` (the correct MySQL mapping for its `Boolean`
+field) and `security_lockout_started_at` stays `DATETIME` (`LocalDateTime`).
+
+This means the security-questions feature could not have worked against **any** database
+built from the merged files — the defect was in the SQL sources, not in the live DB.
+
+### Live DB Changes (Docker `mysql-server`, DB `AnihanSRMS` — backup taken first)
+Applied `2026-09-19-security-questions.sql`: created both tables, seeded the 6 default
+questions, added the 3 lockout columns, rewrote the 3 seed-account emails from
+`@example.com` placeholders to `admin@anihan.local` / `registrar@anihan.local` /
+`trainer@anihan.local`, and added the `uq_email` UNIQUE index. Then re-applied twice more
+as the two type fixes landed. Live DB: 19 → **21 tables**.
+
+Pre-flight check before adding `uq_email`: no duplicate and no NULL/empty emails in
+`users`, so the constraint could not fail mid-migration.
+
+### Method — dry run before touching live
+The live backup was restored into a throwaway `schema_check` database and the migration
+applied **there** first, so the real run was against a proven path. Re-running it on that
+copy produced a byte-identical structure and left `security_questions` at 6 rows (not 12),
+confirming idempotency. A second throwaway DB built from `schema.sql` supplied the
+comparison target. Both dropped afterwards; `schema.sql`'s hard-coded
+`CREATE DATABASE`/`USE AnihanSRMS` lines were stripped first so nothing could redirect
+into the live database.
+
+### Verification
+- **`ddl-auto=validate` boot against live MySQL → PASS**: `Started SpringbootApplication
+  in 9.368 seconds`, zero `ERROR` / `Schema-validation` / `SchemaManagementException`
+  lines. The authoritative check — the Gradle suite runs on H2 and cannot catch this.
+- `./gradlew test` → **BUILD SUCCESSFUL — 363 tests, 0 failures, 0 errors** (was 332).
+- Final structural diff (live `--no-data` dump vs a fresh DB built from the corrected
+  `schema.sql`) → **cosmetic only**; no functional drift.
+- Data preserved: 10 students, 5 users, 323 `system_logs`, 8 classes.
+  `user_security_answers` is empty (0 rows) — nobody has set questions yet.
+
+---
+
 ## 2026-09-06 - Post-Merge Bug Fix + Live DB Sync
 **Branch:** `main`
 

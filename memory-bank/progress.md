@@ -2,6 +2,38 @@
 
 ## Recent Sessions (detail)
 
+### schema.sql vs Live DB Comparison + Sync (Completed - September 19, 2026)
+- **Task:** Compare `src/main/sql/schema.sql` with the live `AnihanSRMS` database and update
+  the live DB to match if they differed.
+- **Drift found:** the merged `security_questions` branch (`b17c031`, `64be20e`) had never
+  been applied to live. `schema.sql` described 21 tables, live had 19 — missing the
+  `security_questions` and `user_security_answers` tables, the three
+  `users.security_locked` / `failed_security_attempts` / `security_lockout_started_at`
+  columns, and the `users.email` UNIQUE index. Everything else was the four known cosmetic
+  categories (FK/index auto-names, index order, `grades` column order).
+- **Two real bugs found in the merged SQL** — the migration applied and self-verified fine,
+  but the app then **would not boot**: `user_security_answers.slot` and
+  `users.failed_security_attempts` were declared `TINYINT` while their JPA fields are
+  `Integer`. Corrected to `INT` in `schema.sql` **and** the migration, plus two new guarded
+  `MODIFY COLUMN` steps (2b, 3b) so already-migrated databases repair themselves on re-run.
+  `security_locked` (`TINYINT(1)` ↔ `Boolean`) and `security_lockout_started_at`
+  (`DATETIME` ↔ `LocalDateTime`) were already correct and left alone. The feature could not
+  have run against any DB built from the merged files.
+- **Method:** backup first
+  (`src/main/sql/backup-2026-09-19-pre-schema-sync.sql`, 116,733 bytes); restored that backup
+  into a throwaway DB and **dry-ran the migration there** before touching live; verified
+  idempotency (byte-identical re-run, questions stayed at 6 not 12); pre-checked `users` for
+  duplicate/NULL emails so `uq_email` could not fail.
+- **Verified:** `ddl-auto=validate` boot against live MySQL → **PASS** (started in 9.368s,
+  zero schema-validation errors) — the check that caught both bugs, since the Gradle suite
+  runs on H2. `./gradlew test` → **363 tests, 0 failures, 0 errors** (was 332). Final diff
+  live vs corrected `schema.sql` → cosmetic only. Live DB now 21 tables; 10 students,
+  5 users, 323 log rows, 8 classes all preserved.
+- **Note:** the 3 seed accounts' emails were intentionally rewritten from `@example.com` to
+  `@anihan.local` by the migration (the forgot-password flow looks accounts up by email);
+  the 2 real accounts were untouched.
+- **Branch:** `main` (user-approved DB-sync task). Open: the two SQL type fixes are uncommitted.
+
 ### Post-Merge Bug Fix + Live DB Sync (Completed - September 6, 2026)
 - **Task:** Get `main` green after the `grade_input_fix` (TESDA grading overhaul —
   `GradeEquivalent`, changed `Grade` entity, a trailing `BigDecimal totalGwa` on the

@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS user_security_answers (
     question_id INT NULL,
     custom_question VARCHAR(255) NULL,
     answer_hash VARCHAR(255) NOT NULL,
-    slot TINYINT NOT NULL,
+    slot INT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES security_questions (question_id),
@@ -81,6 +81,22 @@ CREATE TABLE IF NOT EXISTS user_security_answers (
     CONSTRAINT chk_question_xor_custom
         CHECK ((question_id IS NULL) <> (custom_question IS NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 2b. Correct slot to INT ---------------------------------------------------
+-- An earlier revision of this migration created `slot` as TINYINT, which does
+-- not match UserSecurityAnswer.slot (Integer) and fails Hibernate
+-- ddl-auto=validate with "found [tinyint], but expecting [integer]".
+-- INT also matches the existing student_tesda_qualifications.slot convention.
+-- MODIFY COLUMN is naturally idempotent; the guard keeps re-runs silent.
+SET @slot_is_tinyint = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_security_answers'
+      AND COLUMN_NAME = 'slot' AND DATA_TYPE = 'tinyint'
+);
+SET @sql = IF(@slot_is_tinyint = 1,
+    'ALTER TABLE user_security_answers MODIFY COLUMN slot INT NOT NULL',
+    'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 3. Lockout columns on users ---------------------------------------------
 SET @has_security_locked = (
@@ -97,7 +113,7 @@ SET @has_failed_attempts = (
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'failed_security_attempts'
 );
 SET @sql = IF(@has_failed_attempts = 0,
-    'ALTER TABLE users ADD COLUMN failed_security_attempts TINYINT NOT NULL DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN failed_security_attempts INT NOT NULL DEFAULT 0',
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -107,6 +123,22 @@ SET @has_lockout_started_at = (
 );
 SET @sql = IF(@has_lockout_started_at = 0,
     'ALTER TABLE users ADD COLUMN security_lockout_started_at DATETIME NULL',
+    'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 3b. Correct failed_security_attempts to INT -------------------------------
+-- Same defect as slot above: an earlier revision created this as TINYINT,
+-- which does not match User.failedSecurityAttempts (Integer) and fails
+-- ddl-auto=validate. security_locked stays TINYINT(1) — that is the correct
+-- MySQL mapping for the Boolean field — and security_lockout_started_at
+-- (DATETIME / LocalDateTime) is already correct.
+SET @attempts_is_tinyint = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      AND COLUMN_NAME = 'failed_security_attempts' AND DATA_TYPE = 'tinyint'
+);
+SET @sql = IF(@attempts_is_tinyint = 1,
+    'ALTER TABLE users MODIFY COLUMN failed_security_attempts INT NOT NULL DEFAULT 0',
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -131,6 +163,11 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Expect: exactly 6 rows
 SELECT COUNT(*) AS default_question_count FROM security_questions;
+
+-- Expect: slot = int (NOT tinyint) — must match UserSecurityAnswer.slot
+SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_security_answers'
+  AND COLUMN_NAME = 'slot';
 
 -- Expect: the 3 new lockout columns present on users
 SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT

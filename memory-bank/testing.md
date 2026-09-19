@@ -38,7 +38,26 @@
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **332 tests, 0 failures, 0 errors** (2026-09-06, after the post-merge bug fix + live DB sync session).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **363 tests, 0 failures, 0 errors** (2026-09-19, after the schema.sql/live-DB sync session; was 332 — the security-questions merge added ~31 tests).
+
+## Live Verification — 2026-09-19 (schema.sql vs live DB sync)
+
+- Live DB was missing the entire security-questions delta (2 tables, 3 `users` columns, the
+  `users.email` UNIQUE index) — the merged migration had never been applied. Applied it;
+  live DB 19 → **21 tables**.
+- **`ddl-auto=validate` boot against live MySQL caught two bugs the 363-test suite could
+  not**: `user_security_answers.slot` and `users.failed_security_attempts` were `TINYINT`
+  in the SQL while their JPA fields are `Integer`
+  (`found [tinyint], but expecting [integer]`). The Gradle suite runs on H2 with
+  `create-drop`, so Hibernate generates the columns itself and never compares them to the
+  checked-in SQL. **Lesson: a green suite does not prove `schema.sql` is correct — only a
+  `ddl-auto=validate` boot does.** Both fixed to `INT` in the schema, the migration, and via
+  two guarded `MODIFY COLUMN` steps for already-migrated databases.
+- After the fixes: boot → **PASS** (started in 9.368s, zero schema-validation errors).
+- Migration proven idempotent on a throwaway restore of the live backup **before** being run
+  against live: byte-identical structure on re-run, `security_questions` stayed at 6 rows.
+- Final structural diff (live vs a DB built from the corrected `schema.sql`) → cosmetic only
+  (FK/index auto-names, index order, `grades` column order).
 
 ## Live Verification — 2026-09-06 (post-merge DB sync)
 
