@@ -1,5 +1,46 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-09-16 - Thread Testing Cases, Batch 2)
+
+### Scope
+Documentation only — **explicitly instructed not to edit any code**. Read the manual
+thread-testing cases in `capstonepaper/OLD ANIHAN Thread Testing Cases.xlsx`
+(82 cases, TC-001…TC-082, testers filled some in on 2026-05-20) and author a second
+workbook covering everything built since, in the same format, with no duplicates.
+
+### Delivered
+`capstonepaper/NEW ANIHAN Thread Testing Cases.xlsx` — **52 cases, TC-083…TC-134**,
+sheets `Thread Testing 2` + `Template`. Generator kept at
+`capstonepaper/generate_thread_tests_part2.py` beside the two existing generators.
+
+Coverage: student number, single (083–093) · student numbers export/import (094–108) ·
+TESDA grading (109–121) · subjects competency type + code rename (122–127) · trainer
+account lifecycle guards (128–131) · access/navigation for the newer pages (132–134).
+
+**Document management + generation cases were written, then removed on the user's
+instruction** ("for now") — 24 cases, originally TC-083–TC-106. The remainder was
+renumbered so the suite stays gap-free. To restore: recover the two `add(...)` blocks
+from this branch's git history and append them, renumbering from TC-135.
+
+### Notes for next time
+- Cases were written from the **current source**, not from the memory bank, so the
+  thresholds and labels in them are real: 10 MB upload cap, 20-char/`[A-Za-z0-9/-]`
+  student number, 0–100 percentage and hours, the 75 → 3.00 / 74.99 → 4.00 boundary,
+  status codes C / FA / INC / D, and the import outcome names.
+- **TC-062–066 in the OLD sheet are now obsolete** — they describe the midterm/finals
+  grade input that `grade_input_fix` replaced on 2026-08-29. TC-109–121 supersede them.
+  Worth telling the testers so they do not raise those as failures.
+- Two document-*page* references were kept on purpose because they test the menu and
+  access control, not the documents feature: TC-132 (registrar navbar really has six
+  links, Documents among them) and TC-133 (a trainer cannot open `/documents.html`,
+  `/generate-document.html`, `/student-numbers.html`).
+- **Still open from this session:** the user asked to merge the old and new workbooks
+  into one file; that request was interrupted by the removal instruction and has not
+  been done.
+- Branch `fix/student-ID-number`; no application code, schema, or test code touched.
+
+---
+
 ## Current Phase
 **Post-merge stabilization complete — `main` green at 332 tests, live DB synced to `schema.sql`**
 

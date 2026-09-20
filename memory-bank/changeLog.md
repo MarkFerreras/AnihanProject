@@ -1,5 +1,70 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-16 - Thread Testing Cases, Batch 2 (capstone paper deliverable)
+**Branch:** `fix/student-ID-number` — **no application code touched** (user instruction).
+
+### Task
+Read the existing manual thread-testing cases in
+`capstonepaper/OLD ANIHAN Thread Testing Cases.xlsx` (82 cases, TC-001…TC-082, written
+~2026-05-20) and author a second workbook of cases covering the parts of the system built
+*after* those were written, without duplicating any of them and following the same format.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `capstonepaper/NEW ANIHAN Thread Testing Cases.xlsx` | 52 new manual test cases, **TC-083 … TC-134**. Two sheets — `Thread Testing 2` (working copy) and `Template` (pristine) — mirroring the old workbook's two-sheet layout. |
+| `capstonepaper/generate_thread_tests_part2.py` | Generator, beside the two existing ones. Carries the styling contract and a note on the removed document block. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `memory-bank/changeLog.md`, `testing.md`, `activeContext.md`, `progress.md` | Session notes. |
+
+### Coverage of the new batch (the gap since TC-082)
+| Area | Cases | Why it was uncovered |
+|------|-------|----------------------|
+| Registrar-controlled student number (assign/duplicate/clear/filter/search/read-only/no-wipe/labelling) | TC-083–093 | Shipped 2026-08-27 |
+| Student Numbers page — export/import (round trip, read-only preview, overwrite guard, duplicate-in-file, unknown ref, leading zeros, header detection, name mismatch, logging) | TC-094–108 | Shipped 2026-08-30 |
+| TESDA grading overhaul (percentage→equivalent transmutation incl. the 74.99/75 boundary, status codes, re-exam rules, hours rendered, lock, Total GWA) | TC-109–121 | Shipped 2026-08-29 (`grade_input_fix`) |
+| Subjects competency type + subject-code rename cascade + trainer-from-classes | TC-122–127 | Shipped 2026-08-26 / 2026-08-29 |
+| Trainer account lifecycle guards (locked-grade delete block, unassign count, deactivate warning, "(deactivated)" in Edit Trainer) | TC-128–131 | Bug 9 resolution, 2026-09-06 |
+| Access & navigation for the newer pages (6-link registrar navbar, RBAC, refresh/session) | TC-132–134 | Pages added 2026-08-30 |
+
+### Removed before delivery — document management & generation
+Cases for the document module (upload/search/filter/view/download/delete) and template
+generation (student picker, TOR/Form IX, print fidelity, filenames, save & edit-in-place,
+.docx) were written, then **removed at the user's request** — that feature is out of testing
+scope for now. 24 cases cut; the remainder was renumbered so the suite has no gaps. They are
+recoverable from this branch's git history if documents come back into scope.
+
+Two references to document *pages* deliberately remain, because they test the menu and access
+control rather than the feature: TC-132 checks the registrar navbar really does carry six
+links (Documents is one of them) and TC-133 checks a trainer cannot open `/documents.html`,
+`/generate-document.html` or `/student-numbers.html`.
+
+### Format parity with the old workbook (verified programmatically)
+Same 9 columns (`Test ID, Title, Pre-Conditions, Test Steps, Expected Results, Tester,
+Test Date, Results, Comments`); Arial-bold white-on-`FF2E5C8A` header; `FFF4F7FB` body
+banding with `FFFFFBEB`/`FFFFF4D6` on the tester-input columns; `FF999999` thin borders;
+wrapped top-left body cells; identical column widths; `A2` freeze; `yyyy-mm-dd` on Test
+Date; and the `Pass,Fail,Blocked,Not Tested` dropdown on the Results column. Same
+plain-language voice ("Setup steps:", numbered dependencies referencing other TC numbers).
+
+### Verification
+- **No duplicate IDs** (TC-083…TC-134, continuous with no gaps, no overlap with TC-001…TC-082).
+- **No duplicate titles** against the old workbook (exact match plus a word-overlap sweep).
+- Post-removal sweep for lingering document-feature wording (upload/type/Form IX/TOR/docx/
+  print preview/student picker) → **none**.
+- Every case was written against the **current source**, not from memory — `GradeEquivalent`,
+  `TrainerGradeService`, `DocumentService`, `ClassManagementService.updateSubject`,
+  `AdminService.hardDeleteUser`, `StudentNumberImportOutcome`, `AssignStudentNumberRequest`
+  and the matching HTML/JS were read first, so thresholds (10 MB, 20 chars, 0–100, 75/74.99),
+  status codes (C/FA/INC/D), outcome names and button labels match the build.
+- **Bug 10 is no longer a concern for this sheet** — the cases that would have touched it
+  (generated documents showing grades) were in the removed document block.
+
+---
+
 ## 2026-09-06 - Post-Merge Bug Fix + Live DB Sync
 **Branch:** `main`
 
