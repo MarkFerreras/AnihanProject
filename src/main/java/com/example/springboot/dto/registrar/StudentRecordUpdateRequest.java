@@ -45,8 +45,6 @@ public record StudentRecordUpdateRequest(
         String batchCode,
         String courseCode,
         String sectionCode,
-        @NotBlank(message = "Status is required")
-        String studentStatus,
 
         OjtDto ojt,
         List<TesdaQualDto> tesdaQualifications,

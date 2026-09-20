@@ -21,6 +21,7 @@ import com.example.springboot.dto.registrar.AssignStudentNumberRequest;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
+import com.example.springboot.dto.registrar.UpdateStudentStatusRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.RegistrarService;
@@ -104,6 +105,31 @@ public class RegistrarController {
                 : "Assigned student number " + updated.studentNumber() + " to: " + studentName;
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
                 action, httpRequest.getRemoteAddr());
+
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Changes a student's enrollment status. Pulled out of the general update endpoint so a
+     * status change is always a deliberate, separately audited action — mirrors the treatment
+     * given to the student number.
+     */
+    @PutMapping("/{recordId}/status")
+    public ResponseEntity<StudentRecordDetailsResponse> updateStatus(
+            @PathVariable Integer recordId,
+            @Valid @RequestBody UpdateStudentStatusRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String oldStatus = registrarService.getRecordById(recordId).studentStatus();
+
+        StudentRecordDetailsResponse updated =
+                registrarService.updateStatus(recordId, request.studentStatus());
+
+        LogContext ctx = getLogContext();
+        String studentName = updated.lastName() + ", " + updated.firstName();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Changed status of " + studentName + " from " + oldStatus + " to " + updated.studentStatus(),
+                httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(updated);
     }

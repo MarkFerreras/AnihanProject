@@ -269,6 +269,8 @@
         // Read-only here on purpose: the student number is written only through the
         // dedicated Assign Number action, so the change is deliberate and audited.
         setVal('editStudentNumber', r.studentNumber || 'Not Assigned');
+        // Read-only here on purpose too: status changes go through the dedicated
+        // Edit Status action on the Student Records list, same reasoning as above.
         setVal('editStudentStatus', r.studentStatus);
         setVal('editLastName', r.lastName);
         setVal('editFirstName', r.firstName);
@@ -465,7 +467,6 @@
             batchCode: getTrimmed('editBatchCode') || null,
             courseCode: getTrimmed('editCourseCode') || null,
             sectionCode: getTrimmed('editSectionCode') || null,
-            studentStatus: getTrimmed('editStudentStatus'),
             ojt: buildOjt(),
             tesdaQualifications: [1, 2, 3].map(buildTesdaSlot).filter(function (s) { return s !== null; }),
             schoolYears: buildSchoolYearRows(),
@@ -536,6 +537,8 @@
         if (el) el.className = 'alert mt-2 d-none';
     }
 
+    const ID_PICTURE_PLACEHOLDER = 'images/TempProfile%201.webp';
+
     function showIdPicture(hasPicture) {
         const img    = document.getElementById('idPicturePreview');
         const empty  = document.getElementById('idPictureEmpty');
@@ -546,12 +549,12 @@
             // Cache-bust so a freshly replaced picture is not served from cache.
             img.src = '/api/registrar/documents/id-picture/'
                 + encodeURIComponent(currentStudentId) + '?t=' + Date.now();
-            img.classList.remove('d-none');
+            img.alt = 'Student ID picture';
             empty.classList.add('d-none');
             remove.classList.remove('d-none');
         } else {
-            img.removeAttribute('src');
-            img.classList.add('d-none');
+            img.src = ID_PICTURE_PLACEHOLDER;
+            img.alt = 'No ID picture on file';
             empty.classList.remove('d-none');
             remove.classList.add('d-none');
         }

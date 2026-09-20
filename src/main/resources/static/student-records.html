@@ -23,8 +23,8 @@
         }
 
         .id-picture-preview {
-            width: 140px;
-            height: 140px;
+            width: 200px;
+            height: 200px;
             object-fit: cover;
             border: 1px solid #d8d8d8;
             border-radius: 6px;
@@ -177,23 +177,22 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editStudentStatus" class="form-label">Status</label>
-                                            <select class="form-select" id="editStudentStatus" required>
-                                                <option value="">-- Select Status --</option>
-                                                <option value="Enrolling">Enrolling</option>
-                                                <option value="Active">Active</option>
-                                                <option value="Graduated">Graduated</option>
-                                            </select>
+                                            <input type="text" class="form-control" id="editStudentStatus" readonly>
+                                            <div class="form-text">
+                                                Change via <strong>Edit Status</strong> on the Student Records list.
+                                            </div>
                                         </div>
                                     </div>
 
                                     <hr class="my-4">
                                     <h6 class="section-title">ID Picture</h6>
                                     <div class="row g-3 align-items-start mb-3">
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 text-center">
                                             <img id="idPicturePreview"
-                                                 class="id-picture-preview d-none"
-                                                 alt="Student ID picture">
-                                            <p id="idPictureEmpty" class="text-muted small mb-0">
+                                                 class="id-picture-preview"
+                                                 src="images/TempProfile%201.webp"
+                                                 alt="No ID picture on file">
+                                            <p id="idPictureEmpty" class="text-muted small mb-0 mt-2">
                                                 No ID picture on file.
                                             </p>
                                         </div>
@@ -691,7 +690,7 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js?v=6"></script>
+    <script src="js/registrar-student-records-edit.js?v=8"></script>
 
 </body>
 
