@@ -9,7 +9,7 @@
 
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=2">
+    <link rel="stylesheet" href="css/dashboard.css?v=3">
     <style>
         body {
             display: flex;
@@ -23,8 +23,8 @@
         }
 
         .id-picture-preview {
-            width: 140px;
-            height: 140px;
+            width: 200px;
+            height: 200px;
             object-fit: cover;
             border: 1px solid #d8d8d8;
             border-radius: 6px;
@@ -121,7 +121,8 @@
                 <div class="surface-card-header">
                     <div>
                         <h2>Student Record</h2>
-                        <p>All fields are editable except Record ID and Enrollment Date.</p>
+                        <p>Browse each category below, then click <strong>Edit Section</strong> to make changes.
+                            All fields are editable except Record ID and Enrollment Date.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <a class="btn btn-surface-secondary" href="registrar.html" id="cancelEditLink">Cancel</a>
@@ -130,410 +131,454 @@
                 </div>
                 <div class="surface-card-body">
                     <form id="editRecordForm" novalidate>
-                        <h6 class="section-title mt-2">Identifiers</h6>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label for="editRecordId" class="form-label">Record ID</label>
-                                <input type="text" class="form-control" id="editRecordId" disabled readonly>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editStudentId" class="form-label">Reference No.</label>
-                                <input type="text" class="form-control" id="editStudentId" maxlength="20" readonly>
-                                <div class="form-text">System reference. Not the student number.</div>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editStudentNumber" class="form-label">Student Number</label>
-                                <input type="text" class="form-control" id="editStudentNumber" readonly>
-                                <div class="form-text">
-                                    Set via <strong>Assign Number</strong> on the Student Records list.
+                        <ul class="nav nav-tabs record-edit-tabs" id="recordEditTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-record-personal" data-bs-toggle="tab"
+                                    data-bs-target="#pane-record-personal" type="button" role="tab"
+                                    aria-controls="pane-record-personal" aria-selected="true">Personal Information</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-record-family" data-bs-toggle="tab"
+                                    data-bs-target="#pane-record-family" type="button" role="tab"
+                                    aria-controls="pane-record-family" aria-selected="false">Family Background</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-record-enrollment" data-bs-toggle="tab"
+                                    data-bs-target="#pane-record-enrollment" type="button" role="tab"
+                                    aria-controls="pane-record-enrollment" aria-selected="false">Enrollment &amp; Academics</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="recordEditTabContent">
+                            <div class="tab-pane fade show active" id="pane-record-personal" role="tabpanel" aria-labelledby="tab-record-personal">
+                                <div class="tab-pane-toolbar">
+                                    <p class="tab-pane-hint mb-0">Identity, contact, and household details.</p>
+                                    <button type="button" class="btn btn-surface-secondary btn-sm js-toggle-edit"
+                                        data-section="personal">Edit Section</button>
                                 </div>
+                                <fieldset class="edit-section-fieldset" data-edit-section="personal" disabled>
+                                    <h6 class="section-title mt-2">Identifiers</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label for="editRecordId" class="form-label">Record ID</label>
+                                            <input type="text" class="form-control" id="editRecordId" disabled readonly>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editStudentId" class="form-label">Reference No.</label>
+                                            <input type="text" class="form-control" id="editStudentId" maxlength="20" readonly>
+                                            <div class="form-text">System reference. Not the student number.</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editStudentNumber" class="form-label">Student Number</label>
+                                            <input type="text" class="form-control" id="editStudentNumber" readonly>
+                                            <div class="form-text">
+                                                Set via <strong>Assign Number</strong> on the Student Records list.
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editStudentStatus" class="form-label">Status</label>
+                                            <input type="text" class="form-control" id="editStudentStatus" readonly>
+                                            <div class="form-text">
+                                                Change via <strong>Edit Status</strong> on the Student Records list.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">ID Picture</h6>
+                                    <div class="row g-3 align-items-start mb-3">
+                                        <div class="col-md-3 text-center">
+                                            <img id="idPicturePreview"
+                                                 class="id-picture-preview"
+                                                 src="images/TempProfile%201.webp"
+                                                 alt="No ID picture on file">
+                                            <p id="idPictureEmpty" class="text-muted small mb-0 mt-2">
+                                                No ID picture on file.
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="idPictureFile">
+                                                Upload 1x1 or 2x2 ID picture
+                                                <span class="text-muted fw-normal">(JPG, PNG or WebP, max 2 MB)</span>
+                                            </label>
+                                            <input type="file" class="form-control" id="idPictureFile"
+                                                   accept="image/jpeg,image/png,image/webp">
+                                            <div class="d-flex gap-2 mt-2">
+                                                <button type="button" class="btn btn-surface btn-sm"
+                                                        id="uploadIdPictureBtn" disabled>Upload Picture</button>
+                                                <button type="button" class="btn btn-surface-secondary btn-sm d-none"
+                                                        id="removeIdPictureBtn">Remove Picture</button>
+                                            </div>
+                                            <div id="idPictureAlert" class="alert mt-2 d-none" role="alert"></div>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Personal Details</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="editLastName" class="form-label">Last Name</label>
+                                            <input type="text" class="form-control" id="editLastName" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editFirstName" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="editFirstName" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editMiddleName" class="form-label">Middle Name</label>
+                                            <input type="text" class="form-control" id="editMiddleName">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editBirthdate" class="form-label">Birthdate</label>
+                                            <input type="date" class="form-control" id="editBirthdate">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Age</label>
+                                            <p class="form-control-plaintext" id="editAgeDisplay">-</p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editSex" class="form-label">Sex</label>
+                                            <input type="text" class="form-control" id="editSex"
+                                                list="sexList" autocomplete="off">
+                                            <datalist id="sexList">
+                                                <option value="Female"></option>
+                                                <option value="Male"></option>
+                                            </datalist>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editCivilStatus" class="form-label">Civil Status</label>
+                                            <input type="text" class="form-control" id="editCivilStatus"
+                                                list="civilStatusList" autocomplete="off">
+                                            <datalist id="civilStatusList">
+                                                <option value="Single"></option>
+                                                <option value="Married"></option>
+                                                <option value="Widowed"></option>
+                                                <option value="Separated"></option>
+                                            </datalist>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editReligion" class="form-label">Religion</label>
+                                            <input type="text" class="form-control" id="editReligion">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Contact</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="editEmail" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="editEmail">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editContactNo" class="form-label">Contact No</label>
+                                            <input type="text" class="form-control" id="editContactNo">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editPermanentAddress" class="form-label">Permanent Address</label>
+                                            <input type="text" class="form-control" id="editPermanentAddress">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editTemporaryAddress" class="form-label">Temporary Address</label>
+                                            <input type="text" class="form-control" id="editTemporaryAddress">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Religion &amp; Siblings</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label for="editBaptized" class="form-label">Baptized</label>
+                                            <select class="form-select" id="editBaptized">
+                                                <option value="false">No</option>
+                                                <option value="true">Yes</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editBaptismDate" class="form-label">Baptism Date</label>
+                                            <input type="date" class="form-control" id="editBaptismDate">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editBaptismPlace" class="form-label">Baptism Place</label>
+                                            <input type="text" class="form-control" id="editBaptismPlace">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editSiblingCount" class="form-label">Siblings</label>
+                                            <input type="number" min="0" class="form-control" id="editSiblingCount">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editBrotherCount" class="form-label">Brothers</label>
+                                            <input type="number" min="0" class="form-control" id="editBrotherCount">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editSisterCount" class="form-label">Sisters</label>
+                                            <input type="number" min="0" class="form-control" id="editSisterCount">
+                                        </div>
+                                    </div>
+                                </fieldset>
                             </div>
-                            <div class="col-md-3">
-                                <label for="editStudentStatus" class="form-label">Status</label>
-                                <select class="form-select" id="editStudentStatus" required>
-                                    <option value="">-- Select Status --</option>
-                                    <option value="Enrolling">Enrolling</option>
-                                    <option value="Active">Active</option>
-                                    <option value="Graduated">Graduated</option>
-                                </select>
+
+                            <div class="tab-pane fade" id="pane-record-family" role="tabpanel" aria-labelledby="tab-record-family">
+                                <div class="tab-pane-toolbar">
+                                    <p class="tab-pane-hint mb-0">Father, mother, and guardian information.</p>
+                                    <button type="button" class="btn btn-surface-secondary btn-sm js-toggle-edit"
+                                        data-section="family">Edit Section</button>
+                                </div>
+                                <fieldset class="edit-section-fieldset" data-edit-section="family" disabled>
+                                    <h6 class="section-title mt-2">Father</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="editFatherFamilyName" class="form-label">Family Name</label>
+                                            <input type="text" class="form-control" id="editFatherFamilyName">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editFatherFirstName" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="editFatherFirstName">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editFatherMiddleName" class="form-label">Middle Name</label>
+                                            <input type="text" class="form-control" id="editFatherMiddleName">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editFatherBirthdate" class="form-label">Birthdate</label>
+                                            <input type="date" class="form-control" id="editFatherBirthdate">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editFatherOccupation" class="form-label">Occupation</label>
+                                            <input type="text" class="form-control" id="editFatherOccupation">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editFatherEstIncome" class="form-label">Est. Income</label>
+                                            <input type="number" step="0.01" min="0" class="form-control" id="editFatherEstIncome">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editFatherContactNo" class="form-label">Contact No.</label>
+                                            <input type="text" class="form-control" id="editFatherContactNo">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editFatherEmail" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="editFatherEmail">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label for="editFatherAddress" class="form-label">Address</label>
+                                            <input type="text" class="form-control" id="editFatherAddress">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Mother</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="editMotherFamilyName" class="form-label">Family Name</label>
+                                            <input type="text" class="form-control" id="editMotherFamilyName">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editMotherFirstName" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="editMotherFirstName">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editMotherMiddleName" class="form-label">Middle Name</label>
+                                            <input type="text" class="form-control" id="editMotherMiddleName">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editMotherBirthdate" class="form-label">Birthdate</label>
+                                            <input type="date" class="form-control" id="editMotherBirthdate">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editMotherOccupation" class="form-label">Occupation</label>
+                                            <input type="text" class="form-control" id="editMotherOccupation">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editMotherEstIncome" class="form-label">Est. Income</label>
+                                            <input type="number" step="0.01" min="0" class="form-control" id="editMotherEstIncome">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editMotherContactNo" class="form-label">Contact No.</label>
+                                            <input type="text" class="form-control" id="editMotherContactNo">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="editMotherEmail" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="editMotherEmail">
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label for="editMotherAddress" class="form-label">Address</label>
+                                            <input type="text" class="form-control" id="editMotherAddress">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Guardian</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label for="editGuardianRelation" class="form-label">Relation</label>
+                                            <input type="text" class="form-control" id="editGuardianRelation">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editGuardianLastName" class="form-label">Last Name</label>
+                                            <input type="text" class="form-control" id="editGuardianLastName">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editGuardianFirstName" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="editGuardianFirstName">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editGuardianMiddleName" class="form-label">Middle Name</label>
+                                            <input type="text" class="form-control" id="editGuardianMiddleName">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editGuardianBirthdate" class="form-label">Birthdate</label>
+                                            <input type="date" class="form-control" id="editGuardianBirthdate">
+                                        </div>
+                                        <div class="col-md-9">
+                                            <label for="editGuardianAddress" class="form-label">Address</label>
+                                            <input type="text" class="form-control" id="editGuardianAddress">
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+
+                            <div class="tab-pane fade" id="pane-record-enrollment" role="tabpanel" aria-labelledby="tab-record-enrollment">
+                                <div class="tab-pane-toolbar">
+                                    <p class="tab-pane-hint mb-0">Batch/section placement, OJT, TESDA, and school-year history.</p>
+                                    <button type="button" class="btn btn-surface-secondary btn-sm js-toggle-edit"
+                                        data-section="enrollment">Edit Section</button>
+                                </div>
+                                <fieldset class="edit-section-fieldset" data-edit-section="enrollment" disabled>
+                                    <h6 class="section-title mt-2">Enrollment</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label for="editBatchCode" class="form-label">Batch</label>
+                                            <input type="text" class="form-control" id="editBatchCode"
+                                                list="batchList" autocomplete="off"
+                                                placeholder="Type or pick a batch code">
+                                            <datalist id="batchList"></datalist>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editCourseCode" class="form-label">Course</label>
+                                            <input type="text" class="form-control" id="editCourseCode"
+                                                list="courseList" autocomplete="off"
+                                                placeholder="Type or pick a course code">
+                                            <datalist id="courseList"></datalist>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editSectionCode" class="form-label">Section</label>
+                                            <input type="text" class="form-control" id="editSectionCode"
+                                                list="sectionList" autocomplete="off"
+                                                placeholder="Type or pick a section code">
+                                            <datalist id="sectionList"></datalist>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editEnrollmentDate" class="form-label">Enrollment Date</label>
+                                            <input type="text" class="form-control" id="editEnrollmentDate" disabled readonly>
+                                        </div>
+                                    </div>
+                                    <hr class="my-4">
+                                    <h6 class="section-title">On-the-Job Training (OJT)</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-5">
+                                            <label for="editOjtCompanyName" class="form-label">Company Name</label>
+                                            <input type="text" class="form-control" id="editOjtCompanyName">
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="editOjtCompanyAddress" class="form-label">Company Address</label>
+                                            <input type="text" class="form-control" id="editOjtCompanyAddress">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="editOjtHoursRendered" class="form-label">Hours Rendered</label>
+                                            <input type="number" step="0.01" min="0" class="form-control" id="editOjtHoursRendered">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">TESDA Qualifications</h6>
+                                    <p class="text-muted small mb-3">Up to 3 slots. Leave all fields blank to skip a slot.</p>
+
+                                    <fieldset class="mb-3 p-3 border rounded">
+                                        <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 1</legend>
+                                        <div class="row g-3">
+                                            <div class="col-md-5">
+                                                <label for="editTesdaTitle1" class="form-label">Title</label>
+                                                <input type="text" class="form-control" id="editTesdaTitle1">
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label for="editTesdaCenter1" class="form-label">Center Address</label>
+                                                <input type="text" class="form-control" id="editTesdaCenter1">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaDate1" class="form-label">Assessment Date</label>
+                                                <input type="date" class="form-control" id="editTesdaDate1">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaResult1" class="form-label">Result</label>
+                                                <input type="text" class="form-control" id="editTesdaResult1">
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <fieldset class="mb-3 p-3 border rounded">
+                                        <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 2</legend>
+                                        <div class="row g-3">
+                                            <div class="col-md-5">
+                                                <label for="editTesdaTitle2" class="form-label">Title</label>
+                                                <input type="text" class="form-control" id="editTesdaTitle2">
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label for="editTesdaCenter2" class="form-label">Center Address</label>
+                                                <input type="text" class="form-control" id="editTesdaCenter2">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaDate2" class="form-label">Assessment Date</label>
+                                                <input type="date" class="form-control" id="editTesdaDate2">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaResult2" class="form-label">Result</label>
+                                                <input type="text" class="form-control" id="editTesdaResult2">
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <fieldset class="mb-3 p-3 border rounded">
+                                        <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 3</legend>
+                                        <div class="row g-3">
+                                            <div class="col-md-5">
+                                                <label for="editTesdaTitle3" class="form-label">Title</label>
+                                                <input type="text" class="form-control" id="editTesdaTitle3">
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label for="editTesdaCenter3" class="form-label">Center Address</label>
+                                                <input type="text" class="form-control" id="editTesdaCenter3">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaDate3" class="form-label">Assessment Date</label>
+                                                <input type="date" class="form-control" id="editTesdaDate3">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="editTesdaResult3" class="form-label">Result</label>
+                                                <input type="text" class="form-control" id="editTesdaResult3">
+                                            </div>
+                                        </div>
+                                    </fieldset>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">School Years at Anihan</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-2" id="schoolYearsTable">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>SY Start</th>
+                                                    <th>Sem Start</th>
+                                                    <th>SY End</th>
+                                                    <th>Sem End</th>
+                                                    <th>Remarks</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="schoolYearsBody"></tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-surface-secondary btn-sm" id="addSchoolYearRowBtn">+ Add Row</button>
+                                </fieldset>
                             </div>
                         </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">ID Picture</h6>
-                        <div class="row g-3 align-items-start mb-3">
-                            <div class="col-md-3">
-                                <img id="idPicturePreview"
-                                     class="id-picture-preview d-none"
-                                     alt="Student ID picture">
-                                <p id="idPictureEmpty" class="text-muted small mb-0">
-                                    No ID picture on file.
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="idPictureFile">
-                                    Upload 1x1 or 2x2 ID picture
-                                    <span class="text-muted fw-normal">(JPG, PNG or WebP, max 2 MB)</span>
-                                </label>
-                                <input type="file" class="form-control" id="idPictureFile"
-                                       accept="image/jpeg,image/png,image/webp">
-                                <div class="d-flex gap-2 mt-2">
-                                    <button type="button" class="btn btn-surface btn-sm"
-                                            id="uploadIdPictureBtn" disabled>Upload Picture</button>
-                                    <button type="button" class="btn btn-surface-secondary btn-sm d-none"
-                                            id="removeIdPictureBtn">Remove Picture</button>
-                                </div>
-                                <div id="idPictureAlert" class="alert mt-2 d-none" role="alert"></div>
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Personal Details</h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="editLastName" class="form-label">Last Name</label>
-                                <input type="text" class="form-control" id="editLastName" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editFirstName" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="editFirstName" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editMiddleName" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="editMiddleName">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editBirthdate" class="form-label">Birthdate</label>
-                                <input type="date" class="form-control" id="editBirthdate">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Age</label>
-                                <p class="form-control-plaintext" id="editAgeDisplay">-</p>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editSex" class="form-label">Sex</label>
-                                <input type="text" class="form-control" id="editSex"
-                                    list="sexList" autocomplete="off">
-                                <datalist id="sexList">
-                                    <option value="Female"></option>
-                                    <option value="Male"></option>
-                                </datalist>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editCivilStatus" class="form-label">Civil Status</label>
-                                <input type="text" class="form-control" id="editCivilStatus"
-                                    list="civilStatusList" autocomplete="off">
-                                <datalist id="civilStatusList">
-                                    <option value="Single"></option>
-                                    <option value="Married"></option>
-                                    <option value="Widowed"></option>
-                                    <option value="Separated"></option>
-                                </datalist>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editReligion" class="form-label">Religion</label>
-                                <input type="text" class="form-control" id="editReligion">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Contact</h6>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="editEmail" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="editEmail">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editContactNo" class="form-label">Contact No</label>
-                                <input type="text" class="form-control" id="editContactNo">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editPermanentAddress" class="form-label">Permanent Address</label>
-                                <input type="text" class="form-control" id="editPermanentAddress">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editTemporaryAddress" class="form-label">Temporary Address</label>
-                                <input type="text" class="form-control" id="editTemporaryAddress">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Family / Religion</h6>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label for="editBaptized" class="form-label">Baptized</label>
-                                <select class="form-select" id="editBaptized">
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editBaptismDate" class="form-label">Baptism Date</label>
-                                <input type="date" class="form-control" id="editBaptismDate">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editBaptismPlace" class="form-label">Baptism Place</label>
-                                <input type="text" class="form-control" id="editBaptismPlace">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editSiblingCount" class="form-label">Siblings</label>
-                                <input type="number" min="0" class="form-control" id="editSiblingCount">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editBrotherCount" class="form-label">Brothers</label>
-                                <input type="number" min="0" class="form-control" id="editBrotherCount">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editSisterCount" class="form-label">Sisters</label>
-                                <input type="number" min="0" class="form-control" id="editSisterCount">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Father</h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="editFatherFamilyName" class="form-label">Family Name</label>
-                                <input type="text" class="form-control" id="editFatherFamilyName">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editFatherFirstName" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="editFatherFirstName">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editFatherMiddleName" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="editFatherMiddleName">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editFatherBirthdate" class="form-label">Birthdate</label>
-                                <input type="date" class="form-control" id="editFatherBirthdate">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editFatherOccupation" class="form-label">Occupation</label>
-                                <input type="text" class="form-control" id="editFatherOccupation">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editFatherEstIncome" class="form-label">Est. Income</label>
-                                <input type="number" step="0.01" min="0" class="form-control" id="editFatherEstIncome">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editFatherContactNo" class="form-label">Contact No.</label>
-                                <input type="text" class="form-control" id="editFatherContactNo">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editFatherEmail" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="editFatherEmail">
-                            </div>
-                            <div class="col-md-8">
-                                <label for="editFatherAddress" class="form-label">Address</label>
-                                <input type="text" class="form-control" id="editFatherAddress">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Mother</h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="editMotherFamilyName" class="form-label">Family Name</label>
-                                <input type="text" class="form-control" id="editMotherFamilyName">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editMotherFirstName" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="editMotherFirstName">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editMotherMiddleName" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="editMotherMiddleName">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editMotherBirthdate" class="form-label">Birthdate</label>
-                                <input type="date" class="form-control" id="editMotherBirthdate">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editMotherOccupation" class="form-label">Occupation</label>
-                                <input type="text" class="form-control" id="editMotherOccupation">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editMotherEstIncome" class="form-label">Est. Income</label>
-                                <input type="number" step="0.01" min="0" class="form-control" id="editMotherEstIncome">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editMotherContactNo" class="form-label">Contact No.</label>
-                                <input type="text" class="form-control" id="editMotherContactNo">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="editMotherEmail" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="editMotherEmail">
-                            </div>
-                            <div class="col-md-8">
-                                <label for="editMotherAddress" class="form-label">Address</label>
-                                <input type="text" class="form-control" id="editMotherAddress">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Guardian</h6>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label for="editGuardianRelation" class="form-label">Relation</label>
-                                <input type="text" class="form-control" id="editGuardianRelation">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editGuardianLastName" class="form-label">Last Name</label>
-                                <input type="text" class="form-control" id="editGuardianLastName">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editGuardianFirstName" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="editGuardianFirstName">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editGuardianMiddleName" class="form-label">Middle Name</label>
-                                <input type="text" class="form-control" id="editGuardianMiddleName">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editGuardianBirthdate" class="form-label">Birthdate</label>
-                                <input type="date" class="form-control" id="editGuardianBirthdate">
-                            </div>
-                            <div class="col-md-9">
-                                <label for="editGuardianAddress" class="form-label">Address</label>
-                                <input type="text" class="form-control" id="editGuardianAddress">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">Enrollment</h6>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label for="editBatchCode" class="form-label">Batch</label>
-                                <input type="text" class="form-control" id="editBatchCode"
-                                    list="batchList" autocomplete="off"
-                                    placeholder="Type or pick a batch code">
-                                <datalist id="batchList"></datalist>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editCourseCode" class="form-label">Course</label>
-                                <input type="text" class="form-control" id="editCourseCode"
-                                    list="courseList" autocomplete="off"
-                                    placeholder="Type or pick a course code">
-                                <datalist id="courseList"></datalist>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editSectionCode" class="form-label">Section</label>
-                                <input type="text" class="form-control" id="editSectionCode"
-                                    list="sectionList" autocomplete="off"
-                                    placeholder="Type or pick a section code">
-                                <datalist id="sectionList"></datalist>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="editEnrollmentDate" class="form-label">Enrollment Date</label>
-                                <input type="text" class="form-control" id="editEnrollmentDate" disabled readonly>
-                            </div>
-                        </div>
-                        <hr class="my-4">
-                        <h6 class="section-title">On-the-Job Training (OJT)</h6>
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <label for="editOjtCompanyName" class="form-label">Company Name</label>
-                                <input type="text" class="form-control" id="editOjtCompanyName">
-                            </div>
-                            <div class="col-md-5">
-                                <label for="editOjtCompanyAddress" class="form-label">Company Address</label>
-                                <input type="text" class="form-control" id="editOjtCompanyAddress">
-                            </div>
-                            <div class="col-md-2">
-                                <label for="editOjtHoursRendered" class="form-label">Hours Rendered</label>
-                                <input type="number" step="0.01" min="0" class="form-control" id="editOjtHoursRendered">
-                            </div>
-                        </div>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">TESDA Qualifications</h6>
-                        <p class="text-muted small mb-3">Up to 3 slots. Leave all fields blank to skip a slot.</p>
-
-                        <fieldset class="mb-3 p-3 border rounded">
-                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 1</legend>
-                            <div class="row g-3">
-                                <div class="col-md-5">
-                                    <label for="editTesdaTitle1" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="editTesdaTitle1">
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="editTesdaCenter1" class="form-label">Center Address</label>
-                                    <input type="text" class="form-control" id="editTesdaCenter1">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaDate1" class="form-label">Assessment Date</label>
-                                    <input type="date" class="form-control" id="editTesdaDate1">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaResult1" class="form-label">Result</label>
-                                    <input type="text" class="form-control" id="editTesdaResult1">
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="mb-3 p-3 border rounded">
-                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 2</legend>
-                            <div class="row g-3">
-                                <div class="col-md-5">
-                                    <label for="editTesdaTitle2" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="editTesdaTitle2">
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="editTesdaCenter2" class="form-label">Center Address</label>
-                                    <input type="text" class="form-control" id="editTesdaCenter2">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaDate2" class="form-label">Assessment Date</label>
-                                    <input type="date" class="form-control" id="editTesdaDate2">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaResult2" class="form-label">Result</label>
-                                    <input type="text" class="form-control" id="editTesdaResult2">
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="mb-3 p-3 border rounded">
-                            <legend class="fs-6 fw-semibold float-none w-auto px-2">Slot 3</legend>
-                            <div class="row g-3">
-                                <div class="col-md-5">
-                                    <label for="editTesdaTitle3" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="editTesdaTitle3">
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="editTesdaCenter3" class="form-label">Center Address</label>
-                                    <input type="text" class="form-control" id="editTesdaCenter3">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaDate3" class="form-label">Assessment Date</label>
-                                    <input type="date" class="form-control" id="editTesdaDate3">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="editTesdaResult3" class="form-label">Result</label>
-                                    <input type="text" class="form-control" id="editTesdaResult3">
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <hr class="my-4">
-                        <h6 class="section-title">School Years at Anihan</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-2" id="schoolYearsTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>SY Start</th>
-                                        <th>Sem Start</th>
-                                        <th>SY End</th>
-                                        <th>Sem End</th>
-                                        <th>Remarks</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="schoolYearsBody"></tbody>
-                            </table>
-                        </div>
-                        <button type="button" class="btn btn-surface-secondary btn-sm" id="addSchoolYearRowBtn">+ Add Row</button>
                     </form>
                 </div>
             </section>
@@ -645,7 +690,7 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js?v=5"></script>
+    <script src="js/registrar-student-records-edit.js?v=8"></script>
 
 </body>
 

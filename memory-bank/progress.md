@@ -2,6 +2,59 @@
 
 ## Recent Sessions (detail)
 
+### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
+- **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /
+  65+ field scroll. Reorganize it into categories the way the student portal wizard already
+  groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
+  category read-only until the registrar clicks an "Edit Section" button for it.
+- **Research first:** delegated an Explore agent to map the current registrar view-modal,
+  edit-form, and portal-wizard structures before touching anything — this corrected a stale
+  memory-bank claim (the portal wizard is 3 steps, not 4) and confirmed via DTO inspection
+  that the registrar edit form has never had an Educational Background section, so that
+  couldn't be "mirrored" without adding new functionality out of scope.
+- **What was built:** 3 tabs — Personal Information, Family Background, Enrollment &
+  Academics — each tab's fields wrapped in a native `<fieldset disabled>` toggled by a
+  per-tab "Edit Section" button. Fieldset-disabled cascades to every descendant control
+  automatically, including rows added later (School Years), so locking a whole category is
+  one attribute write rather than manual per-field bookkeeping. Save stayed a single global
+  button/endpoint on purpose — no backend change, since a locked field's value is exactly
+  what the server already had regardless of lock state.
+- **Bug caught before shipping:** the new tab IDs initially collided with this same page's
+  pre-existing "Edit Account" modal (`tab-personal`/`pane-personal` used by both), which
+  would have silently broken that unrelated modal's tab switching. Found by re-reading the
+  full file, not by a test; renamed to `tab-record-*`/`pane-record-*`.
+- **Verified:** grepped `.section-title` usage across 15 other pages before scoping new CSS
+  to `#editRecordForm` only, to avoid a visual regression elsewhere. Bumped
+  `dashboard.css` and the page's own JS cache-busters on all 16 pages that load the shared
+  CSS file. Started the real app against local MySQL and confirmed via HTTP that the served
+  page/JS contain the new structure correctly (not stale).
+- **Not completed:** a full interactive click-through — blocked by this machine's local
+  MySQL missing the `student_number` column (confirmed pre-existing, unrelated to this
+  session's diff — no SQL/Java touched) and no browser automation tooling being available.
+- **Branch:** `admin_stats_and_SR_overhaul`. Open: user decision on syncing the local DB
+  (with backup) to unblock live verification; full interactive pass once unblocked; PR to
+  main.
+
+### Remove Admin Statistics Panel (Completed - September 20, 2026)
+- **Task:** Remove the Total Users / Admins / Registrars / Trainers stat-card panel from the
+  admin dashboard hero, without breaking any other admin dashboard functionality.
+- **Change:** Deleted the `.hero-stats` markup block from `admin.html`, the `updateStats()`
+  helper from `admin-users.js`, and the now-unused `.hero-stats`/`.stat-*` CSS rules (incl.
+  2 responsive overrides) from `dashboard.css`. The admin hero now matches the plain
+  single-column pattern already used by every other dashboard page.
+- **One functional fix needed during removal:** the DataTable's `ajax.dataSrc` callback was
+  doing double duty — computing the stats AND telling DataTables the response root is the
+  row array (`/api/admin/users` returns a bare array, not `{data:[...]}`). Deleting the
+  callback outright would have broken the User Directory table. Replaced with
+  `dataSrc: ''`, DataTables' documented way to say "the response IS the array," which
+  preserves the table exactly while removing the stats computation.
+- **Verified:** repo-wide grep confirms zero remaining references to any removed
+  identifier/class; no backend, DTO, or test code touched these (the stats were pure
+  client-side math over data the table already had). Frontend-only — no Gradle build
+  needed.
+- **Branch:** `admin_stats_and_SR_overhaul`. Open: manual browser smoke test of the admin
+  dashboard hero + User Directory table; PR to main.
+
 ### Security Questions / Forgot Password Feature (Completed - September 19, 2026)
 - **Task:** Implement the full 10-point security-questions/forgot-password plan reached after
   an extended design discussion with the user (see `decisions.md`): mandatory first-login

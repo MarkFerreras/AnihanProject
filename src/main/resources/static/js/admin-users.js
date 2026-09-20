@@ -78,13 +78,6 @@
         element.textContent = '';
     }
 
-    function updateStats(users) {
-        setText('totalUsersStat', users.length);
-        setText('adminUsersStat', users.filter(user => user.role === 'ROLE_ADMIN').length);
-        setText('registrarUsersStat', users.filter(user => user.role === 'ROLE_REGISTRAR').length);
-        setText('trainerUsersStat', users.filter(user => user.role === 'ROLE_TRAINER').length);
-    }
-
     async function loadUserDetails(userId) {
         const response = await fetch('/api/admin/users/' + encodeURIComponent(userId), {
             credentials: 'same-origin'
@@ -276,10 +269,7 @@
         var dataTable = window.jQuery('#usersTable').DataTable({
             ajax: {
                 url: '/api/admin/users',
-                dataSrc: function (json) {
-                    updateStats(json);
-                    return json;
-                }
+                dataSrc: ''
             },
             columns: [
                 { data: 'userId' },
