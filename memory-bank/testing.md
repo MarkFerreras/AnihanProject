@@ -68,11 +68,33 @@ used in several prior sessions in this file.
 - `GET /api/logs?rangeDays=3000` returns all 138 surviving rows with zero containing "logged
   in"/"logged out"; `admin.html`/`dashboard.css`/`admin-users.js` confirmed clean of every
   stat-related identifier via static inspection; `logs.html` returns HTTP 200.
-- **Not completed, flagged rather than hidden:** a rendered-browser walkthrough of
-  `admin.html` (hero layout at the new full width, User Directory DataTable rendering, the
-  details modal, a clean console) — no Playwright browser bridge was available in this
-  environment. Recommended as a manual follow-up before merge; see `activeContext.md`'s
-  Open Items.
+- **Not completed in this session** — no Playwright browser bridge was available. **Closed
+  in a same-day follow-up session (2026-09-21, after PR #59 merged)** — see below.
+
+## Live Verification — 2026-09-21 (admin.html Browser Walkthrough, follow-up)
+
+Ran `./gradlew bootRun` against live MySQL and drove `admin.html` via the Playwright MCP
+browser bridge (`mcp__playwright__*` tools, now available), logged in as `admin`.
+
+- **False alarm, not a regression:** the first page load rendered the old stat-card hero
+  ("Total Users"/"Admins"/"Registrars"/"Trainers"). A `fetch(url, {cache: 'no-store'})`
+  against the live server confirmed the real response is clean, and `grep` across all three
+  on-disk copies of `admin.html` (`src/`, `build/resources/main`, `bin/main`) confirmed none
+  contain that markup. Root cause: a stale browser HTTP cache from earlier testing in the
+  same browser profile, not a code issue. A cache-busted navigation (`admin.html?cb=1`)
+  rendered the correct page — **lesson for next time: if a browser session shows content
+  that doesn't match `grep` on the actual served files, suspect the browser cache before
+  suspecting the server.**
+- **Confirmed clean (cache-busted load):** full-width hero, no stat cards, no leftover
+  layout gap; User Directory DataTable renders all 5 seed accounts with correct role badges
+  ("Showing 1 to 5 of 5 entries"); search filters correctly (`registrar` → 1/5 filtered,
+  cleared → 5/5); the `dataSrc: ''` fix from the 2026-09-20 session still works; details
+  modal opens with all 10 fields populated (User ID, Username, Email, Role, Last/First/
+  Middle Name, Age, Birthdate, Password Last Changed) plus working View Logs / Edit User
+  links; zero horizontal overflow at 1280px and 992px.
+- **Console:** clean apart from one pre-existing, unrelated `favicon.ico` 500 (Bug 13 in
+  `bugs.md` — `GlobalExceptionHandler`'s missing-route handling; not part of this branch).
+- Test server stopped after verification.
 
 ## Live Verification — 2026-09-19 (Security Questions / Forgot Password)
 
@@ -291,7 +313,10 @@ After re-applying the 2026-05-09 migration to the live MySQL DB:
       "Unlock Account" clears it; reset password → lands on dashboard without a second login.
       Only curl-based spot checks have been done so far (see `activeContext.md` /
       `changeLog.md` 2026-09-19 entries).
-- [ ] Browser retest: admin login → admin dashboard renders; user-detail modal + edit-user flow work end-to-end.
+- [x] Browser retest: admin login → admin dashboard renders (hero, DataTable, details
+      modal, clean console) — confirmed (2026-09-21). Edit-user flow itself (opening
+      `edit-user.html` and saving) was not exercised this pass — only the "Edit User" link
+      from the details modal was confirmed present and correctly targeted.
 - [x] Browser smoke: Subjects CRUD — Create → Edit → Assign Trainer → Delete happy path — all passed (2026-05-10).
 - [x] Verify `system_logs` rows for subject create/update/delete via `/logs.html` — confirmed (2026-05-10).
 - [ ] Browser smoke: Edit Class Trainer — click Edit Trainer on a class row, change trainer, verify row updates; unassign, verify "Unassigned" italic; confirm `/logs.html` has audit rows.
