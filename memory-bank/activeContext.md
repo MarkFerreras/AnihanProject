@@ -1,5 +1,99 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-09-21 - Merge `main` into `feature/class-year-filter`)
+
+### Scope
+Unblock work on the new class-year-filter branch by finishing an in-progress merge of
+`main` that had stalled on conflicts. **Documentation-only resolution** — no application
+code, schema, or test code was touched.
+
+### The conflict, and why it happened
+Only two files conflicted: `memory-bank/changeLog.md` and `memory-bank/progress.md`.
+Every Java/HTML/JS/SQL file merged automatically. Both sides had appended a new session
+entry at the **top** of each file, and because those entries share identical sub-headings
+(`### Files Modified`, the `| File | Change |` table header, `|------|--------|`), Git
+matched those shared lines as common context and **interleaved the two entries** into
+several small hunks rather than presenting them as one clean either/or block. Hand-editing
+the hunks would have risked splicing half of one entry onto half of the other.
+
+### Resolution method (worth reusing — this file pair will conflict again)
+Instead of editing the marked-up worktree file, both clean sides were extracted from the
+index (`git show :2:<path>` = ours, `git show :3:<path>` = theirs) and re-spliced:
+
+    header + theirs' new entries + ours' new entry + shared tail
+
+Both files are strictly newest-first, so ordering is just date order: main's 2026-09-19/20
+entries, then this branch's 2026-09-16 Thread Testing Cases entry, then the shared history
+from 2026-09-06 back. The shared tail was confirmed **byte-identical** on both sides before
+splicing, which is what makes the splice safe rather than a guess.
+
+### Verified
+- Zero conflict markers anywhere in the repo afterwards (not just in the two files).
+- Every `##`/`###` heading present on either side is present in the merged file — checked
+  with a `comm` set-difference both ways, so nothing was silently dropped.
+- Line accounting reconciles exactly (1245 + 1617 − 1178 shared − 2 shared header lines =
+  1682; 426 + 581 − 396 shared − 4 shared header lines = 607).
+- `./gradlew compileJava compileTestJava` → **BUILD SUCCESSFUL**. Checked explicitly rather
+  than assumed: main brought a large amount of Java into this branch (security questions,
+  the ID-photo removal, the `AdminUserResponse` arity change), and this project's own
+  2026-09-19 merge session already recorded that a zero-conflict text merge does not by
+  itself prove the combined code compiles.
+- `./gradlew test` was **not** run this session — see Open Items.
+
+### Open Items
+- **Run `./gradlew test` before relying on this branch.** The expected baseline is 374.
+  Compilation passing does not rule out the cross-branch *test* breakages this project has
+  hit twice before (`1916904`, `fec8004` — both were record-arity / missing-mock failures in
+  tests that compiled fine on each branch separately).
+- The local MySQL schema drift noted in the 2026-09-20 session (missing
+  `student_records.student_number`) is unrelated to this merge and still unresolved; it will
+  block any live click-through on this branch too until the outstanding migrations are
+  applied.
+- Class year filter implementation has not been started — this session only cleared the way.
+
+---
+
+## Previous Session (2026-09-16 - Thread Testing Cases, Batch 2)
+
+### Scope
+Documentation only — **explicitly instructed not to edit any code**. Read the manual
+thread-testing cases in `capstonepaper/OLD ANIHAN Thread Testing Cases.xlsx`
+(82 cases, TC-001…TC-082, testers filled some in on 2026-05-20) and author a second
+workbook covering everything built since, in the same format, with no duplicates.
+
+### Delivered
+`capstonepaper/NEW ANIHAN Thread Testing Cases.xlsx` — **52 cases, TC-083…TC-134**,
+sheets `Thread Testing 2` + `Template`. Generator kept at
+`capstonepaper/generate_thread_tests_part2.py` beside the two existing generators.
+
+Coverage: student number, single (083–093) · student numbers export/import (094–108) ·
+TESDA grading (109–121) · subjects competency type + code rename (122–127) · trainer
+account lifecycle guards (128–131) · access/navigation for the newer pages (132–134).
+
+**Document management + generation cases were written, then removed on the user's
+instruction** ("for now") — 24 cases, originally TC-083–TC-106. The remainder was
+renumbered so the suite stays gap-free. To restore: recover the two `add(...)` blocks
+from this branch's git history and append them, renumbering from TC-135.
+
+### Notes for next time
+- Cases were written from the **current source**, not from the memory bank, so the
+  thresholds and labels in them are real: 10 MB upload cap, 20-char/`[A-Za-z0-9/-]`
+  student number, 0–100 percentage and hours, the 75 → 3.00 / 74.99 → 4.00 boundary,
+  status codes C / FA / INC / D, and the import outcome names.
+- **TC-062–066 in the OLD sheet are now obsolete** — they describe the midterm/finals
+  grade input that `grade_input_fix` replaced on 2026-08-29. TC-109–121 supersede them.
+  Worth telling the testers so they do not raise those as failures.
+- Two document-*page* references were kept on purpose because they test the menu and
+  access control, not the documents feature: TC-132 (registrar navbar really has six
+  links, Documents among them) and TC-133 (a trainer cannot open `/documents.html`,
+  `/generate-document.html`, `/student-numbers.html`).
+- **Still open from this session:** the user asked to merge the old and new workbooks
+  into one file; that request was interrupted by the removal instruction and has not
+  been done.
+- Branch `fix/student-ID-number`; no application code, schema, or test code touched.
+
+---
+
 ## Current Phase
 **Login and logout are no longer written to `system_logs` — `AuthController` no longer
 depends on `SystemLogService` at all — and the 197 historical login/logout rows already in
@@ -54,8 +148,6 @@ browser bridge (`mcp__playwright__*` tools), logged in as `admin`.
   pattern in this project's history, e.g. the 2026-09-06 and 2026-09-19 sessions above),
   not a regression introduced by this branch. Noted here explicitly so a future session
   isn't confused by the mismatch against the original plan text.
-
-## Latest Session (2026-09-19 - Remove Login Auditing + Admin Stats)
 
 ### Task
 User: stop treating routine login/logout as an audit-worthy event (it was the dominant
@@ -917,7 +1009,7 @@ Diff showed only cosmetic differences, all verified non-functional:
 No update to the live database was required - it already matches schema.sql. Only
 filesystem change: the new backup file (untracked).
 
-## Latest Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
+## Previous Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
 
 ### Scope
 Implemented Jira AGILE-75…AGILE-81 (R3.1 Upload, R3.2 Type, R3.3 Name, R3.4 View,

@@ -107,12 +107,11 @@
                 </div>
 
                 <div class="logs-filter-bar" id="classFilterBar">
-                    <div class="logs-filter-section">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="showAllClassesToggle">
-                            <label class="form-check-label filter-label" for="showAllClassesToggle">Show All Semesters</label>
-                        </div>
-                        <span class="filter-label ms-3" id="currentSemesterLabel">Semester: —</span>
+                    <div class="logs-filter-section d-flex align-items-center">
+                        <label for="semesterFilterSelect" class="form-label mb-0 filter-label me-2">Filter by Semester/Year:</label>
+                        <select class="form-select form-select-sm w-auto" id="semesterFilterSelect">
+                            <option value="">All Semesters</option>
+                        </select>
                     </div>
                 </div>
 

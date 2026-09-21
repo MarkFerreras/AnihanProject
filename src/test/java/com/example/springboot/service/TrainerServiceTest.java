@@ -255,7 +255,7 @@ class TrainerServiceTest {
         when(enrollmentRepository.countBySchoolClassClassId(1)).thenReturn(15L);
         when(enrollmentRepository.countBySchoolClassClassId(2)).thenReturn(12L);
 
-        List<TrainerClassResponse> result = service.getMyClasses();
+        List<TrainerClassResponse> result = service.getMyClasses(null);
 
         assertEquals(2, result.size());
         assertEquals("2026", result.get(0).semester());
@@ -269,7 +269,7 @@ class TrainerServiceTest {
         when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
         when(classRepository.findByTrainerUserId(42)).thenReturn(List.of());
 
-        List<TrainerClassResponse> result = service.getMyClasses();
+        List<TrainerClassResponse> result = service.getMyClasses(null);
 
         assertTrue(result.isEmpty());
     }

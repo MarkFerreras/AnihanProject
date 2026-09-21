@@ -48,6 +48,27 @@ $(function () {
         return parseFloat(effective) <= 3.0 ? 'Competent' : 'Not Competent';
     }
 
+    function loadAvailableSemesters() {
+        $.ajax({
+            url: '/api/trainer/classes/semesters',
+            method: 'GET',
+            success: function (semesters) {
+                const select = $('#semesterFilterSelect');
+                semesters.forEach(function (sem) {
+                    select.append($('<option>').val(sem).text(sem));
+                });
+            }
+        });
+
+        $('#semesterFilterSelect').on('change', function () {
+            const val = $(this).val();
+            const url = val === '' ? '/api/trainer/classes' : '/api/trainer/classes?semester=' + val;
+            classesTable.ajax.url(url).load();
+        });
+    }
+
+    loadAvailableSemesters();
+
     classesTable = $('#classesTable').DataTable({
         ajax: {
             url: '/api/trainer/classes',

@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.springboot.dto.trainer.TrainerClassResponse;
@@ -36,8 +37,14 @@ public class TrainerController {
     }
 
     @GetMapping("/classes")
-    public ResponseEntity<List<TrainerClassResponse>> getMyClasses() {
-        return ResponseEntity.ok(trainerService.getMyClasses());
+    public ResponseEntity<List<TrainerClassResponse>> getMyClasses(
+            @RequestParam(value = "semester", required = false) String semester) {
+        return ResponseEntity.ok(trainerService.getMyClasses(semester));
+    }
+
+    @GetMapping("/classes/semesters")
+    public ResponseEntity<List<String>> getAvailableSemesters() {
+        return ResponseEntity.ok(trainerService.getAvailableSemesters());
     }
 
     @GetMapping("/classes/{classId}/students")

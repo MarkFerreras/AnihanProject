@@ -2,6 +2,10 @@
 
 ## Recent Sessions (detail)
 
+### Class Management: Year Filter Dropdown for Registrar and Trainer (Completed - September 21, 2026)
+- **Task:** Make classes filterable by year (semester) for both the Registrar and the Trainer.
+- **Implementation:** Added dynamic distinct semester dropdowns replacing static toggles. Updated Spring Data queries, controllers, and Datatables AJAX fetching.
+
 ### Remove Login/Logout Auditing + Admin Dashboard Statistics (Completed - September 19, 2026)
 - **Task:** Stop writing `system_logs` rows for routine login/logout (the largest single
   category of row in the table, with the least investigative value of anything it records),
@@ -83,6 +87,9 @@
 
 ### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
 - **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /
+  65+ field scroll. Reorganize it into categories the way the student portal wizard already
+  groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
+  category read-only until the registrar clicks an "Edit Section" button for it.
   65+ field scroll. Reorganize it into categories the way the student portal wizard already
   groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
   category read-only until the registrar clicks an "Edit Section" button for it.
@@ -261,6 +268,32 @@
   `@anihan.local` by the migration (the forgot-password flow looks accounts up by email);
   the 2 real accounts were untouched.
 - **Branch:** `main` (user-approved DB-sync task). Open: the two SQL type fixes are uncommitted.
+
+### Thread Testing Cases, Batch 2 (Completed - September 16, 2026)
+- **Task:** Using `capstonepaper/OLD ANIHAN Thread Testing Cases.xlsx` (82 cases,
+  TC-001…TC-082) as the basis, author a second workbook of manual test cases for the
+  current system — same format, no duplicates. **No code to be edited** (user instruction).
+- **Delivered:** `capstonepaper/NEW ANIHAN Thread Testing Cases.xlsx` — 52 cases,
+  **TC-083…TC-134**, sheets `Thread Testing 2` (working) + `Template` (pristine), blank
+  Tester/Date/Results/Comments columns ready for the testers. Generator saved at
+  `capstonepaper/generate_thread_tests_part2.py`.
+- **Covers the gap since TC-082:** registrar-controlled student number (083–093),
+  student-number export/import (094–108), the TESDA grading overhaul (109–121), subject
+  competency type and code-rename cascade (122–127), trainer account lifecycle guards from
+  the Bug 9 fix (128–131), and access/navigation for the newer registrar pages (132–134).
+- **Removed at the user's request:** 24 document management + document generation cases
+  (originally TC-083–106) — that feature is out of testing scope "for now". Remaining cases
+  renumbered so the suite is gap-free; the cut blocks are recoverable from git history.
+  This leaves documents as the **largest gap in manual coverage** (backend is covered by
+  `DocumentServiceTest` / `DocumentControllerWebMvcTest` / `HtmlDocxConverterTest`).
+- **Verified:** IDs unique, continuous, no overlap with the old sheet; zero duplicate titles;
+  no lingering document-feature wording after the cut; styling/column widths/banding/borders/
+  freeze/date format/Results dropdown matched against the old workbook. Content checked
+  against the live source files, so limits, status codes, outcome names and button labels
+  match the build.
+- **Branch:** `fix/student-ID-number`. Open: (a) merge the two workbooks into one file —
+  asked for, then interrupted, not yet done; (b) hand the workbook to the testers and flag
+  that TC-062–066 in the old sheet are obsolete (pre-2026-08-29 grade input).
 
 ### Post-Merge Bug Fix + Live DB Sync (Completed - September 6, 2026)
 - **Task:** Get `main` green after the `grade_input_fix` (TESDA grading overhaul —

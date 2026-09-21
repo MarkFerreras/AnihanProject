@@ -211,6 +211,33 @@ running app + real MySQL, with a `registrar`-role session cookie.
 - Hibernate `ddl-auto=validate` boot against live MySQL → **PASS** (started in 10.192s,
   19 JPA repositories, zero schema-validation errors).
 
+## Manual Thread Testing Cases (capstone paper)
+
+Two workbooks in `capstonepaper/`, both in the same 9-column format with a
+`Pass/Fail/Blocked/Not Tested` dropdown on the Results column:
+
+| Workbook | Cases | Covers |
+|---|---|---|
+| `OLD ANIHAN Thread Testing Cases.xlsx` | TC-001 … TC-082 | Auth/RBAC, admin user CRUD, activity logs + export, self-service account, registrar student records, subjects, classes, sections, trainer views + the *old* midterm/finals grade input, student portal, error handling, load/performance. Partly filled in by testers on 2026-05-20. |
+| `NEW ANIHAN Thread Testing Cases.xlsx` | TC-083 … TC-134 (52 cases) | Student number (single assign + bulk export/import), the TESDA grading overhaul, subject competency type + code rename, trainer account lifecycle guards, access/navigation for the newer pages. Blank and ready for testers. |
+
+Numbering is continuous across the two, so the pair reads as one suite of 134 cases.
+
+**Not covered anywhere yet — document management and document generation.** Cases for the
+whole documents module (upload/search/filter/view/download/delete) and template generation
+(TOR/Form IX, print fidelity, save & edit-in-place, .docx download) were written on
+2026-09-16 and then **removed at the user's request** — out of testing scope for now.
+Recoverable from git history on `fix/student-ID-number`. This is the largest known gap in
+manual coverage; the automated suite does cover the backend (`DocumentServiceTest`,
+`DocumentControllerWebMvcTest`, `HtmlDocxConverterTest`).
+
+**Note:** TC-062–066 in the old sheet describe the pre-2026-08-29 midterm/finals grade
+input, which no longer exists — TC-109–121 in the new sheet supersede them.
+
+**When adding a third batch:** continue from TC-135, re-run the duplicate sweep against
+both existing workbooks, and generate with
+`capstonepaper/generate_thread_tests_part2.py` as the styling reference.
+
 ## Browser E2E — 2026-08-30 (Student Numbers Report Page)
 
 Playwright headless Edge against the running app + live MySQL. **22/22 passed, run twice**
