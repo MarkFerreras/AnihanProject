@@ -95,31 +95,54 @@ from this branch's git history and append them, renumbering from TC-135.
 ---
 
 ## Current Phase
-**Class year filter implemented (commit `69e4e3f`) for both Registrar and Trainer class
-views. `main` was merged in again on 2026-09-21 to pick up PR #59 (login/logout no longer
-audited + purge migration, `AuthControllerWebMvcTest`, leftover `admin.html` hero wrapper
-cleanup). Only memory-bank files conflicted; they were resolved by whole-entry splice with
-nothing dropped from either side. Re-run `./gradlew test` after this merge — main's side
-was green at 385 before the year-filter tests were combined with it.**
+**Login and logout are no longer written to `system_logs` — `AuthController` no longer
+depends on `SystemLogService` at all — and the 197 historical login/logout rows already in
+the live database were purged via a one-time, idempotent migration (334 → 137 total rows).
+A full pre-purge backup was taken and is being kept
+(`src/main/sql/backup-2026-09-19-pre-log-purge.sql`) until this branch is accepted into use.
+Separately, a leftover empty `.page-hero-grid` wrapper was cleaned out of `admin.html`'s
+hero — the stat cards it used to hold were already removed in an earlier, separately-merged
+session (2026-09-20 / PR #58), so this branch's own contribution there is small. Branch was
+green at 385 tests and **PR #59 merged this branch into `main` on 2026-09-21T08:03:37Z.**
+A follow-up session the same day completed the one item PR #59 shipped without: a rendered-
+browser walkthrough of `admin.html` via the Playwright MCP browser bridge (not available in
+the PR #59 session). Result: clean pass — see "Browser Walkthrough" below.**
 
 ## Active Branch
-`feature/class-year-filter` (has `main` merged in as of 2026-09-21; not yet merged back to `main`)
+`feature/remove-login-audit-and-admin-stats` — **merged to `main` via PR #59
+(2026-09-21T08:03:37Z).** This follow-up doc-only session continues on the same branch name
+per the user's instruction; nothing under `src/` changed, only memory-bank verification
+records.
 
-## Previous Session (2026-09-19 - Remove Login Auditing + Admin Stats)
+## Browser Walkthrough — 2026-09-21 (follow-up, post-merge)
+Ran `./gradlew bootRun` against live MySQL and drove `admin.html` with the Playwright MCP
+browser bridge (`mcp__playwright__*` tools), logged in as `admin`.
+- **False alarm caught and resolved, not a regression:** the first page load rendered the
+  OLD "Total Users / Admins / Registrars / Trainers" stat-card hero. Traced to a **stale
+  browser HTTP cache** from earlier testing in this browser profile — a `fetch(url, {cache:
+  'no-store'})` against the live server confirmed the real response has zero stat-card
+  markup, and `grep` across `src/`, `build/resources/main`, and `bin/main` confirmed none of
+  the three copies of `admin.html` on disk contain `hero-stats`/`stat-card`/"Total Users".
+  A cache-busted navigation (`admin.html?cb=1`) rendered the clean page. Recorded here so a
+  future session isn't fooled by the same stale-cache artifact.
+- **Confirmed clean on the cache-busted load:** full-width hero (eyebrow/title/subtitle
+  only, no stat cards, no leftover gap); User Directory DataTable renders all 5 seed
+  accounts with correct role badges and "Showing 1 to 5 of 5 entries"; search filters
+  correctly (tested `registrar` → 1/5, cleared back to 5/5); the `dataSrc: ''` fix from the
+  2026-09-20 stat-removal session still works correctly; the details modal opens with all
+  10 fields populated (User ID, Username, Email, Role, Last/First/Middle Name, Age,
+  Birthdate, Password Last Changed) plus working View Logs / Edit User links; zero
+  horizontal overflow at both 1280px and 992px; console clean except one **pre-existing,
+  unrelated** `favicon.ico` 500 (already documented as Bug 13 in `bugs.md` —
+  `GlobalExceptionHandler`'s missing-route handling, not something this branch touches).
+- Test server stopped after verification (it was started solely for this check).
 
-### Open Items (as of that session)
-- **PR to `main` — user approval required**, per this project's standing branch-safety rule.
+## Open Items
 - **The purge is irreversible once the backup is discarded.** Keep
   `src/main/sql/backup-2026-09-19-pre-log-purge.sql` (122,172 bytes, taken before the
-  migration ran, 334 `system_logs` rows) until this change has been accepted and is in
-  live use — it is the only way to recover the 197 purged login/logout rows if this
-  decision is ever revisited.
-- **A manual browser walkthrough of `admin.html` is still recommended** — visual hero
-  layout at the new full width, the User Directory DataTable rendering/paginating/
-  searching correctly, the details modal, and a clean browser console. No automation tool
-  (Playwright browser bridge) was available in this environment to do this automatically;
-  same recurring gap noted in several prior sessions (2026-09-19 ID-photo session,
-  2026-09-20 admin-stats session).
+  migration ran, 334 `system_logs` rows) until this change has been in live use long enough
+  to be confident in it — it is the only way to recover the 197 purged login/logout rows if
+  this decision is ever revisited.
 - **Test count is 385, not the plan's originally-guessed 377** — this is baseline drift
   from other work merged into `main` before this branch was created (a known, recurring
   pattern in this project's history, e.g. the 2026-09-06 and 2026-09-19 sessions above),

@@ -54,12 +54,36 @@
   surgical. Static/API-level checks confirmed `admin.html`/`dashboard.css`/`admin-users.js`
   are clean of every stat-related identifier and that `/api/logs` returns zero
   "logged in"/"logged out" rows among the surviving 138.
-- **Not completed:** a rendered-browser walkthrough of `admin.html` (hero layout,
-  DataTable, details modal, console cleanliness) — no Playwright browser bridge was
-  available this session, a recurring gap in this project's environment history.
-- **Branch:** `feature/remove-login-audit-and-admin-stats`. Open: PR to main (user approval
-  required); keep the pre-purge backup until this change is accepted into use; a manual
-  browser walkthrough of `admin.html` is still recommended.
+- **Not completed this session:** a rendered-browser walkthrough of `admin.html` (hero
+  layout, DataTable, details modal, console cleanliness) — no Playwright browser bridge was
+  available this session, a recurring gap in this project's environment history. **Closed
+  in a same-day follow-up session** — see below.
+- **Branch:** `feature/remove-login-audit-and-admin-stats`. **PR #59 merged into `main` on
+  2026-09-21T08:03:37Z.** Open: keep the pre-purge backup until this change has been in live
+  use long enough to be confident in it.
+
+### Follow-Up: admin.html Browser Walkthrough (Completed - September 21, 2026)
+- **Task:** Close the one item PR #59 shipped without — a real rendered-browser pass over
+  `admin.html` (hero layout, DataTable, details modal, console) — now that a Playwright MCP
+  browser bridge was available.
+- **What happened:** Started `./gradlew bootRun` against live MySQL, logged in as `admin`,
+  and drove the page. The very first load rendered the OLD stat-card hero
+  ("Total Users"/"Admins"/"Registrars"/"Trainers") — alarming at first, since that markup
+  was supposedly removed weeks ago. Diagnosed as a **stale browser HTTP cache** from earlier
+  testing in that browser profile, not a code regression: `fetch(url, {cache: 'no-store'})`
+  against the live server returned the clean response, and `grep` across all three on-disk
+  copies of `admin.html` (`src/`, `build/resources/main`, `bin/main`) confirmed zero
+  `hero-stats`/`stat-card`/"Total Users" anywhere. A cache-busted navigation
+  (`admin.html?cb=1`) rendered the correct page.
+- **Verified clean (cache-busted):** full-width hero with no stat cards and no leftover
+  gap; User Directory DataTable renders all 5 seed accounts correctly ("Showing 1 to 5 of 5
+  entries"), search filters correctly, the `dataSrc: ''` fix from the 2026-09-20 session
+  still works; details modal opens with all 10 fields populated plus working View Logs /
+  Edit User links; zero horizontal overflow at 1280px and 992px; console clean apart from
+  one pre-existing, unrelated `favicon.ico` 500 (Bug 13 in `bugs.md`).
+- **Branch:** `feature/remove-login-audit-and-admin-stats` (same branch, continued after PR
+  #59 merged, per user instruction — doc-only follow-up, no `src/` changes). Test server
+  stopped after verification.
 
 ### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
 - **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /

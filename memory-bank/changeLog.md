@@ -1,78 +1,43 @@
 # Change Log - Anihan SRMS
 
-## 2026-09-21 - Second `main` merge into `feature/class-year-filter` (PR #59)
-**Branch:** `feature/class-year-filter` — conflict resolution only, no application code edited.
-
-Pulled `main` to bring in PR #59 (remove login/logout auditing). All code merged cleanly;
-only `activeContext.md`, `changeLog.md` and `progress.md` conflicted. Resolved with the same
-`git show :2:` / `git show :3:` whole-entry splice recorded below. This branch's tails were a
-strict superset of main's (they additionally carry the 2026-09-16 Thread Testing Cases
-entries), so our tails were kept; main's 2026-09-19 "Remove Login/Logout Auditing" entry was
-inserted in date order in each file, and the `- **Task:**` bullet of the 2026-09-20 Student
-Record Edit Form progress entry (missing on this branch, present on main) was restored.
-
----
-
-## 2026-09-21 - Merge `main` into `feature/class-year-filter` (conflict resolution)
-**Branch:** `feature/class-year-filter` — **no application code, schema, or test code touched.**
+## 2026-09-21 - Follow-Up: admin.html Browser Walkthrough (post-merge)
+**Branch:** `feature/remove-login-audit-and-admin-stats` (PR #59 already merged into `main`
+on 2026-09-21T08:03:37Z; this is a doc-only follow-up on the same branch, no `src/` changes)
 
 ### Task
-Finish an in-progress merge of `main` that had stalled on conflicts, so work on the class
-year filter could begin on a branch that is current with `main`.
+PR #59 shipped without one item: a real rendered-browser walkthrough of `admin.html` (hero
+layout, DataTable, details modal, console cleanliness) — no Playwright browser bridge was
+available in that session. A Playwright MCP browser bridge became available this session;
+this closes that open item.
 
-### Conflicts — two files, both memory-bank docs
-`memory-bank/changeLog.md` and `memory-bank/progress.md`. Every Java, HTML, JS, and SQL file
-merged automatically with zero conflicts.
+### What happened
+Started `./gradlew bootRun` against live MySQL and drove `admin.html` as `admin` via the
+Playwright MCP tools. The first page load rendered the OLD "Total Users / Admins /
+Registrars / Trainers" stat-card hero, which looked like a serious regression since that
+markup was reportedly removed weeks earlier. Diagnosed, not assumed: a `fetch(url, {cache:
+'no-store'})` against the live server returned the clean response with zero stat-card
+markup, and a `grep` across all three on-disk copies of `admin.html`
+(`src/main/resources/static`, `build/resources/main/static`, `bin/main/static`) confirmed
+none contain `hero-stats`/`stat-card`/"Total Users". Root cause: a stale browser HTTP cache
+in that browser profile from earlier testing, not a code issue. A cache-busted navigation
+(`admin.html?cb=1`) rendered the correct page.
 
-Both sides had appended a new session entry at the **top** of each file. Because those
-entries share identical sub-headings (`### Files Modified`, `| File | Change |`,
-`|------|--------|`), Git treated those shared lines as common context and **interleaved the
-two entries** across several small hunks instead of presenting one clean either/or block —
-which is why the markers looked tangled and mid-sentence. Editing the hunks by hand would
-have risked splicing half of one entry onto half of the other.
+### Verified (cache-busted load)
+- Hero: full-width, eyebrow/title/subtitle only, no stat cards, no leftover
+  `.page-hero-grid` gap.
+- User Directory DataTable: all 5 seed accounts render with correct role badges,
+  "Showing 1 to 5 of 5 entries"; search filters correctly (`registrar` → 1/5, cleared → 5/5);
+  the `dataSrc: ''` fix from the 2026-09-20 stat-removal session still works.
+- Details modal: opens with all 10 fields populated (User ID, Username, Email, Role,
+  Last/First/Middle Name, Age, Birthdate, Password Last Changed) plus working View Logs /
+  Edit User links.
+- Zero horizontal overflow at 1280px and 992px.
+- Console clean apart from one pre-existing, unrelated `favicon.ico` 500 (documented as Bug
+  13 in `bugs.md` — `GlobalExceptionHandler`'s missing-route handling; not touched by this
+  branch).
 
-### Resolution
-Rather than editing the marked-up worktree files, both clean sides were pulled from the
-index and re-spliced whole:
-
-| Step | Command / rule |
-|------|----------------|
-| Extract our side | `git show :2:memory-bank/<file>.md` |
-| Extract main's side | `git show :3:memory-bank/<file>.md` |
-| Confirm the shared tail | `diff` of everything from `2026-09-06` down → **byte-identical** on both sides |
-| Re-splice | shared header + main's new entries + our 2026-09-16 entry + shared tail |
-
-Both files are strictly newest-first, so ordering was simply date order: main's
-2026-09-19/20 entries, then this branch's 2026-09-16 Thread Testing Cases entry, then the
-shared history from 2026-09-06 back. **Nothing was dropped from either side.**
-
-### Files Modified
-| File | Change |
-|------|--------|
-| `memory-bank/changeLog.md` | Conflict resolved by splice (1245 + 1617 lines → 1682, sharing a 1178-line tail and a 2-line header). Both sides' entries kept in full, newest-first. |
-| `memory-bank/progress.md` | Same splice (426 + 581 → 607, sharing a 396-line tail and a 4-line header). |
-| `memory-bank/activeContext.md` | Not conflicted, but its content was a mashup after the automatic merge: `Current Phase` and `Active Branch` still described `admin_stats_and_SR_overhaul`, and two different sessions were both labelled "Latest Session". Rewrote `Current Phase`, corrected `Active Branch` to `feature/class-year-filter`, added this session at the top, and relabelled every older "Latest Session" heading to "Previous Session" so only one remains. |
-
-### Verification
-- **Zero conflict markers** left anywhere in the repo — swept `*.md`, `*.java`, `*.js`,
-  `*.html`, `*.sql`, `*.kts`, not just the two conflicted files.
-- **No content lost:** a `comm` set-difference in both directions confirms every `##`/`###`
-  heading present on either side is present in the merged file.
-- **Line accounting reconciles exactly** once the shared file headers are not double-counted
-  (1684 − 2 = 1682; 611 − 4 = 607).
-- **`./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL.** Checked explicitly rather
-  than assumed — this project's own 2026-09-19 merge entry records that Git reporting zero
-  text conflicts does not by itself guarantee the combined code compiles, since two branches
-  can interleave cleanly line-by-line while still breaking a cross-file dependency.
-- **`./gradlew test` was NOT run.** Expected baseline is 374. This matters: the two most
-  recent cross-branch merges in this project (`1916904`, `fec8004`) both produced test
-  failures — a record-arity mismatch and a missing `@Mock` — that compiled perfectly well on
-  each branch in isolation. Run it before relying on this branch.
-
-### Note for next time
-This same pair of files will conflict on every future merge, for the same structural reason.
-The `git show :2:` / `git show :3:` splice above is the reliable recipe — resolve by
-re-ordering whole entries by date, never by editing inside the interleaved hunks.
+Test server stopped after verification. No files under `src/` changed this session — only
+memory-bank verification records.
 
 ---
 
