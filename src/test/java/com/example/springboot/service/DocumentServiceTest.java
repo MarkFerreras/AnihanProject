@@ -160,6 +160,20 @@ class DocumentServiceTest {
     }
 
     @Test
+    void findIdPictureReturnsThePictureWhenPresent() {
+        Document picture = idPictureDocument();
+        when(documentRepository.findByStudentStudentIdAndDocumentType(
+                "SR20260001", DocumentService.ID_PICTURE_TYPE))
+                .thenReturn(Optional.of(picture));
+
+        Optional<Document> result = service.findIdPicture("SR20260001");
+
+        assertTrue(result.isPresent());
+        assertEquals("id-photo.jpg", result.get().getFileName());
+        assertEquals("image/jpeg", result.get().getFileType());
+    }
+
+    @Test
     void idPictureTypeIsAKnownDocumentType() {
         assertTrue(service.getDocumentTypes().contains(DocumentService.ID_PICTURE_TYPE));
     }
@@ -369,6 +383,18 @@ class DocumentServiceTest {
         doc.setFileType("text/html");
         doc.setContentData(html.getBytes(StandardCharsets.UTF_8));
         doc.setFileSize(doc.getContentData().length);
+        return doc;
+    }
+
+    private Document idPictureDocument() {
+        Document doc = new Document();
+        doc.setDocumentId(42);
+        doc.setStudent(student);
+        doc.setDocumentType(DocumentService.ID_PICTURE_TYPE);
+        doc.setFileName("id-photo.jpg");
+        doc.setFileType("image/jpeg");
+        doc.setContentData(new byte[] { 1, 2, 3 });
+        doc.setFileSize(3);
         return doc;
     }
 

@@ -205,6 +205,66 @@ class RegistrarBulkLoadTest {
     }
 
     @Test
+    void updateRecordRejectsUnknownBatchCode() {
+        StudentRecord record = new StudentRecord();
+        record.setRecordId(6);
+        record.setStudentId("STU-6");
+        when(studentRecordRepository.findById(6)).thenReturn(java.util.Optional.of(record));
+        when(batchRepository.findById("BAD-BATCH")).thenReturn(java.util.Optional.empty());
+
+        com.example.springboot.dto.registrar.StudentRecordUpdateRequest req =
+            new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
+                "STU-6", "Last", "First", null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
+                "BAD-BATCH", null, null,
+                null, null, null, null, null, null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> registrarService.updateRecord(6, req));
+        assertTrue(ex.getMessage().contains("Batch code does not exist: BAD-BATCH"));
+    }
+
+    @Test
+    void updateRecordRejectsUnknownCourseCode() {
+        StudentRecord record = new StudentRecord();
+        record.setRecordId(6);
+        record.setStudentId("STU-6");
+        when(studentRecordRepository.findById(6)).thenReturn(java.util.Optional.of(record));
+        when(courseRepository.findById("BAD-COURSE")).thenReturn(java.util.Optional.empty());
+
+        com.example.springboot.dto.registrar.StudentRecordUpdateRequest req =
+            new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
+                "STU-6", "Last", "First", null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
+                null, "BAD-COURSE", null,
+                null, null, null, null, null, null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> registrarService.updateRecord(6, req));
+        assertTrue(ex.getMessage().contains("Course code does not exist: BAD-COURSE"));
+    }
+
+    @Test
+    void updateRecordRejectsUnknownSectionCode() {
+        StudentRecord record = new StudentRecord();
+        record.setRecordId(6);
+        record.setStudentId("STU-6");
+        when(studentRecordRepository.findById(6)).thenReturn(java.util.Optional.of(record));
+        when(sectionRepository.findById("BAD-SECTION")).thenReturn(java.util.Optional.empty());
+
+        com.example.springboot.dto.registrar.StudentRecordUpdateRequest req =
+            new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
+                "STU-6", "Last", "First", null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
+                null, null, "BAD-SECTION",
+                null, null, null, null, null, null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> registrarService.updateRecord(6, req));
+        assertTrue(ex.getMessage().contains("Section code does not exist: BAD-SECTION"));
+    }
+
+    @Test
     void statusFilterRestrictsResultsByStudentStatus() {
         when(studentRecordRepository.findAll()).thenReturn(buildRecordList(200));
 

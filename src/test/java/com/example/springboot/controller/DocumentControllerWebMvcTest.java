@@ -335,6 +335,17 @@ class DocumentControllerWebMvcTest {
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void getIdPictureReturns200WithTheImageWhenPresent() throws Exception {
+        when(documentService.findIdPicture("SR20260001")).thenReturn(java.util.Optional.of(sampleDocument()));
+
+        mvc.perform(get("/api/registrar/documents/id-picture/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("inline")))
+                .andExpect(content().bytes("pdf-bytes".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void deleteIdPictureReturns204AndWritesLog() throws Exception {
         mvc.perform(delete("/api/registrar/documents/id-picture/SR20260001").with(csrf()))
                 .andExpect(status().isNoContent());

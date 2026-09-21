@@ -1,5 +1,6 @@
 package com.example.springboot.service;
 
+import com.example.springboot.dto.registrar.CreateSectionRequest;
 import com.example.springboot.dto.registrar.SectionResponse;
 import com.example.springboot.dto.registrar.UpdateSectionRequest;
 import com.example.springboot.model.Batch;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +81,101 @@ class ClassManagementSectionServiceTest {
         assertThatThrownBy(() -> service.updateSection("MISSING", new UpdateSectionRequest("X")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Section not found");
+    }
+
+    // createSection
+    @Test
+    void createSectionReturnsResponse() {
+        Batch b = new Batch();
+        b.setBatchCode("B2026");
+        b.setBatchYear((short) 2026);
+        Course c = new Course();
+        c.setCourseCode("CARS");
+        c.setCourseName("Culinary Arts and Restaurant Services");
+
+        when(sectionRepository.existsById("SEC-NEW")).thenReturn(false);
+        when(batchRepository.findById("B2026")).thenReturn(Optional.of(b));
+        when(courseRepository.findById("CARS")).thenReturn(Optional.of(c));
+
+        SectionResponse resp = service.createSection(
+                new CreateSectionRequest("SEC-NEW", "Section New", "B2026", "CARS"));
+
+        assertThat(resp.sectionCode()).isEqualTo("SEC-NEW");
+        assertThat(resp.sectionName()).isEqualTo("Section New");
+        assertThat(resp.batchCode()).isEqualTo("B2026");
+        assertThat(resp.courseCode()).isEqualTo("CARS");
+        verify(sectionRepository).save(any(Section.class));
+    }
+
+    @Test
+    void createSectionRejectsDuplicateCode() {
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createSection(
+                new CreateSectionRequest("SEC-A", "Section A", "B2026", "CARS")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("already exists");
+        verify(sectionRepository, never()).save(any());
+    }
+
+    @Test
+    void createSectionRejectsUnknownBatch() {
+        when(sectionRepository.existsById("SEC-NEW")).thenReturn(false);
+        when(batchRepository.findById("BAD-BATCH")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createSection(
+                new CreateSectionRequest("SEC-NEW", "Section New", "BAD-BATCH", "CARS")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Batch not found");
+        verify(sectionRepository, never()).save(any());
+    }
+
+    @Test
+    void createSectionRejectsUnknownCourse() {
+        Batch b = new Batch();
+        b.setBatchCode("B2026");
+
+        when(sectionRepository.existsById("SEC-NEW")).thenReturn(false);
+        when(batchRepository.findById("B2026")).thenReturn(Optional.of(b));
+        when(courseRepository.findById("BAD-COURSE")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createSection(
+                new CreateSectionRequest("SEC-NEW", "Section New", "B2026", "BAD-COURSE")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Course not found");
+        verify(sectionRepository, never()).save(any());
+    }
+
+    // deleteSection
+    @Test
+    void deleteSectionRemovesWhenNotReferenced() {
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        when(classRepository.existsBySectionSectionCode("SEC-A")).thenReturn(false);
+
+        service.deleteSection("SEC-A");
+
+        verify(sectionRepository).deleteById("SEC-A");
+    }
+
+    @Test
+    void deleteSectionThrowsWhenNotFound() {
+        when(sectionRepository.existsById("MISSING")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.deleteSection("MISSING"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Section not found");
+        verify(sectionRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteSectionThrowsWhenReferencedByClasses() {
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        when(classRepository.existsBySectionSectionCode("SEC-A")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteSection("SEC-A"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot delete section");
+        verify(sectionRepository, never()).deleteById(any());
     }
 
     // Task 5: getStudentsInSection

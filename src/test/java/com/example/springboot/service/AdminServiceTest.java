@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,121 @@ class AdminServiceTest {
         }
 
         @Test
+        void updateUserRenamesUsernameSuccessfully() {
+                User registrar = buildUser(
+                                2, "registrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos");
+
+                AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                                "newregistrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos", LocalDate.of(1998, 3, 20), null);
+
+                when(userRepository.findById(2)).thenReturn(Optional.of(registrar));
+                when(userRepository.findByUsername("newregistrar")).thenReturn(Optional.empty());
+                when(userRepository.findByEmail("registrar@anihan.edu")).thenReturn(Optional.empty());
+                when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+                AdminUserResponse response = adminService.updateUser(2, request, "admin");
+
+                assertEquals("newregistrar", response.username());
+        }
+
+        @Test
+        void updateUserRejectsDuplicateUsernameOnRename() {
+                User registrar = buildUser(
+                                2, "registrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos");
+                User someoneElse = buildUser(
+                                5, "newregistrar", "other@anihan.edu", "ROLE_REGISTRAR",
+                                "Reyes", "Ana", "Lim");
+
+                AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                                "newregistrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos", LocalDate.of(1998, 3, 20), null);
+
+                when(userRepository.findById(2)).thenReturn(Optional.of(registrar));
+                when(userRepository.findByUsername("newregistrar")).thenReturn(Optional.of(someoneElse));
+
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.updateUser(2, request, "admin"));
+
+                assertEquals("Username is already taken by another account", ex.getMessage());
+                verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        void updateUserRejectsDuplicateEmailOnUpdate() {
+                User registrar = buildUser(
+                                2, "registrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos");
+                User someoneElse = buildUser(
+                                6, "other", "taken@anihan.edu", "ROLE_REGISTRAR",
+                                "Reyes", "Ana", "Lim");
+
+                AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                                null, "taken@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos", LocalDate.of(1998, 3, 20), null);
+
+                when(userRepository.findById(2)).thenReturn(Optional.of(registrar));
+                when(userRepository.findByEmail("taken@anihan.edu")).thenReturn(Optional.of(someoneElse));
+
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.updateUser(2, request, "admin"));
+
+                assertEquals("Email is already taken by another account", ex.getMessage());
+                verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        void updateUserEncodesNewPasswordAndStampsChangedAt() {
+                User registrar = buildUser(
+                                2, "registrar", "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos");
+
+                AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                                null, "registrar@anihan.edu", "ROLE_REGISTRAR",
+                                "Cruz", "Maria", "Santos", LocalDate.of(1998, 3, 20), "NewPass123!");
+
+                when(userRepository.findById(2)).thenReturn(Optional.of(registrar));
+                when(userRepository.findByEmail("registrar@anihan.edu")).thenReturn(Optional.empty());
+                when(passwordEncoder.encode("NewPass123!")).thenReturn("encoded-new-password");
+                when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+                adminService.updateUser(2, request, "admin");
+
+                assertEquals("encoded-new-password", registrar.getPassword());
+                assertTrue(registrar.getPasswordChangedAt() != null);
+        }
+
+        @Test
+        void updateUserAllowsSelfUpdateWithoutRoleChange() {
+                User admin = buildUser(
+                                1, "admin", "admin@anihan.edu", "ROLE_ADMIN",
+                                "Admin", "System", "Owner");
+
+                AdminUpdateUserRequest request = new AdminUpdateUserRequest(
+                                null, "admin@anihan.edu", "ROLE_ADMIN",
+                                "Admin", "System", "Owner", LocalDate.of(1996, 4, 11), null);
+
+                when(userRepository.findById(1)).thenReturn(Optional.of(admin));
+                when(userRepository.findByEmail("admin@anihan.edu")).thenReturn(Optional.empty());
+                when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+                AdminUserResponse response = adminService.updateUser(1, request, "admin");
+
+                assertEquals("ROLE_ADMIN", response.role());
+        }
+
+        @Test
+        void getUserByIdThrowsWhenUserNotFound() {
+                when(userRepository.findById(999)).thenReturn(Optional.empty());
+
+                assertThrows(NoSuchElementException.class,
+                                () -> adminService.getUserById(999));
+                verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
         void getUserByIdRecalculatesAgeFromBirthdate() {
                 User user = buildUser(
                                 3,
@@ -184,6 +300,38 @@ class AdminServiceTest {
         }
 
         @Test
+        void createUserRejectsDuplicateUsername() {
+                AdminCreateUserRequest request = new AdminCreateUserRequest(
+                                "existinguser", "Pass1234!", "ROLE_TRAINER",
+                                null, null, null, null, LocalDate.of(2000, 1, 1));
+
+                when(userRepository.existsByUsername("existinguser")).thenReturn(true);
+
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.createUser(request));
+
+                assertEquals("Username is already taken", ex.getMessage());
+                verify(userRepository, never()).existsByEmail(any());
+                verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        void createUserRejectsDuplicateEmail() {
+                AdminCreateUserRequest request = new AdminCreateUserRequest(
+                                "newuser", "Pass1234!", "ROLE_TRAINER",
+                                null, null, null, "taken@anihan.local", LocalDate.of(2000, 1, 1));
+
+                when(userRepository.existsByUsername("newuser")).thenReturn(false);
+                when(userRepository.existsByEmail("taken@anihan.local")).thenReturn(true);
+
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.createUser(request));
+
+                assertEquals("Email is already taken by another account", ex.getMessage());
+                verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
         void hardDeleteOfTrainerWithLockedGradesIsBlocked() {
                 User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
                                 "ROLE_TRAINER", "Cruz", "Maria", "Santos");
@@ -226,6 +374,20 @@ class AdminServiceTest {
         }
 
         @Test
+        void hardDeleteThrowsOnSelfDeletion() {
+                User admin = buildUser(1, "admin", "admin@anihan.edu",
+                                "ROLE_ADMIN", "Admin", "System", "Owner");
+                when(userRepository.findById(1)).thenReturn(Optional.of(admin));
+
+                AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                                () -> adminService.hardDeleteUser(1, "admin"));
+
+                assertEquals("You cannot delete your own account.", ex.getMessage());
+                verify(userRepository, never()).delete(any(User.class));
+                verify(gradeRepository, never()).countLockedGradeClassesByTrainerId(any());
+        }
+
+        @Test
         void softDeleteOfTrainerReturnsRemainingClassCount() {
                 User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
                                 "ROLE_TRAINER", "Cruz", "Maria", "Santos");
@@ -252,6 +414,20 @@ class AdminServiceTest {
         }
 
         @Test
+        void softDeleteThrowsOnSelfDeletion() {
+                User admin = buildUser(1, "admin", "admin@anihan.edu",
+                                "ROLE_ADMIN", "Admin", "System", "Owner");
+                when(userRepository.findById(1)).thenReturn(Optional.of(admin));
+
+                AccessDeniedException ex = assertThrows(AccessDeniedException.class,
+                                () -> adminService.softDeleteUser(1, "admin"));
+
+                assertEquals("You cannot delete your own account.", ex.getMessage());
+                verify(userRepository, never()).save(any(User.class));
+                verify(schoolClassRepository, never()).countByTrainerUserId(any());
+        }
+
+        @Test
         void unlockUserClearsSecurityLockoutState() {
                 User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
                                 "ROLE_TRAINER", "Cruz", "Maria", "Santos");
@@ -266,6 +442,28 @@ class AdminServiceTest {
                 assertEquals(0, trainer.getFailedSecurityAttempts());
                 assertEquals(null, trainer.getSecurityLockoutStartedAt());
                 verify(userRepository).save(trainer);
+        }
+
+        @Test
+        void reEnableUserActivatesADeactivatedAccount() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                trainer.setEnabled(false);
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+
+                adminService.reEnableUser(9);
+
+                assertTrue(trainer.getEnabled());
+                verify(userRepository).save(trainer);
+        }
+
+        @Test
+        void reEnableUserThrowsWhenUserNotFound() {
+                when(userRepository.findById(999)).thenReturn(Optional.empty());
+
+                assertThrows(NoSuchElementException.class,
+                                () -> adminService.reEnableUser(999));
+                verify(userRepository, never()).save(any(User.class));
         }
 
         @Test
