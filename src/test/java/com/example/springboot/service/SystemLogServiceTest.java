@@ -39,7 +39,7 @@ class SystemLogServiceTest {
         when(systemLogRepository.save(any(SystemLog.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        systemLogService.logAction(1, "admin", "ROLE_ADMIN", "User logged in", "127.0.0.1");
+        systemLogService.logAction(1, "admin", "ROLE_ADMIN", "Reset password for: registrar", "127.0.0.1");
 
         ArgumentCaptor<SystemLog> captor = ArgumentCaptor.forClass(SystemLog.class);
         verify(systemLogRepository).save(captor.capture());
@@ -48,7 +48,7 @@ class SystemLogServiceTest {
         assertEquals(1, saved.getUserId());
         assertEquals("admin", saved.getUsername());
         assertEquals("ROLE_ADMIN", saved.getRole());
-        assertEquals("User logged in", saved.getAction());
+        assertEquals("Reset password for: registrar", saved.getAction());
         assertEquals("127.0.0.1", saved.getIpAddress());
         assertNotNull(saved.getTimestamp());
     }

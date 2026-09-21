@@ -21,7 +21,6 @@ import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.repository.UserSecurityAnswerRepository;
 import com.example.springboot.service.SessionAuthenticationHelper;
-import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -33,7 +32,6 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
-    private final SystemLogService systemLogService;
     private final UserSecurityAnswerRepository userSecurityAnswerRepository;
     private final SessionAuthenticationHelper sessionAuthenticationHelper;
 
@@ -42,12 +40,10 @@ public class AuthController {
 
     public AuthController(AuthenticationManager authenticationManager,
                           UserRepository userRepository,
-                          SystemLogService systemLogService,
                           UserSecurityAnswerRepository userSecurityAnswerRepository,
                           SessionAuthenticationHelper sessionAuthenticationHelper) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
-        this.systemLogService = systemLogService;
         this.userSecurityAnswerRepository = userSecurityAnswerRepository;
         this.sessionAuthenticationHelper = sessionAuthenticationHelper;
     }
@@ -96,13 +92,6 @@ public class AuthController {
             responseRole = "ROLE_PENDING_SETUP";
         }
 
-        // Log the login action (against the account's real role, not the
-        // temporary one, so the audit trail reads naturally)
-        String ipAddress = httpRequest.getRemoteAddr();
-        if (user != null) {
-            systemLogService.logAction(user.getUserId(), username, realRole, "User logged in", ipAddress);
-        }
-
         return ResponseEntity.ok(Map.of(
                 "username", username,
                 "role", responseRole
@@ -112,25 +101,12 @@ public class AuthController {
     /**
      * POST /api/auth/logout
      * Invalidates the current session.
+     *
+     * <p>Logging out is deliberately NOT written to {@code system_logs} —
+     * see memory-bank/decisions.md (2026-09-19).
      */
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
-        // Capture user identity BEFORE clearing context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()
-                && !"anonymousUser".equals(authentication.getPrincipal())) {
-            String username = authentication.getName();
-            String role = authentication.getAuthorities().stream()
-                    .findFirst()
-                    .map(GrantedAuthority::getAuthority)
-                    .orElse("ROLE_UNKNOWN");
-            String ipAddress = request.getRemoteAddr();
-
-            userRepository.findByUsername(username).ifPresent(user ->
-                    systemLogService.logAction(user.getUserId(), username, role, "User logged out", ipAddress)
-            );
-        }
-
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
