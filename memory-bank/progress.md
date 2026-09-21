@@ -2,6 +2,17 @@
 
 ## Recent Sessions (detail)
 
+### Interim Client Demo Stability Plan Rewrite (Planned - September 22, 2026)
+- Replaced the draft plan with a compact Superpowers-compatible plan containing required
+  architecture, spec, constraints, review focus, interfaces, RED/GREEN commands, commits,
+  live-DB backup/application, and browser acceptance evidence.
+- Corrected stale/incomplete scope: no `TrainerService` production edit; Bug 12 covers the
+  entity, both schema files, and migration; Bug 13 has a MockMvc regression test; fallback
+  account SQL inserts only missing usernames and never changes existing rows.
+- Clarified that this is an interim stability pass. Document generation, generated DOCX
+  conversion, and exports are excluded; only registrar DOCX/XLSX upload persistence is in scope.
+- **Status:** plan only. No implementation tasks or tests have been run.
+
 ### Class Management: Year Filter Dropdown for Registrar and Trainer (Completed - September 21, 2026)
 - **Task:** Make classes filterable by year (semester) for both the Registrar and the Trainer.
 - **Implementation:** Added dynamic distinct semester dropdowns replacing static toggles. Updated Spring Data queries, controllers, and Datatables AJAX fetching.
