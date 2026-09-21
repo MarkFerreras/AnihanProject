@@ -37,7 +37,13 @@
         return '<span class="' + roleClass + '">' + escapeHtml(ROLE_LABELS[role] || role) + '</span>';
     }
 
-    function renderStatusBadge(enabled) {
+    function renderStatusBadge(enabled, securityLocked) {
+        // Locked (failed security-question attempts) and Disabled (admin deactivated) are
+        // deliberately separate states — see memory-bank/decisions.md — so they get distinct
+        // badges rather than both collapsing into "Disabled".
+        if (securityLocked === true) {
+            return '<span class="status-badge status-badge-enrolling">Locked</span>';
+        }
         if (enabled === false) {
             return '<span class="status-badge status-badge-disabled">Disabled</span>';
         }
@@ -70,13 +76,6 @@
 
         element.classList.add('d-none');
         element.textContent = '';
-    }
-
-    function updateStats(users) {
-        setText('totalUsersStat', users.length);
-        setText('adminUsersStat', users.filter(user => user.role === 'ROLE_ADMIN').length);
-        setText('registrarUsersStat', users.filter(user => user.role === 'ROLE_REGISTRAR').length);
-        setText('trainerUsersStat', users.filter(user => user.role === 'ROLE_TRAINER').length);
     }
 
     async function loadUserDetails(userId) {
@@ -270,10 +269,7 @@
         var dataTable = window.jQuery('#usersTable').DataTable({
             ajax: {
                 url: '/api/admin/users',
-                dataSrc: function (json) {
-                    updateStats(json);
-                    return json;
-                }
+                dataSrc: ''
             },
             columns: [
                 { data: 'userId' },
@@ -303,8 +299,8 @@
                 },
                 {
                     data: 'enabled',
-                    render: function (data) {
-                        return renderStatusBadge(data);
+                    render: function (data, type, row) {
+                        return renderStatusBadge(data, row.securityLocked);
                     }
                 },
                 {

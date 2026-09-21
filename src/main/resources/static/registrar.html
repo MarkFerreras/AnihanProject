@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/dashboard.css?v=3">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
@@ -35,8 +35,8 @@
         }
 
         .id-picture-preview {
-            width: 140px;
-            height: 140px;
+            width: 200px;
+            height: 200px;
             object-fit: cover;
             border: 1px solid #d8d8d8;
             border-radius: 6px;
@@ -204,11 +204,8 @@
                 <div class="modal-body">
                     <div class="alert d-none" id="studentDetailsAlert" role="alert"></div>
                     <div class="text-center mb-3">
-                        <img id="detailsIdPicture" class="id-picture-preview d-none"
-                             alt="Student ID picture">
-                        <p id="detailsIdPictureEmpty" class="text-muted small mb-0">
-                            No ID picture on file.
-                        </p>
+                        <img id="detailsIdPicture" class="id-picture-preview"
+                             src="images/TempProfile%201.webp" alt="No ID picture on file">
                     </div>
                     <div class="detail-grid">
                         <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
@@ -217,69 +214,52 @@
                         <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsLastName">null</p></article>
                         <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFirstName">null</p></article>
                         <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Civil Status</span><p class="detail-value" id="detailsCivilStatus">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Religion</span><p class="detail-value" id="detailsReligion">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Temporary Address</span><p class="detail-value" id="detailsTemporaryAddress">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptized</span><p class="detail-value" id="detailsBaptized">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptism Date</span><p class="detail-value" id="detailsBaptismDate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Baptism Place</span><p class="detail-value" id="detailsBaptismPlace">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Siblings</span><p class="detail-value" id="detailsSiblingCount">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Brothers</span><p class="detail-value" id="detailsBrotherCount">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Sisters</span><p class="detail-value" id="detailsSisterCount">null</p></article>
                         <article class="detail-card"><span class="detail-label">Batch</span><p class="detail-value" id="detailsBatchCode">null</p></article>
                         <article class="detail-card"><span class="detail-label">Course</span><p class="detail-value" id="detailsCourseCode">null</p></article>
                         <article class="detail-card"><span class="detail-label">Section</span><p class="detail-value" id="detailsSectionCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Enrollment Date</span><p class="detail-value" id="detailsEnrollmentDate">null</p></article>
                         <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Total GWA</span><p class="detail-value" id="detailsTotalGwa">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Father</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsFatherFamilyName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFatherFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsFatherMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsFatherBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsFatherOccupation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsFatherEstIncome">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsFatherContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsFatherEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsFatherAddress">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Mother</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Family Name</span><p class="detail-value" id="detailsMotherFamilyName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsMotherFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMotherMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsMotherBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Occupation</span><p class="detail-value" id="detailsMotherOccupation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Est. Income</span><p class="detail-value" id="detailsMotherEstIncome">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No.</span><p class="detail-value" id="detailsMotherContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsMotherEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsMotherAddress">null</p></article>
-                    </div>
-
-                    <h6 class="mt-4 mb-2 fw-semibold">Guardian</h6>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Relation</span><p class="detail-value" id="detailsGuardianRelation">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsGuardianLastName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsGuardianFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsGuardianMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsGuardianBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Address</span><p class="detail-value" id="detailsGuardianAddress">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
+                        <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-danger-surface" id="deleteRecordBtn" style="margin-right:auto;">Delete</button>
+                    <div class="d-flex gap-2" style="margin-right:auto;">
+                        <button type="button" class="btn btn-danger-surface" id="deleteRecordBtn">Delete</button>
+                        <button type="button" class="btn btn-surface-secondary" id="editStatusBtn">Edit Status</button>
+                    </div>
                     <a id="studentDetailsEditLink" href="#" class="btn btn-surface">Edit</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT STATUS MODAL ===== -->
+    <div class="modal fade" id="editStatusModal" tabindex="-1"
+         aria-labelledby="editStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStatusModalLabel">Edit Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Changing status for <strong id="editStatusStudentName">this student</strong>.</p>
+                    <div class="alert d-none" id="editStatusAlert" role="alert"></div>
+                    <label for="editStatusSelect" class="form-label">New Status</label>
+                    <select class="form-select" id="editStatusSelect">
+                        <option value="Enrolling">Enrolling</option>
+                        <option value="Active">Active</option>
+                        <option value="Graduated">Graduated</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-surface" id="saveStatusBtn">Save Status</button>
                 </div>
             </div>
         </div>
@@ -502,6 +482,6 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-students.js?v=5"></script>
+    <script src="js/registrar-students.js?v=8"></script>
 </body>
 </html>

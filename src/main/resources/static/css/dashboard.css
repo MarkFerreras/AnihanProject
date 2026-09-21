@@ -105,45 +105,6 @@ body.dashboard-page {
     margin: 0;
 }
 
-.hero-stats {
-    display: grid;
-    gap: 0.9rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.stat-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(212, 237, 218, 0.58));
-    border: 1px solid rgba(40, 167, 69, 0.14);
-    border-radius: 1rem;
-    min-height: 7rem;
-    padding: 1rem 1.1rem;
-}
-
-.stat-label {
-    color: var(--color-text-muted);
-    display: block;
-    font-size: 0.82rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.55rem;
-    text-transform: uppercase;
-}
-
-.stat-value {
-    color: var(--color-text-dark);
-    display: block;
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.stat-caption {
-    color: var(--color-text-muted);
-    display: block;
-    font-size: 0.84rem;
-    margin-top: 0.55rem;
-}
-
 .surface-card {
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid rgba(40, 167, 69, 0.12);
@@ -443,24 +404,97 @@ body.dashboard-page {
     padding-bottom: 0.25rem;
 }
 
-.edit-account-modal .btn-save {
-    background: var(--gradient-button);
+/* --- Student Record Edit Form: category tabs --- */
+/* Scoped to #editRecordForm so it only affects student-records.html. */
+#editRecordForm .section-title {
+    border-bottom: 2px solid var(--color-green-primary);
+    color: var(--color-text-dark);
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
+}
+
+.record-edit-tabs.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 1.5rem;
+}
+
+.record-edit-tabs.nav-tabs .nav-link {
+    background: transparent;
     border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: -2px;
+    padding: 0.65rem 1.1rem;
+}
+
+.record-edit-tabs.nav-tabs .nav-link:hover,
+.record-edit-tabs.nav-tabs .nav-link:focus {
+    border-bottom-color: rgba(40, 167, 69, 0.3);
+    color: var(--color-green-primary);
+}
+
+.record-edit-tabs.nav-tabs .nav-link.active {
+    background: transparent;
+    border-bottom-color: var(--color-green-primary);
+    color: var(--color-green-primary);
+}
+
+.tab-pane-toolbar {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.tab-pane-hint {
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+}
+
+.edit-section-fieldset {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+.edit-section-fieldset:disabled .section-title {
+    color: var(--color-text-muted);
+}
+
+.edit-account-modal .btn-save,
+#editSecurityQuestionsModal .btn-save {
+    background: var(--gradient-button) !important;
+    border: none !important;
     border-radius: 0.6rem;
-    color: var(--color-white);
+    color: var(--color-white) !important;
     cursor: pointer;
     font-size: 0.92rem;
     font-weight: 600;
     padding: 0.6rem 1.4rem;
+    max-width: 100%;
 }
 
-.edit-account-modal .btn-save:hover {
+.edit-account-modal .btn-save:hover,
+#editSecurityQuestionsModal .btn-save:hover {
     box-shadow: 0 4px 16px rgba(40, 167, 69, 0.35);
 }
 
-.edit-account-modal .btn-save:disabled {
+.edit-account-modal .btn-save:disabled,
+#editSecurityQuestionsModal .btn-save:disabled {
     cursor: not-allowed;
     opacity: 0.7;
+}
+
+#editSecurityQuestionsModal .alert {
+    border-radius: 0.65rem;
+    font-size: 0.88rem;
 }
 
 .edit-account-modal .alert {
@@ -702,10 +736,6 @@ body.dashboard-page {
         grid-template-columns: 1fr;
     }
 
-    .hero-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .portal-label {
         display: none;
     }
@@ -727,13 +757,17 @@ body.dashboard-page {
         padding-right: 1rem;
     }
 
-    .hero-stats,
     .detail-grid {
         grid-template-columns: 1fr;
     }
 
     .admin-table {
         min-width: 44rem;
+    }
+
+    .tab-pane-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }
 

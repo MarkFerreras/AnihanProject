@@ -1,5 +1,202 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock
+**Branch:** `admin_stats_and_SR_overhaul`
+
+### Task
+Reorganize the registrar's Student Record edit page (`student-records.html`) — a single
+12-section, 65+ field scrolling form — into detail categories the way the student portal
+wizard already groups its own fields, with each category viewed/edited in place (tabs, not
+a new page or a modal). Per user follow-up: each category must start read-only, requiring an
+explicit "Edit Section" click before its fields become editable.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/student-records.html` | Wrapped the form's 12 flat sections into 3 Bootstrap tabs — **Personal Information** (Identifiers, ID Picture, Personal Details, Contact, "Religion & Siblings" — renamed from the ambiguous "Family / Religion" now that a real Family tab exists), **Family Background** (Father/Mother/Guardian, unchanged), **Enrollment & Academics** (Enrollment, OJT, TESDA, School Years). Each tab-pane's content is wrapped in `<fieldset data-edit-section="..." disabled>` with an "Edit Section" toggle button above it. No field `id` was changed, so `populateForm()`/`buildPayload()` in the JS needed no changes to their field mapping. Subtitle text updated to explain the new Edit-Section gate. `dashboard.css?v=2→3`, `registrar-student-records-edit.js?v=5→6`. |
+| `static/js/registrar-student-records-edit.js` | Added `setSectionEditable()` / `setupSectionEditToggles()` — toggles each tab's `<fieldset>` `disabled` attribute, which natively cascades to every descendant control including ones added later (new School Year rows). `setupDirtyTracking()` no longer skips fields that start disabled (safe: disabled fields never fire input/change events, so nothing extra fires). |
+| `static/css/dashboard.css` | Added `.record-edit-tabs`, `.tab-pane-toolbar`, `.tab-pane-hint`, `.edit-section-fieldset` (resets default fieldset chrome to stay layout-invisible), and `#editRecordForm .section-title` — scoped to this one form's ID rather than unscoped, after a repo-wide grep showed `.section-title` is used on 15 other pages that must not be visually affected. |
+| 15 other `*.html` pages | `dashboard.css?v=2` → `?v=3` — this project's cache-buster convention requires bumping the version on every page that loads an edited shared CSS file in the same change, or `bootRun` keeps serving the stale compiled copy. |
+
+### A bug caught before shipping, not after
+The new tab/pane IDs were initially `tab-personal`/`pane-personal` — duplicating IDs already
+used by this same page's pre-existing "Edit Account" modal (present on every dashboard page).
+Duplicate IDs make `getElementById`/Bootstrap's `data-bs-target` resolution ambiguous, which
+would have silently broken the unrelated Edit Account modal's own tab switching. Renamed to
+`tab-record-personal`/`pane-record-personal` etc.; verified via grep that only the original
+Edit Account modal instance of the generic IDs remains.
+
+### Design decisions
+- **Save stayed a single global button/endpoint.** The backend has no per-category save
+  route, and the task was a display/interaction reorg, not a request to add granular
+  persistence. A locked field's value is simply whatever the server already has, so it
+  round-trips correctly through the existing whole-record PUT regardless of which tabs were
+  ever unlocked.
+- **Native `<fieldset disabled>` over manual per-field enable/disable bookkeeping** — it
+  cascades to descendants automatically and dynamically (verified this holds for elements
+  added after the fieldset renders, e.g. a new School Year `<tr>`), so locking a whole
+  category is one attribute write, not a loop over every input/select/button in it.
+- **Education was not added as a 4th tab.** DTO inspection confirmed
+  `StudentRecordUpdateRequest`/`StudentRecordDetailsResponse` have never exposed the
+  student's Educational Background — the registrar edit form has no such section today, and
+  adding one would be new functionality outside a reorg task's scope.
+
+### Verified
+- Repo-wide grep of `.section-title` usage (15 files) before deciding to scope the new CSS
+  rule to `#editRecordForm` rather than unscoped.
+- Live: started `./gradlew bootRun` against local MySQL and fetched the served page/JS over
+  HTTP — grep on the raw response confirms all 3 tab/pane IDs, all 3 Edit Section buttons,
+  and the expected fieldset count are present in what the server actually sends (not a stale
+  build).
+- **Not completed:** a full interactive click-through (unlock a tab, confirm the others stay
+  locked, edit, save) — blocked by this machine's local MySQL missing the `student_number`
+  column (`Unknown column 'sr1_0.student_number'` on every `/api/registrar/student-records/**`
+  call), confirmed via `DESCRIBE student_records` to be pre-existing local schema drift
+  unrelated to this session's diff (no SQL/Java file was touched). No browser automation
+  tooling was available in this environment either. See `activeContext.md` for the open
+  question to the user about syncing the local DB to unblock this.
+
+---
+
+## 2026-09-20 - Remove Admin Statistics Panel
+**Branch:** `admin_stats_and_SR_overhaul`
+
+### Task
+Remove the admin statistics panel (Total Users / Admins / Registrars / Trainers stat cards)
+from the admin dashboard hero section, without affecting any other admin dashboard
+functionality.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `static/admin.html` | Removed the `.hero-stats` block (4 `.stat-card` articles) from the page hero, leaving the same plain single-column hero already used by every other dashboard page. |
+| `static/js/admin-users.js` | Removed the `updateStats()` helper and its call inside the DataTable `ajax.dataSrc`. Replaced the now-empty `dataSrc` callback with `dataSrc: ''` — required because `/api/admin/users` returns a bare array and DataTables' default `dataSrc` (`"data"`) expects `{data:[...]}`; simply deleting the callback would have broken the table. |
+| `static/css/dashboard.css` | Removed `.hero-stats`, `.stat-card`, `.stat-label`, `.stat-value`, `.stat-caption` and their 2 responsive `@media` overrides — confirmed via repo-wide grep unused anywhere else. |
+
+### Verification
+- Repo-wide grep for every removed identifier (`hero-stats`, `stat-card`, `stat-label`,
+  `stat-value`, `stat-caption`, `totalUsersStat`, `adminUsersStat`, `registrarUsersStat`,
+  `trainerUsersStat`, `updateStats`) → zero remaining references.
+- No backend/DTO/test code referenced these identifiers — the stats were pure client-side
+  arithmetic over the same `/api/admin/users` payload already powering the table.
+- Frontend-only change; no `./gradlew` build required. Manual browser smoke test still
+  recommended (see `activeContext.md`) before merge.
+
+---
+
+## 2026-09-19 (follow-up 3) - Duplicate "Account Locked" Audit Log Entries
+**Branch:** `security_questions`
+
+### Task
+User asked to confirm the audit log records lockout events and which account — it already
+did (`system_logs` correctly showed "Account locked due to repeated failed security question
+attempts" with the right username/role for `registrar`), but checking the live data surfaced a
+real bug: the same lock event was being logged multiple times.
+
+### Root Cause
+`PasswordRecoveryController.verify()`'s `logIfNewlyLocked()` logged whenever the account was
+*currently* locked after a failed attempt — with no way to tell "this attempt just caused the
+lock" apart from "this account was already locked before this attempt, and got rejected
+immediately without changing anything." Every subsequent attempt against an already-locked
+account re-logged the same "Account locked..." message.
+
+### Fix
+`verify()` now checks whether the account was locked *before* calling the service, and only
+logs on the failure path when it wasn't — i.e. only at the actual transition into lockout, not
+on repeated bounces off an already-locked account.
+
+### Verification
+`./gradlew test` → 363 tests, 0 failures (unchanged — no test covered this controller-level
+timing distinction yet; still only service-level Mockito coverage exists for this feature, per
+the earlier-noted open item).
+
+### Also noted (also two frontend gaps closed this session, not yet written up until now)
+- The admin Users table's status column only ever checked `enabled`, never the new
+  `securityLocked` field, so a locked account still showed "Active" — fixed in
+  `admin-users.js` (`renderStatusBadge` now takes both, renders a distinct amber "Locked"
+  badge) and `admin.html` (DataTables column `render` callback now passes the full `row`).
+- `admin-users.js` is loaded as `admin-users.js?v=2` on `admin.html` — editing the file without
+  bumping that number meant browsers kept serving the pre-fix cached copy indefinitely, since
+  the URL itself never changed. Bumped to `?v=3`. **Lesson, stated plainly for next time: any
+  edit to a JS/CSS file loaded with an explicit `?v=N` on its `<link>`/`<script>` tag must bump
+  that number in the same change, every time — this project relies on that convention instead
+  of cache headers, and skipping it silently defeats it.**
+
+---
+
+## 2026-09-19 (follow-up) - Lockout Counter Was Silently Rolled Back on Every Wrong Answer
+**Branch:** `security_questions`
+
+### Task
+User reported that failing the security questions 3 times did not lock the account.
+
+### Root Cause
+`SecurityQuestionService.verifyAnswers()` is `@Transactional`. On a wrong answer it correctly
+incremented `failed_security_attempts` (and set `security_locked` on the 3rd) and called
+`userRepository.save(user)` — then threw `IllegalArgumentException` so the controller could
+return a 400 to the caller. Spring rolls back the *entire* transaction by default whenever an
+unchecked exception escapes a `@Transactional` method, so that save was silently undone every
+time. The 21 `SecurityQuestionServiceTest` cases all passed because they mock `UserRepository`
+directly and never exercise real Spring transaction/rollback semantics — this is a real gap in
+that test file's coverage, not just a code bug, and is worth remembering for any other
+service method that deliberately throws after a write it needs to keep.
+
+### Fix
+`@Transactional(noRollbackFor = IllegalArgumentException.class)` on `verifyAnswers()`.
+
+### Verification
+Recompiled, restarted the app, and ran the real 3-attempt sequence against the live database
+via the actual HTTP endpoints (not mocks): attempt 1 → counter 1, attempt 2 → counter 2,
+attempt 3 → counter 3 **and `security_locked=1`**, a 4th attempt rejected immediately without
+checking answers, and a subsequent login with the correct password also blocked with the
+locked-account message — confirming the lockout blocks normal login, not just forgot-password,
+as designed. Since `admin` is the only admin account, this also locked itself out with no
+other admin available — used `BREAKGLASS-account-unlock.md` for the first time for real,
+confirming that procedure works as written. Noted in passing: `admin`'s password no longer
+matches the `password123` seed value and `password_changed_at` is set, consistent with the
+user having already exercised the reset-password step themselves during their own testing —
+not a bug, just means a live login re-check needs the user's current password, not the seed.
+
+### Open follow-up
+Add a `@DataJpaTest` or full-context integration test for `verifyAnswers()` that exercises a
+real transaction (not a mocked repository), specifically to catch this class of "state change
+made right before a deliberate throw gets rolled back" bug — Mockito-based service tests
+structurally cannot catch it.
+
+---
+
+## 2026-09-19 - Security Questions / Forgot Password Feature
+**Branch:** `security_questions`
+
+### Task
+Implement the full security-questions/forgot-password feature reached after an extended
+design discussion with the user (every point below reflects an explicit decision made in
+that discussion — see `decisions.md`): mandatory first-login setup of 2 security questions,
+editing them later, a public forgot-password flow, a 3-strike lockout with 15-minute decay
+clearable only by an admin, and an admin unlock action.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/main/sql/migrations/2026-09-19-security-questions.sql` | New tables + lockout columns + `uq_email` + seed-account email fix. Idempotent, guarded on column/index existence (never constraint name). |
+| `src/main/sql/BREAKGLASS-account-unlock.md` | Manual DB procedure for the case where the sole admin account itself gets locked/disabled and there's no other admin to click "Unlock" in the UI. |
+| `model/SecurityQuestion.java`, `model/UserSecurityAnswer.java` | The 6-question catalog entity and the per-user, per-slot answer entity (default question XOR plaintext custom question, BCrypt answer hash). |
+| `repository/SecurityQuestionRepository.java`, `repository/UserSecurityAnswerRepository.java` | — |
+| `service/SecurityQuestionService.java` | Setup/edit validation (exactly one of default/custom per slot, no duplicate default question, custom question rejected if it word-for-word matches a default), the lockout state machine, email lookup, password reset. |
+| `service/SessionAuthenticationHelper.java` | One shared mechanism for issuing either a full session (real role) or a restricted, single-purpose session (a synthetic `ROLE_PENDING_*` authority) — reused for all three "not fully authenticated yet" states in this feature. |
+| `controller/SecurityQuestionController.java` | `/api/account/security-questions/**` — default-questions list, setup, get-current-for-edit, edit. |
+| `controller/PasswordRecoveryController.java` | `/api/password-recovery/**` — lookup, verify, reset. |
+| `dto/SecurityQuestionResponse.java`, `SecurityAnswerSlotRequest.java`, `SetupSecurityAnswersRequest.java`, `EditSecurityAnswersRequest.java`, `EmailLookupRequest.java`, `VerifyAnswersRequest.java`, `ResetPasswordRequest.java`, `SecurityQuestionTextsResponse.java` | Request/response shapes. `ResetPasswordRequest` reuses `UpdatePasswordRequest`'s hoisted password-policy constants rather than re-typing the regex. |
+| `static/security-question-setup.html` + `js/security-question-setup.js` | Mandatory, non-skippable first-login setup page. |
+| `static/forgot-password.html` + `js/forgot-password.js` | Email entry. |
+| `static/forgot-password-questions.html` + `js/forgot-password-questions.js` | Answer both questions. |
+| `static/reset-password.html` + `js/reset-password.js` | New password twice. |
+| `static/js/password-toggle.js` | Password reveal-toggle logic extracted out of `auth-guard.js` so pages that don't include it (login, reset-password) still get the eye-icon toggle. |
+| `src/main/sql/backup-2026-09-19-pre-security-questions.sql` | Pre-migration live DB backup. |
+| `test/.../SecurityQuestionServiceTest.java` | 21 tests: setup validation (duplicate default, custom-matches-default, both-custom, both-fields-set), replace-answers password gate, email lookup (not found / disabled / locked / setup-incomplete / happy path), the full lockout state machine (immediate reject when locked, success resets counter, wrong answer increments, 3rd strike locks, 15-minute decay), password reset (mismatch, same-as-current, happy path). |
+
+---
+
 ## 2026-09-19 - Move ID Photo Upload from Student Portal to Registrar
 **Branch:** `feature/move-id-photo-to-registrar`
 
@@ -97,6 +294,8 @@ the purely visual pieces (preview image rendering, the "No ID picture on file" p
 button enable/disable state, a clean browser console) were not independently confirmed this
 session.
 
+---
+
 ## 2026-09-19 - schema.sql vs Live DB Comparison + Sync (security questions)
 **Branch:** `main` (DB-sync task)
 
@@ -125,6 +324,58 @@ to the 2026-07-14 and 2026-09-06 findings.
 ### Files Modified
 | File | Change |
 |------|--------|
+| `src/main/sql/schema.sql` | New tables, 3 new `users` columns, `email` now `UNIQUE`, seed accounts' emails changed to `@anihan.local`, header dated. |
+| `model/User.java` | `securityLocked`, `failedSecurityAttempts`, `securityLockoutStartedAt` fields. |
+| `service/CustomUserDetailsService.java` | `accountNonLocked` (previously hardcoded `true`) now reads `!user.getSecurityLocked()` — Spring Security's own `LockedException` now enforces the lockout on every login, not just forgot-password. |
+| `exception/GlobalExceptionHandler.java` | Distinct `LockedException` / `DisabledException` handlers (previously both fell through to one generic message). |
+| `controller/AuthController.java` | `login()` checks setup status and issues a `ROLE_PENDING_SETUP`-only session instead of the real role when incomplete; `/me` gained `securityQuestionsSetUp`. |
+| `service/AdminService.java`, `controller/AdminController.java` | `unlockUser()` + `PUT /api/admin/users/{id}/unlock` — clears `security_locked` and `enabled` together, one action regardless of which condition(s) apply. |
+| `dto/AdminUserResponse.java` | Added `securityLocked` (arity 11→12 — fixed 3 existing test call sites, same class of fix as this project's earlier `StudentRecordDetailsResponse` arity incidents). |
+| `dto/UpdatePasswordRequest.java` | Hoisted the password-policy regex/length into public constants so `ResetPasswordRequest` can reuse them exactly. |
+| `config/SecurityConfig.java` | Matchers for the 4 new pages/endpoint groups and the 3 synthetic `ROLE_PENDING_*` roles; `/api/account/**` narrowed from `authenticated()` to the 3 real roles specifically, so a pending-role session (which Spring Security still considers "authenticated") can't reach account settings. |
+| `static/index.html` | "Forgot Password?" link; role-routing extended for `ROLE_PENDING_SETUP`; password-toggle include. |
+| `static/js/auth-guard.js` | Mandatory-setup client-side redirect; "Edit Security Questions" modal wiring. |
+| `static/admin.html`, `registrar.html`, `trainer.html` | "Edit 'Forgot Password' Security Questions" button + modal in the Account Settings tab. |
+| `static/admin.html` / `static/js/admin-users.js` | "Unlock Account" button in the user-details modal. |
+| `static/reset-password.html`, `static/reset-password.js` | Password-toggle include. |
+| `static/css/login.css` | `.password-toggle-btn` styling (previously only in `dashboard.css`, which the public pre-login pages don't load). |
+| `static/css/dashboard.css` | Green `.btn-save` styling extended to `#editSecurityQuestionsModal` (it was scoped to `.edit-account-modal` only); `?v=2` cache-buster added to the `<link>` tag across all 16 pages that load this file. |
+| `test/.../AdminServiceTest.java`, `AdminControllerWebMvcTest.java`, `AdminBulkLoadWebMvcTest.java` | +2 new tests for `unlockUser`; 3 existing `AdminUserResponse` call sites fixed for the new arity. |
+
+### Two Real Bugs Found During Live Verification (both fixed)
+1. **Login failed for every account** immediately after implementation. The migration file
+   had been written and verified against the throwaway H2 test database, but never actually
+   *applied* to the live MySQL database — so `users` was missing the 3 new lockout columns
+   the entity now queries on every login, and the seed accounts still had their old
+   `@example.com` placeholder emails. Fixed: backed up the live DB
+   (`backup-2026-09-19-pre-security-questions.sql`), applied the migration, verified it's
+   idempotent by re-running it, confirmed live via `curl` that login and the forgot-password
+   email lookup both work. This is the same class of mistake flagged repeatedly elsewhere in
+   this changelog (2026-07-09, 2026-09-06) — applying a migration to the live database is
+   part of finishing a schema change, not a follow-up step.
+2. **A CSS button-color fix appeared to have no effect** no matter how the browser was
+   refreshed, hard-refreshed, or tested in a private window. Root cause: `./gradlew bootRun`
+   copies `src/main/resources` into `build/resources/main` once at startup and does not watch
+   for live edits — the already-running server process kept serving a stale compiled copy of
+   `dashboard.css` regardless of browser-side caching. Confirmed by diffing
+   `build/resources/main/static/css/dashboard.css` against the source file, and by an isolated
+   headless-Edge screenshot test (`msedge.exe --headless --screenshot=...` against a minimal
+   repro page using the real served stylesheets) that proved the CSS itself rendered correctly
+   before the real cause was identified. Fix: restart the app process, not just the browser;
+   added `?v=2` cache-busting to `dashboard.css` as a belt-and-suspenders measure since it
+   never had one.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 363 tests, 0 failures, 0 errors** (was 340).
+- Live round trip against real MySQL (post-migration): `admin`/`password123` login → 200
+  `ROLE_PENDING_SETUP` → fetched the 6 default questions → completed setup → session upgraded
+  to `ROLE_ADMIN`, `/api/auth/me` → `securityQuestionsSetUp: true` → forgot-password lookup by
+  `admin@anihan.local` returns the 2 question texts. The test security-question answers
+  created during this check were deleted afterward so the user can go through the real setup
+  flow themselves; the live password-reset step was deliberately not exercised to avoid
+  changing the real admin password.
+- Not yet done: WebMvc tests for the 2 new controllers and the admin unlock endpoint; a full
+  Playwright/manual browser pass of the end-to-end journeys.
 | `src/main/sql/schema.sql` | `user_security_answers.slot` `TINYINT` → **`INT`**; `users.failed_security_attempts` `TINYINT` → **`INT`**. Both were type mismatches against the JPA entities that broke `ddl-auto=validate` (see below). |
 | `src/main/sql/migrations/2026-09-19-security-questions.sql` | Same two declarations corrected in the `CREATE TABLE` / `ADD COLUMN` statements, **plus two new guarded idempotent steps** — **2b** (`MODIFY COLUMN slot INT`) and **3b** (`MODIFY COLUMN failed_security_attempts INT`) — so a database that already ran the previous revision is repaired on re-run instead of staying unbootable. Added a verification query asserting `slot` is `int`. |
 | `memory-bank/activeContext.md`, `progress.md`, `changeLog.md`, `testing.md` | Session notes. |

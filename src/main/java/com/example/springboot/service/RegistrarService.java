@@ -192,6 +192,24 @@ public class RegistrarService {
         return buildDetailsResponse(studentRecordRepository.save(record));
     }
 
+    /**
+     * Changes a student's enrollment status. The only write path for {@code student_status} —
+     * deliberately pulled out of the general edit form so a routine field edit can never
+     * silently change it, and every status change is a separately audited action.
+     *
+     * <p>The set of values a Registrar may assign to is enforced at the DTO level
+     * ({@link com.example.springboot.dto.registrar.UpdateStudentStatusRequest}); this method
+     * trusts the caller has already validated it.
+     */
+    @Transactional
+    public StudentRecordDetailsResponse updateStatus(Integer recordId, String newStatus) {
+        StudentRecord record = studentRecordRepository.findById(recordId)
+                .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
+
+        record.setStudentStatus(newStatus);
+        return buildDetailsResponse(studentRecordRepository.save(record));
+    }
+
     @Transactional
     public StudentRecordDetailsResponse updateRecord(Integer recordId, StudentRecordUpdateRequest request) {
         StudentRecord record = studentRecordRepository.findById(recordId)
@@ -221,7 +239,6 @@ public class RegistrarService {
         record.setSiblingCount(request.siblingCount());
         record.setBrotherCount(request.brotherCount());
         record.setSisterCount(request.sisterCount());
-        record.setStudentStatus(request.studentStatus());
 
         record.setBatch(resolveBatch(request.batchCode()));
         record.setCourse(resolveCourse(request.courseCode()));
