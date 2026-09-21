@@ -1,12 +1,12 @@
 # Change Log - Anihan SRMS
 
-## 2026-09-22 - Client Presentation Readiness Plan Rewrite
+## 2026-09-22 - Interim Client Demo Stability Plan Rewrite
 **Branch:** `docs/rewrite-client-presentation-plan`
 
 ### Files Modified
 | File | Change |
 |---|---|
-| `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` | Replaced the draft with a token-conscious, five-task Superpowers execution plan. |
+| `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` | Replaced the draft with a token-conscious, five-task Superpowers plan; excluded generation/conversion/export work and changed account handling to insert-only fallback SQL that never modifies existing users. |
 | `memory-bank/activeContext.md` | Recorded plan-only status, branch, and execution boundary. |
 | `memory-bank/progress.md` | Recorded revised coverage and explicitly left implementation pending. |
 | `memory-bank/changeLog.md` | Added this planning-session record. |

@@ -1,8 +1,8 @@
-# Client Presentation Readiness Implementation Plan
+# Interim Client Demo Stability and Bugfix Audit Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans`. The executor must also use `superpowers:using-git-worktrees`, `superpowers:test-driven-development`, and `superpowers:verification-before-completion` as directed by those skills.
 
-**Goal:** Deliver a presentation-ready Anihan SRMS build with reliable class-year filters, working DOCX/XLSX document uploads, correct missing-resource 404s, repeatable demo-account reset, and recorded live-MySQL/browser evidence.
+**Goal:** Stabilize the current Anihan SRMS build for an interim client review by fixing class-year filter glitches, DOCX/XLSX upload persistence, and missing-resource 404s; document generation remains a separate unfinished workstream.
 
 **Architecture:** Preserve the existing Spring MVC/JPA and vanilla jQuery/DataTables design. Lock the merged class-year-filter contract with focused tests, make frontend event binding idempotent, synchronize every schema representation, and verify database-dependent behavior against the Docker MySQL instance.
 
@@ -15,9 +15,10 @@
 - Work in an isolated worktree on `fix/client-demo-readiness-and-audit`; never edit or commit on `main`.
 - Preserve existing records and security answers; do not purge data or insert sample grades.
 - JPA DDL remains `none`; synchronize entity metadata, `schema.sql`, `AnihanSRMS.sql`, and the dated migration.
+- Document generation, generated-document DOCX conversion, and export behavior are out of scope; Bug 12 covers only files uploaded through `DocumentService.upload(...)`.
 - Do not add a JavaScript test framework for two small lifecycle fixes; reproduce and verify them in the browser.
-- Demo-account reset must preserve user IDs/security answers and clear both administrative and security lockout state.
-- A demo account is ready only when it has exactly two security answers and can log in to its role dashboard.
+- `seed-accounts.sql` is fallback-only: insert missing demo usernames and never update or delete existing users/security answers.
+- An inserted fallback account must complete first-login security-question setup before dashboard use.
 - For any newly discovered glitch, stop that path and use `superpowers:systematic-debugging`; do not fold speculative fixes into this plan.
 
 ## Decisions Already Made
@@ -25,9 +26,9 @@
 | Topic | Decision |
 |---|---|
 | Class-year filter | Keep existing endpoints and service ordering; add missing characterization coverage and fix only frontend lifecycle issues. |
-| Bug 12 | Widen `documents.file_type` and `Document.fileType` from 50 to 100. |
+| Bug 12 | Widen `documents.file_type` and `Document.fileType` from 50 to 100 so registrar-uploaded DOCX/XLSX files persist. |
 | Bug 13 | Handle `NoResourceFoundException` as JSON HTTP 404 and prove it with MockMvc. |
-| Demo accounts | Reset `admin`, `registrar`, and `trainer` to `password123`; preserve security answers and require two before rehearsal. |
+| Demo accounts | Provide insert-only fallback SQL for missing `admin`, `registrar`, and `trainer` rows; do not run it when all three exist. |
 | Database | Back up first, apply only the dated migration and seed script, then verify live behavior. |
 
 ## Review Focus
@@ -36,7 +37,7 @@
 - Empty, missing, and explicit semester filters must call the intended backend behavior.
 - OpenXML MIME types must fit in the entity, both schema files, and live MySQL.
 - Missing permitted static resources must return 404 JSON, while protected routes retain security behavior.
-- Reset accounts must keep their IDs/answers, clear lockouts, and reach the correct dashboards.
+- Existing accounts must remain byte-for-byte untouched by the fallback script; missing accounts must be inserted and then complete first-login setup.
 
 ---
 
@@ -212,7 +213,7 @@ git commit -m "fix: stabilize class year filters"
 
 ---
 
-### Task 2: Fix Bug 12 Across Every Schema Source
+### Task 2: Fix Uploaded DOCX/XLSX Persistence Across Every Schema Source
 
 **Files:**
 - Create: `src/test/java/com/example/springboot/SchemaContractTest.java`
@@ -223,7 +224,7 @@ git commit -m "fix: stabilize class year filters"
 
 **Interfaces:**
 - Consumes: `Document.fileType` and `documents.file_type`.
-- Produces: a consistent 100-character contract for the 73-character DOCX MIME type.
+- Produces: a consistent 100-character contract for uploaded OpenXML MIME types; generated-document behavior is unchanged.
 
 - [ ] **Step 1: Write the failing schema contract test**
 
@@ -352,35 +353,39 @@ git commit -m "fix: return 404 for missing resources"
 
 ---
 
-### Task 4: Add a Safe, Repeatable Demo-Account Reset
+### Task 4: Add Insert-Only Fallback Demo Accounts
 
 **Files:**
 - Modify: `src/test/java/com/example/springboot/SchemaContractTest.java`
 - Create: `src/main/sql/seed-accounts.sql`
 
 **Interfaces:**
-- Consumes: existing `users` rows and `user_security_answers` keyed by stable `user_id`.
-- Produces: canonical enabled accounts with cleared lockouts; never deletes answers or changes user IDs.
+- Consumes: the `users` table and its username/email uniqueness constraints.
+- Produces: missing `admin`, `registrar`, and `trainer` rows with `password123`; existing rows are never changed.
 
 - [ ] **Step 1: Add the failing script contract test**
 
 ```java
 @Test
-void demoAccountSeedResetsLockoutsWithoutDeletingAnswers() throws Exception {
+void demoAccountSeedOnlyInsertsMissingUsers() throws Exception {
     Path seed = Path.of("src/main/sql/seed-accounts.sql");
     assertTrue(Files.exists(seed));
-    String sql = Files.readString(seed);
-    assertTrue(sql.contains("security_locked = 0"));
-    assertTrue(sql.contains("failed_security_attempts = 0"));
-    assertTrue(sql.contains("security_lockout_started_at = NULL"));
-    assertTrue(sql.contains("TIMESTAMPDIFF(YEAR"));
-    assertTrue(!sql.toLowerCase().contains("delete from user_security_answers"));
+    String sql = Files.readString(seed).toLowerCase();
+    assertTrue(sql.contains("where not exists"));
+    assertTrue(sql.contains("timestampdiff(year"));
+    for (String username : List.of("admin", "registrar", "trainer")) {
+        assertTrue(sql.contains("username = '" + username + "'"), username);
+    }
+    assertTrue(!sql.contains("update users"));
+    assertTrue(!sql.contains("delete from users"));
+    assertTrue(!sql.contains("delete from user_security_answers"));
+    assertTrue(!sql.contains("on duplicate key update"));
 }
 ```
 
 - [ ] **Step 2: Confirm RED**
 
-Run: `./gradlew test --tests "com.example.springboot.SchemaContractTest.demoAccountSeedResetsLockoutsWithoutDeletingAnswers"`
+Run: `./gradlew test --tests "com.example.springboot.SchemaContractTest.demoAccountSeedOnlyInsertsMissingUsers"`
 
 Expected: FAIL because the script does not exist.
 
@@ -389,60 +394,38 @@ Expected: FAIL because the script does not exist.
 ```sql
 USE AnihanSRMS;
 
--- Preflight must return zero rows. Stop if an email belongs to another username.
-SELECT username, email
-FROM users
-WHERE (email = 'admin@anihan.local' AND username <> 'admin')
-   OR (email = 'registrar@anihan.local' AND username <> 'registrar')
-   OR (email = 'trainer@anihan.local' AND username <> 'trainer');
-
 START TRANSACTION;
-
-CREATE TEMPORARY TABLE desired_demo_accounts (
-    username VARCHAR(255) PRIMARY KEY,
-    password VARCHAR(255) NOT NULL,
-    lastname VARCHAR(255) NOT NULL,
-    firstname VARCHAR(255) NOT NULL,
-    middlename VARCHAR(255) NOT NULL,
-    birthdate DATE NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    role VARCHAR(15) NOT NULL
-);
-
-INSERT INTO desired_demo_accounts VALUES
-('admin', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz', 'Juan', 'Santos', '1995-06-15', 'admin@anihan.local', 'ROLE_ADMIN'),
-('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes', 'Maria', 'Garcia', '1990-03-22', 'registrar@anihan.local', 'ROLE_REGISTRAR'),
-('trainer', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos', 'Carlos', 'Mendoza', '1988-11-08', 'trainer@anihan.local', 'ROLE_TRAINER');
-
-UPDATE users u
-JOIN desired_demo_accounts d ON d.username = u.username
-SET u.password = d.password,
-    u.lastname = d.lastname,
-    u.firstname = d.firstname,
-    u.middlename = d.middlename,
-    u.birthdate = d.birthdate,
-    u.age = TIMESTAMPDIFF(YEAR, d.birthdate, CURDATE()),
-    u.email = d.email,
-    u.role = d.role,
-    u.enabled = 1,
-    u.password_changed_at = NULL,
-    u.security_locked = 0,
-    u.failed_security_attempts = 0,
-    u.security_lockout_started_at = NULL;
 
 INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age,
                    email, role, enabled, password_changed_at, security_locked,
                    failed_security_attempts, security_lockout_started_at)
-SELECT d.username, d.password, d.lastname, d.firstname, d.middlename, d.birthdate,
-       TIMESTAMPDIFF(YEAR, d.birthdate, CURDATE()), d.email, d.role, 1, NULL, 0, 0, NULL
-FROM desired_demo_accounts d
-LEFT JOIN users u ON u.username = d.username
-WHERE u.user_id IS NULL;
+SELECT 'admin', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6',
+       'Dela Cruz', 'Juan', 'Santos', '1995-06-15',
+       TIMESTAMPDIFF(YEAR, '1995-06-15', CURDATE()), 'admin@anihan.local',
+       'ROLE_ADMIN', 1, NULL, 0, 0, NULL
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
-DROP TEMPORARY TABLE desired_demo_accounts;
+INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age,
+                   email, role, enabled, password_changed_at, security_locked,
+                   failed_security_attempts, security_lockout_started_at)
+SELECT 'registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6',
+       'Reyes', 'Maria', 'Garcia', '1990-03-22',
+       TIMESTAMPDIFF(YEAR, '1990-03-22', CURDATE()), 'registrar@anihan.local',
+       'ROLE_REGISTRAR', 1, NULL, 0, 0, NULL
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'registrar');
+
+INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age,
+                   email, role, enabled, password_changed_at, security_locked,
+                   failed_security_attempts, security_lockout_started_at)
+SELECT 'trainer', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6',
+       'Santos', 'Carlos', 'Mendoza', '1988-11-08',
+       TIMESTAMPDIFF(YEAR, '1988-11-08', CURDATE()), 'trainer@anihan.local',
+       'ROLE_TRAINER', 1, NULL, 0, 0, NULL
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'trainer');
+
 COMMIT;
 
--- Readiness: exactly 3 rows; security_answer_count must be 2 before rehearsal.
+-- Existing rows were not changed. Newly inserted rows have zero answers and must complete setup.
 SELECT u.user_id, u.username, u.role, u.enabled, u.security_locked,
        COUNT(a.answer_id) AS security_answer_count
 FROM users u
@@ -460,12 +443,12 @@ Expected: PASS.
 
 ```bash
 git add src/test/java/com/example/springboot/SchemaContractTest.java src/main/sql/seed-accounts.sql
-git commit -m "chore: add safe demo account reset"
+git commit -m "chore: add fallback demo accounts"
 ```
 
 ---
 
-### Task 5: Apply to MySQL, Rehearse the Presentation, and Record Evidence
+### Task 5: Apply to MySQL, Run the Stability Smoke Check, and Record Results
 
 **Files:**
 - Modify: `memory-bank/bugs.md`
@@ -476,7 +459,7 @@ git commit -m "chore: add safe demo account reset"
 
 **Interfaces:**
 - Consumes: Tasks 1–4 and the Docker container `mysql-server` documented in `README.md`.
-- Produces: a backed-up, migrated, login-ready database plus reproducible test evidence.
+- Produces: a backed-up, migrated database with account presence and smoke-test results verified.
 
 - [ ] **Step 1: Verify prerequisites and take a recoverable backup**
 
@@ -485,27 +468,38 @@ Run in PowerShell:
 ```powershell
 docker ps --filter "name=mysql-server"
 New-Item -ItemType Directory -Force 'C:\tmp\anihan-client-demo' | Out-Null
-docker exec mysql-server mysqldump -uroot -pmy_password --databases AnihanSRMS --result-file=/tmp/pre-readiness.sql
-docker cp mysql-server:/tmp/pre-readiness.sql 'C:\tmp\anihan-client-demo\pre-readiness.sql'
-Get-Item 'C:\tmp\anihan-client-demo\pre-readiness.sql' | Select-Object FullName,Length
+docker exec mysql-server mysqldump -uroot -pmy_password --databases AnihanSRMS --result-file=/tmp/pre-stability.sql
+docker cp mysql-server:/tmp/pre-stability.sql 'C:\tmp\anihan-client-demo\pre-stability.sql'
+Get-Item 'C:\tmp\anihan-client-demo\pre-stability.sql' | Select-Object FullName,Length
 ```
 
 Expected: `mysql-server` is Up and the backup length is greater than zero. Stop before mutation if either check fails.
 
-- [ ] **Step 2: Apply migration and account reset**
-
-Run the seed preflight `SELECT` alone first; expected zero rows. Then:
+- [ ] **Step 2: Apply the document-column migration**
 
 ```powershell
 docker cp 'src/main/sql/migrations/2026-09-22-widen-documents-file-type.sql' mysql-server:/tmp/widen-documents-file-type.sql
 docker exec mysql-server sh -c "mysql -uroot -pmy_password < /tmp/widen-documents-file-type.sql"
+```
+
+Expected: `varchar(100)` and `IS_NULLABLE=NO`.
+
+- [ ] **Step 3: Verify accounts; use fallback SQL only if rows are missing**
+
+```powershell
+docker exec mysql-server mysql -uroot -pmy_password AnihanSRMS -e "SELECT username, role, enabled FROM users WHERE username IN ('admin','registrar','trainer') ORDER BY username;"
+```
+
+Expected: three rows. If and only if a username is absent, back up first, then run:
+
+```powershell
 docker cp 'src/main/sql/seed-accounts.sql' mysql-server:/tmp/seed-accounts.sql
 docker exec mysql-server sh -c "mysql -uroot -pmy_password < /tmp/seed-accounts.sql"
 ```
 
-Expected: `varchar(100)`, three canonical users, `enabled=1`, `security_locked=0`, and `security_answer_count=2`. If any count is below two, log in once and complete setup before continuing; do not seed shared answers.
+Re-run the `SELECT`. Existing rows must be unchanged; a newly inserted account uses `password123` and must complete first-login security-question setup.
 
-- [ ] **Step 3: Run automated verification**
+- [ ] **Step 4: Run automated verification**
 
 ```bash
 ./gradlew clean test
@@ -513,7 +507,7 @@ Expected: `varchar(100)`, three canonical users, `enabled=1`, `security_locked=0
 
 Expected: BUILD SUCCESSFUL, zero failures. Record the exact test count from the generated report; do not reuse the historical 385 count.
 
-- [ ] **Step 4: Run the presentation smoke matrix**
+- [ ] **Step 5: Run the stability smoke matrix**
 
 Start the app with `./gradlew bootRun`, then verify:
 
@@ -522,26 +516,26 @@ Start the app with `./gradlew bootRun`, then verify:
 | Public | `/js/does-not-exist.js` returns 404 JSON, not 500. |
 | Admin | `admin/password123` reaches `admin.html`; users and logs load. |
 | Registrar/classes | Login succeeds; years are unique; each filter change sends one request; All Years and explicit year both work. |
-| Registrar/documents | Upload and download one DOCX and one XLSX; neither returns 409/truncation. Remove the two rehearsal documents afterward. |
+| Registrar/documents | Upload one DOCX and one XLSX; both return 201, appear in the document list with intact MIME types, and create no truncation error. Do not open the generation page. Remove both temporary uploads afterward. |
 | Trainer | `trainer/password123` reaches `trainer-classes.html`; year filtering works and grade modal opens. Do not save sample grades. |
 
 Expected: browser console has no new error and all temporary document rows are removed.
 
-- [ ] **Step 5: Update memory with exact evidence**
+- [ ] **Step 6: Update memory with exact results**
 
 Record:
 
 - `bugs.md`: Bugs 12 and 13 fixed on 2026-09-22, including regression test names.
-- `activeContext.md`: branch, live migration status, backup path, and any unresolved presentation risk.
+- `activeContext.md`: branch, live migration status, backup path, and any unresolved interim-review risk.
 - `progress.md`: Tasks 1–5 completed and exact suite count.
 - `changeLog.md`: every modified source/test/SQL file and its purpose.
 - `testing.md`: commands, exact pass counts, MySQL verification, role smoke matrix, and cleanup result.
 
-- [ ] **Step 6: Commit documentation and run the final gate**
+- [ ] **Step 7: Commit documentation and run the final gate**
 
 ```bash
 git add memory-bank/bugs.md memory-bank/activeContext.md memory-bank/progress.md memory-bank/changeLog.md memory-bank/testing.md
-git commit -m "docs: record client presentation readiness"
+git commit -m "docs: record interim stability verification"
 ./gradlew test
 git status --short
 ```

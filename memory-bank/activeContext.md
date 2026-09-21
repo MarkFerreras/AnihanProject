@@ -1,12 +1,14 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-22 - Client Presentation Readiness Plan Rewrite)
+## Latest Session (2026-09-22 - Interim Client Demo Stability Plan Rewrite)
 
 Rewrote `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` on
 `docs/rewrite-client-presentation-plan`. This was planning-only: no application, test, SQL,
-or live-database implementation was performed. The revised plan removes the stale
+or live-database implementation was performed. Scope was clarified as an **interim client
+review stability pass, not final presentation readiness**; document generation/conversion
+is explicitly excluded and Bug 12 covers registrar uploads only. The revised plan removes the stale
 `TrainerService` edit, separates five reviewable tasks, adds RED/GREEN coverage for Bugs 12
-and 13, synchronizes all document MIME schema sources, defines a lockout-safe account reset,
+and 13, synchronizes all uploaded-document MIME schema sources, provides insert-only fallback SQL for missing demo accounts,
 and requires backup-first live MySQL plus role-based browser evidence. Implementation must
 use worktree branch `fix/client-demo-readiness-and-audit`.
 
