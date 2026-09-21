@@ -1,6 +1,59 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-16 - Thread Testing Cases, Batch 2)
+## Latest Session (2026-09-21 - Merge `main` into `feature/class-year-filter`)
+
+### Scope
+Unblock work on the new class-year-filter branch by finishing an in-progress merge of
+`main` that had stalled on conflicts. **Documentation-only resolution** — no application
+code, schema, or test code was touched.
+
+### The conflict, and why it happened
+Only two files conflicted: `memory-bank/changeLog.md` and `memory-bank/progress.md`.
+Every Java/HTML/JS/SQL file merged automatically. Both sides had appended a new session
+entry at the **top** of each file, and because those entries share identical sub-headings
+(`### Files Modified`, the `| File | Change |` table header, `|------|--------|`), Git
+matched those shared lines as common context and **interleaved the two entries** into
+several small hunks rather than presenting them as one clean either/or block. Hand-editing
+the hunks would have risked splicing half of one entry onto half of the other.
+
+### Resolution method (worth reusing — this file pair will conflict again)
+Instead of editing the marked-up worktree file, both clean sides were extracted from the
+index (`git show :2:<path>` = ours, `git show :3:<path>` = theirs) and re-spliced:
+
+    header + theirs' new entries + ours' new entry + shared tail
+
+Both files are strictly newest-first, so ordering is just date order: main's 2026-09-19/20
+entries, then this branch's 2026-09-16 Thread Testing Cases entry, then the shared history
+from 2026-09-06 back. The shared tail was confirmed **byte-identical** on both sides before
+splicing, which is what makes the splice safe rather than a guess.
+
+### Verified
+- Zero conflict markers anywhere in the repo afterwards (not just in the two files).
+- Every `##`/`###` heading present on either side is present in the merged file — checked
+  with a `comm` set-difference both ways, so nothing was silently dropped.
+- Line accounting reconciles exactly (1245 + 1617 − 1178 shared − 2 shared header lines =
+  1682; 426 + 581 − 396 shared − 4 shared header lines = 607).
+- `./gradlew compileJava compileTestJava` → **BUILD SUCCESSFUL**. Checked explicitly rather
+  than assumed: main brought a large amount of Java into this branch (security questions,
+  the ID-photo removal, the `AdminUserResponse` arity change), and this project's own
+  2026-09-19 merge session already recorded that a zero-conflict text merge does not by
+  itself prove the combined code compiles.
+- `./gradlew test` was **not** run this session — see Open Items.
+
+### Open Items
+- **Run `./gradlew test` before relying on this branch.** The expected baseline is 374.
+  Compilation passing does not rule out the cross-branch *test* breakages this project has
+  hit twice before (`1916904`, `fec8004` — both were record-arity / missing-mock failures in
+  tests that compiled fine on each branch separately).
+- The local MySQL schema drift noted in the 2026-09-20 session (missing
+  `student_records.student_number`) is unrelated to this merge and still unresolved; it will
+  block any live click-through on this branch too until the outstanding migrations are
+  applied.
+- Class year filter implementation has not been started — this session only cleared the way.
+
+---
+
+## Previous Session (2026-09-16 - Thread Testing Cases, Batch 2)
 
 ### Scope
 Documentation only — **explicitly instructed not to edit any code**. Read the manual
@@ -42,17 +95,18 @@ from this branch's git history and append them, renumbering from TC-135.
 ---
 
 ## Current Phase
-**Registrar Student Record edit form (`student-records.html`) reorganized into 3 category
-tabs (Personal Information / Family Background / Enrollment & Academics), each locked
-read-only behind its own "Edit Section" button, mirroring the student portal wizard's
-category grouping. Pure frontend change. Static asset serving verified live; full
-click-through browser verification is blocked by a pre-existing, unrelated local dev DB
-schema gap — see Latest Session below.**
+**`main` has been merged into `feature/class-year-filter` (2026-09-21) and the branch
+compiles. Class year filter implementation has not started yet — this branch currently
+contains main's work plus the 2026-09-16 Thread Testing Cases deliverable, nothing new.
+The merge brought in everything through main's 2026-09-20 entries: security questions /
+forgot password, the ID-photo move to Registrar, the admin statistics panel removal, and
+the Student Record edit-form category tabs. `./gradlew test` has not been re-run since
+the merge — do that before trusting the branch.**
 
 ## Active Branch
-`admin_stats_and_SR_overhaul` (not yet merged to `main`)
+`feature/class-year-filter` (has `main` merged in as of 2026-09-21; not yet merged back to `main`)
 
-## Latest Session (2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock)
+## Previous Session (2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock)
 
 ### Task
 User: the registrar's Student Record edit page (`student-records.html`) is one long,
@@ -835,7 +889,7 @@ Diff showed only cosmetic differences, all verified non-functional:
 No update to the live database was required - it already matches schema.sql. Only
 filesystem change: the new backup file (untracked).
 
-## Latest Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
+## Previous Session (July 9, 2026 — Document Management R3.1–R3.7 + Template Generation)
 
 ### Scope
 Implemented Jira AGILE-75…AGILE-81 (R3.1 Upload, R3.2 Type, R3.3 Name, R3.4 View,

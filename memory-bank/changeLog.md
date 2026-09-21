@@ -1,5 +1,68 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-21 - Merge `main` into `feature/class-year-filter` (conflict resolution)
+**Branch:** `feature/class-year-filter` — **no application code, schema, or test code touched.**
+
+### Task
+Finish an in-progress merge of `main` that had stalled on conflicts, so work on the class
+year filter could begin on a branch that is current with `main`.
+
+### Conflicts — two files, both memory-bank docs
+`memory-bank/changeLog.md` and `memory-bank/progress.md`. Every Java, HTML, JS, and SQL file
+merged automatically with zero conflicts.
+
+Both sides had appended a new session entry at the **top** of each file. Because those
+entries share identical sub-headings (`### Files Modified`, `| File | Change |`,
+`|------|--------|`), Git treated those shared lines as common context and **interleaved the
+two entries** across several small hunks instead of presenting one clean either/or block —
+which is why the markers looked tangled and mid-sentence. Editing the hunks by hand would
+have risked splicing half of one entry onto half of the other.
+
+### Resolution
+Rather than editing the marked-up worktree files, both clean sides were pulled from the
+index and re-spliced whole:
+
+| Step | Command / rule |
+|------|----------------|
+| Extract our side | `git show :2:memory-bank/<file>.md` |
+| Extract main's side | `git show :3:memory-bank/<file>.md` |
+| Confirm the shared tail | `diff` of everything from `2026-09-06` down → **byte-identical** on both sides |
+| Re-splice | shared header + main's new entries + our 2026-09-16 entry + shared tail |
+
+Both files are strictly newest-first, so ordering was simply date order: main's
+2026-09-19/20 entries, then this branch's 2026-09-16 Thread Testing Cases entry, then the
+shared history from 2026-09-06 back. **Nothing was dropped from either side.**
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `memory-bank/changeLog.md` | Conflict resolved by splice (1245 + 1617 lines → 1682, sharing a 1178-line tail and a 2-line header). Both sides' entries kept in full, newest-first. |
+| `memory-bank/progress.md` | Same splice (426 + 581 → 607, sharing a 396-line tail and a 4-line header). |
+| `memory-bank/activeContext.md` | Not conflicted, but its content was a mashup after the automatic merge: `Current Phase` and `Active Branch` still described `admin_stats_and_SR_overhaul`, and two different sessions were both labelled "Latest Session". Rewrote `Current Phase`, corrected `Active Branch` to `feature/class-year-filter`, added this session at the top, and relabelled every older "Latest Session" heading to "Previous Session" so only one remains. |
+
+### Verification
+- **Zero conflict markers** left anywhere in the repo — swept `*.md`, `*.java`, `*.js`,
+  `*.html`, `*.sql`, `*.kts`, not just the two conflicted files.
+- **No content lost:** a `comm` set-difference in both directions confirms every `##`/`###`
+  heading present on either side is present in the merged file.
+- **Line accounting reconciles exactly** once the shared file headers are not double-counted
+  (1684 − 2 = 1682; 611 − 4 = 607).
+- **`./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL.** Checked explicitly rather
+  than assumed — this project's own 2026-09-19 merge entry records that Git reporting zero
+  text conflicts does not by itself guarantee the combined code compiles, since two branches
+  can interleave cleanly line-by-line while still breaking a cross-file dependency.
+- **`./gradlew test` was NOT run.** Expected baseline is 374. This matters: the two most
+  recent cross-branch merges in this project (`1916904`, `fec8004`) both produced test
+  failures — a record-arity mismatch and a missing `@Mock` — that compiled perfectly well on
+  each branch in isolation. Run it before relying on this branch.
+
+### Note for next time
+This same pair of files will conflict on every future merge, for the same structural reason.
+The `git show :2:` / `git show :3:` splice above is the reliable recipe — resolve by
+re-ordering whole entries by date, never by editing inside the interleaved hunks.
+
+---
+
 ## 2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock
 **Branch:** `admin_stats_and_SR_overhaul`
 
