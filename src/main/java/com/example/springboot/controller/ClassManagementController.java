@@ -146,6 +146,11 @@ public class ClassManagementController {
         return ResponseEntity.ok(Map.of("semester", semester));
     }
 
+    @GetMapping("/classes/semesters")
+    public ResponseEntity<List<String>> getAvailableSemesters() {
+        return ResponseEntity.ok(classManagementService.getAvailableSemesters());
+    }
+
     @GetMapping("/classes")
     public ResponseEntity<List<ClassResponse>> listClasses(
             @RequestParam(value = "semester", required = false) String semester) {

@@ -14,6 +14,7 @@
     const enrollStudentModal = new bootstrap.Modal(document.getElementById('enrollStudentModal'));
 
     $(document).ready(function () {
+        loadAvailableSemesters();
         loadCurrentSemester();
         setupCreateClass();
         setupEditClass();
@@ -24,30 +25,50 @@
     // Current Semester + Table Init
     // -------------------------------------------------------
 
+    function loadAvailableSemesters() {
+        $.ajax({
+            url: '/api/registrar/classes/semesters',
+            method: 'GET',
+            success: function (semesters) {
+                const select = $('#semesterFilterSelect');
+                semesters.forEach(function (sem) {
+                    select.append($('<option>').val(sem).text(sem));
+                });
+                
+                // If we already know the current semester, select it
+                if (currentSemester && semesters.includes(currentSemester)) {
+                    select.val(currentSemester);
+                }
+            }
+        });
+
+        $('#semesterFilterSelect').on('change', function () {
+            const val = $(this).val();
+            if (val === '') {
+                reloadTable(null);
+            } else {
+                reloadTable(val);
+            }
+        });
+    }
+
     function loadCurrentSemester() {
         $.ajax({
             url: '/api/registrar/classes/current-semester',
             method: 'GET',
             success: function (data) {
                 currentSemester = data.semester;
-                $('#currentSemesterLabel').text('Semester: ' + currentSemester);
                 $('#classSemesterInput').val(currentSemester);
+                // Try to set the filter dropdown
+                if ($('#semesterFilterSelect option[value="' + currentSemester + '"]').length > 0) {
+                    $('#semesterFilterSelect').val(currentSemester);
+                }
                 initTable(currentSemester);
             },
             error: function () {
                 currentSemester = String(new Date().getFullYear());
-                $('#currentSemesterLabel').text('Semester: ' + currentSemester);
                 $('#classSemesterInput').val(currentSemester);
                 initTable(currentSemester);
-            }
-        });
-
-        // Toggle switch
-        $('#showAllClassesToggle').on('change', function () {
-            if (this.checked) {
-                reloadTable(null);
-            } else {
-                reloadTable(currentSemester);
             }
         });
     }

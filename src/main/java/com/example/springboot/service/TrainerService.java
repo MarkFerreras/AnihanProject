@@ -126,9 +126,20 @@ public class TrainerService {
                 .toList();
     }
 
-    public List<TrainerClassResponse> getMyClasses() {
+    public List<String> getAvailableSemesters() {
+        Integer trainerId = resolveCurrentTrainerId();
+        return classRepository.findDistinctSemestersByTrainer(trainerId);
+    }
+
+    public List<TrainerClassResponse> getMyClasses(String semester) {
         Integer trainerId = resolveCurrentTrainerId();
         List<SchoolClass> myClasses = classRepository.findByTrainerUserId(trainerId);
+
+        if (semester != null && !semester.isBlank()) {
+            myClasses = myClasses.stream()
+                    .filter(c -> semester.equals(c.getSemester()))
+                    .collect(Collectors.toList());
+        }
 
         return myClasses.stream()
                 .map(this::buildClassRow)

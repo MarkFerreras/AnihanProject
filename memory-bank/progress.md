@@ -2,8 +2,11 @@
 
 ## Recent Sessions (detail)
 
+### Class Management: Year Filter Dropdown for Registrar and Trainer (Completed - September 21, 2026)
+- **Task:** Make classes filterable by year (semester) for both the Registrar and the Trainer.
+- **Implementation:** Added dynamic distinct semester dropdowns replacing static toggles. Updated Spring Data queries, controllers, and Datatables AJAX fetching.
+
 ### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
-- **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /
   65+ field scroll. Reorganize it into categories the way the student portal wizard already
   groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
   category read-only until the registrar clicks an "Edit Section" button for it.

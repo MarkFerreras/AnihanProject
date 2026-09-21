@@ -236,6 +236,10 @@ public class ClassManagementService {
                 .orElse(String.valueOf(java.time.Year.now().getValue()));
     }
 
+    public List<String> getAvailableSemesters() {
+        return classRepository.findDistinctSemesters();
+    }
+
     public List<ClassResponse> getClasses(String semester) {
         List<SchoolClass> classes;
         if (semester != null && !semester.isBlank()) {

@@ -89,7 +89,7 @@ class TrainerControllerWebMvcTest {
         var row = new TrainerClassResponse(2, "CARS-2026-A", "Section A",
                 "CK-101", "Basic Cookery",
                 "Culinary Arts and Restaurant Services", "2026", 12L);
-        when(service.getMyClasses()).thenReturn(List.of(row));
+        when(service.getMyClasses(null)).thenReturn(List.of(row));
 
         mvc.perform(get("/api/trainer/classes"))
                 .andExpect(status().isOk())

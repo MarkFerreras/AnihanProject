@@ -3,6 +3,8 @@ package com.example.springboot.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.example.springboot.model.SchoolClass;
 
@@ -26,4 +28,10 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Intege
 
     /** Classes that have a trainer assigned — used to derive the trainers-per-subject list. */
     List<SchoolClass> findByTrainerIsNotNull();
+
+    @Query("SELECT DISTINCT c.semester FROM SchoolClass c ORDER BY c.semester DESC")
+    List<String> findDistinctSemesters();
+
+    @Query("SELECT DISTINCT c.semester FROM SchoolClass c WHERE c.trainer.userId = :trainerId ORDER BY c.semester DESC")
+    List<String> findDistinctSemestersByTrainer(@Param("trainerId") Integer trainerId);
 }
