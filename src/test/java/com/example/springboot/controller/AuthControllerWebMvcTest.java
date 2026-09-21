@@ -110,6 +110,13 @@ class AuthControllerWebMvcTest {
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
     void logoutWritesNoSystemLogRow() throws Exception {
+        // Stubbed so the old logout() code path (which resolved the user via
+        // userRepository.findByUsername(...).ifPresent(...) before logging)
+        // would actually have run and this test would genuinely have failed
+        // against it — not passed vacuously off Mockito's default
+        // Optional.empty() for an unstubbed Optional-returning method.
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(seedAdmin()));
+
         mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Logged out successfully"));
