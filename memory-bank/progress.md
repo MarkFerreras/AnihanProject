@@ -2,6 +2,187 @@
 
 ## Recent Sessions (detail)
 
+### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
+- **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /
+  65+ field scroll. Reorganize it into categories the way the student portal wizard already
+  groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
+  category read-only until the registrar clicks an "Edit Section" button for it.
+- **Research first:** delegated an Explore agent to map the current registrar view-modal,
+  edit-form, and portal-wizard structures before touching anything — this corrected a stale
+  memory-bank claim (the portal wizard is 3 steps, not 4) and confirmed via DTO inspection
+  that the registrar edit form has never had an Educational Background section, so that
+  couldn't be "mirrored" without adding new functionality out of scope.
+- **What was built:** 3 tabs — Personal Information, Family Background, Enrollment &
+  Academics — each tab's fields wrapped in a native `<fieldset disabled>` toggled by a
+  per-tab "Edit Section" button. Fieldset-disabled cascades to every descendant control
+  automatically, including rows added later (School Years), so locking a whole category is
+  one attribute write rather than manual per-field bookkeeping. Save stayed a single global
+  button/endpoint on purpose — no backend change, since a locked field's value is exactly
+  what the server already had regardless of lock state.
+- **Bug caught before shipping:** the new tab IDs initially collided with this same page's
+  pre-existing "Edit Account" modal (`tab-personal`/`pane-personal` used by both), which
+  would have silently broken that unrelated modal's tab switching. Found by re-reading the
+  full file, not by a test; renamed to `tab-record-*`/`pane-record-*`.
+- **Verified:** grepped `.section-title` usage across 15 other pages before scoping new CSS
+  to `#editRecordForm` only, to avoid a visual regression elsewhere. Bumped
+  `dashboard.css` and the page's own JS cache-busters on all 16 pages that load the shared
+  CSS file. Started the real app against local MySQL and confirmed via HTTP that the served
+  page/JS contain the new structure correctly (not stale).
+- **Not completed:** a full interactive click-through — blocked by this machine's local
+  MySQL missing the `student_number` column (confirmed pre-existing, unrelated to this
+  session's diff — no SQL/Java touched) and no browser automation tooling being available.
+- **Branch:** `admin_stats_and_SR_overhaul`. Open: user decision on syncing the local DB
+  (with backup) to unblock live verification; full interactive pass once unblocked; PR to
+  main.
+
+### Remove Admin Statistics Panel (Completed - September 20, 2026)
+- **Task:** Remove the Total Users / Admins / Registrars / Trainers stat-card panel from the
+  admin dashboard hero, without breaking any other admin dashboard functionality.
+- **Change:** Deleted the `.hero-stats` markup block from `admin.html`, the `updateStats()`
+  helper from `admin-users.js`, and the now-unused `.hero-stats`/`.stat-*` CSS rules (incl.
+  2 responsive overrides) from `dashboard.css`. The admin hero now matches the plain
+  single-column pattern already used by every other dashboard page.
+- **One functional fix needed during removal:** the DataTable's `ajax.dataSrc` callback was
+  doing double duty — computing the stats AND telling DataTables the response root is the
+  row array (`/api/admin/users` returns a bare array, not `{data:[...]}`). Deleting the
+  callback outright would have broken the User Directory table. Replaced with
+  `dataSrc: ''`, DataTables' documented way to say "the response IS the array," which
+  preserves the table exactly while removing the stats computation.
+- **Verified:** repo-wide grep confirms zero remaining references to any removed
+  identifier/class; no backend, DTO, or test code touched these (the stats were pure
+  client-side math over data the table already had). Frontend-only — no Gradle build
+  needed.
+- **Branch:** `admin_stats_and_SR_overhaul`. Open: manual browser smoke test of the admin
+  dashboard hero + User Directory table; PR to main.
+
+### Security Questions / Forgot Password Feature (Completed - September 19, 2026)
+- **Task:** Implement the full 10-point security-questions/forgot-password plan reached after
+  an extended design discussion with the user (see `decisions.md`): mandatory first-login
+  setup of 2 security questions (6 fixed defaults or a custom question per slot, never both
+  default/custom in the same slot, no duplicate default across the 2 slots), editable later
+  from the account settings modal, a public forgot-password flow (email → both questions
+  correct → new password), a 3-strike/15-minute-decay lockout only an admin can clear, and an
+  admin "Unlock Account" action.
+- **Database:** two new tables (`security_questions` seeded with the 6 fixed questions;
+  `user_security_answers`, row-per-slot, BCrypt-hashed answers, plaintext custom-question
+  text since it isn't the secret) plus 3 new lockout columns on `users`, kept separate from
+  `enabled`. Also closed a pre-existing gap — `users.email` had no DB uniqueness — via
+  `uq_email`, and fixed the 3 seed accounts' emails from `@example.com` placeholders to
+  `@anihan.local` addresses the account holders actually recognize.
+- **Backend:** `SecurityQuestionService` owns setup/edit validation and the full lockout
+  state machine; `CustomUserDetailsService`'s previously-hardcoded `accountNonLocked` now
+  reads the new lockout flag, so Spring Security's own `LockedException` blocks *all* login
+  attempts once locked, not just forgot-password ones — no custom filter needed.
+  `SessionAuthenticationHelper` implements one restricted-session mechanism reused for all
+  three "in-progress, not fully authenticated yet" states (`ROLE_PENDING_SETUP`,
+  `ROLE_PENDING_VERIFICATION`, `ROLE_PENDING_RESET`), gated by ordinary `SecurityConfig`
+  role matchers. New `SecurityQuestionController` + `PasswordRecoveryController`. Admin
+  `unlockUser()` clears both `security_locked` and `enabled` in one action.
+- **Frontend:** 4 new standalone pages (setup, forgot-password email entry, answer questions,
+  reset password), each with its own JS; "Forgot Password?" link and mandatory-setup redirect
+  gate; "Edit 'Forgot Password' Security Questions" modal added to all 3 dashboards' account
+  settings tab; admin "Unlock Account" button. Extracted the password reveal-toggle into a
+  standalone `js/password-toggle.js` so the two pages outside `auth-guard.js` (login, reset
+  password) get it too — previously only dashboard pages had a reveal toggle.
+- **Two real bugs hit during live verification, both fixed:**
+  1. Login broke for every account immediately after implementation — the migration file was
+     written but never actually *run* against the live database (only the throwaway test DB
+     reflected the new columns/schema), so every query against `users` failed and the seed
+     accounts still had their old placeholder emails. Fixed by backing up, applying the
+     migration live, and verifying it's idempotent by re-running it.
+  2. A CSS fix appeared to have no effect no matter how the browser was refreshed — root cause
+     was that `./gradlew bootRun` only copies `src/main/resources` into `build/resources/main`
+     at startup and doesn't watch for edits, so the *server process* itself needed a restart,
+     not just a browser hard-refresh. Confirmed via an isolated headless-Edge screenshot test
+     proving the CSS itself was correct before finding the real cause. Also added `?v=2`
+     cache-busting to `dashboard.css` across all 16 pages that load it as a belt-and-suspenders
+     fix, since it never had one before.
+- **Verified:** `./gradlew test` → **363 tests, 0 failures** (was 340; +21
+  `SecurityQuestionServiceTest`, +2 `AdminServiceTest`). Live round trip against real MySQL:
+  login → mandatory setup → session upgrade to real role → forgot-password lookup by the new
+  email succeeds. Test data cleaned up afterward; live password reset was deliberately not
+  exercised to avoid changing the real admin password.
+- **Branch:** `security_questions`. Open: WebMvc tests for the 2 new controllers + the admin
+  unlock endpoint, a full Playwright/manual browser pass, PR to main.
+
+### Move ID Photo Upload from Student Portal to Registrar (Completed - September 19, 2026)
+- **Task:** Remove all document-upload features from the public student enrollment wizard
+  (including the 1x1/2x2 ID photo), clean up the leftover UI, and give the Registrar an
+  ID-picture upload on the per-student record screens — without disturbing the Registrar's
+  existing document upload/download/view features.
+- **Part A (removal):** Deleted `StorageService`, `StudentUpload` entity + repository, and
+  `UploadRefDto`. Stripped the two upload endpoints from `StudentDetailsController`, the
+  three upload methods from `StudentDetailsService` (corrected a now-false comment on
+  `startOrResume`), and the two upload fields from `StudentDetailsResponse` (31 → 29
+  components). `RegistrarService.deleteRecord()` no longer purges filesystem uploads.
+  Removed the Document Upload section + dead CSS from the wizard; Religion is now Step 1's
+  closing section. Deleted 2 confirmed-orphan files under `uploads/students/` (0 matching
+  `student_uploads` rows) — they turned out to be git-tracked, not gitignored as the plan
+  assumed, so a small follow-up commit was needed to actually remove them from history.
+- **Part B (registrar replacement):** The ID picture is stored as a `documents` row
+  (`document_type = "ID Picture (1x1 / 2x2)"`), not a new filesystem path — inherits
+  REGISTRAR RBAC, `system_logs` auditing, and the existing per-student document purge for
+  free. New `DocumentService.uploadIdPicture()` (image-only whitelist: jpg/jpeg/png/webp,
+  2MB cap, replace-in-place on re-upload) and `findIdPicture()`/`deleteIdPicture()`; three
+  new `DocumentController` endpoints. Registrar edit form and details modal both show the
+  picture; the Documents page's *upload* dropdown excludes it (still shown in the *filter*),
+  and its view modal now previews any `image/*` type inline.
+- **Verified:** `./gradlew test` → **374 tests, 0 failures** (was 363; +11). `ddl-auto=
+  validate` boot against live MySQL → **PASS** — confirms the now-unmapped `student_uploads`
+  table (kept, not dropped) doesn't break startup. Full live-API verification via curl
+  against real MySQL (no browser automation was available this session — see Environment
+  note below): upload → replace-in-place (same `documentId`, DB count stays 1) → both
+  rejection paths (wrong type, over 2MB) write nothing → remove → 404 afterward →
+  `system_logs` rows for all three actions. Existing PDF upload/view/download and TOR
+  generation on the general documents endpoint confirmed unaffected. Test student and its
+  documents deleted afterward; live DB back to its pre-session state (10 students).
+- **Two pre-existing bugs found (not fixed, logged as Bug 12/13 in `bugs.md`):**
+  `documents.file_type VARCHAR(50)` is too short for the docx/xlsx MIME strings
+  `DocumentService` itself declares (docx/xlsx upload has always failed against a real DB —
+  only the mocked test suite never caught it), and `GlobalExceptionHandler`'s catch-all
+  turns any genuinely-missing route under a public prefix into a 500 instead of a 404. Both
+  are out of scope for this plan (decision 2 keeps the Documents module untouched).
+- **Environment note:** Playwright's browser extension and `playwright-core` were both
+  unavailable this session, so Task 14's browser walkthrough was done at the API level
+  (curl + live MySQL) rather than a rendered-DOM click-through. Purely visual pieces
+  (preview rendering, the empty-state placeholder, button enable/disable, console cleanliness)
+  were not independently confirmed.
+- **Branch:** `feature/move-id-photo-to-registrar`. Open: PR to `main` (user approval
+  required); drop `student_uploads` in a future schema-sync session; a full browser
+  walkthrough of the new UI is still recommended before merge.
+
+### schema.sql vs Live DB Comparison + Sync (Completed - September 19, 2026)
+- **Task:** Compare `src/main/sql/schema.sql` with the live `AnihanSRMS` database and update
+  the live DB to match if they differed.
+- **Drift found:** the merged `security_questions` branch (`b17c031`, `64be20e`) had never
+  been applied to live. `schema.sql` described 21 tables, live had 19 — missing the
+  `security_questions` and `user_security_answers` tables, the three
+  `users.security_locked` / `failed_security_attempts` / `security_lockout_started_at`
+  columns, and the `users.email` UNIQUE index. Everything else was the four known cosmetic
+  categories (FK/index auto-names, index order, `grades` column order).
+- **Two real bugs found in the merged SQL** — the migration applied and self-verified fine,
+  but the app then **would not boot**: `user_security_answers.slot` and
+  `users.failed_security_attempts` were declared `TINYINT` while their JPA fields are
+  `Integer`. Corrected to `INT` in `schema.sql` **and** the migration, plus two new guarded
+  `MODIFY COLUMN` steps (2b, 3b) so already-migrated databases repair themselves on re-run.
+  `security_locked` (`TINYINT(1)` ↔ `Boolean`) and `security_lockout_started_at`
+  (`DATETIME` ↔ `LocalDateTime`) were already correct and left alone. The feature could not
+  have run against any DB built from the merged files.
+- **Method:** backup first
+  (`src/main/sql/backup-2026-09-19-pre-schema-sync.sql`, 116,733 bytes); restored that backup
+  into a throwaway DB and **dry-ran the migration there** before touching live; verified
+  idempotency (byte-identical re-run, questions stayed at 6 not 12); pre-checked `users` for
+  duplicate/NULL emails so `uq_email` could not fail.
+- **Verified:** `ddl-auto=validate` boot against live MySQL → **PASS** (started in 9.368s,
+  zero schema-validation errors) — the check that caught both bugs, since the Gradle suite
+  runs on H2. `./gradlew test` → **363 tests, 0 failures, 0 errors** (was 332). Final diff
+  live vs corrected `schema.sql` → cosmetic only. Live DB now 21 tables; 10 students,
+  5 users, 323 log rows, 8 classes all preserved.
+- **Note:** the 3 seed accounts' emails were intentionally rewritten from `@example.com` to
+  `@anihan.local` by the migration (the forgot-password flow looks accounts up by email);
+  the 2 real accounts were untouched.
+- **Branch:** `main` (user-approved DB-sync task). Open: the two SQL type fixes are uncommitted.
+
 ### Thread Testing Cases, Batch 2 (Completed - September 16, 2026)
 - **Task:** Using `capstonepaper/OLD ANIHAN Thread Testing Cases.xlsx` (82 cases,
   TC-001…TC-082) as the basis, author a second workbook of manual test cases for the

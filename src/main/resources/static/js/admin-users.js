@@ -37,7 +37,13 @@
         return '<span class="' + roleClass + '">' + escapeHtml(ROLE_LABELS[role] || role) + '</span>';
     }
 
-    function renderStatusBadge(enabled) {
+    function renderStatusBadge(enabled, securityLocked) {
+        // Locked (failed security-question attempts) and Disabled (admin deactivated) are
+        // deliberately separate states — see memory-bank/decisions.md — so they get distinct
+        // badges rather than both collapsing into "Disabled".
+        if (securityLocked === true) {
+            return '<span class="status-badge status-badge-enrolling">Locked</span>';
+        }
         if (enabled === false) {
             return '<span class="status-badge status-badge-disabled">Disabled</span>';
         }
@@ -70,13 +76,6 @@
 
         element.classList.add('d-none');
         element.textContent = '';
-    }
-
-    function updateStats(users) {
-        setText('totalUsersStat', users.length);
-        setText('adminUsersStat', users.filter(user => user.role === 'ROLE_ADMIN').length);
-        setText('registrarUsersStat', users.filter(user => user.role === 'ROLE_REGISTRAR').length);
-        setText('trainerUsersStat', users.filter(user => user.role === 'ROLE_TRAINER').length);
     }
 
     async function loadUserDetails(userId) {
@@ -112,6 +111,7 @@
         const logsLink = document.getElementById('detailsLogsLink');
         const deleteBtn = document.getElementById('detailsDeleteBtn');
         const reEnableBtn = document.getElementById('detailsReEnableBtn');
+        const unlockBtn = document.getElementById('detailsUnlockBtn');
 
         if (editLink) {
             editLink.href = 'edit-user.html?id=' + encodeURIComponent(user.userId);
@@ -143,6 +143,12 @@
         if (reEnableBtn) {
             // Show re-enable only for disabled users
             reEnableBtn.style.display = (user.enabled === false) ? '' : 'none';
+        }
+        if (unlockBtn) {
+            // Show unlock only for accounts locked from failed security-question
+            // attempts — a separate condition from "disabled", so both buttons
+            // can show at once if an account is somehow both at the same time.
+            unlockBtn.style.display = (user.securityLocked === true) ? '' : 'none';
         }
 
         detailsModal.show();
@@ -263,10 +269,7 @@
         var dataTable = window.jQuery('#usersTable').DataTable({
             ajax: {
                 url: '/api/admin/users',
-                dataSrc: function (json) {
-                    updateStats(json);
-                    return json;
-                }
+                dataSrc: ''
             },
             columns: [
                 { data: 'userId' },
@@ -296,8 +299,8 @@
                 },
                 {
                     data: 'enabled',
-                    render: function (data) {
-                        return renderStatusBadge(data);
+                    render: function (data, type, row) {
+                        return renderStatusBadge(data, row.securityLocked);
                     }
                 },
                 {
@@ -319,6 +322,7 @@
         setupDeleteHandlers(dataTable);
         setupPermanentDeleteFlow(dataTable);
         setupReEnableHandler(dataTable);
+        setupUnlockHandler(dataTable);
 
         window.jQuery('#usersTable tbody').on('click', 'button[data-user-id]', async function () {
             try {
@@ -420,6 +424,38 @@
             } finally {
                 reEnableBtn.disabled = false;
                 reEnableBtn.textContent = 'Re-enable Account';
+            }
+        });
+    }
+
+    function setupUnlockHandler(dataTable) {
+        var unlockBtn = document.getElementById('detailsUnlockBtn');
+        if (!unlockBtn) {
+            return;
+        }
+
+        unlockBtn.addEventListener('click', async function () {
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = 'Unlocking...';
+
+            try {
+                var response = await fetch('/api/admin/users/' + encodeURIComponent(currentDeleteUserId) + '/unlock', {
+                    method: 'PUT',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    var data = await response.json().catch(function () { return {}; });
+                    throw new Error(data.message || 'Failed to unlock account.');
+                }
+
+                detailsModal.hide();
+                dataTable.ajax.reload(null, false);
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                unlockBtn.disabled = false;
+                unlockBtn.textContent = 'Unlock Account';
             }
         });
     }

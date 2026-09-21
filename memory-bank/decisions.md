@@ -4,6 +4,150 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-19 - Security Questions: Custom Question Text Stored Plaintext, Not Encrypted
+
+**Decision:** `user_security_answers.custom_question` is plaintext. Only `answer_hash`
+(BCrypt) protects the actual secret.
+
+**Why:** The school has no on-site access window to configure an encryption key on the
+production server before delivery, and no safe place in this repo to keep one — committing a
+key defeats the point of encrypting. The custom question TEXT itself isn't the secret (same as
+the 6 default questions, which are already plaintext) — only the answer needs protecting, and
+BCrypt needs no external key at all. Encrypting a non-secret value to satisfy a threat model
+(reading the live database directly) that would already expose far more sensitive data anyway
+was judged not worth the operational risk of a lost or unconfigured key.
+
+## 2026-09-19 - Security Answers: Row-Per-Slot, Not Column-Per-Slot
+
+**Decision:** `user_security_answers` has one row per (user, slot) — up to 2 rows per user —
+rather than one row per user with two full sets of columns.
+
+**Why:** Makes "no duplicate default question" a trivial DB-level `UNIQUE(user_id,
+question_id)` constraint (MySQL allows multiple NULLs in it, same pattern as
+`uq_student_number`), matching this project's habit of pairing an app-level check with a DB
+constraint. The column-per-slot alternative would need the same rule expressed entirely in
+application code, since a single-column unique index can't compare two columns in the same row.
+
+## 2026-09-19 - Security Lockout Is a Separate Flag From `enabled`, Mapped Onto Spring Security's Native Lock
+
+**Decision:** `users.security_locked` (+ `failed_security_attempts` +
+`security_lockout_started_at`) is a new, independent set of columns — not a reuse of the
+existing `enabled` soft-delete flag. `CustomUserDetailsService` wires it into Spring
+Security's `accountNonLocked` parameter (previously hardcoded `true`), so `LockedException`
+now blocks login the same way `DisabledException` already does for `enabled=false`.
+
+**Why:** `enabled=false` already drives an admin's deliberate "Deactivate Account" action and
+throws `DisabledException` on any login regardless of password. Reusing it for the automatic,
+system-triggered security-question lockout would mean a user who never got their real password
+wrong could get blocked from logging in with a password they remember perfectly, purely from
+an unrelated failed forgot-password attempt — and it would let the two, semantically different
+events (an admin's deliberate choice vs. an automatic system reaction) silently clobber each
+other. Keeping them separate, while still gating login on both, was already possible for free
+via a field Spring Security had already reserved for exactly this (`accountNonLocked`) but
+this project had never used.
+
+## 2026-09-19 - No Lockout Exemption for Admin Accounts; a Break-Glass SQL Procedure Instead
+
+**Decision:** The lockout applies uniformly to every role, including admin. If the sole admin
+account itself gets locked (or disabled) with no other admin available to click "Unlock" in
+the UI, the documented recovery path is a direct database procedure —
+`src/main/sql/BREAKGLASS-account-unlock.md` — not an app-level exemption.
+
+**Why:** Exempting the highest-value account from the one protection meant to guard it is a
+worse trade than the alternative: this server already runs on hardware IT controls directly
+(the project's changelog already shows routine direct-database work), so a rare, documented
+manual procedure is cheap and doesn't weaken the everyday security posture for the account an
+attacker would most want unlimited guesses against.
+
+## 2026-09-19 - Security Answers Are Case-Insensitive
+
+**Decision:** An answer is trimmed and lowercased before hashing and before comparison at
+verification time. Punctuation is unrestricted; length is 3–100 characters.
+
+**Why:** Case sensitivity here added negligible real security — the 3-attempt lockout already
+caps how many guesses anyone gets regardless of case handling, so case sensitivity wasn't
+actually defending against anything an attacker could exploit within 3 tries. What it *did* do
+was raise the odds a genuine, forgetful user burns an attempt on a capitalization mismatch
+rather than a truly wrong answer, which matters more given the lockout is a hard stop only an
+admin can clear.
+
+## 2026-09-19 - Forgot-Password Identifies the Account by Email, Not Username
+
+**Decision:** The public forgot-password flow asks for the account's email address, not its
+username, and responds with the same generic message whichever way it fails (unknown email,
+setup incomplete, disabled, or locked) rather than a specific "invalid email."
+
+**Why:** Reusing username here would double as a brute-force-friendly username-oracle on top
+of the existing login form. Email isn't fully enumeration-proof either — a response that shows
+real questions is inherently distinguishable from one that doesn't — but this is accepted as a
+residual, documented risk given the school's small, known user population, rather than adding
+decoy-question complexity for limited real-world benefit. This also gives `users.email` an
+actual purpose in this app for the first time (previously just a profile field, per the
+2026-04-05 default-email decision), which is why the 3 seed accounts' placeholder
+`@example.com` addresses were replaced with real `@anihan.local` ones as part of this feature,
+not left for a later cleanup.
+
+## 2026-09-19 - One Restricted-Session Mechanism, Reused Three Times
+
+**Decision:** `SessionAuthenticationHelper` issues either a full session (the account's real
+role) or a restricted session carrying a single synthetic authority
+(`ROLE_PENDING_SETUP` / `ROLE_PENDING_VERIFICATION` / `ROLE_PENDING_RESET`), gated by ordinary
+`SecurityConfig` `hasRole(...)` matchers — the same mechanism used for: mandatory setup after
+login, right after a successful forgot-password email lookup, and right after answering both
+security questions correctly (this last one also carries a 10-minute expiry via a session
+attribute).
+
+**Why:** All three are the same underlying need — "this session is authenticated as a specific
+account, but may only take the one next step in a flow, and nothing else" — so one mechanism
+serves all three rather than three different half-authenticated concepts. It also fits this
+project's existing security model directly: `/api/account/**` had to be narrowed from
+`authenticated()` to the 3 real roles specifically, since a pending-role session still counts
+as "authenticated" to Spring Security and would otherwise be free to call any endpoint that
+only checked that.
+
+## 2026-09-19 - Admin "Unlock" Is One Action That Clears Two Independent Flags
+
+**Decision:** `AdminService.unlockUser()` clears `security_locked` (+ resets the attempt
+counter) and `enabled` together in a single call, exposed as one "Unlock Account" button.
+
+**Why:** The two conditions can coexist (an already-locked account can separately be
+deactivated by an admin for an unrelated reason later), but the admin — often the one person
+juggling everything at this school — shouldn't have to diagnose which condition applies before
+fixing it. The data model still tracks the two causes distinctly for accurate logging; only
+the UI/action is unified.
+
+---
+
+## 2026-09-19 - ID Picture Stored in the `documents` Table, Not a Filesystem Upload
+
+**Decision:** The student's 1x1/2x2 ID picture, now uploaded by the Registrar instead of
+the student portal, is stored as a row in the existing `documents` LONGBLOB table
+(`document_type = "ID Picture (1x1 / 2x2)"`) via `DocumentService`, not re-implemented as a
+filesystem upload the way the old student-portal feature worked.
+
+**Why:** The `documents` table is already covered by the routine database backup — on an
+air-gapped box, filesystem and DB backups can diverge, and a photo living only on disk is a
+silent data-loss risk. Storing it as a document also means it automatically inherits
+REGISTRAR-only RBAC, `system_logs` auditing on upload/delete, and the per-student purge
+`RegistrarService.deleteRecord()` already performs — no new cleanup code was needed.
+
+**Alternative rejected:** keeping `StorageService` and `student_uploads` alive for the
+Registrar's use instead of the student portal's. That would have preserved a second,
+parallel storage mechanism (filesystem + DB) for a single photo per student, doubling the
+things that can drift out of sync for no benefit.
+
+## 2026-09-19 - `student_uploads` Left in Place, Unmapped, Not Dropped
+
+**Decision:** The `student_uploads` table stays in the live MySQL database — empty, but not
+`DROP`ped — after the `StudentUpload` JPA entity and repository were deleted.
+
+**Why:** The table is empty (0 rows, confirmed before deletion), so dropping it has no data
+benefit, and `DROP TABLE` is destructive DDL with no upside here. Once no entity maps a
+table, `ddl-auto=validate` simply ignores it — verified live: the app started clean against
+a database that still has `student_uploads` sitting alongside 20 mapped tables. Dropping it
+is flagged as a future routine schema-sync cleanup rather than done as a side effect of this
+feature.
+
 ## 2026-08-30 - All Sheet-Format Knowledge Isolated in One Editable File
 
 **Decision:** Every rule about how an imported sheet is recognised — header aliases per column,

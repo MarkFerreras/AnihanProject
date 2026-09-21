@@ -4,6 +4,7 @@
     let isDirty = false;
     let allowNavigation = false;
     let currentRecordId = null;
+    let currentStudentId = null;
 
     // ----- Helpers -----
 
@@ -97,8 +98,11 @@
         const form = document.getElementById('editRecordForm');
         if (!form) return;
 
+        // Fields start disabled (locked behind a per-section Edit button — see
+        // setupSectionEditToggles) and disabled fields never fire input/change events,
+        // so it's safe to attach listeners unconditionally here rather than skipping
+        // fields that happen to be locked at setup time.
         form.querySelectorAll('input, select, textarea').forEach(function (field) {
-            if (field.disabled) return;
             field.addEventListener('input', markDirty);
             field.addEventListener('change', markDirty);
         });
@@ -209,15 +213,64 @@
         }
     }
 
+    // ----- Per-category edit locking -----
+    //
+    // Each tab (personal / family / enrollment) is wrapped in a <fieldset disabled>.
+    // Native fieldset disabling cascades to every descendant form control — including
+    // ones added later, like a new school-year row — so locking/unlocking a whole
+    // category is just toggling one attribute; no per-field bookkeeping needed. Fields
+    // that must always stay read-only (Record ID, Enrollment Date, Reference No.,
+    // Student Number) keep their own explicit disabled/readonly attribute, which is
+    // unaffected by the surrounding fieldset becoming enabled.
+
+    function setSectionEditable(section, editable) {
+        const fieldset = document.querySelector('fieldset[data-edit-section="' + section + '"]');
+        if (fieldset) {
+            fieldset.disabled = !editable;
+        }
+
+        const toggleBtn = document.querySelector('.js-toggle-edit[data-section="' + section + '"]');
+        if (toggleBtn) {
+            toggleBtn.textContent = editable ? 'Lock Section' : 'Edit Section';
+            toggleBtn.classList.toggle('btn-surface', editable);
+            toggleBtn.classList.toggle('btn-surface-secondary', !editable);
+        }
+
+        // The ID-picture upload button has its own file-selection-based disabled rule
+        // (see setupIdPicture); re-apply it so unlocking Personal doesn't wrongly enable
+        // an upload button when no file has been chosen yet.
+        if (section === 'personal') {
+            const uploadBtn = document.getElementById('uploadIdPictureBtn');
+            const fileInput = document.getElementById('idPictureFile');
+            if (uploadBtn && fileInput) {
+                uploadBtn.disabled = !editable || !fileInput.files.length;
+            }
+        }
+    }
+
+    function setupSectionEditToggles() {
+        document.querySelectorAll('.js-toggle-edit').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const section = btn.dataset.section;
+                const fieldset = document.querySelector('fieldset[data-edit-section="' + section + '"]');
+                const currentlyEditable = fieldset ? !fieldset.disabled : false;
+                setSectionEditable(section, !currentlyEditable);
+            });
+        });
+    }
+
     // ----- Form population -----
 
     function populateForm(r) {
         currentRecordId = r.recordId;
+        currentStudentId = r.studentId;
         setVal('editRecordId', r.recordId);
         setVal('editStudentId', r.studentId);
         // Read-only here on purpose: the student number is written only through the
         // dedicated Assign Number action, so the change is deliberate and audited.
         setVal('editStudentNumber', r.studentNumber || 'Not Assigned');
+        // Read-only here on purpose too: status changes go through the dedicated
+        // Edit Status action on the Student Records list, same reasoning as above.
         setVal('editStudentStatus', r.studentStatus);
         setVal('editLastName', r.lastName);
         setVal('editFirstName', r.firstName);
@@ -414,7 +467,6 @@
             batchCode: getTrimmed('editBatchCode') || null,
             courseCode: getTrimmed('editCourseCode') || null,
             sectionCode: getTrimmed('editSectionCode') || null,
-            studentStatus: getTrimmed('editStudentStatus'),
             ojt: buildOjt(),
             tesdaQualifications: [1, 2, 3].map(buildTesdaSlot).filter(function (s) { return s !== null; }),
             schoolYears: buildSchoolYearRows(),
@@ -471,6 +523,125 @@
         }
     }
 
+    // ----- ID picture -----
+
+    function setPictureAlert(message, type) {
+        const el = document.getElementById('idPictureAlert');
+        if (!el) return;
+        el.textContent = message;
+        el.className = 'alert alert-' + type + ' mt-2';
+    }
+
+    function hidePictureAlert() {
+        const el = document.getElementById('idPictureAlert');
+        if (el) el.className = 'alert mt-2 d-none';
+    }
+
+    const ID_PICTURE_PLACEHOLDER = 'images/TempProfile%201.webp';
+
+    function showIdPicture(hasPicture) {
+        const img    = document.getElementById('idPicturePreview');
+        const empty  = document.getElementById('idPictureEmpty');
+        const remove = document.getElementById('removeIdPictureBtn');
+        if (!img || !empty || !remove) return;
+
+        if (hasPicture) {
+            // Cache-bust so a freshly replaced picture is not served from cache.
+            img.src = '/api/registrar/documents/id-picture/'
+                + encodeURIComponent(currentStudentId) + '?t=' + Date.now();
+            img.alt = 'Student ID picture';
+            empty.classList.add('d-none');
+            remove.classList.remove('d-none');
+        } else {
+            img.src = ID_PICTURE_PLACEHOLDER;
+            img.alt = 'No ID picture on file';
+            empty.classList.remove('d-none');
+            remove.classList.add('d-none');
+        }
+    }
+
+    async function refreshIdPicture() {
+        if (!currentStudentId) return;
+        try {
+            const response = await fetch(
+                '/api/registrar/documents/id-picture/' + encodeURIComponent(currentStudentId),
+                { method: 'HEAD', credentials: 'same-origin' });
+            showIdPicture(response.ok);
+        } catch (error) {
+            showIdPicture(false);
+        }
+    }
+
+    async function uploadIdPicture() {
+        const input = document.getElementById('idPictureFile');
+        if (!input || !input.files.length || !currentStudentId) return;
+
+        hidePictureAlert();
+        const button = document.getElementById('uploadIdPictureBtn');
+        button.disabled = true;
+        button.textContent = 'Uploading...';
+
+        const formData = new FormData();
+        formData.append('studentId', currentStudentId);
+        formData.append('file', input.files[0]);
+
+        try {
+            const response = await fetch('/api/registrar/documents/id-picture', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData
+            });
+            const data = await response.json().catch(function () { return {}; });
+
+            if (!response.ok) {
+                setPictureAlert(data.message || 'Could not upload the ID picture.', 'danger');
+                return;
+            }
+
+            input.value = '';
+            showIdPicture(true);
+            setPictureAlert('ID picture saved.', 'success');
+        } catch (error) {
+            setPictureAlert('Could not upload the ID picture. Check your connection.', 'danger');
+        } finally {
+            button.disabled = true;   // re-armed by the change listener on a new selection
+            button.textContent = 'Upload Picture';
+        }
+    }
+
+    async function removeIdPicture() {
+        if (!currentStudentId) return;
+        hidePictureAlert();
+        try {
+            const response = await fetch(
+                '/api/registrar/documents/id-picture/' + encodeURIComponent(currentStudentId),
+                { method: 'DELETE', credentials: 'same-origin' });
+
+            if (!response.ok) {
+                setPictureAlert('Could not remove the ID picture.', 'danger');
+                return;
+            }
+            showIdPicture(false);
+            setPictureAlert('ID picture removed.', 'success');
+        } catch (error) {
+            setPictureAlert('Could not remove the ID picture. Check your connection.', 'danger');
+        }
+    }
+
+    function setupIdPicture() {
+        const input  = document.getElementById('idPictureFile');
+        const upload = document.getElementById('uploadIdPictureBtn');
+        const remove = document.getElementById('removeIdPictureBtn');
+        if (!input || !upload || !remove) return;
+
+        input.addEventListener('change', function () {
+            upload.disabled = !input.files.length;
+            hidePictureAlert();
+        });
+        upload.addEventListener('click', uploadIdPicture);
+        remove.addEventListener('click', removeIdPicture);
+    }
+
     // ----- Boot -----
 
     document.addEventListener('DOMContentLoaded', async function () {
@@ -502,6 +673,9 @@
         }
 
         setupSchoolYearHandlers();
+        setupIdPicture();
+        setupSectionEditToggles();
+        await refreshIdPicture();
         setupDirtyTracking();
 
         const saveBtn = document.getElementById('saveRecordBtn');

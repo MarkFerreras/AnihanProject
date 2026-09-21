@@ -27,7 +27,6 @@ import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentEducationRepository;
 import com.example.springboot.repository.StudentRecordRepository;
-import com.example.springboot.repository.StudentUploadRepository;
 
 /**
  * Bulk load tests for the Registrar Student Records dashboard.
@@ -72,12 +71,6 @@ class RegistrarBulkLoadTest {
 
     @Mock
     private StudentEducationRepository educationRepository;
-
-    @Mock
-    private StudentUploadRepository uploadRepository;
-
-    @Mock
-    private com.example.springboot.service.StorageService storageService;
 
     @Mock
     private com.example.springboot.repository.GradeRepository gradeRepository;
@@ -187,7 +180,6 @@ class RegistrarBulkLoadTest {
         record.setRecordId(7);
         record.setStudentId("STU-7");
         when(studentRecordRepository.findById(7)).thenReturn(java.util.Optional.of(record));
-        when(uploadRepository.findByStudentId("STU-7")).thenReturn(java.util.Collections.emptyList());
 
         registrarService.deleteRecord(7);
 
@@ -206,7 +198,7 @@ class RegistrarBulkLoadTest {
             new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
                 "STU-CHANGED", "Last", "First", "Middle", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                "Active", null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class,
             () -> registrarService.updateRecord(5, req));

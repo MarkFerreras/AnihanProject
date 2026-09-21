@@ -4,8 +4,10 @@
     let detailsModal = null;
     let deleteConfirmModal = null;
     let assignNumberModal = null;
+    let editStatusModal = null;
     let currentRecordId = null;
     let currentRecordIdentifier = null;
+    let currentRecordStatus = null;
     let assignTargetRecordId = null;
 
     function escapeHtml(value) {
@@ -93,68 +95,49 @@
 
         setText('detailsRecordId', r.recordId);
         setText('detailsStudentId', r.studentId);
+
+        // ID picture: HEAD first so a missing picture never renders a broken image.
+        // Falls back to the TempProfile placeholder when the student has none on file.
+        const idPictureImg = document.getElementById('detailsIdPicture');
+        const ID_PICTURE_PLACEHOLDER = 'images/TempProfile%201.webp';
+        if (idPictureImg && r.studentId) {
+            const pictureUrl = '/api/registrar/documents/id-picture/'
+                + encodeURIComponent(r.studentId);
+            fetch(pictureUrl, { method: 'HEAD', credentials: 'same-origin' })
+                .then(function (response) {
+                    if (response.ok) {
+                        idPictureImg.src = pictureUrl + '?t=' + Date.now();
+                        idPictureImg.alt = 'Student ID picture';
+                    } else {
+                        idPictureImg.src = ID_PICTURE_PLACEHOLDER;
+                        idPictureImg.alt = 'No ID picture on file';
+                    }
+                })
+                .catch(function () {
+                    idPictureImg.src = ID_PICTURE_PLACEHOLDER;
+                    idPictureImg.alt = 'No ID picture on file';
+                });
+        }
         setText('detailsStudentNumber', isBlank(r.studentNumber) ? 'Not Assigned' : r.studentNumber);
         setText('detailsLastName', r.lastName);
         setText('detailsFirstName', r.firstName);
         setText('detailsMiddleName', r.middleName);
-        setText('detailsBirthdate', r.birthdate);
-        setText('detailsAge', r.age);
-        setText('detailsSex', r.sex);
-        setText('detailsCivilStatus', r.civilStatus);
-        setText('detailsPermanentAddress', r.permanentAddress);
-        setText('detailsTemporaryAddress', r.temporaryAddress);
-        setText('detailsEmail', r.email);
-        setText('detailsContactNo', r.contactNo);
-        setText('detailsReligion', r.religion);
-        setText('detailsBaptized', r.baptized === null || r.baptized === undefined
-            ? null
-            : (r.baptized ? 'Yes' : 'No'));
-        setText('detailsBaptismDate', r.baptismDate);
-        setText('detailsBaptismPlace', r.baptismPlace);
-        setText('detailsSiblingCount', r.siblingCount);
-        setText('detailsBrotherCount', r.brotherCount);
-        setText('detailsSisterCount', r.sisterCount);
         setText('detailsBatchCode', r.batchCode);
         setText('detailsCourseCode', r.courseCode);
         setText('detailsSectionCode', r.sectionCode);
-        setText('detailsEnrollmentDate', r.enrollmentDate);
         setText('detailsStudentStatus', r.studentStatus);
-        setText('detailsTotalGwa', r.totalGwa);
-
-        const f = r.father || {};
-        setText('detailsFatherFamilyName', f.familyName);
-        setText('detailsFatherFirstName',  f.firstName);
-        setText('detailsFatherMiddleName', f.middleName);
-        setText('detailsFatherBirthdate',  f.birthdate);
-        setText('detailsFatherOccupation', f.occupation);
-        setText('detailsFatherEstIncome',  f.estIncome);
-        setText('detailsFatherContactNo',  f.contactNo);
-        setText('detailsFatherEmail',      f.email);
-        setText('detailsFatherAddress',    f.address);
-
-        const m = r.mother || {};
-        setText('detailsMotherFamilyName', m.familyName);
-        setText('detailsMotherFirstName',  m.firstName);
-        setText('detailsMotherMiddleName', m.middleName);
-        setText('detailsMotherBirthdate',  m.birthdate);
-        setText('detailsMotherOccupation', m.occupation);
-        setText('detailsMotherEstIncome',  m.estIncome);
-        setText('detailsMotherContactNo',  m.contactNo);
-        setText('detailsMotherEmail',      m.email);
-        setText('detailsMotherAddress',    m.address);
-
-        const g = r.guardian || {};
-        setText('detailsGuardianRelation',   g.relation);
-        setText('detailsGuardianLastName',   g.lastName);
-        setText('detailsGuardianFirstName',  g.firstName);
-        setText('detailsGuardianMiddleName', g.middleName);
-        setText('detailsGuardianBirthdate',  g.birthdate);
-        setText('detailsGuardianAddress',    g.address);
+        setText('detailsBirthdate', r.birthdate);
+        setText('detailsAge', r.age);
+        setText('detailsSex', r.sex);
+        setText('detailsEmail', r.email);
+        setText('detailsContactNo', r.contactNo);
+        setText('detailsPermanentAddress', r.permanentAddress);
 
         currentRecordId = r.recordId;
         currentRecordIdentifier = r.studentId
             ? (r.studentId + ' (' + (r.lastName || '') + ', ' + (r.firstName || '') + ')')
             : ('Record #' + r.recordId);
+        currentRecordStatus = r.studentStatus;
 
         const editLink = document.getElementById('studentDetailsEditLink');
         if (editLink) {
@@ -203,6 +186,10 @@
         const deleteConfirmEl = document.getElementById('deleteRecordConfirmModal');
         if (deleteConfirmEl) {
             deleteConfirmModal = new bootstrap.Modal(deleteConfirmEl);
+        }
+        const editStatusEl = document.getElementById('editStatusModal');
+        if (editStatusEl) {
+            editStatusModal = new bootstrap.Modal(editStatusEl);
         }
 
         const dataTable = window.jQuery('#studentRecordsTable').DataTable({
@@ -327,6 +314,7 @@
 
         setupDeleteRecordFlow(dataTable);
         setupAssignStudentNumber(dataTable);
+        setupEditStatus(dataTable);
     });
 
     function openAssignNumberModal(recordId, studentName, studentNumber) {
@@ -508,5 +496,85 @@
                 }
             });
         }
+    }
+
+    function setupEditStatus(dataTable) {
+        const editBtn = document.getElementById('editStatusBtn');
+        const modalEl = document.getElementById('editStatusModal');
+        const nameEl = document.getElementById('editStatusStudentName');
+        const selectEl = document.getElementById('editStatusSelect');
+        const saveBtn = document.getElementById('saveStatusBtn');
+        const alertEl = document.getElementById('editStatusAlert');
+
+        if (!editBtn || !modalEl || !selectEl || !saveBtn || !editStatusModal) return;
+
+        function showStatusAlert(message, type) {
+            if (!alertEl) return;
+            alertEl.className = 'alert alert-' + type + ' mt-0 mb-3';
+            alertEl.textContent = message;
+            alertEl.classList.remove('d-none');
+        }
+
+        editBtn.addEventListener('click', function () {
+            if (!currentRecordId) return;
+            if (nameEl) {
+                nameEl.textContent = currentRecordIdentifier || ('Record #' + currentRecordId);
+            }
+            selectEl.value = currentRecordStatus || 'Enrolling';
+            hideAlert('editStatusAlert');
+            detailsModal.hide();
+            editStatusModal.show();
+        });
+
+        saveBtn.addEventListener('click', async function () {
+            if (!currentRecordId) return;
+
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            hideAlert('editStatusAlert');
+
+            try {
+                const res = await fetch(
+                    '/api/registrar/student-records/' + encodeURIComponent(currentRecordId) + '/status',
+                    {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ studentStatus: selectEl.value })
+                    }
+                );
+
+                if (!res.ok) {
+                    const body = await res.json().catch(function () { return null; });
+                    const fieldError = body && body.errors && body.errors.studentStatus;
+                    showStatusAlert(
+                        fieldError || (body && body.message) || 'Could not save the status.',
+                        'danger'
+                    );
+                    return;
+                }
+
+                const saved = await res.json();
+                currentRecordStatus = saved.studentStatus;
+                setText('detailsStudentStatus', saved.studentStatus);
+                dataTable.ajax.reload(null, false);
+                editStatusModal.hide();
+            } catch (err) {
+                showStatusAlert('Network error. Could not save the status.', 'danger');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+        });
+
+        // The status modal is opened from within the details modal (details hides first
+        // to avoid stacked-modal focus issues), so whenever it closes — Cancel, X, or a
+        // successful save above — bring the details modal back rather than leaving the
+        // registrar with nothing open.
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            hideAlert('editStatusAlert');
+            detailsModal.show();
+        });
     }
 })();

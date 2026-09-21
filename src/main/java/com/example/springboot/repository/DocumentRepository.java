@@ -1,6 +1,7 @@
 package com.example.springboot.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -39,4 +40,12 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
                                                   @Param("documentType") String documentType,
                                                   @Param("batchCode") String batchCode,
                                                   @Param("sectionCode") String sectionCode);
+
+    /**
+     * Exact lookup for the one document of a given type belonging to a student.
+     * Used for the ID picture, where the loose LIKE matching in
+     * {@link #searchSummaries} would be wrong — a substring of one student ID
+     * can match another student.
+     */
+    Optional<Document> findByStudentStudentIdAndDocumentType(String studentId, String documentType);
 }

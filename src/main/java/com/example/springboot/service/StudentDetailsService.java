@@ -12,20 +12,17 @@ import com.example.springboot.dto.student.ParentDto;
 import com.example.springboot.dto.student.SchoolYearDto;
 import com.example.springboot.dto.student.StudentDetailsRequest;
 import com.example.springboot.dto.student.StudentDetailsResponse;
-import com.example.springboot.dto.student.UploadRefDto;
 import com.example.springboot.model.OtherGuardian;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentEducation;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
-import com.example.springboot.model.StudentUpload;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 import com.example.springboot.repository.StudentSchoolYearRepository;
-import com.example.springboot.repository.StudentUploadRepository;
 
 @Service
 public class StudentDetailsService {
@@ -35,7 +32,6 @@ public class StudentDetailsService {
     private final OtherGuardianRepository guardianRepo;
     private final StudentEducationRepository educationRepo;
     private final StudentSchoolYearRepository schoolYearRepo;
-    private final StudentUploadRepository uploadRepo;
     private final BatchRepository batchRepo;
 
     public StudentDetailsService(
@@ -44,24 +40,21 @@ public class StudentDetailsService {
             OtherGuardianRepository guardianRepo,
             StudentEducationRepository educationRepo,
             StudentSchoolYearRepository schoolYearRepo,
-            StudentUploadRepository uploadRepo,
             BatchRepository batchRepo) {
         this.studentRecordRepo = studentRecordRepo;
         this.parentRepo = parentRepo;
         this.guardianRepo = guardianRepo;
         this.educationRepo = educationRepo;
         this.schoolYearRepo = schoolYearRepo;
-        this.uploadRepo = uploadRepo;
         this.batchRepo = batchRepo;
     }
 
     /**
-     * Creates a minimal "Enrolling" student record so that file uploads
-     * can reference student_id (FK constraint in student_uploads table).
-     * Only name + status are persisted at this point.
-     *
-     * If a record with the same name already exists and is still in an
-     * editable state (Enrolling/Draft), it is treated as a resume.
+     * Creates a minimal "Enrolling" student record up front so the wizard can be
+     * resumed later from the studentId held in sessionStorage. (This record was
+     * originally created early so file uploads had a student_id FK to reference;
+     * uploads were removed from the student portal on 2026-09-19, but the resume
+     * behaviour still depends on the record existing.)
      */
     @Transactional
     public StudentDetailsResponse startOrResume(String lastName, String firstName, String middleName) {
@@ -136,42 +129,6 @@ public class StudentDetailsService {
         applyEducation(studentId, req);
 
         return buildResponse(studentRecordRepo.findByStudentId(studentId).orElseThrow());
-    }
-
-    @Transactional
-    public UploadRefDto saveUpload(String studentId, StudentUpload upload) {
-        findOrThrow(studentId);
-        // Replace existing upload of same kind
-        uploadRepo.findByStudentIdAndKind(studentId, upload.getKind())
-                .ifPresent(uploadRepo::delete);
-        uploadRepo.save(upload);
-        return toUploadRef(upload);
-    }
-
-    /**
-     * Resolves an upload for the PUBLIC student portal, enforcing that the owning
-     * student is still in the in-progress {@code Enrolling} state. This prevents
-     * anyone on the LAN from enumerating {@code upload_id} values to download the
-     * ID photos or baptismal certificates of submitted/active students (PII).
-     *
-     * <p>This guard is the public portal's only document-access path. Authenticated
-     * staff access (the planned registrar document-explorer module that organizes
-     * student files by batch/year/section/course) MUST be implemented as a separate
-     * {@code /api/registrar/...} endpoint with its own RBAC — it must NOT relax or
-     * reuse this {@code Enrolling}-only restriction.
-     *
-     * @throws IllegalArgumentException if the upload does not exist or its owning
-     *                                  student is no longer in the Enrolling state
-     */
-    @Transactional(readOnly = true)
-    public StudentUpload getEnrollingUpload(Integer uploadId) {
-        StudentUpload upload = uploadRepo.findById(uploadId)
-                .orElseThrow(() -> new IllegalArgumentException("Upload not found: " + uploadId));
-        StudentRecord owner = findOrThrow(upload.getStudentId());
-        if (!"Enrolling".equalsIgnoreCase(owner.getStudentStatus())) {
-            throw new IllegalArgumentException("This file is no longer accessible from the public portal.");
-        }
-        return upload;
     }
 
     // ─── Private helpers ────────────────────────────────────────────────────────
@@ -307,18 +264,12 @@ public class StudentDetailsService {
         List<SchoolYearDto> schoolYears = schoolYearRepo.findByStudentIdOrderByRowIndex(sid)
                 .stream().map(this::toSchoolYearDto).toList();
 
-        UploadRefDto idPhoto = uploadRepo.findByStudentIdAndKind(sid, "ID_PHOTO")
-                .map(this::toUploadRef).orElse(null);
-        UploadRefDto baptCert = uploadRepo.findByStudentIdAndKind(sid, "BAPTISMAL_CERT")
-                .map(this::toUploadRef).orElse(null);
-
         return new StudentDetailsResponse(
                 sid, r.getLastName(), r.getFirstName(), r.getMiddleName(), r.getStudentStatus(),
                 r.getContactNo(), r.getBirthdate(), r.getAge(), r.getSex(), r.getCivilStatus(),
                 r.getPermanentAddress(), r.getTemporaryAddress(),
                 r.getSiblingCount(), r.getBrotherCount(), r.getSisterCount(),
                 r.getReligion(), r.getBaptized(), r.getBaptismDate(), r.getBaptismPlace(),
-                idPhoto, baptCert,
                 father, mother, guardian,
                 education, schoolYears
         );
@@ -345,8 +296,4 @@ public class StudentDetailsService {
                 s.getSyEnd(), s.getSemEnd(), s.getRemarks());
     }
 
-    private UploadRefDto toUploadRef(StudentUpload u) {
-        return new UploadRefDto(u.getUploadId(), u.getKind(), u.getOriginalName(),
-                u.getMimeType(), u.getSizeBytes(), u.getUploadedAt());
-    }
 }

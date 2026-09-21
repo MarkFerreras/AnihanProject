@@ -42,12 +42,435 @@ from this branch's git history and append them, renumbering from TC-135.
 ---
 
 ## Current Phase
-**Post-merge stabilization complete — `main` green at 332 tests, live DB synced to `schema.sql`**
+**Registrar Student Record edit form (`student-records.html`) reorganized into 3 category
+tabs (Personal Information / Family Background / Enrollment & Academics), each locked
+read-only behind its own "Edit Section" button, mirroring the student portal wizard's
+category grouping. Pure frontend change. Static asset serving verified live; full
+click-through browser verification is blocked by a pre-existing, unrelated local dev DB
+schema gap — see Latest Session below.**
 
 ## Active Branch
-`main` (user-approved — post-merge bug fix + DB-sync task, no feature branch)
+`admin_stats_and_SR_overhaul` (not yet merged to `main`)
 
-## Latest Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
+## Latest Session (2026-09-20 - Student Record Edit Form: Category Tabs + Per-Section Edit Lock)
+
+### Task
+User: the registrar's Student Record edit page (`student-records.html`) is one long,
+cluttered scroll (12 sections, 65+ fields) and needs to be organized per detail category
+the way the student portal wizard already does, with the registrar clicking a category to
+view/edit it in place — no page navigation, no modal-in-a-modal. Follow-up clarification:
+each category should also start **read-only**, requiring an explicit "Edit" click per
+category before its fields become editable (not just visual regrouping).
+
+### Research first
+Delegated an Explore agent to map the current structure before touching anything: the
+registrar view-details modal (51+ fields, 4 loose unlabeled blocks, `registrar.html`), the
+edit form itself (12 flat `<hr>`-divided sections, no tabs/accordion, `student-records.html`
++ `registrar-student-records-edit.js`), and the student portal wizard (`student-details.js`)
+— which turned out to be a **3-step** wizard (Personal / Family / Education), not 4-step as
+prior memory-bank entries stated; corrected here. Also confirmed via DTO inspection that
+`StudentRecordUpdateRequest`/`StudentRecordDetailsResponse` have no `education` field at
+all — the registrar edit form has never had an Educational Background section, so "mirror
+the portal" could not extend that far without adding new functionality outside this task's
+scope.
+
+### Scope decision (per user's answers)
+Only the **edit form** was reorganized — the registrar's answer specifically asked for
+"click Edit before editing," which only makes sense for an editable form, not the read-only
+view-details modal (left untouched). UI pattern: Bootstrap tabs (the exact mechanism already
+used by this page's own "Edit Account" modal), not an accordion. Categories: portal's
+Personal/Family naming reused where it lines up 1:1; registrar-only sections with no portal
+equivalent (Student Number, ID Picture, OJT, TESDA, School Years) folded into a third
+"Enrollment & Academics" tab rather than invented portal steps.
+
+### What was built
+- **3 tabs**, each wrapping its sub-sections in a `<fieldset data-edit-section="..." disabled>`
+  and preceded by a small toolbar with an "Edit Section" button:
+  - **Personal Information** — Identifiers, ID Picture, Personal Details, Contact, and a
+    renamed "Religion & Siblings" section (was ambiguously "Family / Religion" — renamed to
+    avoid colliding in meaning with the new Family Background tab, since it's baptism/sibling
+    data, not parent/guardian data).
+  - **Family Background** — Father, Mother, Guardian (unchanged content, matches the portal's
+    Step 2 naming exactly).
+  - **Enrollment & Academics** — Enrollment, OJT, TESDA Qualifications (3 slots), School
+    Years at Anihan. No portal equivalent; this is where every registrar-only academic/
+    training record landed.
+- **Per-section lock via native `<fieldset disabled>`**, not manual per-field tracking: since
+  fieldset-disabled cascades live to every descendant control — including ones added later,
+  like a new School Year row — locking/unlocking a whole tab is one attribute toggle
+  (`registrar-student-records-edit.js`, `setSectionEditable()`/`setupSectionEditToggles()`).
+  Fields that must always stay non-editable (Record ID, Enrollment Date, and the
+  readonly-but-not-disabled Reference No. / Student Number) keep their own explicit
+  disabled/readonly attribute, which fieldset re-enabling does not override — verified this
+  is correct HTML5 semantics, not just assumed.
+- **`setupDirtyTracking()`** no longer skips attaching listeners to fields that start
+  disabled (it used to, since previously almost nothing was disabled at load) — disabled
+  fields never fire input/change events regardless, so this is a safe simplification, not a
+  behavior change.
+- Save mechanics **unchanged on purpose**: one global "Save Changes" button still PUTs the
+  full record (the backend has no per-category save endpoint, and adding one was out of
+  scope for a display reorg). Locking only gates *typing*, not *what gets saved* — a value
+  left in a locked field is exactly what the server already had, so it round-trips correctly
+  either way.
+- CSS added, carefully scoped to avoid affecting other pages: `#editRecordForm .section-title`
+  (this page's `<h6 class="section-title">` headers previously had **zero** styling outside
+  the unrelated `.edit-account-modal` scope — confirmed via a 15-file repo-wide grep before
+  adding anything unscoped, since a global `.section-title` rule would have silently
+  reskinned headers on 14 other pages), `.record-edit-tabs`, `.tab-pane-toolbar`,
+  `.edit-section-fieldset` (resets the browser's default fieldset border/padding chrome so
+  it's layout-invisible).
+
+### A real bug caught before it shipped
+The new tab/pane IDs were first written as `tab-personal`/`pane-personal` etc. — but this
+same page already has an "Edit Account" modal (present on every dashboard page) using those
+exact IDs for its own Personal Details tab. Duplicate IDs on one page mean
+`getElementById`/Bootstrap's `data-bs-target` resolution become ambiguous, which would have
+silently broken the *Edit Account* modal's tab switching (an unrelated, pre-existing
+feature) the moment this page loaded. Caught by re-reading the full file before considering
+this done, not by a test. Renamed to `tab-record-personal`/`pane-record-personal` etc.;
+confirmed via grep that only the original Edit Account modal's IDs remain afterward.
+
+### Verified
+- Repo-wide grep confirmed `.section-title` usage across 15 pages before scoping the new
+  CSS rule to `#editRecordForm` only, to avoid a blast-radius regression on unrelated pages.
+- Bumped `dashboard.css?v=2` → `?v=3` on **all 16 pages** that load it (this project's
+  established convention — an edited CSS/JS file's cache-buster must move in the same
+  change or browsers keep serving the stale copy under `bootRun`, a lesson this project has
+  hit and documented twice before). `registrar-student-records-edit.js?v=5` → `?v=6`.
+- Started the real app (`./gradlew bootRun`) against the live local MySQL (Docker
+  `mysql-server`) and fetched the page over HTTP: confirmed via grep on the raw response that
+  all 3 `pane-record-*`/`tab-record-*` IDs, 3 `js-toggle-edit` buttons, and the expected
+  fieldset count (3 outer + 3 TESDA slot fieldsets × open/close = 12 `fieldset` lines) are
+  present and correctly served — not a stale cached copy. Same check on the JS file confirmed
+  `setSectionEditable`/`setupSectionEditToggles` are present in the served bytes.
+- **Full interactive click-through (open a real record, click Edit Section, confirm fields
+  unlock, save) was not completed** — blocked by a pre-existing, unrelated problem: this
+  machine's local MySQL `student_records` table is missing the `student_number` column (and
+  likely other columns from later migrations), so every `/api/registrar/student-records/**`
+  call 500s with `Unknown column 'sr1_0.student_number'`. Confirmed via `DESCRIBE
+  student_records` that the column is genuinely absent, and confirmed via `git log`/this
+  session's own diff that no SQL or Java file was touched this session — this is local dev
+  environment drift, not a regression from this change. No browser automation
+  (`chromium-cli`/`playwright-core`) was available in this environment either, matching the
+  same gap noted in the 2026-09-19 ID-photo session.
+- No Java/backend/DTO files were touched — `./gradlew test` was not re-run since nothing it
+  covers changed.
+
+### Open Items
+- **User decision needed:** apply the outstanding local-DB migrations (with a backup first,
+  same pattern as every prior DB-sync session) so a full live click-through of the new tabs
+  can actually be done, or accept the code-level verification above as sufficient for this
+  purely-frontend change.
+- A full interactive pass (open a record, unlock each tab independently, confirm the other
+  two stay locked, add/remove a School Year row while locked vs. unlocked, Save round-trip)
+  is still recommended once the local DB is usable.
+- PR to `main` (user approval required).
+
+---
+
+## Previous Session (2026-09-20 - Remove Admin Statistics Panel)
+
+### Task
+User asked to remove the admin statistics panel (Total Users / Admins / Registrars /
+Trainers stat cards) from the admin dashboard hero section, without affecting any other
+functionality.
+
+### What was removed
+- `static/admin.html` — the `.hero-stats` block (4 `.stat-card` articles) inside the page
+  hero, matching the plain single-column hero pattern already used by every other dashboard
+  page (e.g. `registrar.html`).
+- `static/js/admin-users.js` — the `updateStats()` helper (computed counts from the loaded
+  user list) and its call site inside the DataTable's `ajax.dataSrc`.
+- `static/css/dashboard.css` — `.hero-stats`, `.stat-card`, `.stat-label`, `.stat-value`,
+  `.stat-caption`, and their two responsive (`@media`) overrides. Confirmed via repo-wide
+  grep that no other page referenced these classes before deleting them.
+
+### One behavior-preserving fix made during removal
+The DataTable's `ajax.dataSrc` callback was doing double duty: computing the stats AND
+telling DataTables where to find the row array in the response. `/api/admin/users` returns
+a bare JSON array (not `{data: [...]}`), and DataTables' default `dataSrc` is `"data"` — so
+simply deleting the callback would have broken the table (DataTables would look for
+`json.data`, find nothing, and render empty). Replaced it with `dataSrc: ''`, which is the
+documented way to tell DataTables "the response root IS the array," preserving the exact
+same table behavior with the stats computation gone.
+
+### Verified
+- Repo-wide grep for `hero-stats`, `stat-card`, `stat-label`, `stat-value`, `stat-caption`,
+  `totalUsersStat`, `adminUsersStat`, `registrarUsersStat`, `trainerUsersStat`, and
+  `updateStats` → zero remaining references anywhere in `src/`.
+- No backend/DTO/test code ever referenced these identifiers — the stats were purely
+  client-side arithmetic over the same `/api/admin/users` payload the table already used,
+  so no `/api/admin/**` endpoint or test needed touching.
+- `git status` confirms exactly 3 files changed: `admin.html`, `dashboard.css`,
+  `admin-users.js`. No Java/Gradle build needed (frontend-only change).
+
+### Open Items
+- Manual browser smoke test: load `/admin.html`, confirm the hero now shows only the title
+  block (no stat cards, no layout gap), and the User Directory DataTable still populates,
+  paginates, searches, and opens the details modal correctly.
+- PR to `main` (user approval required).
+
+---
+
+## Previous Session (2026-09-19 - Merging `main` into `security_questions`)
+
+### Scope
+Brought `origin/main`'s 13 commits into this branch ahead of the final PR back into `main`:
+the ID-photo-to-Registrar feature (a separate branch, merged into `main` after this branch
+had already split off) and a live-DB sync session that caught and fixed two real SQL type
+mismatches in the security-questions migration (`user_security_answers.slot` and
+`users.failed_security_attempts` were declared `TINYINT`, but their JPA entity fields are
+`Integer` — `ddl-auto=validate` would fail to boot against a database built from the
+original migration file). Conflicts appeared in exactly 5 memory-bank files; the actual
+application code — including both branches' independent edits to the very same SQL
+migration file — merged automatically with zero conflicts.
+
+### Conflict resolution
+- `changeLog.md`, `decisions.md`, `progress.md` — both sides had simply added their own
+  dated, self-contained entry to the same spot; kept both, no rewrite needed.
+- `activeContext.md` (this file) — both sides had written a different "Current Phase" /
+  "Active Branch" statement, which can't both be true at once; rewrote the top section into
+  one statement reflecting the actual combined state, and relabeled both prior "Latest
+  Session" write-ups below as "Previous Session".
+- `testing.md` — both sides had a "Latest full-suite result" line with a different test
+  count (363 vs. 374); neither number is the real one once the code is actually combined,
+  so that line was left until the full suite was run fresh against the merged code — see
+  Verified below.
+
+### Verified
+- `./gradlew compileJava compileTestJava` → BUILD SUCCESSFUL — the combined code compiles;
+  Git reporting zero text conflicts didn't by itself guarantee this (two branches can
+  interleave cleanly at the line level while still breaking a cross-file dependency), so this
+  was checked explicitly rather than assumed.
+- `./gradlew test` → BUILD SUCCESSFUL — **374 tests, 0 failures, 0 errors**. See
+  `testing.md` for why this lands exactly on the ID-photo branch's own pre-merge number.
+
+---
+
+## Previous Session (2026-09-19 - Security Questions / Forgot Password Feature)
+
+### Scope
+Full implementation of the 10-point security-questions/forgot-password plan agreed with the
+user over an extended design discussion (see `decisions.md` for the resulting design calls).
+Covers: mandatory first-login setup of 2 security questions (6 fixed defaults or a custom
+question per slot), editing them later from the account settings modal, a public
+forgot-password flow (email → answer both questions → reset password), a 3-strike lockout
+with 15-minute decay that only an admin can clear, and an admin "Unlock Account" action.
+
+### Backend
+- **DB**: two new tables — `security_questions` (6 fixed default questions, seeded, wording
+  owned by the user, not to be altered) and `user_security_answers` (row-per-slot: a nullable
+  FK to a default question XOR a plaintext `custom_question`, plus a BCrypt `answer_hash`;
+  `UNIQUE(user_id, question_id)` stops picking the same default twice, MySQL's multi-NULL
+  unique-index behavior already relied on elsewhere in this schema). Three new lockout columns
+  on `users` (`security_locked`, `failed_security_attempts`, `security_lockout_started_at`),
+  kept deliberately separate from `enabled`. Closed a real pre-existing gap: `users.email` had
+  no DB-level uniqueness — added `uq_email`, and fixed the 3 seed accounts' placeholder
+  `@example.com` addresses to `admin@anihan.local` / `registrar@anihan.local` /
+  `trainer@anihan.local` (this feature depends on email being real and looked-up-by).
+  Migration: `src/main/sql/migrations/2026-09-19-security-questions.sql`.
+- **Entities/repos**: `SecurityQuestion`, `UserSecurityAnswer` + repositories.
+- **`User.java`**: 3 new lockout fields.
+- **`CustomUserDetailsService`**: the `accountNonLocked` parameter (previously hardcoded
+  `true`) now reads `!user.getSecurityLocked()` — this alone makes Spring Security's own
+  `LockedException` enforce the lockout on every login attempt, not just the forgot-password
+  path, with no custom filter needed.
+- **`GlobalExceptionHandler`**: added distinct `LockedException` / `DisabledException`
+  handlers — previously both silently fell through to one generic message.
+- **`SecurityQuestionService`**: setup/edit validation (exactly one of default-question-id or
+  custom-question per slot; no duplicate default question; a custom question that word-for-word
+  matches a default, case/whitespace/punctuation-insensitive, is rejected), the lockout state
+  machine (3 wrong answers locks the account; the failed-attempt counter decays to 0 after 15
+  minutes measured from the *first* failure in the streak, but only while not yet locked; a
+  correct answer resets it immediately), and the email lookup / password reset logic.
+- **Session mechanism**: three restricted, single-purpose session states — `ROLE_PENDING_SETUP`
+  (after login, before the mandatory setup is done), `ROLE_PENDING_VERIFICATION` (after a
+  successful forgot-password email lookup), `ROLE_PENDING_RESET` (after answering both
+  questions correctly, expires after 10 minutes) — implemented as one shared mechanism
+  (`SessionAuthenticationHelper`) reused three times, gated by ordinary `SecurityConfig`
+  `hasRole(...)` matchers rather than new filter infrastructure.
+- **Controllers**: `SecurityQuestionController` (setup/edit, under `/api/account/security-questions`),
+  `PasswordRecoveryController` (`lookup`/`verify`/`reset`, under `/api/password-recovery`).
+  `AuthController.login()` now checks setup status and issues the restricted session instead of
+  a full one when incomplete; `/api/auth/me` gained `securityQuestionsSetUp`.
+- **Admin**: `AdminService.unlockUser()` + `PUT /api/admin/users/{id}/unlock` — clears both
+  `security_locked` and `enabled` at once (a single admin action regardless of which
+  condition(s) actually apply); `AdminUserResponse` gained `securityLocked`.
+
+### Frontend
+- 4 new standalone pages (each with its own dedicated JS, matching the rest of the app's
+  per-page-JS convention): `security-question-setup.html` (mandatory, non-skippable),
+  `forgot-password.html` (email entry), `forgot-password-questions.html` (answer both),
+  `reset-password.html` (new password twice).
+- `index.html`: "Forgot Password?" link; role-routing extended for `ROLE_PENDING_SETUP`.
+- `auth-guard.js`: the mandatory-setup client-side redirect gate (server-side enforcement is
+  the `SecurityConfig` matcher, not this); the "Edit 'Forgot Password' Security Questions"
+  modal wiring, added to the Account Settings tab on all 3 dashboards.
+- `admin.html` / `admin-users.js`: "Unlock Account" button in the user-details modal, shown
+  when `securityLocked` is true.
+- `js/password-toggle.js`: extracted the password reveal-toggle logic (previously only in
+  `auth-guard.js`, so only dashboard pages had it) into its own small shared file, so
+  `index.html`'s login field and `reset-password.html`'s two password fields get the same
+  eye-icon toggle without pulling in `auth-guard.js`'s session-guard machinery.
+
+### Two real bugs found during live verification (both fixed)
+1. **Login broke for every account** right after implementation — the migration file existed
+   but had never actually been *run* against the live MySQL database (only the throwaway test
+   DB reflected it), so `users` was missing the 3 new columns the entity now expects on every
+   query, and still had the old placeholder emails. Fixed by backing up
+   (`backup-2026-09-19-pre-security-questions.sql`), applying the migration, and verifying
+   idempotency by re-running it. **Lesson: applying the migration to the live DB is part of
+   finishing the feature, not an optional follow-up — this is the same mistake this project's
+   own history has flagged repeatedly (see the 2026-07-09 and 2026-09-06 changeLog entries).**
+2. **A CSS fix appeared not to take effect no matter how the browser was refreshed or
+   cache-cleared.** Root cause was not a stylesheet conflict at all: `./gradlew bootRun` copies
+   `src/main/resources` into `build/resources/main` once at startup and does not watch for
+   live edits, so the already-running server kept serving a stale compiled copy of
+   `dashboard.css` regardless of what the browser did. Confirmed by diffing
+   `build/resources/main/static/css/dashboard.css` against the source file. **Lesson: a static
+   frontend file edit needs the app process restarted (not just the browser refreshed) to take
+   effect under `bootRun` — flag this to the user whenever diagnosing "my CSS/JS change isn't
+   showing up."** Also added `?v=2` cache-busting to `dashboard.css`'s `<link>` tag across all
+   16 pages that load it (it never had one before) as a belt-and-suspenders fix, and a
+   diagnostic technique worth remembering: an isolated headless-Edge screenshot of just the
+   affected markup + real stylesheets, run via `msedge.exe --headless --screenshot=...`,
+   conclusively proved the CSS itself was correct before the real cause was found.
+
+### Verified
+- `./gradlew test` → **363 tests, 0 failures, 0 errors** (was 340 immediately pre-feature;
+  +21 `SecurityQuestionServiceTest`, +2 `AdminServiceTest` for `unlockUser`). 3 existing tests
+  fixed for `AdminUserResponse`'s new `securityLocked` component (arity bump 11→12, same class
+  of fix as this project's earlier `StudentRecordDetailsResponse` arity incidents).
+- Live round trip against real MySQL after the migration: `admin`/`password123` login → 200
+  `ROLE_PENDING_SETUP` → fetched default questions → completed setup → session upgraded to
+  `ROLE_ADMIN`, `/api/auth/me` shows `securityQuestionsSetUp: true` → forgot-password lookup by
+  `admin@anihan.local` now returns the 2 question texts. Test data (the security-question
+  answers created during this check) was deleted afterward so the user could go through the
+  real setup flow themselves rather than inherit throwaway test answers. Stopped short of
+  testing the live password-reset step to avoid changing the real admin password.
+
+### Follow-up fix (same day) — Lockout Counter Wasn't Actually Persisting
+User reported 3 wrong answers didn't lock the account. Root cause: `verifyAnswers()` is
+`@Transactional`, and Spring rolls back the whole transaction by default on any unchecked
+exception — the method deliberately throws `IllegalArgumentException` after saving the
+incremented counter, so that save was silently undone every time. All 21 unit tests passed
+regardless because they mock the repository and never exercise real transaction rollback.
+Fixed with `@Transactional(noRollbackFor = IllegalArgumentException.class)`. Verified live
+end-to-end this time (not just unit tests): 3 real wrong attempts via the actual HTTP
+endpoints correctly reached `security_locked=1` on the 3rd, a 4th was rejected immediately,
+and a subsequent login with the right password was also blocked. `admin` locked itself out in
+the process (sole admin) — used `BREAKGLASS-account-unlock.md` for real for the first time,
+confirming it works. See `changeLog.md` for full detail. **Open follow-up: add a real
+transactional (`@DataJpaTest` or full-context) test for this method — Mockito-based service
+tests structurally can't catch this class of bug.**
+
+### Open Items
+- WebMvc tests for `SecurityQuestionController`, `PasswordRecoveryController`, and the new
+  `PUT /api/admin/users/{id}/unlock` endpoint are not yet written (only service-level Mockito
+  tests exist so far).
+- A transactional/integration test for `verifyAnswers()`'s rollback behavior (see above) is
+  needed to actually guard against the bug just fixed — service-level mocked tests can't.
+- A full Playwright/manual browser pass of the end-to-end journeys (mandatory setup, edit from
+  account settings, forgot-password happy path, 3-strike lockout blocking normal login, admin
+  unlock, reset → dashboard) has not been run — only spot-checked via curl.
+- PR to `main` (user approval required).
+- The `admin` account's live security-question answers were deliberately left unset after this
+  session's verification (see above) — first real login will hit the mandatory setup page.
+
+---
+
+## Previous Session (2026-09-19 - ID Photo Upload Moved from Student Portal to Registrar)
+
+Branch was `feature/move-id-photo-to-registrar` (user-approved, branched from `main`),
+merged into `main` before this session. Branch was green at 374 tests (was 363),
+`ddl-auto=validate` PASS, live-API verification complete.
+
+### Open Items (as of the ID-photo-to-registrar session)
+- PR to `main` — user approval required.
+- `student_uploads` still sits in live MySQL, empty and unmapped — drop it in a future
+  routine schema-sync session (see `decisions.md`).
+- No browser automation was available this session (Playwright extension not installed,
+  `playwright-core` not present locally); Task 14 was verified at the API level instead.
+  A full rendered-DOM walkthrough of the new ID Picture UI (edit form section, details
+  modal card, console cleanliness) is still recommended before merge.
+- Two pre-existing, unrelated bugs surfaced during live verification and logged in
+  `bugs.md` as Bug 12 (`documents.file_type VARCHAR(50)` too short for docx/xlsx MIME
+  strings — docx/xlsx upload has always failed against real MySQL) and Bug 13
+  (`GlobalExceptionHandler` 500s on genuinely-missing routes instead of 404ing). Neither
+  was fixed — both are out of scope for this plan.
+- The `registrar` seed account's mandatory security-question setup was completed during
+  this session's live verification (it was the only way to get a REGISTRAR-role session);
+  this is real onboarding progress, not test data, and was left in place.
+
+## Previous Session (2026-09-19 - schema.sql vs Live DB Comparison + Sync)
+
+### Scope
+User asked to compare `src/main/sql/schema.sql` against the live `AnihanSRMS` database
+and, if they differed, update the live DB to match. The `security_questions` branch had
+been merged into `main` (commits `b17c031`, `64be20e`) but its migration had never been
+applied to the live database.
+
+### Drift found (real)
+`schema.sql` declared **21 tables**, live DB had **19**. Missing entirely:
+- `security_questions` and `user_security_answers` tables
+- `users.security_locked`, `users.failed_security_attempts`,
+  `users.security_lockout_started_at`
+- the `users.email` UNIQUE index
+
+Everything else diffed **cosmetic only** — FK/unique-index auto-names
+(`classes_ibfk_3` vs `_ibfk_2`, `fk_grades_class` vs `grades_ibfk_2`, `uq_username` vs
+`username`), secondary-index listing order, and `grades` physical column order. Same
+four categories as the 2026-07-14 and 2026-09-06 comparisons. No real drift beyond the
+security-questions delta.
+
+### Two genuine bugs in the merged SQL, caught by `ddl-auto=validate`
+The migration applied cleanly, but the app then **failed to boot** — so the
+security-questions feature could not have run against any DB built from these files.
+Both were type mismatches between the SQL and the JPA entities:
+
+| Column | Was | Entity field | Fixed to |
+|--------|-----|--------------|----------|
+| `user_security_answers.slot` | `TINYINT` | `UserSecurityAnswer.slot` (`Integer`) | `INT` |
+| `users.failed_security_attempts` | `TINYINT` | `User.failedSecurityAttempts` (`Integer`) | `INT` |
+
+`INT` also matches the pre-existing `student_tesda_qualifications.slot INT` convention.
+`users.security_locked` correctly stays `TINYINT(1)` (maps to `Boolean`) and
+`security_lockout_started_at` stays `DATETIME` (`LocalDateTime`) — both already right.
+
+Fixed in **`schema.sql`, the migration's CREATE/ADD statements, and two new guarded
+`MODIFY COLUMN` steps** (2b and 3b) so databases that already ran the old revision are
+repaired on re-run rather than left broken.
+
+### Verified
+- Backup taken before any write: `src/main/sql/backup-2026-09-19-pre-schema-sync.sql`
+  (116,733 bytes, 19 `CREATE TABLE`).
+- **Dry run first:** restored the live backup into a throwaway `schema_check` DB and
+  applied the migration there before touching live. Re-ran it — structure byte-identical,
+  `security_questions` still 6 rows (not 12). Idempotent.
+- Pre-flight data check: no duplicate or NULL emails, so `uq_email` could not fail.
+- `ddl-auto=validate` boot against live MySQL → **PASS**
+  (`Started SpringbootApplication in 9.368 seconds`, zero `Schema-validation` /
+  `SchemaManagementException` lines). This is the check that caught both bugs — the
+  Gradle suite runs on H2 and cannot detect live-DB or SQL-file type drift.
+- `./gradlew test` → **363 tests, 0 failures, 0 errors**.
+- Final structural diff (live vs a fresh DB built from the corrected `schema.sql`) →
+  cosmetic only. Live DB now **21 tables**.
+- Data preserved: 10 students, 5 users, 323 system_logs, 8 classes.
+
+### Note on live data
+The 3 seed accounts' emails were rewritten by the migration from `@example.com`
+placeholders to `admin@anihan.local` / `registrar@anihan.local` /
+`trainer@anihan.local` — intended, since the forgot-password flow looks accounts up by
+email. The 2 real accounts (`trainer2`, `wilkins`) were untouched.
+
+### Open Items
+- The two SQL type fixes have since been committed to `main` and are now part of this merge.
+- `user_security_answers` is still empty (0 rows) as of that session — no user had set
+  security questions yet at that point.
+
+---
+
+## Previous Session (2026-09-06 - Post-Merge Bug Fix + Live DB Sync)
 
 ### Scope
 Two branches had been merged into `main` before this session — `grade_input_fix` (TESDA

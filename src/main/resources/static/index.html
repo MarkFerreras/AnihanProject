@@ -12,7 +12,7 @@
 
     <!-- Custom Login Styles -->
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/dashboard.css?v=3">
 </head>
 
 <body>
@@ -80,6 +80,10 @@
                         Log In
                     </button>
                 </div>
+
+                <div class="text-center mt-3">
+                    <a href="forgot-password.html" id="forgotPasswordLink">Forgot Password?</a>
+                </div>
             </form>
         </div>
     </main>
@@ -93,9 +97,12 @@
 
     <!-- Bootstrap 5.3 JS Bundle (local) -->
     <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/password-toggle.js"></script>
 
     <!-- Login Logic -->
     <script>
+        setupPasswordToggles();
+
         // --- Session Check: redirect if already logged in ---
         (async function checkExistingSession() {
             try {
@@ -105,7 +112,8 @@
                     const routes = {
                         'ROLE_ADMIN': '/admin.html',
                         'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_TRAINER': '/trainer.html',
+                        'ROLE_PENDING_SETUP': '/security-question-setup.html'
                     };
                     const destination = routes[data.role];
                     if (destination) {
@@ -168,7 +176,8 @@
                     const routes = {
                         'ROLE_ADMIN': '/admin.html',
                         'ROLE_REGISTRAR': '/registrar.html',
-                        'ROLE_TRAINER': '/trainer.html'
+                        'ROLE_TRAINER': '/trainer.html',
+                        'ROLE_PENDING_SETUP': '/security-question-setup.html'
                     };
                     const destination = routes[data.role] ?? '/index.html';
                     window.location.href = destination;

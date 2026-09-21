@@ -251,6 +251,37 @@ class AdminServiceTest {
                 verify(schoolClassRepository, never()).countByTrainerUserId(any());
         }
 
+        @Test
+        void unlockUserClearsSecurityLockoutState() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                trainer.setSecurityLocked(true);
+                trainer.setFailedSecurityAttempts(3);
+                trainer.setSecurityLockoutStartedAt(java.time.LocalDateTime.now());
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+
+                adminService.unlockUser(9);
+
+                assertFalse(trainer.getSecurityLocked());
+                assertEquals(0, trainer.getFailedSecurityAttempts());
+                assertEquals(null, trainer.getSecurityLockoutStartedAt());
+                verify(userRepository).save(trainer);
+        }
+
+        @Test
+        void unlockUserAlsoReEnablesADeactivatedAccount() {
+                User trainer = buildUser(9, "trainer", "trainer@anihan.edu",
+                                "ROLE_TRAINER", "Cruz", "Maria", "Santos");
+                trainer.setEnabled(false);
+                trainer.setSecurityLocked(true);
+                when(userRepository.findById(9)).thenReturn(Optional.of(trainer));
+
+                adminService.unlockUser(9);
+
+                assertTrue(trainer.getEnabled());
+                assertFalse(trainer.getSecurityLocked());
+        }
+
         private User buildUser(
                         Integer userId,
                         String username,
