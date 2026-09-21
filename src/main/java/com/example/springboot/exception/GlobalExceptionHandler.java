@@ -66,6 +66,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthenticationException(
             org.springframework.security.core.AuthenticationException ex) {
+        // Unlike BadCredentialsException/LockedException/DisabledException (each
+        // already handled above with a specific message), anything landing here
+        // is an authentication failure that isn't simply "wrong password" — most
+        // notably InternalAuthenticationServiceException, which Spring Security
+        // throws when the UserDetailsService lookup itself blows up (e.g. a
+        // broken datasource connection). Log it so that real cause is visible
+        // server-side instead of being indistinguishable from a bad password.
+        log.warn("Authentication failed with a non-credentials cause", ex);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "Unauthorized. Please log in."));
     }

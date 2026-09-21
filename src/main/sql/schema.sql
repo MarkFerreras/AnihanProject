@@ -60,11 +60,11 @@
 -- grade rows first — the overhaul drops the old component-grade columns).
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS AnihanSRMS
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_0900_ai_ci;
+-- CREATE DATABASE IF NOT EXISTS AnihanSRMS
+--    DEFAULT CHARACTER SET utf8mb4
+--    DEFAULT COLLATE utf8mb4_0900_ai_ci;
 
-USE AnihanSRMS;
+-- USE AnihanSRMS;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
