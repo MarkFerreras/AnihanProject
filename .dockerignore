@@ -1,0 +1,11 @@
+build/
+.gradle/
+uploads/
+*.log
+.idea/
+.vscode/
+.git/
+.github/
+src/main/sql/backup*.sql
+docs/
+memory-bank/

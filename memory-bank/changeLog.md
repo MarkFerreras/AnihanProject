@@ -1,5 +1,65 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-21 - Render Hosting Prep (Demo/Staging)
+**Branch:** `render-test1`
+
+### Task
+Prepare deploy config for hosting a demo/staging instance of Anihan SRMS on Render. Does
+not change application behavior on-premise; confirmed with the user that this is a separate
+instance from the documented air-gapped production target (`techContext.md`).
+
+### Correction made during the session
+User first asked for Render's "native Java build" option. Render has no native Java/Gradle
+runtime (unlike Node/Python/Ruby/Go/Rust/Elixir there) — for JVM apps Render's own guidance
+is Docker. Switched to a Docker-based deploy instead of proceeding with a nonexistent
+option. Also explicitly verified on Docker Hub that `eclipse-temurin:25-jdk` and
+`eclipse-temurin:25-jre` image tags exist before writing the Dockerfile around them, since
+Java 25 is recent enough that this wasn't safe to assume.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build: `eclipse-temurin:25-jdk` builds the boot jar (dependency layer cached separately from source), `eclipse-temurin:25-jre` runs it as a non-root user, listening on `$PORT`. |
+| `.dockerignore` | Keeps `build/`, `.gradle/`, `uploads/`, SQL backups, `docs/`, `memory-bank/` out of the image build context. |
+| `render.yaml` | Render Blueprint — one `runtime: docker` web service. `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` declared as `sync: false` (set per-deployment in the Render dashboard, not committed). Header comment states this is a demo/staging instance, not the documented production target. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/resources/application.properties` | `spring.datasource.url/username/password` now read `${SPRING_DATASOURCE_*}` env vars, falling back to the existing local Docker MySQL values (`bootRun`/tests unaffected). Added `server.port=${PORT:8080}` (Render assigns the port at runtime). Added `server.forward-headers-strategy=native` so `HttpServletRequest#getRemoteAddr()` — called directly in `AccountController`, `AdminController`, `DocumentController`, `RegistrarController`, `ClassManagementController`, `SecurityQuestionController`, `PasswordRecoveryController`, `StudentNumberController`, `TrainerGradeController`, `AuthController` for `system_logs.ip_address` — resolves the real client IP from Render's `X-Forwarded-For` header instead of the edge proxy's own IP. No controller code changed. |
+| `gradlew` (git metadata only) | Git executable bit set (`100644` → `100755`); file content untouched. It was never executable in the repo — `.gitattributes` already forces LF line endings, but without the exec bit `./gradlew` fails with "Permission denied" in the Linux Docker build stage. |
+| `memory-bank/techContext.md`, `activeContext.md`, `progress.md` | Session notes; added a "Demo/Staging Hosting on Render" subsection to `techContext.md` explicitly scoped as not replacing the on-premise target. |
+
+### Verification
+- `./gradlew compileJava` → clean compile after the `application.properties` change.
+- `eclipse-temurin:25-jdk` and `eclipse-temurin:25-jre` confirmed to exist via live Docker
+  Hub tag listings (fetched, not assumed).
+- **Not done this session:** an actual Render deployment, or a local `docker build`/`docker
+  run` smoke test — no Render account was available and the image was not built end-to-end.
+
+### Open Items
+- Provision an external MySQL 8 host (Render has no managed MySQL) and apply
+  `src/main/sql/schema.sql` to it before the first real deploy.
+- Set the 3 `SPRING_DATASOURCE_*` env vars in the Render dashboard once that host exists.
+- Build and run the Docker image locally before trusting the Render deploy.
+- No PR — infra-only branch; merge timing is the user's call.
+
+### Follow-up (same session) — Free-Tier Keep-Alive Pinger
+User is on Render's free tier and already knows about its 15-minute inactivity spin-down
+(a groupmate on the same capstone worked around it with a pinger elsewhere). Added
+`.github/workflows/keep-alive.yml` — a scheduled GitHub Actions workflow (`*/10 * * * *`,
+plus manual `workflow_dispatch`) that curls `{RENDER_APP_URL}/index.html` to keep the
+service warm. The URL is read from a repo variable (`vars.RENDER_APP_URL`, not a secret —
+it's a public URL) that doesn't exist yet; the job no-ops with an explanatory message until
+the user sets it post-deploy, rather than failing.
+
+**Documented, not silently hidden:** GitHub's `schedule` trigger is best-effort and can lag
+under platform load — explained in the workflow's own header comment and in chat, with
+UptimeRobot/cron-job.org named as more reliable dedicated alternatives if the user wants a
+hard guarantee instead of best-effort.
+
+---
+
 ## 2026-09-19 (follow-up 3) - Duplicate "Account Locked" Audit Log Entries
 **Branch:** `security_questions`
 

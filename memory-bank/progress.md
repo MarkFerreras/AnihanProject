@@ -2,6 +2,38 @@
 
 ## Recent Sessions (detail)
 
+### Render Hosting Prep (Completed - September 21, 2026)
+- **Task:** Prepare a demo/staging deployment of the app on Render, on branch
+  `render-test1`. Flagged and confirmed with the user upfront that this is a separate
+  demo/staging instance — the documented production target stays the on-premise, air-gapped
+  deployment in `techContext.md`.
+- **Correction made mid-session:** user initially asked for Render's native Java build
+  option; Render has no such runtime for JVM apps (only Docker), so the deploy was built as
+  a Docker image instead. Verified `eclipse-temurin:25-jdk`/`25-jre` tags actually exist on
+  Docker Hub before depending on them, rather than assuming a brand-new JDK version has
+  images available.
+- **Built:** `Dockerfile` (multi-stage, non-root, cached dependency layer), `.dockerignore`,
+  `render.yaml` (Blueprint, `runtime: docker`, datasource env vars left unset for the user to
+  fill in per-deployment). `application.properties` made env-var-configurable for the
+  datasource (with existing local values as fallback defaults — `bootRun`/tests unaffected),
+  added `server.port=${PORT:8080}` and `server.forward-headers-strategy=native` (the latter
+  so `system_logs.ip_address` — read via `getRemoteAddr()` in ~10 controllers — resolves the
+  real client IP behind Render's proxy, not the proxy's own IP). `gradlew`'s git executable
+  bit was also missing and is now set, without which the Docker Linux build stage would fail
+  with "Permission denied."
+- **Verified:** `./gradlew compileJava` clean after the properties change; both Docker image
+  tags confirmed to exist via live Docker Hub listings.
+- **Not verified this session:** no actual Render deployment or local `docker build` — no
+  Render account was available, and the image itself was not built/run end-to-end.
+- **Branch:** `render-test1`. Open: provision an external MySQL 8 host and load
+  `schema.sql` onto it, set the 3 datasource env vars on Render, build+smoke-test the image
+  locally before trusting the real deploy.
+- **Follow-up same session:** added `.github/workflows/keep-alive.yml` — a scheduled GitHub
+  Actions ping (`*/10 * * * *`) against `${RENDER_APP_URL}/index.html` to counter Render free
+  tier's 15-minute inactivity spin-down. No-ops until the `RENDER_APP_URL` repo variable is
+  set post-deploy. Noted honestly that GitHub's scheduler is best-effort (can lag under
+  load); UptimeRobot/cron-job.org offered as more reliable dedicated alternatives.
+
 ### Security Questions / Forgot Password Feature (Completed - September 19, 2026)
 - **Task:** Implement the full 10-point security-questions/forgot-password plan reached after
   an extended design discussion with the user (see `decisions.md`): mandatory first-login

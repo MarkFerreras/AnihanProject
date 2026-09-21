@@ -1,0 +1,37 @@
+name: Keep Render App Awake
+
+# Render's free tier spins a web service down after 15 minutes with no
+# inbound traffic; the next request then pays a cold-start cost (container
+# restart + JVM boot + Spring context load). This workflow pings the
+# deployed app on an interval comfortably under that 15-minute window so it
+# stays warm.
+#
+# Note: GitHub's schedule trigger is best-effort — under platform load, runs
+# can be delayed by several minutes or occasionally skipped. That just means
+# an occasional missed ping (worst case: one slow cold-start), not a broken
+# workflow. For a hard guarantee, pair this with (or replace it with) a
+# dedicated uptime monitor such as UptimeRobot or cron-job.org, which exist
+# specifically for this and are also free.
+#
+# Setup: after your first Render deploy, go to
+# Settings > Secrets and variables > Actions > Variables in this repo and
+# add RENDER_APP_URL = https://<your-service-name>.onrender.com
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the deployed app
+        run: |
+          if [ -z "${{ vars.RENDER_APP_URL }}" ]; then
+            echo "RENDER_APP_URL repository variable is not set yet — skipping."
+            echo "Set it under Settings > Secrets and variables > Actions > Variables once the app is deployed."
+            exit 0
+          fi
+          curl -fsS --max-time 20 "${{ vars.RENDER_APP_URL }}/index.html" -o /dev/null
+          echo "Pinged ${{ vars.RENDER_APP_URL }}/index.html successfully."

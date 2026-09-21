@@ -1,0 +1,27 @@
+# Render Blueprint for a demo/staging deployment of Anihan SRMS.
+#
+# This app's documented production target is an on-premise, air-gapped
+# Windows Server 2025 box (see memory-bank/techContext.md) — this file is
+# for a separate public demo/staging instance only, not a replacement for
+# that deployment.
+#
+# Render has no managed MySQL offering, so `mysqlDatabaseUrl` etc. below are
+# left unset (`sync: false`) — point them at whatever external MySQL 8
+# instance you provision (a managed host, or your own), then apply
+# src/main/sql/schema.sql to it once before first deploy.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> select this repo/branch.
+services:
+  - type: web
+    name: anihan-srms
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /index.html
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
