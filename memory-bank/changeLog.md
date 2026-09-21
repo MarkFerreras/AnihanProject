@@ -1,5 +1,18 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-21 - Second `main` merge into `feature/class-year-filter` (PR #59)
+**Branch:** `feature/class-year-filter` — conflict resolution only, no application code edited.
+
+Pulled `main` to bring in PR #59 (remove login/logout auditing). All code merged cleanly;
+only `activeContext.md`, `changeLog.md` and `progress.md` conflicted. Resolved with the same
+`git show :2:` / `git show :3:` whole-entry splice recorded below. This branch's tails were a
+strict superset of main's (they additionally carry the 2026-09-16 Thread Testing Cases
+entries), so our tails were kept; main's 2026-09-19 "Remove Login/Logout Auditing" entry was
+inserted in date order in each file, and the `- **Task:**` bullet of the 2026-09-20 Student
+Record Edit Form progress entry (missing on this branch, present on main) was restored.
+
+---
+
 ## 2026-09-21 - Merge `main` into `feature/class-year-filter` (conflict resolution)
 **Branch:** `feature/class-year-filter` — **no application code, schema, or test code touched.**
 
@@ -60,6 +73,67 @@ shared history from 2026-09-06 back. **Nothing was dropped from either side.**
 This same pair of files will conflict on every future merge, for the same structural reason.
 The `git show :2:` / `git show :3:` splice above is the reliable recipe — resolve by
 re-ordering whole entries by date, never by editing inside the interleaved hunks.
+
+---
+
+## 2026-09-19 - Remove Login/Logout Auditing + Admin Dashboard Statistics
+**Branch:** `feature/remove-login-audit-and-admin-stats`
+
+### Task
+Stop treating routine login and logout as audit-worthy events — they were the single
+largest category of row in `system_logs` (every sign-in/sign-out cycle wrote one each)
+with the least investigative value of anything the table records (a login/logout says
+nothing about what a user did once inside). Purge the historical rows already sitting in
+the live database, and finish an admin-dashboard cleanup left over from an earlier session
+(a leftover empty wrapper div in `admin.html`, orphaned after that session's stat-card
+removal). Plan: `docs/superpowers/plans/2026-09-19-remove-login-audit-and-admin-stats.md`.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/java/com/example/springboot/controller/AuthController.java` | Removed the two `systemLogService.logAction(...)` calls (end of `login()`, inside `logout()`). `logout()`'s identity-capture block — `userRepository.findByUsername(...).ifPresent(...)`, which existed only to have an identity to log — was deleted entirely along with the log call; `logout()` is back to invalidating the session and clearing the security context, nothing more. `SystemLogService` field/import/constructor dependency removed — constructor arity 5 → 4 (`AuthenticationManager`, `UserRepository`, `UserSecurityAnswerRepository`, `SessionAuthenticationHelper`). |
+| `src/test/java/com/example/springboot/service/SystemLogServiceTest.java` | `logActionSavesSystemLog`'s sample action string changed from the now-nonexistent `"User logged in"` to `"Reset password for: registrar"` — a real action `AdminController` still writes — so the test still exercises current, genuine behavior. |
+| `src/main/resources/static/admin.html` | Removed a leftover empty `.page-hero-grid` wrapper `<div>` (and its inner div) from the hero section. The stat cards this wrapper used to hold, `updateStats()` in `admin-users.js`, and the five related CSS rules in `dashboard.css` were **already removed in an earlier, separately-merged session** (2026-09-20, PR #58, branch `admin_stats_and_SR_overhaul`) — confirmed via `git log` and a repo-wide grep for every removed identifier (`hero-stats`, `stat-card`, `stat-label`, `stat-value`, `stat-caption`, `updateStats`) returning zero matches *before* this branch's own work began. `.page-hero-grid` itself is not removed as a class — 13 other pages still use it; only `admin.html`'s now-unused instance of it was cleaned up. The hero is now full-width (eyebrow/title/subtitle only), matching every other dashboard page. |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/test/java/com/example/springboot/controller/AuthControllerWebMvcTest.java` | 3 tests pinning the 2026-09-19 decision that login/logout are not audited: `loginWritesNoSystemLogRow` and `logoutWritesNoSystemLogRow` both assert `verifyNoInteractions(systemLogService)`; `loginStillReturnsUsernameAndRole` confirms the login response contract is unaffected. The logout test deliberately stubs `userRepository.findByUsername("admin")` even though the new code never calls it — a genuine regression pin against the *old* code, which did call it before logging, not a vacuous pass that would succeed against either version. |
+| `src/main/sql/migrations/2026-09-19-purge-login-logout-logs.sql` | Idempotent, data-only migration: `DELETE FROM system_logs WHERE action IN ('User logged in', 'User logged out')`, with pre-flight and post-verification `SELECT COUNT(*)` queries plus a sanity `GROUP BY action`. |
+| `src/main/sql/backup-2026-09-19-pre-log-purge.sql` | Full `mysqldump` of the live `AnihanSRMS` database, taken and verified (122,172 bytes, 21 `CREATE TABLE`, 1 `system_logs` INSERT) immediately before the purge migration ran. Intentionally untracked, per this project's backup-file convention. |
+
+### Live DB Changes (Docker `mysql-server`, DB `AnihanSRMS` — backup taken first)
+Applied `2026-09-19-purge-login-logout-logs.sql`. Pre-purge: **334 total `system_logs`
+rows, 197 of them `action IN ('User logged in', 'User logged out')`**. Post-purge: **137
+total rows, 0 login/logout rows** (334 − 197 = 137, exact match). Re-ran the migration a
+second time to confirm idempotency — 0 further rows deleted, total stayed at 137. Confirmed
+via the post-purge action breakdown that every surviving row is a genuine audited action
+(e.g. "Updated student record: …", "Created new account: …"), with zero "User logged
+in"/"User logged out" entries remaining. **No schema change** — `system_logs`'s columns are
+untouched; this is a data-only migration.
+
+### Verification
+- `./gradlew test` → **BUILD SUCCESSFUL — 385 tests, 0 failures, 0 errors** (higher than
+  the plan's originally-guessed 377 — baseline drift from other work merged into `main`
+  before this branch was created, the same recurring pattern noted in the 2026-09-06 and
+  2026-09-19 sessions above; not a regression introduced here).
+- App booted cleanly against live MySQL (`Started SpringbootApplication in 11.65 seconds`,
+  zero schema-validation errors).
+- Live `curl` verification against the running app + real MySQL: a real login
+  (`admin`/`password123`, succeeded, returned `ROLE_ADMIN`) left `system_logs` unchanged at
+  137; a real logout also left it unchanged at 137; a real still-audited action
+  (`PUT /api/account/details`, a safe no-op re-save of admin's own existing personal
+  details) DID write a fresh row (137 → 138, action "Updated own personal details") —
+  proving the removal was surgical rather than accidentally disabling auditing elsewhere.
+- Static/API-level inspection confirmed: `admin.html` carries zero stat-related markup and
+  a full-width hero; `dashboard.css` carries zero stat rules; `admin-users.js` carries zero
+  `updateStats` references; `logs.html` returns HTTP 200; `GET /api/logs?rangeDays=3000`
+  returns all 138 surviving rows with zero containing "logged in"/"logged out".
+- **Not completed:** an actual rendered-browser walkthrough of `admin.html` (visual hero
+  layout, DataTable rendering, details modal, a clean console) — no Playwright browser
+  bridge extension was available in this environment, a known recurring limitation in this
+  project's history (see the 2026-09-19 ID-photo and 2026-09-20 admin-stats sessions).
+  Flagged as an open item in `activeContext.md`, not silently skipped.
 
 ---
 

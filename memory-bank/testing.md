@@ -38,14 +38,41 @@
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 | `SecurityQuestionServiceTest` | Mockito | 21 | setup (happy path 2 defaults, already-complete throws, duplicate default rejected, custom matching a default word-for-word rejected regardless of case/punctuation, two custom questions allowed, both-fields-set-on-one-slot rejected), replaceAnswers (wrong current password throws with no writes, correct password deletes-then-inserts), lookupByEmail (not found / disabled / locked / setup-incomplete all throw, happy path returns question texts in slot order), verifyAnswers lockout state machine (already-locked rejects immediately without querying answers, correct answer resets the counter, wrong answer increments, 3rd wrong answer locks, 15-minute decay from the first failure in a stale streak), resetPassword (mismatch throws, same-as-current throws, happy path updates password + timestamp) |
+| `AuthControllerWebMvcTest` | WebMvc | 3 | Pins the 2026-09-19 decision that login/logout are NOT audited — `loginWritesNoSystemLogRow` and `logoutWritesNoSystemLogRow` both assert `verifyNoInteractions(systemLogService)`; the logout test deliberately stubs `userRepository.findByUsername("admin")` even though the new code never calls it, so it's a genuine regression pin against the *old* code (which resolved the user via that call before logging), not a vacuous pass; `loginStillReturnsUsernameAndRole` confirms the login response contract survived the removal |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **374 tests, 0 failures,
-0 errors** (2026-09-19, verified against the actual merged code after bringing `main`'s
-13 commits — the ID-photo-to-Registrar feature and the schema.sql/live-DB sync session —
-into `security_questions`). This is the same 374 as the ID-photo branch's own pre-merge
-count, which makes sense: this session's own follow-up commits (the lockout-rollback fix,
-the admin-table/audit-log fixes) only changed existing code and didn't add new test methods
-of their own — see the "Open follow-up" note under `SecurityQuestionServiceTest`'s row above.
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **385 tests, 0
+failures, 0 errors** (2026-09-19, `feature/remove-login-audit-and-admin-stats` branch, the
+remove-login-audit session, includes this session's own +3 `AuthControllerWebMvcTest`
+tests). The plan for this session originally guessed 377 as the expected count; the actual
+number came in higher, which is baseline drift from other work merged into `main` before
+this branch was created — the same class of drift documented several times elsewhere in
+this file's history (e.g. the 2026-09-06 and 2026-09-19 sessions below). Not a regression.
+
+## Live Verification — 2026-09-19 (Login Auditing Removed)
+
+No browser automation was available this session (no Playwright browser bridge extension),
+so verification was done via `curl` against the running app + real MySQL, the same pattern
+used in several prior sessions in this file.
+
+- **Purge counts (live `AnihanSRMS`, backup taken first):** pre-purge **334 total
+  `system_logs` rows, 197 of them login/logout**; post-purge **137 total rows, 0
+  login/logout rows** (334 − 197 = 137, exact match). Re-run of the migration a second time
+  deleted 0 further rows — idempotent.
+- **A real login** (`admin`/`password123`, succeeded, returned `ROLE_ADMIN`) left
+  `system_logs` unchanged at **137** rows.
+- **A real logout** also left `system_logs` unchanged at **137** rows.
+- **A real, still-audited control action** — `PUT /api/account/details`, a safe no-op
+  re-save of admin's own existing personal details — DID write a fresh row (**137 → 138**,
+  action "Updated own personal details"), proving the removal only touched login/logout and
+  did not accidentally disable auditing more broadly.
+- `GET /api/logs?rangeDays=3000` returns all 138 surviving rows with zero containing "logged
+  in"/"logged out"; `admin.html`/`dashboard.css`/`admin-users.js` confirmed clean of every
+  stat-related identifier via static inspection; `logs.html` returns HTTP 200.
+- **Not completed, flagged rather than hidden:** a rendered-browser walkthrough of
+  `admin.html` (hero layout at the new full width, User Directory DataTable rendering, the
+  details modal, a clean console) — no Playwright browser bridge was available in this
+  environment. Recommended as a manual follow-up before merge; see `activeContext.md`'s
+  Open Items.
 
 ## Live Verification — 2026-09-19 (Security Questions / Forgot Password)
 

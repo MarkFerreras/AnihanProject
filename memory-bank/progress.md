@@ -6,7 +6,66 @@
 - **Task:** Make classes filterable by year (semester) for both the Registrar and the Trainer.
 - **Implementation:** Added dynamic distinct semester dropdowns replacing static toggles. Updated Spring Data queries, controllers, and Datatables AJAX fetching.
 
+### Remove Login/Logout Auditing + Admin Dashboard Statistics (Completed - September 19, 2026)
+- **Task:** Stop writing `system_logs` rows for routine login/logout (the largest single
+  category of row in the table, with the least investigative value of anything it records),
+  purge the 197 historical rows already in the live database, and finish the admin
+  dashboard statistics removal that a prior session started (a leftover empty wrapper div
+  still remained in `admin.html`).
+- **Backend:** `AuthController.login()`/`logout()` no longer call
+  `systemLogService.logAction(...)` — both calls removed. `logout()`'s identity-lookup block
+  (`userRepository.findByUsername(...)`, which existed only to have something to log) was
+  deleted along with it, so `logout()` is back to just invalidating the session and clearing
+  the security context. `SystemLogService` is no longer injected into `AuthController` at
+  all — constructor 5 args → 4 (`AuthenticationManager`, `UserRepository`,
+  `UserSecurityAnswerRepository`, `SessionAuthenticationHelper`). New
+  `AuthControllerWebMvcTest.java` (3 tests) pins the removal with
+  `verifyNoInteractions(systemLogService)` on both endpoints — the logout test specifically
+  stubs `userRepository.findByUsername("admin")` even though the new code never calls it, so
+  the test is a genuine regression pin against the *old* code, not a vacuous pass that would
+  succeed either way. `SystemLogServiceTest.logActionSavesSystemLog`'s sample action string
+  was changed from the now-nonexistent `"User logged in"` to `"Reset password for:
+  registrar"`, a real action `AdminController` still writes.
+- **Frontend:** `admin.html` had an empty, leftover `.page-hero-grid` wrapper `<div>` still
+  sitting in the hero section. **This is the only frontend change on this branch** — the
+  actual Total Users/Admins/Registrars/Trainers stat cards, `admin-users.js`'s
+  `updateStats()` helper, and the five related CSS rules in `dashboard.css` had **already
+  been removed in an earlier, separately-merged session** (2026-09-20, PR #58, branch
+  `admin_stats_and_SR_overhaul`) before this branch was even created — confirmed via git log
+  and via a repo-wide grep for every removed identifier returning zero matches before this
+  branch's own work began. `admin.html`'s hero is now the eyebrow/title/subtitle spanning
+  full width, matching every other dashboard page's plain hero pattern.
+- **Data:** New migration `src/main/sql/migrations/2026-09-19-purge-login-logout-logs.sql`
+  — idempotent, data-only `DELETE FROM system_logs WHERE action IN ('User logged in', 'User
+  logged out')` with pre/post verification counts. Applied to the live `AnihanSRMS`
+  database after a full `mysqldump` backup
+  (`src/main/sql/backup-2026-09-19-pre-log-purge.sql`, 122,172 bytes, taken and verified
+  first): **334 total rows → 137 total rows, exactly 197 login/logout rows purged.** Re-run
+  a second time to confirm idempotency — 0 further rows deleted, stayed at 137. Every
+  remaining row confirmed to be a genuine audited action, zero login/logout entries left.
+  **No schema change** — this is a data-only migration against the existing `system_logs`
+  table.
+- **Verified:** `./gradlew test` → **385 tests, 0 failures, 0 errors** (higher than the
+  plan's originally-guessed 377 — baseline drift from other work merged into `main` before
+  this branch was created, a known recurring pattern in this project's history, not a
+  regression). App booted cleanly against live MySQL. Live curl verification: a real login
+  and a real logout both left `system_logs` unchanged at 137; a real still-audited action
+  (`PUT /api/account/details`) DID write a fresh row (137 → 138), proving the removal was
+  surgical. Static/API-level checks confirmed `admin.html`/`dashboard.css`/`admin-users.js`
+  are clean of every stat-related identifier and that `/api/logs` returns zero
+  "logged in"/"logged out" rows among the surviving 138.
+- **Not completed:** a rendered-browser walkthrough of `admin.html` (hero layout,
+  DataTable, details modal, console cleanliness) — no Playwright browser bridge was
+  available this session, a recurring gap in this project's environment history.
+- **Branch:** `feature/remove-login-audit-and-admin-stats`. Open: PR to main (user approval
+  required); keep the pre-purge backup until this change is accepted into use; a manual
+  browser walkthrough of `admin.html` is still recommended.
+
 ### Student Record Edit Form: Category Tabs + Per-Section Edit Lock (Completed, pending live click-through - September 20, 2026)
+- **Task:** The registrar's Student Record edit page was one long, disorganized 12-section /
+  65+ field scroll. Reorganize it into categories the way the student portal wizard already
+  groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
+  category read-only until the registrar clicks an "Edit Section" button for it.
   65+ field scroll. Reorganize it into categories the way the student portal wizard already
   groups its own fields, viewed/edited in place via tabs (no new page, no modal), with each
   category read-only until the registrar clicks an "Edit Section" button for it.

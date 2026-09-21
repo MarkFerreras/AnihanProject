@@ -4,6 +4,72 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-19 - Login/Logout Are Not Audited, and Historical Rows Were Purged
+
+**Decision:** `AuthController` no longer writes a `system_logs` row on either a successful
+login or a logout — both `systemLogService.logAction(...)` calls were removed, and
+`logout()` was simplified back down to "invalidate the session, clear the security
+context" with no identity-lookup step (that lookup existed only to have something to log).
+`SystemLogService` is no longer a dependency of `AuthController` at all (constructor
+5 args → 4). A new one-time migration,
+`src/main/sql/migrations/2026-09-19-purge-login-logout-logs.sql`, deleted every existing
+`system_logs` row whose `action` was `'User logged in'` or `'User logged out'`. Applied to
+the live database: **334 total rows → 137 total rows (197 purged)**, re-run confirmed
+idempotent (0 further rows on the second pass).
+
+**Why:** These two action strings were, by a wide margin, the single largest category of
+row in `system_logs` — every ordinary sign-in/sign-out cycle wrote one each, so they
+dominated the table's growth while carrying the least investigative value of anything the
+audit log records: a login/logout event says nothing about *what* a user did once inside,
+which is the actual question `system_logs` exists to answer (account changes, record edits,
+document uploads, grade updates). Keeping them made the log noisier to read and the table
+grow faster for no corresponding audit benefit.
+
+**The rule this knowingly breaks:** the 2026-04-14 decision that `system_logs` is
+append-only — "never update or delete log rows" is restated as a hard rule in
+`CLAUDE.md` itself. This purge is a deliberate, user-approved, one-time exception scoped to
+exactly two action strings, not a precedent for deleting audit history in general. It was
+made safe rather than casual: a full `mysqldump` backup
+(`src/main/sql/backup-2026-09-19-pre-log-purge.sql`, taken before the migration ran) is kept
+alongside the change specifically so the original 334-row state is recoverable if this
+decision is ever revisited, and the migration itself only ever matches on the two literal
+action strings the removed code used to write — it cannot reach any other row no matter
+how it's re-run.
+
+**Alternative rejected:** filtering the two action strings out at query time (in
+`SystemLogService.getLogs()`/the export path) instead of removing the write and purging the
+history. Rejected because it leaves the underlying problem in place — the table keeps
+growing with rows nobody will ever want to see — and it adds permanent, easy-to-forget
+filter logic to every read path instead of a one-time cleanup at the source.
+
+**Pinned by:** `AuthControllerWebMvcTest` (new) — `verifyNoInteractions(systemLogService)`
+on both the login and logout endpoints, with the logout test deliberately stubbing
+`userRepository.findByUsername("admin")` so it's a genuine regression pin against the old
+code (which resolved the user via that exact call before logging), not a vacuous pass.
+
+## 2026-09-19 - Admin Dashboard Stat Cards Removed
+
+**Decision:** The Total Users / Admins / Registrars / Trainers stat-card panel is gone from
+the admin dashboard hero, which is now full-width (eyebrow/title/subtitle only, matching
+every other dashboard page's plain hero pattern).
+
+**Scope note — most of this had already happened before this branch existed:** the actual
+stat cards, `admin-users.js`'s `updateStats()` helper, and the five dead CSS rules
+(`.hero-stats`, `.stat-card`, `.stat-label`, `.stat-value`, `.stat-caption` + 2 responsive
+overrides) were removed in an earlier, separately-merged session (2026-09-20, PR #58,
+branch `admin_stats_and_SR_overhaul` — see that session's own entries below). This branch
+only found and removed a leftover empty `.page-hero-grid` wrapper `<div>` (and its inner
+div) still sitting in `admin.html`'s hero section, orphaned once its stat-card contents had
+already been deleted — confirmed via grep for `hero-stats`/`stat-card`/`updateStats` etc.
+returning zero matches *before* this branch's own work began.
+
+**Why:** the counts the panel showed were always recomputable from the User Directory
+DataTable directly below it — the panel restated what the table already made visible, at
+the cost of an extra client-side pass over the same `/api/admin/users` payload on every
+page load. `.page-hero-grid` itself is not deleted as a CSS class — 13 other pages still use
+it for their own two-column hero layouts — only `admin.html`'s now-unnecessary use of it
+was removed.
+
 ## 2026-09-19 - Security Questions: Custom Question Text Stored Plaintext, Not Encrypted
 
 **Decision:** `user_security_answers.custom_question` is plaintext. Only `answer_hash`
