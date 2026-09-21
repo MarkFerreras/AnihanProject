@@ -38,3 +38,6 @@ out/
 
 ### Crash artifacts ###
 *.stackdump
+
+### Playwright MCP test artifacts ###
+.playwright-mcp/

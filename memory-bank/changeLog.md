@@ -1,5 +1,46 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-21 - Follow-Up: admin.html Browser Walkthrough (post-merge)
+**Branch:** `feature/remove-login-audit-and-admin-stats` (PR #59 already merged into `main`
+on 2026-09-21T08:03:37Z; this is a doc-only follow-up on the same branch, no `src/` changes)
+
+### Task
+PR #59 shipped without one item: a real rendered-browser walkthrough of `admin.html` (hero
+layout, DataTable, details modal, console cleanliness) — no Playwright browser bridge was
+available in that session. A Playwright MCP browser bridge became available this session;
+this closes that open item.
+
+### What happened
+Started `./gradlew bootRun` against live MySQL and drove `admin.html` as `admin` via the
+Playwright MCP tools. The first page load rendered the OLD "Total Users / Admins /
+Registrars / Trainers" stat-card hero, which looked like a serious regression since that
+markup was reportedly removed weeks earlier. Diagnosed, not assumed: a `fetch(url, {cache:
+'no-store'})` against the live server returned the clean response with zero stat-card
+markup, and a `grep` across all three on-disk copies of `admin.html`
+(`src/main/resources/static`, `build/resources/main/static`, `bin/main/static`) confirmed
+none contain `hero-stats`/`stat-card`/"Total Users". Root cause: a stale browser HTTP cache
+in that browser profile from earlier testing, not a code issue. A cache-busted navigation
+(`admin.html?cb=1`) rendered the correct page.
+
+### Verified (cache-busted load)
+- Hero: full-width, eyebrow/title/subtitle only, no stat cards, no leftover
+  `.page-hero-grid` gap.
+- User Directory DataTable: all 5 seed accounts render with correct role badges,
+  "Showing 1 to 5 of 5 entries"; search filters correctly (`registrar` → 1/5, cleared → 5/5);
+  the `dataSrc: ''` fix from the 2026-09-20 stat-removal session still works.
+- Details modal: opens with all 10 fields populated (User ID, Username, Email, Role,
+  Last/First/Middle Name, Age, Birthdate, Password Last Changed) plus working View Logs /
+  Edit User links.
+- Zero horizontal overflow at 1280px and 992px.
+- Console clean apart from one pre-existing, unrelated `favicon.ico` 500 (documented as Bug
+  13 in `bugs.md` — `GlobalExceptionHandler`'s missing-route handling; not touched by this
+  branch).
+
+Test server stopped after verification. No files under `src/` changed this session — only
+memory-bank verification records.
+
+---
+
 ## 2026-09-19 - Remove Login/Logout Auditing + Admin Dashboard Statistics
 **Branch:** `feature/remove-login-audit-and-admin-stats`
 
