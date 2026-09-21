@@ -1,5 +1,15 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-09-22 - Client Presentation Readiness Plan Rewrite)
+
+Rewrote `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` on
+`docs/rewrite-client-presentation-plan`. This was planning-only: no application, test, SQL,
+or live-database implementation was performed. The revised plan removes the stale
+`TrainerService` edit, separates five reviewable tasks, adds RED/GREEN coverage for Bugs 12
+and 13, synchronizes all document MIME schema sources, defines a lockout-safe account reset,
+and requires backup-first live MySQL plus role-based browser evidence. Implementation must
+use worktree branch `fix/client-demo-readiness-and-audit`.
+
 ## Latest Session (2026-09-21 - Merge `main` into `feature/class-year-filter`)
 
 ### Scope

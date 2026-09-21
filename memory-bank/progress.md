@@ -2,6 +2,15 @@
 
 ## Recent Sessions (detail)
 
+### Client Presentation Readiness Plan Rewrite (Planned - September 22, 2026)
+- Replaced the draft plan with a compact Superpowers-compatible plan containing required
+  architecture, spec, constraints, review focus, interfaces, RED/GREEN commands, commits,
+  live-DB backup/application, and browser acceptance evidence.
+- Corrected stale/incomplete scope: no `TrainerService` production edit; Bug 12 covers the
+  entity, both schema files, and migration; Bug 13 has a MockMvc regression test; account
+  reset preserves IDs/security answers and clears lockouts.
+- **Status:** plan only. No implementation tasks or tests have been run.
+
 ### Class Management: Year Filter Dropdown for Registrar and Trainer (Completed - September 21, 2026)
 - **Task:** Make classes filterable by year (semester) for both the Registrar and the Trainer.
 - **Implementation:** Added dynamic distinct semester dropdowns replacing static toggles. Updated Spring Data queries, controllers, and Datatables AJAX fetching.
