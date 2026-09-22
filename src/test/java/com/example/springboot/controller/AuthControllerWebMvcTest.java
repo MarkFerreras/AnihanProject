@@ -1,8 +1,10 @@
 package com.example.springboot.controller;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -122,5 +124,12 @@ class AuthControllerWebMvcTest {
                 .andExpect(jsonPath("$.message").value("Logged out successfully"));
 
         verifyNoInteractions(systemLogService);
+    }
+
+    @Test
+    void missingPermittedStaticResourceReturnsJson404() throws Exception {
+        mockMvc.perform(get("/js/does-not-exist.js"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message", containsString("does-not-exist.js")));
     }
 }
