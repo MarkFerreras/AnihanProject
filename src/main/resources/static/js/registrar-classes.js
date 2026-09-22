@@ -14,6 +14,7 @@
     const enrollStudentModal = new bootstrap.Modal(document.getElementById('enrollStudentModal'));
 
     $(document).ready(function () {
+        bindSemesterFilter();
         loadAvailableSemesters();
         loadCurrentSemester();
         setupCreateClass();
@@ -25,29 +26,23 @@
     // Current Semester + Table Init
     // -------------------------------------------------------
 
+    function bindSemesterFilter() {
+        $('#semesterFilterSelect').off('change.semesterFilter').on('change.semesterFilter', function () {
+            reloadTable($(this).val() || null);
+        });
+    }
+
     function loadAvailableSemesters() {
-        $.ajax({
+        return $.ajax({
             url: '/api/registrar/classes/semesters',
             method: 'GET',
             success: function (semesters) {
                 const select = $('#semesterFilterSelect');
-                semesters.forEach(function (sem) {
-                    select.append($('<option>').val(sem).text(sem));
-                });
-                
-                // If we already know the current semester, select it
-                if (currentSemester && semesters.includes(currentSemester)) {
-                    select.val(currentSemester);
-                }
-            }
-        });
-
-        $('#semesterFilterSelect').on('change', function () {
-            const val = $(this).val();
-            if (val === '') {
-                reloadTable(null);
-            } else {
-                reloadTable(val);
+                const selected = select.val();
+                select.find('option:not([value=""])').remove();
+                semesters.forEach(sem => select.append($('<option>').val(sem).text(sem)));
+                if (selected && semesters.includes(selected)) select.val(selected);
+                else if (currentSemester && semesters.includes(currentSemester)) select.val(currentSemester);
             }
         });
     }
@@ -76,7 +71,7 @@
     function initTable(semester) {
         classesTable = $('#classesTable').DataTable({
             ajax: {
-                url: '/api/registrar/classes' + (semester ? '?semester=' + semester : ''),
+                url: '/api/registrar/classes' + (semester ? '?semester=' + encodeURIComponent(semester) : ''),
                 dataSrc: ''
             },
             columns: [
@@ -158,7 +153,7 @@
 
     function reloadTable(semester) {
         if (classesTable) {
-            const url = '/api/registrar/classes' + (semester ? '?semester=' + semester : '');
+            const url = '/api/registrar/classes' + (semester ? '?semester=' + encodeURIComponent(semester) : '');
             classesTable.ajax.url(url).load();
         }
     }
@@ -198,6 +193,7 @@
                 success: function () {
                     createClassModal.hide();
                     classesTable.ajax.reload(null, false);
+                    loadAvailableSemesters();
                 },
                 error: function (xhr) {
                     const msg = xhr.responseJSON?.message || 'Failed to create class.';

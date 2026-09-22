@@ -351,4 +351,31 @@ class TrainerServiceTest {
                 () -> service.getStudentsForClass(1));
         assertTrue(ex.getMessage().toLowerCase().contains("not assigned"));
     }
+
+    private SchoolClass classForYear(int id, String year) {
+        Section section = new Section();
+        section.setSectionCode("SEC-" + year);
+        section.setSection("Section " + year);
+        Subject subject = new Subject();
+        subject.setSubjectCode("SUB-" + year);
+        subject.setSubjectName("Subject " + year);
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setClassId(id);
+        schoolClass.setSection(section);
+        schoolClass.setSubject(subject);
+        schoolClass.setSemester(year);
+        return schoolClass;
+    }
+
+    @Test
+    void getMyClassesFiltersByExplicitSemester() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42))
+                .thenReturn(List.of(classForYear(1, "2025"), classForYear(2, "2026")));
+
+        List<TrainerClassResponse> result = service.getMyClasses("2026");
+
+        assertEquals(1, result.size());
+        assertEquals("2026", result.getFirst().semester());
+    }
 }

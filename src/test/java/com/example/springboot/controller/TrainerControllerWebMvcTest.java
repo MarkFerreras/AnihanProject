@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -125,5 +126,33 @@ class TrainerControllerWebMvcTest {
 
         mvc.perform(get("/api/trainer/classes/99/students"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getAvailableSemestersReturnsAssignedYears() throws Exception {
+        when(service.getAvailableSemesters()).thenReturn(List.of("2026", "2025"));
+        mvc.perform(get("/api/trainer/classes/semesters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("2026"))
+                .andExpect(jsonPath("$[1]").value("2025"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getMyClassesPassesExplicitSemesterToService() throws Exception {
+        when(service.getMyClasses("2026")).thenReturn(List.of());
+        mvc.perform(get("/api/trainer/classes").param("semester", "2026"))
+                .andExpect(status().isOk());
+        verify(service).getMyClasses("2026");
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getMyClassesPassesBlankSemesterToService() throws Exception {
+        when(service.getMyClasses("")).thenReturn(List.of());
+        mvc.perform(get("/api/trainer/classes").param("semester", ""))
+                .andExpect(status().isOk());
+        verify(service).getMyClasses("");
     }
 }
