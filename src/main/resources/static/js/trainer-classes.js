@@ -49,25 +49,28 @@ $(function () {
     }
 
     function loadAvailableSemesters() {
-        $.ajax({
+        return $.ajax({
             url: '/api/trainer/classes/semesters',
             method: 'GET',
             success: function (semesters) {
                 const select = $('#semesterFilterSelect');
-                semesters.forEach(function (sem) {
-                    select.append($('<option>').val(sem).text(sem));
-                });
+                const selected = select.val();
+                select.find('option:not([value=""])').remove();
+                semesters.forEach(sem => select.append($('<option>').val(sem).text(sem)));
+                if (selected && semesters.includes(selected)) select.val(selected);
             }
-        });
-
-        $('#semesterFilterSelect').on('change', function () {
-            const val = $(this).val();
-            const url = val === '' ? '/api/trainer/classes' : '/api/trainer/classes?semester=' + val;
-            classesTable.ajax.url(url).load();
         });
     }
 
-    loadAvailableSemesters();
+    function bindSemesterFilter() {
+        $('#semesterFilterSelect').off('change.semesterFilter').on('change.semesterFilter', function () {
+            const semester = $(this).val();
+            const url = semester
+                ? '/api/trainer/classes?semester=' + encodeURIComponent(semester)
+                : '/api/trainer/classes';
+            classesTable.ajax.url(url).load();
+        });
+    }
 
     classesTable = $('#classesTable').DataTable({
         ajax: {
@@ -97,6 +100,9 @@ $(function () {
         pageLength: 25,
         language: { emptyTable: 'No classes assigned.' }
     });
+
+    bindSemesterFilter();
+    loadAvailableSemesters();
 
     $('#classesTable tbody').on('click', '.view-students-btn', function () {
         const row = classesTable.row($(this).closest('tr')).data();

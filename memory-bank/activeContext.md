@@ -1,6 +1,111 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-22 - Interim Client Demo Stability Plan Rewrite)
+## Latest Session (2026-09-22 - Interim Client Demo Stability Plan Execution)
+
+Executed `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` in full, via
+`superpowers:subagent-driven-development` (fresh implementer subagent per task, two-stage
+spec-compliance + code-quality review after each). All 5 tasks complete.
+
+### Active Branch
+`fix/client-demo-readiness-and-audit`, in an isolated worktree at
+`.claude/worktrees/fix+client-demo-readiness-and-audit/` (branched from `main` at
+`210d3e4`, renamed from the harness's auto-generated `worktree-fix+...` name to match the
+plan's required branch name). **Not merged to `main` yet** — awaiting the final whole-branch
+review and `superpowers:finishing-a-development-branch`.
+
+### What changed (commits, in order)
+1. `bf7a105` — `fix: stabilize class year filters` (Task 1: characterization tests for the
+   already-merged semester-filter backend + idempotent frontend rebind/dedupe fixes in
+   `registrar-classes.js`/`trainer-classes.js`).
+2. `7ebce8d` — `fix: widen document MIME type storage` (Task 2 / Bug 12: `documents.file_type`
+   50→100 chars across `Document.java`, `schema.sql`, `AnihanSRMS.sql` + new migration).
+3. `087e49e` — `fix: return 404 for missing resources` (Task 3 / Bug 13: `NoResourceFoundException`
+   handler in `GlobalExceptionHandler`).
+4. `1875db1` — `chore: add fallback demo accounts` (Task 4: insert-only `seed-accounts.sql` +
+   regression test; NOT run against live DB this session since all 3 accounts already existed).
+
+### Live database (Task 5)
+- **Backup taken first:** `C:\tmp\anihan-client-demo\pre-stability.sql` (101,436 bytes, 21
+  `CREATE TABLE` statements verified) — kept per this project's standard practice until this
+  branch has been in use long enough to be confident in it.
+- **Migration applied and verified:** `2026-09-22-widen-documents-file-type.sql` →
+  `information_schema.COLUMNS` confirms `documents.file_type` is now `varchar(100)`,
+  `IS_NULLABLE=NO`.
+- **Demo accounts:** `admin`, `registrar`, `trainer` all already existed before this session
+  (`ROLE_ADMIN`/`ROLE_REGISTRAR`/`ROLE_TRAINER`, all `enabled=1`) — per the plan's own
+  decision, `seed-accounts.sql` was correctly **not** executed.
+- **One real, incidental account change:** the `trainer` seed account had never completed
+  its mandatory first-login security-question setup (a pre-existing, unrelated gate from an
+  earlier-shipped feature) — this blocked reaching `trainer-classes.html` for the smoke
+  test. Completed it live (2 real security questions + answers set), the same way a prior
+  session (2026-09-19) did for `registrar` in an analogous situation — this is genuine
+  onboarding progress, not test data, and was left in place. No other account data was
+  touched; this does not violate the "preserve existing security answers" constraint since
+  `trainer` had zero rows in `user_security_answers` before this session (only additions,
+  no modifications/deletions to any existing row for any account).
+
+### Automated verification
+`./gradlew clean test` → **BUILD SUCCESSFUL — 393 tests, 0 failures, 0 errors, 0 skipped**
+(exact count from the generated JUnit XML reports, not the historical 385/391/392 counts
+from intermediate points in this session).
+
+### Live browser/API stability smoke matrix — all passed
+- **Public:** `GET /js/does-not-exist.js` → `404 {"message":"Resource not found:
+  js/does-not-exist.js"}` (was 500 before Task 3).
+- **Admin:** `admin`/`password123` → `admin.html`; User Directory DataTable renders all 5
+  accounts ("Showing 1 to 5 of 5 entries"); `logs.html` → `GET /api/logs?rangeDays=7` → 200.
+  Console clean except the now-correctly-404ing `favicon.ico` (was a 500, is now direct live
+  proof Bug 13's fix also closed that long-standing side issue) and an expected 401 on
+  `/api/auth/me` pre-login.
+- **Registrar/Classes:** login succeeds; semester dropdown shows exactly one `2026` option
+  (no duplicates); switching to "All Semesters" then back to "2026" fired exactly one new
+  `/api/registrar/classes` request per change (verified via the Playwright network-request
+  log, not just visual inspection) — confirms Task 1's idempotency fix holds live, not just
+  in unit tests.
+- **Registrar/Documents:** uploaded one real `.docx` (`application/vnd.openxmlformats-
+  officedocument.wordprocessingml.document`, 71 chars) and one real `.xlsx`
+  (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 65 chars) to student
+  `SR20260002` via `POST /api/registrar/documents` → both HTTP 201, no truncation error;
+  confirmed via direct `SELECT ... LENGTH(file_type)` against the live table that both MIME
+  strings persisted at full length. Both temporary documents (`document_id` 11, 12) deleted
+  afterward via `DELETE /api/registrar/documents/{id}` → 204, confirmed removed. Generation
+  page was not opened, per the plan's exclusion.
+- **Trainer:** `trainer`/`password123` (after completing security-question setup, see above)
+  → `trainer-classes.html`; semester dropdown deduplicated correctly; filter change fired
+  exactly one new request; "Input Grades" opened the grade modal showing the real enrolled
+  roster for `COOK-101`/TEST-T2. **No grades were entered or saved** — modal was closed
+  without submitting, per the plan's explicit instruction.
+- Playwright's native file-chooser (`DOM.setFileInputFiles`) was blocked by a CDP permission
+  in this environment ("Not allowed") — worked around by uploading via `curl` multipart
+  directly against the real `POST /api/registrar/documents` endpoint using a fresh curl-based
+  login as `registrar`, which exercises the identical `DocumentService.upload()` code path
+  Bug 12 affects. This is noted here as an environment limitation for future sessions
+  attempting file-upload browser automation, not a gap in what was actually verified.
+- Test app server (`./gradlew bootRun`) was stopped after verification — the background task
+  runner's own stop did not actually kill the JVM holding port 8080 (a real gotcha worth
+  remembering for next time: `TaskStop` on the shell task that launched `bootRun` reported
+  success but the port stayed bound), so the underlying process (PID found via `netstat`) had
+  to be force-stopped directly. Confirmed via a follow-up `curl` timeout that port 8080 was
+  actually free afterward.
+
+### Unresolved interim-review risk
+- **This branch is not yet merged to `main`.** The live database has already been migrated
+  (widened `documents.file_type`) — this is a forward-compatible, low-risk change (existing
+  data unaffected, only future truncation is prevented), but it means `main`'s own
+  `schema.sql`/`AnihanSRMS.sql`/`Document.java` are now one step behind what's actually
+  running live until this branch merges. Low risk given the change is additive/widening only,
+  but flagged so a future session doesn't get confused finding the live DB "ahead of" `main`.
+- A final whole-branch code review (per `superpowers:subagent-driven-development`'s closing
+  step) and `superpowers:finishing-a-development-branch` still need to run before this is
+  considered done.
+- Document generation, generated-document DOCX conversion, and export behavior remain
+  explicitly untouched and unverified by this session, per the plan's stated scope boundary —
+  Bug 10 (grades don't appear on generated documents) is unrelated to this session's fixes
+  and remains open.
+
+---
+
+## Previous Session (2026-09-22 - Interim Client Demo Stability Plan Rewrite)
 
 Rewrote `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` on
 `docs/rewrite-client-presentation-plan`. This was planning-only: no application, test, SQL,
@@ -12,7 +117,7 @@ and 13, synchronizes all uploaded-document MIME schema sources, provides insert-
 and requires backup-first live MySQL plus role-based browser evidence. Implementation must
 use worktree branch `fix/client-demo-readiness-and-audit`.
 
-## Latest Session (2026-09-21 - Merge `main` into `feature/class-year-filter`)
+## Previous Session (2026-09-21 - Merge `main` into `feature/class-year-filter`)
 
 ### Scope
 Unblock work on the new class-year-filter branch by finishing an in-progress merge of

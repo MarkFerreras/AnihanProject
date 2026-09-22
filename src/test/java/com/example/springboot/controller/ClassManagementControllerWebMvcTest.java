@@ -16,6 +16,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -89,5 +91,14 @@ class ClassManagementControllerWebMvcTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"trainerId\":10}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void getAvailableSemestersReturnsYears() throws Exception {
+        when(service.getAvailableSemesters()).thenReturn(List.of("2026", "2025"));
+        mvc.perform(get("/api/registrar/classes/semesters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("2026"));
     }
 }

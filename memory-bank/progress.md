@@ -2,6 +2,47 @@
 
 ## Recent Sessions (detail)
 
+### Interim Client Demo Stability Plan Execution (Completed - September 22, 2026)
+- **Task:** Execute `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` in
+  full via `superpowers:subagent-driven-development` — fresh implementer subagent per task,
+  spec-compliance review then code-quality review after each, on branch
+  `fix/client-demo-readiness-and-audit`.
+- **Task 1 (class-year filter):** Added characterization tests pinning the already-merged
+  semester-filter backend contract (`GET /api/{registrar|trainer}/classes/semesters`,
+  `semester` query param) — zero production backend change. Fixed two real frontend
+  lifecycle bugs: `registrar-classes.js` and `trainer-classes.js`'s semester-dropdown
+  loaders were not idempotent (repeat calls would duplicate `<option>`s and stack duplicate
+  change handlers). Now namespaced (`change.semesterFilter`) and dedupe options before
+  re-appending. Commit `bf7a105`.
+- **Task 2 (Bug 12):** Widened `documents.file_type` from `VARCHAR(50)` to `VARCHAR(100)`
+  across `Document.java`, `schema.sql`, `AnihanSRMS.sql`, plus a new migration
+  `2026-09-22-widen-documents-file-type.sql`. Pinned by a new `SchemaContractTest`. Commit
+  `7ebce8d`.
+- **Task 3 (Bug 13):** Added `@ExceptionHandler(NoResourceFoundException.class)` to
+  `GlobalExceptionHandler`, returning JSON 404 instead of the old generic 500 for missing
+  static resources under an already-`permitAll()` path. `SecurityConfig` untouched. Commit
+  `087e49e`.
+- **Task 4 (fallback accounts):** Added `src/main/sql/seed-accounts.sql` — insert-only,
+  `WHERE NOT EXISTS`-guarded per-account inserts for `admin`/`registrar`/`trainer`
+  (`password123`), never updates or deletes existing rows. Pinned by a second
+  `SchemaContractTest` method. Commit `1875db1`.
+- **Task 5 (live verification):** Backed up live `AnihanSRMS`
+  (`C:\tmp\anihan-client-demo\pre-stability.sql`, 101,436 bytes), applied the Task 2
+  migration live (confirmed `varchar(100)`), confirmed all 3 demo accounts already existed
+  (fallback script correctly not run), ran `./gradlew clean test` → **393 tests, 0
+  failures**, then ran the full role-based browser/API stability smoke matrix against a live
+  `bootRun` instance — public 404 check, Admin, Registrar/Classes (filter idempotency
+  confirmed live via network-request counting), Registrar/Documents (real docx/xlsx upload
+  round-trip against the live DB confirming Bug 12's fix, then cleaned up), and Trainer
+  (grade modal opens, no grades saved). All passed. See `activeContext.md` for full detail
+  including the incidental completion of the `trainer` account's first-login security-
+  question setup (required to reach the trainer smoke test; genuine onboarding, not test
+  data) and two environment gotchas (Playwright file-chooser blocked by CDP permission,
+  worked around via curl; `bootRun`'s background task didn't release port 8080 on stop and
+  needed a direct process kill).
+- **Not yet done:** final whole-branch code review and
+  `superpowers:finishing-a-development-branch` (merge/PR decision).
+
 ### Interim Client Demo Stability Plan Rewrite (Planned - September 22, 2026)
 - Replaced the draft plan with a compact Superpowers-compatible plan containing required
   architecture, spec, constraints, review focus, interfaces, RED/GREEN commands, commits,

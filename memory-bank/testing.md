@@ -38,15 +38,83 @@
 | `StudentNumberImportServiceTest` | Mockito | 22 | Every outcome (assign, overwrite on/off, in-use conflict, unchanged, unknown reference, duplicate-in-file, invalid format, too long, blank, name mismatch); preview writes nothing; apply writes only applicable rows; trimming; counts; file guards; xlsx upload |
 | `StudentNumberControllerWebMvcTest` | WebMvc | 13 | Export per format + attachment header + log, unsupported format 400, inverted year range 400, preview 200 with **no log written**, overwrite flag forwarded, parse failure → 400 with message, apply logs per-row + summary, no per-row log for skipped rows, RBAC (403 trainer / 401 anonymous on both export and apply) |
 | `SecurityQuestionServiceTest` | Mockito | 21 | setup (happy path 2 defaults, already-complete throws, duplicate default rejected, custom matching a default word-for-word rejected regardless of case/punctuation, two custom questions allowed, both-fields-set-on-one-slot rejected), replaceAnswers (wrong current password throws with no writes, correct password deletes-then-inserts), lookupByEmail (not found / disabled / locked / setup-incomplete all throw, happy path returns question texts in slot order), verifyAnswers lockout state machine (already-locked rejects immediately without querying answers, correct answer resets the counter, wrong answer increments, 3rd wrong answer locks, 15-minute decay from the first failure in a stale streak), resetPassword (mismatch throws, same-as-current throws, happy path updates password + timestamp) |
-| `AuthControllerWebMvcTest` | WebMvc | 3 | Pins the 2026-09-19 decision that login/logout are NOT audited — `loginWritesNoSystemLogRow` and `logoutWritesNoSystemLogRow` both assert `verifyNoInteractions(systemLogService)`; the logout test deliberately stubs `userRepository.findByUsername("admin")` even though the new code never calls it, so it's a genuine regression pin against the *old* code (which resolved the user via that call before logging), not a vacuous pass; `loginStillReturnsUsernameAndRole` confirms the login response contract survived the removal |
+| `AuthControllerWebMvcTest` | WebMvc | 4 | Pins the 2026-09-19 decision that login/logout are NOT audited — `loginWritesNoSystemLogRow` and `logoutWritesNoSystemLogRow` both assert `verifyNoInteractions(systemLogService)`; the logout test deliberately stubs `userRepository.findByUsername("admin")` even though the new code never calls it, so it's a genuine regression pin against the *old* code (which resolved the user via that call before logging), not a vacuous pass; `loginStillReturnsUsernameAndRole` confirms the login response contract survived the removal; **+2026-09-22:** `missingPermittedStaticResourceReturnsJson404` pins Bug 13's fix — confirmed RED (500) before the `NoResourceFoundException` handler was added, GREEN after |
+| `TrainerControllerWebMvcTest` (2026-09-22 additions) | WebMvc | +3 | `getAvailableSemestersReturnsAssignedYears`, `getMyClassesPassesExplicitSemesterToService`, `getMyClassesPassesBlankSemesterToService` — characterization tests pinning the already-merged semester-filter backend contract, added ahead of the frontend idempotency fix in `trainer-classes.js` |
+| `ClassManagementControllerWebMvcTest` (2026-09-22 addition) | WebMvc | +1 | `getAvailableSemestersReturnsYears` — same characterization purpose, registrar side |
+| `TrainerServiceTest` (2026-09-22 addition) | Mockito | +1 | `getMyClassesFiltersByExplicitSemester` — confirms `getMyClasses(String semester)` genuinely filters by year (not a tautology); zero production code touched |
+| `SchemaContractTest` | Pure unit | 2 | `documentFileTypeSupportsOpenXmlMimeTypesEverywhere` (Bug 12 fix: pins `Document.fileType`'s `@Column(length=100)` + both SQL schema files' `file_type VARCHAR(100) NOT NULL` text + the migration file's existence); `demoAccountSeedOnlyInsertsMissingUsers` (pins `seed-accounts.sql`'s insert-only contract via text-substring checks — present: `WHERE NOT EXISTS`, `TIMESTAMPDIFF(YEAR`, all 3 usernames; absent: `UPDATE users`, `DELETE FROM users`, `DELETE FROM user_security_answers`, `ON DUPLICATE KEY UPDATE`) |
 
-**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **385 tests, 0
-failures, 0 errors** (2026-09-19, `feature/remove-login-audit-and-admin-stats` branch, the
-remove-login-audit session, includes this session's own +3 `AuthControllerWebMvcTest`
-tests). The plan for this session originally guessed 377 as the expected count; the actual
-number came in higher, which is baseline drift from other work merged into `main` before
-this branch was created — the same class of drift documented several times elsewhere in
-this file's history (e.g. the 2026-09-06 and 2026-09-19 sessions below). Not a regression.
+**Latest full-suite result:** `./gradlew clean test` → BUILD SUCCESSFUL — **393 tests, 0
+failures, 0 errors, 0 skipped** (2026-09-22, `fix/client-demo-readiness-and-audit` branch,
+the interim client-demo-stability-plan execution session; 385 baseline + 1 `AuthController
+WebMvcTest` + 3 `TrainerControllerWebMvcTest` + 1 `ClassManagementControllerWebMvcTest` + 1
+`TrainerServiceTest` + 2 `SchemaContractTest` = 393, exact match, no unexplained drift).
+
+## Live Verification — 2026-09-22 (Interim Client Demo Stability Plan Execution)
+
+Full backup-first, migrate, verify-live-MySQL, role-based-browser-smoke cycle for Tasks 1–5
+of `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md`, executed against the
+Docker `mysql-server` container (`AnihanSRMS`) and a locally-run `./gradlew bootRun` instance.
+
+**Commands run, in order:**
+```bash
+docker exec mysql-server mysqldump -uroot -pmy_password --databases AnihanSRMS --result-file=/tmp/pre-stability.sql
+docker cp mysql-server:/tmp/pre-stability.sql C:\tmp\anihan-client-demo\pre-stability.sql
+docker cp src/main/sql/migrations/2026-09-22-widen-documents-file-type.sql mysql-server:/tmp/widen-documents-file-type.sql
+docker exec mysql-server sh -c "mysql -uroot -pmy_password < /tmp/widen-documents-file-type.sql"
+docker exec mysql-server mysql -uroot -pmy_password AnihanSRMS -e "SELECT username, role, enabled FROM users WHERE username IN ('admin','registrar','trainer') ORDER BY username;"
+./gradlew clean test
+./gradlew bootRun   # backgrounded; stopped after verification
+```
+
+**Backup:** `C:\tmp\anihan-client-demo\pre-stability.sql`, 101,436 bytes, 21 `CREATE TABLE`
+statements confirmed present before any mutation.
+
+**Migration verification (live MySQL, `information_schema.COLUMNS`):**
+```
+COLUMN_TYPE   IS_NULLABLE
+varchar(100)  NO
+```
+
+**Account check (live MySQL):** all three demo accounts already existed
+(`admin`/`ROLE_ADMIN`, `registrar`/`ROLE_REGISTRAR`, `trainer`/`ROLE_TRAINER`, all
+`enabled=1`) — `seed-accounts.sql` correctly **not** executed, per the plan's decision to
+only run it when an account is missing.
+
+**Automated suite:** `./gradlew clean test` → **BUILD SUCCESSFUL, 393 tests, 0 skipped, 0
+failures, 0 errors** (summed from the generated `build/test-results/test/TEST-*.xml`
+reports, not read off console text alone).
+
+**Role-based browser/API stability smoke matrix (Playwright MCP browser bridge + curl for
+the one endpoint the browser sandbox couldn't drive):**
+
+| Role/area | Result |
+|---|---|
+| Public | `GET /js/does-not-exist.js` → `404 {"message":"Resource not found: js/does-not-exist.js"}` (was a 500 before this session's Bug 13 fix). |
+| Admin | `admin`/`password123` → `admin.html`; User Directory DataTable shows all 5 accounts ("Showing 1 to 5 of 5 entries"); `logs.html` → `GET /api/logs?rangeDays=7` → 200. Console clean except the expected pre-login 401 on `/api/auth/me` and `favicon.ico`, which now correctly 404s (previously a documented 500 — direct live confirmation the Bug 13 fix also closed that separately-known issue). |
+| Registrar/Classes | Login succeeds; semester `<select>` shows exactly one `2026` option (no duplicates); switching to "All Semesters" then explicitly back to "2026" fired **exactly one** new `/api/registrar/classes` request per change, confirmed via Playwright's network-request log (`browser_network_requests`), not just visual inspection — proves Task 1's idempotency fix holds in a real browser, not only in the unit tests. |
+| Registrar/Documents | One real `.docx` (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`, 71 chars) and one real `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 65 chars) uploaded to `SR20260002` via `POST /api/registrar/documents` → both **HTTP 201**, no truncation error. Verified via direct `SELECT document_id, file_type, LENGTH(file_type) FROM documents WHERE document_id IN (11,12)` that both MIME strings persisted at full, untruncated length. Generation page was not opened, per the plan's exclusion. **Cleanup:** both deleted via `DELETE /api/registrar/documents/{id}` → 204 each; re-queried, `COUNT(*) = 0` for those IDs — confirmed removed, DB back to pre-test document state. |
+| Trainer | `trainer`/`password123` → redirected to the (pre-existing, unrelated) mandatory first-login security-question setup page, since this seed account had never completed it; completed with 2 real Q&A pairs, then reached `trainer-classes.html`. Semester dropdown deduplicated correctly; filter change fired exactly one new `/api/trainer/classes` request. "Input Grades" opened the grade modal with the real enrolled roster for `COOK-101`/section `TEST-T2`. **No grades were entered or saved** — modal closed without submitting, per the plan's explicit instruction. |
+
+**Console check (final):** no unexpected errors across the whole session — only the expected
+pre-login 401s on `/api/auth/me`, the now-correctly-404ing `favicon.ico`, and one unrelated
+browser-extension (Grammarly) permissions-policy warning.
+
+**Two environment gotchas worth remembering for future sessions:**
+1. Playwright MCP's native file chooser (`DOM.setFileInputFiles`) returned a CDP "Not
+   allowed" error in this environment — worked around by uploading via `curl` multipart
+   directly against the real `POST /api/registrar/documents` endpoint using a fresh
+   curl-based login as `registrar`, which exercises the identical `DocumentService.upload()`
+   code path Bug 12 affects, so the verification is still against real backend behavior.
+2. Stopping the `./gradlew bootRun` background shell task via `TaskStop` reported success
+   but did **not** actually release port 8080 (a lingering JVM process). Had to find the PID
+   via `netstat -ano | grep :8080` and force-stop it directly; a follow-up `curl` timeout
+   confirmed the port was genuinely free afterward. Worth checking port liveness after
+   stopping `bootRun`, not just trusting the stop confirmation.
+
+**Not verified this session (explicitly out of scope per the plan):** document generation,
+generated-document DOCX conversion, and export behavior. Bug 10 (grades don't appear on
+generated documents) remains open and unrelated to this session's fixes.
 
 ## Live Verification — 2026-09-19 (Login Auditing Removed)
 

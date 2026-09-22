@@ -1,6 +1,6 @@
 # Known Bugs & Technical Debt — Anihan SRMS
 
-> **Last updated:** September 19, 2026
+> **Last updated:** September 22, 2026
 
 ## Fixed Bugs (one-line summary)
 
@@ -15,10 +15,30 @@
 
 ## Open Bugs
 
-### Bug 12 — `documents.file_type VARCHAR(50)` too short for the docx/xlsx MIME strings the code itself declares 🔴
-- **Severity:** High (uploads silently fail against real MySQL) · **Status:** Open ·
+### Bug 12 — `documents.file_type VARCHAR(50)` too short for the docx/xlsx MIME strings the code itself declares ✅ RESOLVED
+- **Severity:** was High (uploads silently fail against real MySQL) · **Status:**
+  ✅ Resolved 2026-09-22 (kept here for traceability; see Resolution) ·
   **Logged:** 2026-09-19, found during live browser verification of the
   `feature/move-id-photo-to-registrar` branch (Task 14).
+- **Resolution (2026-09-22):** Widened `documents.file_type` to `VARCHAR(100)`
+  consistently across all four representations — `Document.fileType`'s `@Column`
+  annotation, `schema.sql`, `AnihanSRMS.sql`, and a new idempotent migration
+  `src/main/sql/migrations/2026-09-22-widen-documents-file-type.sql`
+  (`MODIFY COLUMN file_type VARCHAR(100) NOT NULL`). Pinned by
+  `SchemaContractTest.documentFileTypeSupportsOpenXmlMimeTypesEverywhere()`, which
+  checks the entity's declared length and both SQL files' column declarations by
+  text. Applied to the live `AnihanSRMS` database on 2026-09-22 (backup taken
+  first: `C:\tmp\anihan-client-demo\pre-stability.sql`); confirmed live via
+  `information_schema.COLUMNS` → `varchar(100)`, `IS_NULLABLE=NO`. Live-verified
+  end-to-end with real uploads: a genuine `.docx` (MIME 71 chars) and `.xlsx`
+  (MIME 65 chars) both uploaded via `POST /api/registrar/documents` → HTTP 201,
+  both MIME strings persisted intact and unrescinded length-wise
+  (`LENGTH(file_type)` = 71 and 65 respectively, confirmed via direct SQL query
+  against the live table), no `DataIntegrityViolationException`. Both temporary
+  documents were deleted afterward via `DELETE /api/registrar/documents/{id}`
+  (204) and confirmed removed from the live table. Document generation, the
+  generated-document DOCX converter, and export behavior were explicitly out of
+  scope and untouched.
 - **What:** `DocumentService.ALLOWED_EXTENSIONS` maps `docx` →
   `"application/vnd.openxmlformats-officedocument.wordprocessingml.document"` (73
   chars) and `xlsx` → `"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
@@ -37,11 +57,23 @@
   shorter type label and mapping it back on download — a real design call, not a
   drive-by patch.
 
-### Bug 13 — `GlobalExceptionHandler`'s catch-all turns any genuinely-missing route into a 500 instead of 404 🟡
-- **Severity:** Medium (misleading status code, not a security issue) · **Status:**
-  Open · **Logged:** 2026-09-19, found during live verification that the removed
+### Bug 13 — `GlobalExceptionHandler`'s catch-all turns any genuinely-missing route into a 500 instead of 404 ✅ RESOLVED
+- **Severity:** was Medium (misleading status code, not a security issue) ·
+  **Status:** ✅ Resolved 2026-09-22 (kept here for traceability; see Resolution) ·
+  **Logged:** 2026-09-19, found during live verification that the removed
   student-portal upload endpoints (`POST /api/student/{id}/upload`,
   `GET /api/student/files/{id}`) were truly gone.
+- **Resolution (2026-09-22):** Added
+  `@ExceptionHandler(NoResourceFoundException.class)` to `GlobalExceptionHandler`,
+  returning HTTP 404 with `{"message": "Resource not found: <path>"}`; does not
+  touch `SecurityConfig` or any authentication/authorization rule. Pinned by
+  the new `AuthControllerWebMvcTest.missingPermittedStaticResourceReturnsJson404`
+  regression test (confirmed RED beforehand: `Status expected:<404> but
+  was:<500>`). Live-verified against the running app:
+  `GET /js/does-not-exist.js` → `404 {"message":"Resource not found:
+  js/does-not-exist.js"}`. As a side effect, this also fixed the long-standing,
+  separately-noted `favicon.ico` 500 — confirmed live during the Task 5 smoke
+  test, `favicon.ico` now correctly 404s instead of 500ing.
 - **What:** Spring throws `NoResourceFoundException` for any path under a
   `permitAll()` prefix (e.g. `/api/student/**`) that matches no controller mapping
   and no static resource. `GlobalExceptionHandler` has no
