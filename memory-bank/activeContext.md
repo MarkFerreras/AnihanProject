@@ -503,6 +503,64 @@ same table behavior with the stats computation gone.
 
 ---
 
+## Previous Session (2026-09-21 - Render Hosting Prep)
+
+### Scope
+User asked to prepare the project for hosting on Render. Flagged upfront: `techContext.md`
+documents this app's actual target as an on-premise, air-gapped Windows Server 2025 box —
+Render hosting is explicitly a **separate demo/staging instance**, not a replacement for
+that deployment plan (confirmed with user).
+
+### Decisions (confirmed with user via clarifying questions)
+- **Purpose:** demo/staging only.
+- **Database:** Render has no managed MySQL. User had no preference, so the app was made
+  fully env-var-configurable (`SPRING_DATASOURCE_URL/USERNAME/PASSWORD`, defaulting to the
+  existing local Docker MySQL values) so it works with whatever external MySQL 8 host is
+  chosen later — nothing MySQL-specific was rewritten.
+- **Build method:** user initially asked for Render's "native Java build." **Corrected**:
+  Render has no native Java/Gradle runtime (unlike Heroku) — Render's own guidance for JVM
+  apps is Docker. Switched to a Docker-based deploy without re-asking, since this was a
+  factual constraint rather than a preference call. Also verified `eclipse-temurin:25-jdk`
+  and `eclipse-temurin:25-jre` images actually exist on Docker Hub before relying on them —
+  Java 25 is recent enough that this wasn't safe to assume.
+
+### What Was Built
+- `Dockerfile` — multi-stage build (`eclipse-temurin:25-jdk` → `eclipse-temurin:25-jre`),
+  dependency layer cached separately from source, runs as a non-root user, listens on
+  `$PORT`.
+- `.dockerignore` — excludes `build/`, `.gradle/`, `uploads/`, SQL backups, `docs/`,
+  `memory-bank/` from the image build context.
+- `render.yaml` — Blueprint for a `runtime: docker` web service; datasource env vars left
+  `sync: false` (set per-deployment, not committed); header comment states this is a
+  demo/staging instance, not the documented production target.
+- `application.properties` — `spring.datasource.url/username/password` now read from
+  `SPRING_DATASOURCE_*` env vars with the existing local values as fallback defaults (local
+  `bootRun` / tests are unaffected); added `server.port=${PORT:8080}` (Render assigns the
+  port at runtime); added `server.forward-headers-strategy=native` so
+  `HttpServletRequest#getRemoteAddr()` — used throughout `system_logs` auditing via
+  `httpRequest.getRemoteAddr()` in ~10 controllers — resolves the real client IP from
+  Render's `X-Forwarded-For` instead of the edge proxy's IP.
+- `gradlew` — git executable bit set (`100644` → `100755`). It was missing entirely; without
+  it, `./gradlew` fails with "Permission denied" in the Linux Docker build stage regardless
+  of `.gitattributes` already forcing LF line endings.
+
+### Verified
+- `./gradlew compileJava` → clean compile after the `application.properties` change.
+- Confirmed via live Docker Hub tag listings (not assumed) that both
+  `eclipse-temurin:25-jdk` and `eclipse-temurin:25-jre` exist.
+- Did **not** verify an actual Render deployment (no Render account/credentials available in
+  this session) — the Docker image itself was not built or run end-to-end.
+
+### Open Items
+- Provision an external MySQL 8 instance and apply `src/main/sql/schema.sql` to it before
+  first deploy; set the 3 `SPRING_DATASOURCE_*` env vars in the Render dashboard (or
+  Blueprint sync) once that host exists.
+- Build the Docker image locally (`docker build .`) and smoke-test it before trusting the
+  Render deploy — not done this session.
+- Merged to `render-main`.
+
+---
+
 ## Previous Session (2026-09-19 - Merging `main` into `security_questions`)
 
 ### Scope

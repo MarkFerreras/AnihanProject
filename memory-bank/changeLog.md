@@ -141,7 +141,6 @@ removal). Plan: `docs/superpowers/plans/2026-09-19-remove-login-audit-and-admin-
 | `src/main/java/com/example/springboot/controller/AuthController.java` | Removed the two `systemLogService.logAction(...)` calls (end of `login()`, inside `logout()`). `logout()`'s identity-capture block — `userRepository.findByUsername(...).ifPresent(...)`, which existed only to have an identity to log — was deleted entirely along with the log call; `logout()` is back to invalidating the session and clearing the security context, nothing more. `SystemLogService` field/import/constructor dependency removed — constructor arity 5 → 4 (`AuthenticationManager`, `UserRepository`, `UserSecurityAnswerRepository`, `SessionAuthenticationHelper`). |
 | `src/test/java/com/example/springboot/service/SystemLogServiceTest.java` | `logActionSavesSystemLog`'s sample action string changed from the now-nonexistent `"User logged in"` to `"Reset password for: registrar"` — a real action `AdminController` still writes — so the test still exercises current, genuine behavior. |
 | `src/main/resources/static/admin.html` | Removed a leftover empty `.page-hero-grid` wrapper `<div>` (and its inner div) from the hero section. The stat cards this wrapper used to hold, `updateStats()` in `admin-users.js`, and the five related CSS rules in `dashboard.css` were **already removed in an earlier, separately-merged session** (2026-09-20, PR #58, branch `admin_stats_and_SR_overhaul`) — confirmed via `git log` and a repo-wide grep for every removed identifier (`hero-stats`, `stat-card`, `stat-label`, `stat-value`, `stat-caption`, `updateStats`) returning zero matches *before* this branch's own work began. `.page-hero-grid` itself is not removed as a class — 13 other pages still use it; only `admin.html`'s now-unused instance of it was cleaned up. The hero is now full-width (eyebrow/title/subtitle only), matching every other dashboard page. |
-
 ### Files Created
 | File | Purpose |
 |------|---------|
@@ -181,6 +180,64 @@ untouched; this is a data-only migration.
   bridge extension was available in this environment, a known recurring limitation in this
   project's history (see the 2026-09-19 ID-photo and 2026-09-20 admin-stats sessions).
   Flagged as an open item in `activeContext.md`, not silently skipped.
+
+---
+
+## 2026-09-21 - Render Hosting Prep (Demo/Staging)
+**Branch:** `render-test1`
+
+### Task
+Prepare deploy config for hosting a demo/staging instance of Anihan SRMS on Render. Does
+not change application behavior on-premise; confirmed with the user that this is a separate
+instance from the documented air-gapped production target (`techContext.md`).
+
+### Correction made during the session
+User first asked for Render's "native Java build" option. Render has no native Java/Gradle
+runtime (unlike Node/Python/Ruby/Go/Rust/Elixir there) — for JVM apps Render's own guidance
+is Docker. Switched to a Docker-based deploy instead of proceeding with a nonexistent
+option. Also explicitly verified on Docker Hub that `eclipse-temurin:25-jdk` and
+`eclipse-temurin:25-jre` image tags exist before writing the Dockerfile around them, since
+Java 25 is recent enough that this wasn't safe to assume.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build: `eclipse-temurin:25-jdk` builds the boot jar (dependency layer cached separately from source), `eclipse-temurin:25-jre` runs it as a non-root user, listening on `$PORT`. |
+| `.dockerignore` | Keeps `build/`, `.gradle/`, `uploads/`, SQL backups, `docs/`, `memory-bank/` out of the image build context. |
+| `render.yaml` | Render Blueprint — one `runtime: docker` web service. `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` declared as `sync: false` (set per-deployment in the Render dashboard, not committed). Header comment states this is a demo/staging instance, not the documented production target. |
+| `.github/workflows/keep-alive.yml` | Scheduled GitHub Actions ping (`*/10 * * * *`) against `${RENDER_APP_URL}/index.html` to keep Render free tier awake. |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/main/resources/application.properties` | `spring.datasource.url/username/password` now read `${SPRING_DATASOURCE_*}` env vars, falling back to the existing local Docker MySQL values (`bootRun`/tests unaffected). Added `server.port=${PORT:8080}` (Render assigns the port at runtime). Added `server.forward-headers-strategy=native` so `HttpServletRequest#getRemoteAddr()` — called directly in `AccountController`, `AdminController`, `DocumentController`, `RegistrarController`, `ClassManagementController`, `SecurityQuestionController`, `PasswordRecoveryController`, `StudentNumberController`, `TrainerGradeController`, `AuthController` for `system_logs.ip_address` — resolves the real client IP from Render's `X-Forwarded-For` header instead of the edge proxy's own IP. No controller code changed. |
+| `gradlew` (git metadata only) | Git executable bit set (`100644` → `100755`); file content untouched. It was never executable in the repo — `.gitattributes` already forces LF line endings, but without the exec bit `./gradlew` fails with "Permission denied" in the Linux Docker build stage. |
+| `src/main/java/com/example/springboot/exception/GlobalExceptionHandler.java` | Added `log.warn("Authentication failed with a non-credentials cause", ex)` to `handleAuthenticationException` so that real causes (e.g. database connectivity failures) are logged server-side rather than appearing indistinguishable from bad credentials. |
+| `src/main/sql/schema.sql` | Commented out `CREATE DATABASE` and `USE AnihanSRMS` so the schema script is portable to managed cloud database hosts without `CREATE DATABASE` privileges. |
+| `memory-bank/techContext.md`, `activeContext.md`, `progress.md` | Session notes; added a "Demo/Staging Hosting on Render" subsection to `techContext.md` explicitly scoped as not replacing the on-premise target. |
+
+### Verification
+- `./gradlew compileJava` → clean compile after the `application.properties` change.
+- `eclipse-temurin:25-jdk` and `eclipse-temurin:25-jre` confirmed to exist via live Docker Hub tag listings (fetched, not assumed).
+- **Not done this session:** an actual Render deployment, or a local `docker build`/`docker run` smoke test — no Render account was available and the image was not built end-to-end.
+
+### Open Items
+- Provision an external MySQL 8 host (Render has no managed MySQL) and apply `src/main/sql/schema.sql` to it before the first real deploy.
+- Set the 3 `SPRING_DATASOURCE_*` env vars in the Render dashboard once that host exists.
+- Build and run the Docker image locally before trusting the Render deploy.
+- Merged to `render-main`.
+
+### Follow-up (same session) — Free-Tier Keep-Alive Pinger
+User is on Render's free tier and already knows about its 15-minute inactivity spin-down (a groupmate on the same capstone worked around it with a pinger elsewhere). Added `.github/workflows/keep-alive.yml` — a scheduled GitHub Actions workflow (`*/10 * * * *`, plus manual `workflow_dispatch`) that curls `{RENDER_APP_URL}/index.html` to keep the service warm. The URL is read from a repo variable (`vars.RENDER_APP_URL`, not a secret — it's a public URL) that doesn't exist yet; the job no-ops with an explanatory message until the user sets it post-deploy, rather than failing.
+
+**Documented, not silently hidden:** GitHub's `schedule` trigger is best-effort and can lag under platform load — explained in the workflow's own header comment and in chat, with UptimeRobot/cron-job.org named as more reliable dedicated alternatives if the user wants a hard guarantee instead of best-effort.
+
+### Follow-up (same session) — Real Login Failure on the Deployed Instance
+First live-deploy login attempt (`admin`/`password123`) returned "Unauthorized. Please log in." instead of getting in. Traced the actual mechanism: `AuthController.login()` never catches exceptions from `authenticationManager.authenticate()`; Spring Security's `DaoAuthenticationProvider.retrieveUser()` wraps *any* unexpected `RuntimeException` thrown while loading the user (e.g. a broken datasource connection) into `InternalAuthenticationServiceException`, which **is** an `AuthenticationException`. `GlobalExceptionHandler` has specific handlers for `BadCredentialsException`/`LockedException`/`DisabledException`, but anything else — including that datasource-failure case — fell through to the generic catch-all, which returned the same string for "wrong password" and "the database connection is broken," **and never logged the real exception** (unlike its sibling handlers, which do). That combination made a real DB connectivity problem indistinguishable from a typo'd password, with no way to tell them apart from Render's Logs tab either.
+
+**Fixed:** added `log.warn("Authentication failed with a non-credentials cause", ex)` to that catch-all handler (`GlobalExceptionHandler.handleAuthenticationException`) — API response to the browser is unchanged, but the real cause now reaches Render's logs. Bundled into the same commit as the `schema.sql` portability change from earlier this session (both were uncommitted local changes at that point). Pushed to `render-test1` (`410e7fa..3dc21ed`) — Render auto-rebuilds on push (Blueprint-managed, watching this branch).
+
+**Not yet confirmed:** the actual root cause of the login failure itself — waiting on the redeployed Logs tab output before diagnosing further. User independently verified via local `mysql` client that the FreeDB database is reachable and schema-populated, which narrows the suspect list toward the Render-side `SPRING_DATASOURCE_*` env var values or a Render→FreeDB network/SSL difference, rather than the database itself.
 
 ---
 
