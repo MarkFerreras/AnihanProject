@@ -1,5 +1,8 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Seed Accounts + Sample Students
+-- Updated: 2026-09-22 (widened documents.file_type to VARCHAR(100) so
+--            uploaded DOCX/XLSX OpenXML MIME type strings fit — see
+--            migrations/2026-09-22-widen-documents-file-type.sql)
 -- Updated: 2026-09-19 (added security_questions + user_security_answers for
 --            the "forgot password" feature; added users.security_locked /
 --            failed_security_attempts / security_lockout_started_at;
@@ -277,7 +280,7 @@ CREATE TABLE IF NOT EXISTS documents (
     student_id VARCHAR(20) NOT NULL,
     document_type VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
-    file_type VARCHAR(50) NOT NULL,
+    file_type VARCHAR(100) NOT NULL,
     file_size INT NOT NULL,
     content_data LONGBLOB NOT NULL,
     upload_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

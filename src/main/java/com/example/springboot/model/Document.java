@@ -31,7 +31,7 @@ public class Document {
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
-    @Column(name = "file_type", nullable = false, length = 50)
+    @Column(name = "file_type", nullable = false, length = 100)
     private String fileType;
 
     @Column(name = "file_size", nullable = false)
