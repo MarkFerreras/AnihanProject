@@ -1,5 +1,69 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-22 - Interim Client Demo Stability Plan Execution
+**Branch:** `fix/client-demo-readiness-and-audit` (isolated worktree)
+
+### Task
+Executed the 5-task plan from `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md`
+via `superpowers:subagent-driven-development`: fixed the class-year filter's frontend
+lifecycle bugs, Bug 12 (`documents.file_type` too short for OpenXML MIME types), Bug 13
+(missing-resource 500 instead of 404), added insert-only fallback demo-account SQL, then
+applied/verified everything against the live `AnihanSRMS` database.
+
+### Files Modified
+| File | Change |
+|---|---|
+| `src/test/java/com/example/springboot/controller/TrainerControllerWebMvcTest.java` | +3 characterization tests pinning the already-merged `GET /api/trainer/classes/semesters` and `semester` query-param behavior. |
+| `src/test/java/com/example/springboot/controller/ClassManagementControllerWebMvcTest.java` | +1 characterization test pinning `GET /api/registrar/classes/semesters`. |
+| `src/test/java/com/example/springboot/service/TrainerServiceTest.java` | +1 characterization test (`getMyClassesFiltersByExplicitSemester`) + a `classForYear` fixture helper. No production code touched. |
+| `src/main/resources/static/js/registrar-classes.js` | Semester-filter loader made idempotent: `bindSemesterFilter()` now bound once via a namespaced `change.semesterFilter` handler; `loadAvailableSemesters()` returns the AJAX promise, dedupes `<option>`s, preserves selection; called again after successful class creation; `encodeURIComponent` added on interpolated semester values. |
+| `src/main/resources/static/js/trainer-classes.js` | Same idempotency fix; the premature pre-table-init call was removed and the loader/binder now run after `classesTable` is constructed. |
+| `src/main/java/com/example/springboot/model/Document.java` | `fileType`'s `@Column` length: 50 → 100 (Bug 12). |
+| `src/main/sql/schema.sql` | `documents.file_type VARCHAR(50)` → `VARCHAR(100)`; dated header note added. |
+| `src/main/sql/AnihanSRMS.sql` | Same column widen; header note deliberately not touched (that file's header convention was found to already be stale/unmaintained). |
+| `src/main/java/com/example/springboot/exception/GlobalExceptionHandler.java` | Added `@ExceptionHandler(NoResourceFoundException.class)` returning HTTP 404 `{"message": "Resource not found: <path>"}` (Bug 13). No other handler changed; `SecurityConfig` untouched. |
+| `src/test/java/com/example/springboot/controller/AuthControllerWebMvcTest.java` | +1 regression test, `missingPermittedStaticResourceReturnsJson404`, confirmed RED (500) before the fix, GREEN after. |
+| `memory-bank/bugs.md`, `activeContext.md`, `progress.md`, `testing.md` | This session's verification records (see each file). |
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `src/test/java/com/example/springboot/SchemaContractTest.java` | Pins the cross-file `documents.file_type` contract (entity annotation + both SQL files' text + migration file existence) and the `seed-accounts.sql` insert-only contract (text-substring checks: contains `WHERE NOT EXISTS`/`TIMESTAMPDIFF(YEAR`/all 3 usernames; contains none of `UPDATE users`/`DELETE FROM users`/`DELETE FROM user_security_answers`/`ON DUPLICATE KEY UPDATE`). |
+| `src/main/sql/migrations/2026-09-22-widen-documents-file-type.sql` | `ALTER TABLE documents MODIFY COLUMN file_type VARCHAR(100) NOT NULL` + a verification `SELECT`. Idempotent in effect. |
+| `src/main/sql/seed-accounts.sql` | Insert-only fallback for `admin`/`registrar`/`trainer` (BCrypt `password123`, same hash already used in `schema.sql`'s own seed data), guarded per-row by `WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = '...')`. Never updates/deletes. Ends with a read-only verification `SELECT` joining `user_security_answers`. |
+
+### Live Database Changes (Docker `mysql-server`, DB `AnihanSRMS` — backup taken first)
+- Backup: `C:\tmp\anihan-client-demo\pre-stability.sql` (101,436 bytes, 21 `CREATE TABLE`
+  statements verified before proceeding).
+- Applied `2026-09-22-widen-documents-file-type.sql` — confirmed via
+  `information_schema.COLUMNS`: `documents.file_type` is now `varchar(100)`, `IS_NULLABLE=NO`.
+- Checked `admin`/`registrar`/`trainer` — all 3 already existed (`enabled=1` each);
+  `seed-accounts.sql` was correctly **not** run, per the plan's own decision.
+- **Incidental, real account change:** completed the `trainer` account's mandatory
+  first-login security-question setup (2 questions/answers) — it had zero rows in
+  `user_security_answers` before this session and was blocking the trainer smoke test. No
+  existing row for any account was modified or deleted.
+- Live end-to-end proof of the Bug 12 fix: uploaded a real `.docx` and `.xlsx` to
+  `SR20260002` via the actual `POST /api/registrar/documents` endpoint — both HTTP 201, both
+  MIME strings (71 and 65 chars) persisted at full length (confirmed via direct
+  `SELECT LENGTH(file_type)`), no truncation error. Both temporary documents deleted
+  afterward (`DELETE /api/registrar/documents/{id}` → 204 each), confirmed removed.
+
+### Verification
+- `./gradlew clean test` → **BUILD SUCCESSFUL — 393 tests, 0 failures, 0 errors, 0 skipped**
+  (exact count from the generated JUnit XML reports).
+- Full live browser/API stability smoke matrix (public 404, Admin, Registrar/Classes,
+  Registrar/Documents, Trainer) — all passed; see `testing.md` for the full detail and
+  `activeContext.md` for two environment gotchas encountered (Playwright's native file
+  chooser blocked by a CDP permission in this environment, worked around via a curl-based
+  multipart upload against the same live endpoint; `TaskStop` on the `bootRun` shell task
+  did not release port 8080, requiring a direct process kill by PID).
+- Not yet done: final whole-branch code review and
+  `superpowers:finishing-a-development-branch` (merge/PR decision to be made after this
+  record is committed).
+
+---
+
 ## 2026-09-22 - Interim Client Demo Stability Plan Rewrite
 **Branch:** `docs/rewrite-client-presentation-plan`
 
