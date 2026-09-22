@@ -58,6 +58,35 @@ under platform load — explained in the workflow's own header comment and in ch
 UptimeRobot/cron-job.org named as more reliable dedicated alternatives if the user wants a
 hard guarantee instead of best-effort.
 
+### Follow-up (same session) — Real Login Failure on the Deployed Instance
+First live-deploy login attempt (`admin`/`password123`) returned "Unauthorized. Please log
+in." instead of getting in. Traced the actual mechanism: `AuthController.login()` never
+catches exceptions from `authenticationManager.authenticate()`; Spring Security's
+`DaoAuthenticationProvider.retrieveUser()` wraps *any* unexpected `RuntimeException` thrown
+while loading the user (e.g. a broken datasource connection) into
+`InternalAuthenticationServiceException`, which **is** an `AuthenticationException`.
+`GlobalExceptionHandler` has specific handlers for `BadCredentialsException`/
+`LockedException`/`DisabledException`, but anything else — including that datasource-failure
+case — fell through to the generic catch-all, which returned the same string for "wrong
+password" and "the database connection is broken," **and never logged the real exception**
+(unlike its sibling handlers, which do). That combination made a real DB connectivity
+problem indistinguishable from a typo'd password, with no way to tell them apart from
+Render's Logs tab either.
+
+**Fixed:** added `log.warn("Authentication failed with a non-credentials cause", ex)` to
+that catch-all handler (`GlobalExceptionHandler.handleAuthenticationException`) — API
+response to the browser is unchanged, but the real cause now reaches Render's logs. Bundled
+into the same commit as the `schema.sql` portability change from earlier this session (both
+were uncommitted local changes at that point). Pushed to `render-test1`
+(`410e7fa..3dc21ed`) — Render auto-rebuilds on push (Blueprint-managed, watching this
+branch).
+
+**Not yet confirmed:** the actual root cause of the login failure itself — waiting on the
+redeployed Logs tab output before diagnosing further. User independently verified via local
+`mysql` client that the FreeDB database is reachable and schema-populated, which narrows the
+suspect list toward the Render-side `SPRING_DATASOURCE_*` env var values or a Render→FreeDB
+network/SSL difference, rather than the database itself.
+
 ---
 
 ## 2026-09-19 (follow-up 3) - Duplicate "Account Locked" Audit Log Entries
