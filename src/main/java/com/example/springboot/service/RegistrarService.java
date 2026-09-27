@@ -193,6 +193,57 @@ public class RegistrarService {
     }
 
     /**
+     * Assigns, changes, or clears a student's batch.
+     *
+     * <p>This is the ONLY write path for {@code batch} — the edit form deliberately leaves
+     * it out of {@link StudentRecordUpdateRequest} so a routine edit can never silently
+     * change it. A blank or null value clears the batch, unless the student is currently
+     * enrolled in a section: the Section Invariant forbids clearing or diverging a section
+     * student's batch from their section's own batch, since a section's batch is the source
+     * of truth for its enrolled students. Remove the student from the section first.
+     *
+     * <p>A batch code that does not yet exist is auto-created with the current calendar
+     * year, so the registrar can type a brand-new code without a separate "create batch"
+     * step.
+     */
+    @Transactional
+    public StudentRecordDetailsResponse assignBatch(Integer recordId, String batchCode) {
+        StudentRecord record = studentRecordRepository.findById(recordId)
+                .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
+
+        String normalized = emptyToNull(batchCode);
+
+        // Enforce Section Invariant: a student enrolled in a section cannot have their batch
+        // cleared, or changed to a batch other than their section's own batch.
+        if (record.getSection() != null) {
+            String currentSectionBatch = record.getSection().getBatch() != null
+                    ? record.getSection().getBatch().getBatchCode() : null;
+            if (normalized == null || (currentSectionBatch != null && !currentSectionBatch.equalsIgnoreCase(normalized))) {
+                throw new IllegalArgumentException(
+                        "Cannot change or clear batch while student is enrolled in section "
+                                + record.getSection().getSectionCode()
+                                + (currentSectionBatch != null ? " (Batch " + currentSectionBatch + ")" : "")
+                                + ". Remove the student from the section first.");
+            }
+        }
+
+        if (normalized != null) {
+            // Find existing batch, or auto-create one with the current calendar year if the
+            // registrar typed a brand-new code.
+            Batch batch = batchRepository.findById(normalized)
+                    .orElseGet(() -> {
+                        short currentYear = (short) java.time.LocalDate.now().getYear();
+                        return batchRepository.save(new Batch(normalized, currentYear));
+                    });
+            record.setBatch(batch);
+        } else {
+            record.setBatch(null);
+        }
+
+        return buildDetailsResponse(studentRecordRepository.save(record));
+    }
+
+    /**
      * Changes a student's enrollment status. The only write path for {@code student_status} —
      * deliberately pulled out of the general edit form so a routine field edit can never
      * silently change it, and every status change is a separately audited action.
@@ -240,7 +291,6 @@ public class RegistrarService {
         record.setBrotherCount(request.brotherCount());
         record.setSisterCount(request.sisterCount());
 
-        record.setBatch(resolveBatch(request.batchCode()));
         record.setCourse(resolveCourse(request.courseCode()));
         record.setSection(resolveSection(request.sectionCode()));
 
@@ -439,14 +489,6 @@ public class RegistrarService {
     }
 
     // ----- FK resolvers -----
-
-    private Batch resolveBatch(String code) {
-        if (code == null || code.isBlank()) {
-            return null;
-        }
-        return batchRepository.findById(code)
-                .orElseThrow(() -> new IllegalArgumentException("Batch code does not exist: " + code));
-    }
 
     private Course resolveCourse(String code) {
         if (code == null || code.isBlank()) {
