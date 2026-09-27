@@ -1,6 +1,30 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-27 - Document Folder Management Implementation)
+## Latest Session (2026-09-27 - Manual Batch Code Assignment Brainstorming, Spec & Plan)
+
+- Brainstormed, specified, and planned **Manual Batch Code Assignment** (Sub-project 1 of the
+  user's two requested features; Sub-project 2 is Group Document Download Verification & Flagging).
+- Completed and approved design spec:
+  `docs/superpowers/specs/2026-09-27-manual-batch-code-assignment-design.md`.
+- Completed and approved implementation plan:
+  `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`.
+- Architectural choices confirmed:
+  1. Decouple enrollment: remove `B<Year>A` auto-assignment in `StudentDetailsService.applyDetails()`.
+  2. Single write path: `POST /api/registrar/students/{recordId}/batch` with atomic transaction & audit row.
+  3. Dynamic batch creation: if entered batch does not exist, auto-create `Batch` entity with current year.
+  4. Blank input clears batch (`record.batch = null`).
+  5. Section invariant: block clearing/altering batch if student is assigned to a section (HTTP 400).
+  6. Edit form protection: make `batchCode` read-only in the general student record edit modal.
+  7. UI integration: `#assignBatchModal` with datalist autocomplete in `registrar.html` & `student-records.html`.
+- **Checkout status:** `main`. Per user's explicit instruction, this session is documentation-only
+  planning on `main`. No product implementation code or migrations were committed. Execution will be
+  carried out by Claude Sonnet 5 on dedicated branch `feature/manual-batch-code-assignment`.
+- **Next step:** Execute the plan on `feature/manual-batch-code-assignment` (or proceed to brainstorming
+  Sub-project 2: Group Document Download Verification).
+
+The sessions below describe earlier checkouts and tasks.
+
+## Session (2026-09-27 - Document Folder Management Implementation)
 
 - Implemented `docs/superpowers/plans/2026-09-27-document-folder-management.md` in full
   (Tasks 1-4) on branch `feature/document-folder-management`, as one sequential Sonnet 5

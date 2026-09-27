@@ -4,6 +4,28 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-27 - Manual Batch Code Assignment & Invariant Guard Architecture
+
+**Decision:** Batch code assignment is made strictly manual and isolated to a dedicated endpoint
+`POST /api/registrar/students/{recordId}/batch`, mirroring the `student_number` pattern.
+1. The automatic assignment of `B<Year>A` in `StudentDetailsService.applyDetails()` is removed;
+   new enrollees start with `batch = null` ("No Batch Assigned").
+2. The Registrar assigns batch codes via a dedicated `#assignBatchModal` with an autocomplete
+   datalist. Entering an existing code reuses the batch; entering a brand-new code automatically
+   persists a new `Batch` entity with the current calendar year.
+3. Entering blank/null unassigns/clears the batch (`record.batch = null`).
+4. Strict section invariant: A student enrolled in a section cannot have their batch cleared or
+   changed to a different batch without first being removed from that section (HTTP 400).
+5. Edit form isolation: `batchCode` in the general edit modal is made read-only so routine
+   contact/biographical edits cannot mutate the batch.
+6. Auditing: Every assignment or clear writes a dedicated row to `system_logs`.
+
+**Why:** Aligns with registrar operational reality where batch assignment is a deliberate
+administrative classification rather than an automated timestamp assumption. Prevents
+cross-batch section anomalies and accidental batch changes during routine student updates.
+
+---
+
 ## 2026-09-19 - Login/Logout Are Not Audited, and Historical Rows Were Purged
 
 **Decision:** `AuthController` no longer writes a `system_logs` row on either a successful

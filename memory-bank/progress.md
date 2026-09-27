@@ -1,5 +1,21 @@
 # Progress - Anihan SRMS
 
+## 2026-09-27 - Manual Batch Code Assignment Brainstorming & Planning (Complete)
+
+- **Completed:** Formal brainstorming, user review gates, design specification
+  (`docs/superpowers/specs/2026-09-27-manual-batch-code-assignment-design.md`), and detailed
+  5-task TDD implementation plan (`docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`).
+- **Feature Scope:**
+  1. Enrollment decoupling: applicants submitting via `student-details.html` receive `batch = null`
+     ("No Batch Assigned").
+  2. Registrar manual batch assignment endpoint (`POST /api/registrar/students/{recordId}/batch`).
+  3. Freeform batch entry with autocomplete datalist and automatic `Batch` record creation.
+  4. Section invariant protection: rejecting batch alterations/clearing for section-enrolled students.
+  5. Edit form locking: `batchCode` made read-only in the general student record edit modal.
+  6. Bootstrap 5 `#assignBatchModal` integrated with `registrar.html` & `student-records.html`.
+- **Status:** Documentation-only preparation completed on `main` per user instruction. Execution
+  deferred to Claude Sonnet 5 on dedicated branch `feature/manual-batch-code-assignment`.
+
 ## 2026-09-27 - Document Folder Management Implementation (Tasks 1-4 Complete)
 
 - **Completed:** all 4 implementation tasks from

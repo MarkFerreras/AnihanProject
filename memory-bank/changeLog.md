@@ -1,5 +1,22 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-27 - Manual Batch Code Assignment Brainstorming, Spec & Plan
+**Branch:** `main` (Documentation-only preparation session per user instruction)
+
+### Task
+Completed brainstorming, formal design specification, and 5-task TDD implementation plan
+for **Manual Batch Code Assignment** (Sub-project 1 of user's two requested enhancements).
+
+### Files Created
+- `docs/superpowers/specs/2026-09-27-manual-batch-code-assignment-design.md` — Complete approved specification.
+- `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md` — 5-task implementation plan ready for Sonnet 5.
+
+### Memory Bank Files Updated
+- `memory-bank/activeContext.md` — Added latest session details and next steps.
+- `memory-bank/progress.md` — Recorded completed brainstorming and planning milestones.
+- `memory-bank/decisions.md` — Documented architectural decision for manual batch assignment and invariant guard.
+- `memory-bank/changeLog.md` — Recorded documentation changes.
+
 ## 2026-09-27 - Document Folder Management Implementation
 **Branch:** `feature/document-folder-management` (4 commits ahead of `main`, not merged)
 
