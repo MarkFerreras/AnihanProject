@@ -4,6 +4,54 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-27 - Manual Batch Code Assignment: Section-Side Invariant Gap Deferred (Blocked/Deferred)
+
+**Decision:** The final whole-feature code review (Opus, run against the complete
+`feature/manual-batch-code-assignment` diff) found that the Section Invariant added by this
+feature only guards one direction: `RegistrarService.assignBatch` correctly blocks changing or
+clearing a section-enrolled student's batch. Nothing blocks the reverse — putting a student
+*into* a section whose batch differs from theirs (or who has no batch at all):
+- `ClassManagementService.assignStudentsToSection` (`ClassManagementService.java:483-519`) calls
+  `student.setSection(section)` with no batch check or sync.
+- `RegistrarService.updateRecord` (`RegistrarService.java:296`) still lets the general edit form
+  set `sectionCode` freely via a still-editable `#editSectionCode` datalist in
+  `student-records.html`, with no batch cross-check.
+
+This is now a live, everyday-occurrence gap rather than a theoretical one: since this feature's
+Task 1 removed enrollment's auto-batch-assignment (`ba28708`), every newly enrolled student now
+starts with `batch = null`, so the ordinary Sections workflow's normal result is a
+section-enrolled student with a null or mismatched batch — the exact state the invariant's own
+javadoc says shouldn't exist ("a section's batch is the source of truth for its enrolled
+students").
+
+**This branch does NOT fix it.** `ClassManagementService.java` and the Sections/edit-form
+`sectionCode` UI are a different subsystem than what
+`docs/superpowers/specs/2026-09-27-manual-batch-code-assignment-design.md` scoped for this
+feature (which only covered the batch-assignment endpoint and modal). Fixing it properly needs
+its own design decision — e.g. skip mismatched students in `assignStudentsToSection` with a
+reason (mirroring how it already skips wrong-status students), or auto-sync
+`student.batch = section.batch` when the student's batch is null, and/or make `#editSectionCode`
+read-only like `batchCode`/`studentNumber`/`studentStatus` already are, since section membership
+is arguably owned by the Sections page, not the general edit form.
+
+**Why deferred rather than silently expanded into:** implementing this within
+"Manual Batch Code Assignment" would mean picking one of several plausible designs
+(skip/sync/lock-field) for a different subsystem without the same brainstorm-spec-plan process
+this feature went through, and without the user's sign-off on which approach is wanted.
+
+**How to apply:** Before relying on "a section-enrolled student's batch always matches their
+section" anywhere else in the codebase (reports, TESDA SO generation, document folder grouping,
+etc.), verify it doesn't currently hold. Treat this as an open item for a future
+brainstorm/spec/plan cycle, not a bug fixed by this branch.
+
+**Related, already fixed in this branch (`c53a7a0`):** the same review also found
+`RegistrarService.assignBatch`'s javadoc wrongly claimed `batchCode` was removed from
+`StudentRecordUpdateRequest`; the field is still there, just silently ignored by
+`updateRecord()`. Corrected the javadoc and added a comment on the DTO field itself. Also
+removed `BatchRepository.findFirstByBatchYear`, dead since Task 1 removed its only caller.
+
+---
+
 ## 2026-09-27 - Manual Batch Code Assignment: Corrections Made During Implementation
 
 **Decision:** Three corrections to the approved design/plan, made while implementing on
