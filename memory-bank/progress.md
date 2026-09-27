@@ -1,5 +1,49 @@
 # Progress - Anihan SRMS
 
+## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5 Complete)
+
+- **Completed:** all 5 tasks of `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`
+  on branch `feature/manual-batch-code-assignment` (6 commits: `ba28708`, `4afa98d`, `86901d5`,
+  `b830879`, `6c05fd8`, `6112ea0`):
+  1. Removed auto-batch-assignment (`B<Year>A`) from public enrollment
+     (`StudentDetailsService.applyDetails()`); new enrollees start with `batch = null`.
+  2. `RegistrarService.assignBatch(recordId, batchCode)` — reuses an existing `Batch`, auto-creates
+     a new one (current calendar year) for an unknown code, clears on blank/null, and enforces the
+     section invariant (a section-enrolled student's batch cannot be cleared or changed away from
+     the section's own batch — throws `IllegalArgumentException` → HTTP 400).
+  3. `PUT /api/registrar/student-records/{recordId}/batch`, `ROLE_REGISTRAR`-only, audited to
+     `system_logs` from `RegistrarController`.
+  4. Frontend: "Assign Batch" button + `#assignBatchModal` (datalist-autocomplete) on
+     `registrar.html`/`registrar-students.js`; `#editBatchCode` made `readonly` (not `disabled`,
+     so it stays visible/legible while the Enrollment section is otherwise in edit mode) with hint
+     text on `student-records.html`/`registrar-student-records-edit.js`.
+  5. Task 5 (this entry) — full regression + live end-to-end verification, detailed below.
+- **Full suite:** `./gradlew.bat test --rerun` → **BUILD SUCCESSFUL, 511 tests, 0 failures, 0
+  errors, 0 skipped** (summed from `build/test-results/test/*.xml`, 49 report files) — matches the
+  plan's ~511 expectation exactly (492 baseline + Task 1 cleanup + new `RegistrarBatchServiceTest`
+  and `RegistrarBatchControllerWebMvcTest` suites from Tasks 2-3).
+- **Live-verified** against the real `AnihanSRMS` database (`./gradlew.bat bootRun` on port 8080,
+  not a disposable container this time) via Playwright, logged in as `registrar`: submitted a
+  brand-new public enrollment (`SR20260018`, "Zyndrelith, Quovaxen") end to end and confirmed it
+  landed with Batch = "Not Assigned" (no auto-`B2026A`); assigned it an existing code (`B2026A`)
+  via the modal — row updated in place; re-opened the modal and assigned a brand-new code
+  (`B2099Z`) — row updated, and after a full page reload the datalist listed `B2099Z` too,
+  confirming it was persisted as a real `Batch` row (the datalist is populated once per page
+  load, not live-refreshed in-session — a minor UX nuance, not a defect); attempted to change/
+  clear the batch of a section-enrolled student (`SR20260015`, section `TEST-T4`) and got the
+  exact inline alert "Cannot change or clear batch while student is enrolled in section TEST-T4
+  (Batch B2026A). Remove the student from the section first." with the modal staying open and the
+  row unchanged; confirmed `#editBatchCode` is genuinely non-editable in the edit-form Enrollment
+  tab even mid-"Edit Section" (Playwright's own `fill()` timed out with "element is not
+  editable" — `readOnly: true`, `disabled: false` via direct DOM check) and shows the "Set via
+  Assign Batch on the Student Records list" hint. No console errors traceable to this feature at
+  any step (the only errors seen — a 401 on the unauthenticated login page's session probe, a 404
+  for a student with no ID picture on file, and the expected 400 from the rejected section-
+  invariant save — are pre-existing/expected behavior, not regressions). App stopped cleanly
+  after (`taskkill` on the bootRun JVM PID; port 8080 confirmed free).
+- **Not yet done:** `superpowers:finishing-a-development-branch` for the merge/PR decision on
+  `feature/manual-batch-code-assignment`.
+
 ## 2026-09-27 - Manual Batch Code Assignment Brainstorming & Planning (Complete)
 
 - **Completed:** Formal brainstorming, user review gates, design specification

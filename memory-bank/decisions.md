@@ -4,6 +4,37 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-27 - Manual Batch Code Assignment: Corrections Made During Implementation
+
+**Decision:** Three corrections to the approved design/plan, made while implementing on
+`feature/manual-batch-code-assignment`, after verifying the actual codebase state:
+1. **Endpoint is `PUT /api/registrar/student-records/{recordId}/batch`**, not
+   `POST /api/registrar/students/{recordId}/batch` as written in the spec. `RegistrarController`
+   is mapped at `/api/registrar/student-records`, and its sibling single-field write endpoints
+   (`assignStudentNumber`, `updateStatus`) both use `PUT`. The spec's own stated intent was to
+   mirror the `assignStudentNumber` pattern; using `PUT` on the real base path does that, the
+   literal spec URL/verb did not.
+2. **Audit logging happens in `RegistrarController`, not `RegistrarService`.** The spec's
+   pseudocode called a `systemLogService.logAction(action, description)` two-arg overload that
+   does not exist. The real `SystemLogService.logAction(userId, username, role, action, ip)` is
+   always invoked from the controller after the service call, exactly like every sibling
+   endpoint (`update`, `assignStudentNumber`, `updateStatus`, `delete`). `RegistrarService` does
+   not depend on `SystemLogService`.
+3. **`registrar-student-records.js` does not exist.** `registrar.html` + `registrar-students.js`
+   is the actual DataTable list page (the "Assign Batch" button and `#assignBatchModal` go
+   there, mirroring `#assignStudentNumberModal`). `student-records.html` +
+   `registrar-student-records-edit.js` is a single-record edit page that already treats Student
+   Number and Status as read-only fields pointing back to the list page for the real action —
+   `#editBatchCode` follows that same convention (readonly + hint text) instead of getting its
+   own modal.
+
+**Why:** The plan/spec were drafted before the exact existing file/endpoint layout was
+double-checked against the working tree. Anti-hallucination rule in
+`.agents/rules/full-stack-anihan.md` requires resolving a conflict against verified project
+state rather than propagating it into new code.
+
+---
+
 ## 2026-09-27 - Manual Batch Code Assignment & Invariant Guard Architecture
 
 **Decision:** Batch code assignment is made strictly manual and isolated to a dedicated endpoint
