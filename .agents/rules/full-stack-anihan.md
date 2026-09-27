@@ -235,6 +235,10 @@ Purpose:
 - Create all required memory bank files if missing.
 - Update all relevant files whenever the project state changes.
 - Always update `activeContext.md`, `progress.md`, and `changeLog.md` after each meaningful task.
+- **New entries always go at the top of `activeContext.md`, `progress.md`, `changeLog.md`,
+  `decisions.md`, and `testing.md`** (newest-first), never appended at the bottom. This is
+  what makes "read only the top" a reliable way to get current state cheaply — do not break
+  the ordering.
 - Write all entries clearly for future developers with no assumed prior knowledge.
 - Use timestamps and task labels where relevant.
 - Never record guesses as facts.
@@ -248,9 +252,19 @@ Purpose:
 
 Before doing any task, you must read and verify the memory bank.
 
+### Token-Efficient Reading Rule
+`projectbrief.md`, `productContext.md`, `techContext.md`, and `systemPatterns.md` are
+small and stable — read in full is fine. `activeContext.md`, `progress.md`,
+`changeLog.md`, `decisions.md`, and `testing.md` are large, newest-first, append-only
+logs — **do not read these in full by default.** Read only the top ("Latest Session" /
+most recent dated entry) of each with a bounded read. Read further back only when the
+task genuinely requires historical context (e.g. tracing why a past decision was made,
+or diagnosing a bug against a specific earlier session).
+
 ### Required Pre-Task Verification
 1. Check whether `/memory-bank/` exists.
-2. If it exists, read the relevant files before doing any implementation.
+2. If it exists, read the small reference files in full and the *latest entry only* of
+   each large log file before doing any implementation.
 3. Verify that the current request aligns with:
    - project scope
    - current architecture
@@ -261,7 +275,7 @@ Before doing any task, you must read and verify the memory bank.
 5. Only proceed once the memory bank and request are aligned.
 
 ### Strict Rule
-You must not perform implementation work until the memory bank has been reviewed and validated against the current request.
+You must not perform implementation work until the memory bank has been reviewed and validated against the current request. "Reviewed" means the latest entries, not necessarily the full historical log.
 
 ---
 

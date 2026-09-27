@@ -1,5 +1,17 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-27 - Document Folder Spec and Plan Review
+
+- Revised both `2026-09-27-document-folder-management` documents under
+  `docs/superpowers/{specs,plans}/` after source review and five user clarifications.
+- Replaced speculative implementation snippets with contracts, task ownership,
+  focused verification, and one sequential implementer/one final reviewer workflow.
+- Recorded full-batch scope, all students, stored originals, 20-file/50-MiB uploads;
+  addressed BLOB loading, exact student identity, rollback/audit, ZIP naming/failures,
+  UI lifecycle, and actual servlet/MySQL verification requirements.
+- Updated activeContext/progress. Documentation only on existing `main`, as requested;
+  no source changes, commit, branch switch, or runtime tests.
+
 ## 2026-09-22 - Interim Client Demo Stability Plan Execution
 **Branch:** `fix/client-demo-readiness-and-audit` (isolated worktree)
 

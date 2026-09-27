@@ -1,207 +1,123 @@
-# Document Management: Split-View Folder Explorer, Bulk Upload & ZIP Export Design
+# Document Folder Management Design
 
-**Date:** 2026-09-27  
-**Status:** Approved  
-**Target Role:** Registrar (`ROLE_REGISTRAR`)  
-**Stack:** Java 25, Spring Boot 4.0.4, Spring Data JPA, MySQL 8 Docker, Bootstrap 5.3, Vanilla JS (ES2024), DataTables 2  
+**Date:** 2026-09-27 | **Status:** Product decisions confirmed; revised specification for review.
+**Intent:** Registrars can find, upload, and export student records through a folder explorer while retaining the Documents table.
+**Stack:** Java 25, Spring Boot 4.0.4, Spring Data JPA, MySQL 8, Bootstrap 5.3, local jQuery/DataTables, vanilla JavaScript.
 
----
+## 1. Confirmed scope
 
-## 1. Executive Summary
+- Export a student, section, batch's unassigned students, or entire batch.
+- Include all student statuses and a synthetic **No Batch** group.
+- Export all stored originals, including generated HTML and ID photos; no conversion.
+- Bulk upload: 20 files maximum, 10 MiB per file, 50 MiB combined, all-or-nothing.
+- No schema changes, dependencies, external assets, folder CRUD, or document-generation changes. Preserve existing generation/editing, ID-picture workflows, single upload/download/view/delete, and table filters.
+- ZIP originals differ from existing single-download HTML-to-DOCX behavior; explain this beside Export.
 
-The Anihan SRMS Document Management module currently presents a flat DataTable listing of uploaded documents on `documents.html`. While functional for search, it lacks hierarchical structure, requires single-file-only uploads, and does not support bulk exporting.
+## 2. Hierarchy and identity
 
-This design introduces:
-1. **Split-View Folder Explorer** within a new tab on `documents.html`:
-   - Left Sidebar: Interactive tree structured as `Batch` $\rightarrow$ `Section` / `⚠️ Unassigned Students` $\rightarrow$ `Student`.
-   - Right Panel: Active content manager showing breadcrumb path, student details banner, document cards, preview modal trigger, single download, and delete.
-2. **Multi-File Bulk Upload to a Single Student**:
-   - Registrar identifies student by typing **Student Name** or **Student Number** (mandatory).
-   - Staging table to assign document types to multiple files before atomic upload.
-3. **Streaming Bulk ZIP Export**:
-   - Download all documents at the Student, Section, or Batch Unassigned level packaged in a `.zip` archive.
-4. **Exclusions**:
-   - Document generation (templates/DOCX rendering) is strictly excluded.
+Batch -> Section or Unassigned Students -> Student. Include empty batches/sections and zero-document students; always show each batch's Unassigned Students folder.
 
----
+Assigned students belong beneath their **section's batch**, even when their own batch differs/is null. Unassigned students use their own batch. Students with neither appear under **No Batch -> Unassigned Students**. No Batch appears only when needed; student export works there, but synthetic group export is outside scope. Every student appears exactly once; never modify enrollment data to build the tree.
 
-## 2. Information Architecture & Hierarchy
+Sort batches by year descending then code, No Batch last; sections by code; students by last name, first name, reference. Counts sum displayed descendants and include all stored document rows. Missing assignments have **No Section Assigned** / **No Batch Assigned** badges.
 
-### 2.1. Tree Structure
-```text
-▼ 📁 Batch 2026
-  ▼ 📁 Section COOK-101 (Commercial Cooking NC II)
-      👤 Santos, Maria (2026-001) [3 docs]
-      👤 Dela Cruz, Juan (2026-002) [2 docs]
-  ▼ 📁 Section BREAD-201 (Bread & Pastry Production NC II)
-      👤 Reyes, Ana (2026-003) [4 docs]
-  ▼ 📁 ⚠️ Unassigned Students (No Section)
-      👤 Gomez, Elena (2026-004) [1 doc] ⚠️ No Section Assigned
-▶ 📁 Batch 2025
-```
+Show **Student Number** when present and **Reference No.** (studentId) separately. Upload suggestions search name, number, or reference using tree metadata and display all three. Require explicit unique selection; editing its label clears the selected reference. Duplicate names never select the first match automatically. Names/numbers are not server-side upload identifiers.
 
-### 2.2. Unassigned Student Handling
-- Students in "Enrolling" or "Active" status without an assigned section are grouped under their enrolled `batch_code`.
-- Under each Batch, an explicit `📁 ⚠️ Unassigned Students (No Section)` folder lists these students.
-- In student lists and profile banners, a prominent warning badge (`⚠️ No Section Assigned`) is rendered.
+## 3. API and DTO contracts
 
----
+Paths are relative to /api/registrar/documents. Existing ROLE_REGISTRAR authorization applies; new API routes return 401 anonymous, 403 ADMIN/TRAINER. Before response commitment, errors use the existing JSON {message} shape.
 
-## 3. User Interface & Experience (UI/UX)
+| Method/path | Contract |
+|---|---|
+| GET /folders/tree | 200 `List<DocumentFolderHierarchyResponse>`; empty database -> [] |
+| GET /student/{studentId} | Exact reference; 200 `List<DocumentSummaryResponse>`, upload date/id descending; no documents -> []; unknown student -> 404 |
+| POST /batch | Multipart studentId, repeated files, repeated documentTypes paired by position; 201 ordered `List<DocumentSummaryResponse>` |
+| GET /export/student/{studentId} | Student archive |
+| GET /export/section/{sectionCode} | Section archive |
+| GET /export/batch/{batchCode}/unassigned | Batch's students with null section |
+| GET /export/batch/{batchCode} | Entire displayed batch: its sections plus unassigned students |
 
-### 3.1. Page Layout on `documents.html`
-- **View Toggle Tabs:**
-  - Tab 1: `📁 Folder Explorer` (Active default)
-  - Tab 2: `📋 All Documents Table` (Preserves existing DataTables view for global searches)
-- **Top Action Bar:**
-  - Fast search/filter input to filter tree nodes.
-  - `[⬇️ Export ZIP]` button (context-sensitive: exports active Batch/Section/Student).
-  - `[+ Upload Document]` button (opens modal; pre-selects active student).
+Unknown export scopes return 404. Existing scopes with no documents return 409 {"message":"No documents to export."}, through a dedicated exception/handler. Never substitute substring search (?q=studentId) for exact student listing. The new upload parameter is deliberately studentId, consistent with existing uploads.
 
-### 3.2. Left Panel: Folder Tree Navigation (~33% width)
-- Renders expandable/collapsible tree items.
-- Displays counts for sections, students, and documents.
-- Clicking any node marks it active and drives the right-hand panel view.
+Tree record fields; lists never null:
 
-### 3.3. Right Panel: Active Content View (~67% width)
-- **Breadcrumb Header:** Dynamically updates (e.g. `Batch 2026 > Section COOK-101 > Santos, Maria (2026-001)`).
-- **When a Student Node is Active:**
-  - Profile header card: Student Name, Student Number / ID, Batch, Section (or `⚠️ No Section Assigned` badge), total documents count.
-  - Action shortcuts: `[⬇️ Download All as ZIP]` and `[+ Upload Document]`.
-  - Document items list:
-    - File icon (`.pdf`, `.docx`, `.xlsx`).
-    - File name, Document Type badge (*PSA Birth Certificate*, *Good Moral*, *Form 137*, etc.).
-    - File size (formatted KB/MB), upload date timestamp.
-    - Actions: `[👁️ View]` (iframe preview modal), `[⬇️ Download]` (direct download), `[🗑️ Delete]` (type-to-confirm modal).
-    - Empty state: Clean empty graphic with `+ Upload Document for this Student` prompt.
-- **When a Section Node is Active:**
-  - Section overview card: Section Code, Course name, Batch year, Student count, Document count.
-  - `[⬇️ Download Entire Section ZIP]` button.
-  - Grid of student cards for one-click navigation to any student.
-- **When a Batch Node is Active:**
-  - Overview of sections and unassigned students with total document counts.
+~~~text
+DocumentFolderHierarchyResponse(
+  String batchCode, Short batchYear, long studentCount, long documentCount,
+  List<SectionFolderDto> sections, List<StudentFolderDto> unassignedStudents)
+SectionFolderDto(
+  String sectionCode, String sectionName, String courseName,
+  long studentCount, long documentCount, List<StudentFolderDto> students)
+StudentFolderDto(
+  String studentId, String studentNumber, String firstName, String lastName,
+  String studentStatus, long documentCount)
+~~~
 
-### 3.4. Enhanced Upload Modal (`#uploadDocumentModal`)
-- **Student Identification (Mandatory):**
-  - Text input tied to `<datalist>` matching either **Student Name** (`Santos, Maria`) or **Student Number** (`2026-001`).
-  - Auto-locked/pre-filled when triggered while a student node is selected in the explorer.
-- **Multi-File Selection & Drag-and-Drop:**
-  - `<input type="file" multiple accept=".pdf,.docx,.xlsx">`.
-  - File Staging List:
-    - Lists each staged file with name and size.
-    - Per-file Document Type dropdown (defaults to selected default, customizable per file).
-    - Remove button `[✕]` for individual staged files.
-- **Submission:**
-  - Single `Upload (X) Documents` button with upload spinner.
+Both batchCode and batchYear null denote No Batch; sections is empty. sectionName maps to Section.section; batchYear is Short. Profile/breadcrumb context comes from ancestry.
 
----
+## 4. Reads and atomic upload
 
-## 4. Backend Architecture & API Specifications
+Tree reads use three scalar queries: batches; sections joined to course/batch; students with left-joined, grouped document counts. Build the hierarchy in memory. No per-student/section queries; exclude documents.content_data AND student_records.profile_picture. Loading StudentRecord entities is not metadata-only.
 
-### 4.1. Metadata Endpoints (No BLOB loading)
+Retain the global summary projection; add exact student summary projection. Use JdbcTemplate (available through the JPA starter) for new folder metadata/content read repositories, and JPA for existing document writes. No entities in API responses. Fetch the complete tree once per refresh; pagination/lazy tree loading is deferred.
 
-#### 1. Folder Tree Hierarchy
-- **Endpoint:** `GET /api/registrar/documents/folders/tree`
-- **Security:** `ROLE_REGISTRAR`
-- **Response Model:**
-  ```json
-  [
-    {
-      "batchCode": "BATCH-2026",
-      "batchYear": 2026,
-      "sections": [
-        {
-          "sectionCode": "COOK-101",
-          "sectionName": "Commercial Cooking",
-          "studentCount": 20,
-          "documentCount": 45,
-          "students": [
-            {
-              "studentId": "SR20260001",
-              "studentNumber": "2026-001",
-              "firstName": "Maria",
-              "lastName": "Santos",
-              "documentCount": 3
-            }
-          ]
-        }
-      ],
-      "unassignedStudents": [
-        {
-          "studentId": "SR20260004",
-          "studentNumber": null,
-          "firstName": "Elena",
-          "lastName": "Gomez",
-          "documentCount": 1
-        }
-      ]
-    }
-  ]
-  ```
+Validate the entire upload before writing:
 
-#### 2. Student Document List
-- **Endpoint:** `GET /api/registrar/documents/student/{studentId}`
-- **Response:** `List<DocumentSummaryResponse>` (excludes `content_data`).
+- Valid studentId; unknown reference -> 404. Missing/mismatched fields or invalid files -> 400 with index/name where applicable.
+- 1–20 nonempty files; each <= 10 * 1024 * 1024 bytes; sum <= 50 * 1024 * 1024 bytes using long.
+- Case-insensitive pdf/docx/xlsx extensions; stored MIME comes from the existing extension map. Preserve current validation semantics; content scanning is outside scope.
+- Categories come from /types, excluding ID Picture (1x1 / 2x2). Retain that category in the table filter and dedicated picture routes.
+- Strip browser path prefixes; require a nonblank basename, <=255 characters, without dot-only names, controls, or invalid Windows filename characters. Duplicate filenames create separate records, never overwrite.
 
-### 4.2. Bulk Upload Endpoint
+One public Spring-proxied transaction includes all inserts **and one success audit row**. File-read, persistence, or audit failure rolls back everything. Resolve the student once and extract/reuse validation/save helpers; uploadSingle does not currently exist. Flush and requery scalar summaries for persisted timestamps, preserving file order. Do not stage all file bytes separately.
 
-- **Endpoint:** `POST /api/registrar/documents/batch`
-- **Consumes:** `multipart/form-data`
-- **Parameters:**
-  - `studentIdentifier`: String (Student ID or Student Number)
-  - `files`: `List<MultipartFile>`
-  - `documentTypes`: `List<String>` (matching `files` size)
-- **Validation:**
-  - Resolves student via `findByStudentId` or `findByStudentNumber`.
-  - Allowed extensions: `pdf`, `docx`, `xlsx`.
-  - File size: <= 10 MB per file.
-- **Transaction:** `@Transactional` saves all documents atomically.
-- **Audit Logging:** Writes a single `SystemLog` entry: `"Bulk uploaded X documents for student <Name> (<Number>)"`.
+Multipart configuration: max-file-size=10MB, max-request-size=52MB (50 MiB payload plus overhead), file-size-threshold=0 for disk spooling. The request ceiling is application-wide; other endpoints retain business limits. Keep oversized-upload status 400 when handled by Spring, with an accurate per-file/request message. Container-level rejection may abort before JSON advice; the UI needs a useful non-JSON failure fallback. Missing multipart parameters/parts return 400, not generic 500.
 
-### 4.3. Streaming ZIP Export Endpoints
+Audit includes user ID, username, role, remote IP, student reference, and count; keep action text within system_logs.action's 500-character limit.
 
-- All ZIP endpoints write directly to `HttpServletResponse.getOutputStream()` wrapped in `ZipOutputStream` using buffered chunks to prevent heap memory exhaustion.
-- **Content-Type:** `application/zip`
-- **Content-Disposition:** `attachment; filename="..."`
+## 5. ZIP construction
 
-1. **Student Export:**
-   - `GET /api/registrar/documents/export/student/{studentId}`
-   - Filename: `Documents_{studentNumberOrId}_{lastName}.zip`
-   - Archive entries: `{fileName}` (deduplicated with index if names collide).
+Build an immutable, BLOB-free manifest before headers. Scope predicates exactly match section-ownership rules in section 2. Full-batch membership uses section.batch for assigned students and student.batch for unassigned students.
 
-2. **Section Export:**
-   - `GET /api/registrar/documents/export/section/{sectionCode}`
-   - Filename: `Documents_Section_{sectionCode}.zip`
-   - Archive entries with student subfolders:
-     `{LastName}_{FirstName}_{studentNumberOrId}/{fileName}`.
+| Scope | Download filename | Entry layout |
+|---|---|---|
+| Student | Documents_{numberOrId}_{lastName}.zip | {fileName} |
+| Section | Documents_Section_{sectionCode}.zip | {studentFolder}/{fileName} |
+| Unassigned | Documents_Batch_{batchCode}_Unassigned.zip | {studentFolder}/{fileName} |
+| Batch | Documents_Batch_{batchCode}.zip | Sections/{sectionCode}/{studentFolder}/{fileName}, or Unassigned/{studentFolder}/{fileName} |
 
-3. **Batch Unassigned Export:**
-   - `GET /api/registrar/documents/export/batch/{batchCode}/unassigned`
-   - Filename: `Documents_Batch_{batchCode}_Unassigned.zip`
-   - Archive entries with student subfolders:
-     `{LastName}_{FirstName}_{studentNumberOrId}/{fileName}`.
+studentFolder = {LastName}_{FirstName}_{numberOrId}_{studentId}. Reference suffix prevents same-name student collisions. Omit empty directories.
 
----
+- Use application/zip, Content-Disposition attachment via Spring's filename builder, Cache-Control: no-store; no guessed Content-Length.
+- Stable student-reference/document-id entry order. Sanitize every component: discard path prefixes, remove controls/separators/drive markers and trailing dots/spaces; handle Windows reserved names. Use document-{documentId} or the relevant stable ID when empty. Cap components at 120 characters, preserving extensions.
+- Allocate case-insensitive unique paths after sanitation/truncation, suffixing (1), (2), etc.; recheck collisions with already suffixed names and sanitized student/section folders. No absolute paths or dot/dot-dot components.
+- Copy one document at a time from a parameterized single-row JDBC query using getBinaryStream, an 8 KiB buffer, and ZipOutputStream. Close each input/JDBC resource before the next file. Never fetch a List<Document>, buffer the archive, or materialize all file contents.
+- The driver may buffer the current BLOB: memory is bounded by metadata + largest individual stored BLOB + ZIP bookkeeping, **not** by an 8 KiB total. Legacy/generated files may exceed the upload limit. Verify with the actual MySQL driver and several large files.
+- Manifest membership/names are fixed when prepared. Later uploads are excluded; deletion of a manifested row fails the export; an in-place edit may provide newer bytes. This is not a snapshot/backup format.
+- Before headers, append one **Requested ZIP export** audit with identity/IP, scope/key, and document count. Audit failure aborts the request. This records an attempt, never browser download completion.
+- On failure/disconnect, close resources and log server-side. Reset an uncommitted response for a normal error; never append JSON/HTML to a committed ZIP or claim success. Finish the ZIP only after all entries succeed, leaving the servlet stream container-owned. Java's [ZipOutputStream.close](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/zip/ZipOutputStream.html#close()) completes output, so unconditional try-with-resources closure is insufficient for abort semantics.
 
-## 5. Database Schema & Persistence
+## 6. UI and state
 
-- **Zero Table Alterations:**
-  Existing `documents` table completely fulfills storage needs:
-  - `document_id` (PK)
-  - `student_id` (FK to `student_records.student_id`)
-  - `document_type`, `file_name`, `file_type`, `file_size`
-  - `content_data` (`LONGBLOB`)
-  - `upload_date` (timestamp)
-- **Relationships Utilized:**
-  - `StudentRecord.section` -> `Section.sectionCode`
-  - `StudentRecord.batch` -> `Batch.batchCode`
+- Default Folder Explorer tab; All Documents Table preserves IDs, filters, actions, and Generate Document link. Adjust DataTables columns when its tab becomes visible.
+- Desktop ~1/3 navigation and 2/3 content; stack on mobile. Use nested lists, real buttons, aria-expanded, labels, and visible focus. Do not claim an ARIA tree without its keyboard behavior.
+- Filter names, number/reference, section/batch text case-insensitively; retain matching ancestors; show no-match state. Selection is independent of expansion/filtering.
+- Batch overview shows sections/unassigned cards and full-batch Export; section/unassigned views list students; student view shows breadcrumb/profile/counts/files. Disable Export at zero count; No Batch has no group Export.
+- Reuse existing preview: PDF/image/HTML inline, DOCX/XLSX download notice, generated HTML Edit link. Delegate card/table View/Download/Delete once to a shared ancestor. Preserve type-delete confirmation.
+- Student-context Upload locks the selected student; other entry points require selection. Reopen resets staging/alerts/noncontextual selection. File chooser and drag/drop append to the same ordered list; each row has category/removal, default Others. Show count/total and disable invalid/pending submissions.
+- Success refreshes tree/counts/selected content/table while retaining expansion, selection, filters, and table page where possible. Failure preserves staging. After successful upload but failed refresh, report saved/refresh failed and prevent resubmitting that completed upload.
+- Abort/token-guard requests: a late response for student A cannot overwrite B. Provide loading, retryable error, empty, and session-expired states; clear preview iframe on close.
+- Encode URL segments; use textContent/DOM attribute APIs for dynamic values. Existing escapeHtml alone is unsafe for quoted HTML attributes.
+- Native ZIP download links avoid fetch-to-Blob buffering. Explain that the browser reports download errors; no unsupported completion toast.
 
----
+## 7. Required evidence
 
-## 6. Security & Performance Constraints
+| Area | Acceptance coverage |
+|---|---|
+| Hierarchy | Empty/inactive/null/mismatched batch, zero files, unique placement/counts; real scalar-query tests |
+| Exact lookup/security | Prefix-collision fixture; relevant 200/400/401/403/404/409 assertions |
+| Atomic upload | Limits, misaligned fields, later file-read failure; real transaction rollback including audit failure; actual servlet request ceiling |
+| ZIP | Parsed entries/bytes for all four scopes; unsafe/colliding names; empty/missing scopes; failed output/resource cleanup; MySQL large-file smoke |
+| UI | Both tabs; chooser/drop/remove; ambiguous names; stale requests; upload/delete refresh; preview/edit/download; keyboard/mobile; denied roles |
 
-1. **Access Control:** Restricted strictly to `ROLE_REGISTRAR`.
-2. **Memory Efficiency:**
-   - BLOB `content_data` is excluded from all tree, listing, and summary queries.
-   - ZIP creation streams byte buffers (4KB-8KB buffer) into the servlet output stream; never loads all documents into byte arrays simultaneously.
-3. **Auditability:** Every ZIP export and bulk upload logs user identity, remote IP, and affected student/section in `system_logs`.
+See the [implementation plan](../plans/2026-09-27-document-folder-management.md) for task ownership and verification commands. This documentation review does not claim runtime verification.

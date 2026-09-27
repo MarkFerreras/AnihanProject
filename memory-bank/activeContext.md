@@ -1,5 +1,21 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-09-27 - Document Folder Plan Review)
+
+- Reviewed/revised `docs/superpowers/specs/2026-09-27-document-folder-management-design.md`
+  and its matching plan against current source and locally installed Claude plugins.
+- User confirmed full-batch ZIPs; all statuses + No Batch; stored-original exports
+  including HTML/photos; 20 files, 10 MiB/file, 50 MiB combined.
+- Execution choice: sequential Sonnet implementer + one independent final review;
+  Superpowers owns execution/TDD, ECC supplies targeted guidance/context management.
+- Current checkout: `main`. User explicitly requested no branch change for this
+  documentation-only review; no commit or product implementation performed.
+- Revised artifacts are ready for review. Runtime tests remain future implementation
+  work. `CLAUDE.md` imports all memory files, so the plan cannot eliminate that startup
+  context cost; changing those imports is outside this task.
+
+The older session below describes its own checkout, not the current branch.
+
 ## Latest Session (2026-09-22 - Interim Client Demo Stability Plan Execution)
 
 Executed `docs/superpowers/plans/2026-09-22-client-presentation-readiness.md` in full, via

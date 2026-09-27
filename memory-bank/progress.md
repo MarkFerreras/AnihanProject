@@ -1,5 +1,13 @@
 # Progress - Anihan SRMS
 
+## 2026-09-27 - Document Folder Plan Review (Documentation Only)
+
+- Revised the folder-management spec/plan with user-confirmed scope and sequential
+  Superpowers/ECC execution guidance. Added exact lookup, scalar metadata queries,
+  atomic upload/audit, transport limits, safe ZIP/error contracts, and verification coverage.
+- No feature implementation or runtime testing occurred. Next: review the revised
+  artifacts, then execute on an implementation branch.
+
 ## Recent Sessions (detail)
 
 ### Interim Client Demo Stability Plan Execution (Completed - September 22, 2026)

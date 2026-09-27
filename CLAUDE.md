@@ -16,15 +16,28 @@ Anihan Technical School Student Records Management System (SRMS) — a Spring Bo
 
 ## Project Memory
 
+Auto-loaded in full every session — small, stable reference docs:
+
 @memory-bank/projectbrief.md
 @memory-bank/productContext.md
-@memory-bank/activeContext.md
 @memory-bank/techContext.md
 @memory-bank/systemPatterns.md
-@memory-bank/decisions.md
-@memory-bank/progress.md
-@memory-bank/changeLog.md
-@memory-bank/testing.md
+
+**Not auto-loaded.** These five are large, append-only, newest-first logs (each new
+session's entry goes at the top under "Latest Session" / the most recent dated heading).
+Loading them in full every turn is the main token cost in this repo. Instead, read only
+the top section of each with a bounded `Read` (small `limit`, e.g. 100–150 lines) when you
+actually need current state:
+
+- `memory-bank/activeContext.md` — current task, branch, open items (read the newest entry only)
+- `memory-bank/progress.md` — most recent completed/in-progress work
+- `memory-bank/changeLog.md` — most recent file changes
+- `memory-bank/decisions.md` — most recent decision, or `Grep` for a specific one by keyword
+- `memory-bank/testing.md` — current test count / latest verification result
+
+Read further back in these files only when you need historical context for a specific
+past bug, decision, or session — never as a default startup step, and never all four in
+full "just in case."
 
 ## Memory Update Protocol
 
