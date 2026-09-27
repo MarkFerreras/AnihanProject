@@ -92,12 +92,13 @@ public class DocumentExportService {
         boolean completed = false;
         try {
             for (ExportEntry entry : prepared.entries()) {
+                // No try/finally around closeEntry(): if copyTo fails, the
+                // export aborts anyway (completed stays false), so a second
+                // exception from closeEntry() must never replace the real
+                // root cause in the log below.
                 zip.putNextEntry(new ZipEntry(entry.entryName()));
-                try {
-                    documentContentRepository.copyTo(entry.documentId(), zip);
-                } finally {
-                    zip.closeEntry();
-                }
+                documentContentRepository.copyTo(entry.documentId(), zip);
+                zip.closeEntry();
             }
             zip.finish();
             completed = true;

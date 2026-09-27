@@ -50,6 +50,7 @@
         setupUploadStaging();
         setupSharedActions();
         setupExplorerFilter();
+        setupTreeKeyboardNav();
         initExplorer();
 
         $('#tab-table').on('shown.bs.tab', function () {
@@ -368,6 +369,10 @@
         }).filter(Boolean);
     }
 
+    // pendingFocus names the treeitem (by kind/key) that should regain
+    // keyboard focus after an expand/collapse-triggered re-render.
+    let pendingFocus = null;
+
     function renderFolderTree() {
         const query = ($('#explorerFilterInput').val() || '').trim();
         const data = computeFilteredHierarchy(query);
@@ -376,16 +381,99 @@
         root.innerHTML = '';
         if (!data.length) {
             root.appendChild(el('li', { class: 'text-muted small px-2 py-1', text: query ? 'No matches.' : 'No batches yet.' }));
+            pendingFocus = null;
             return;
         }
         data.forEach(function (batch) { root.appendChild(buildBatchNode(batch, forceExpand)); });
+        applyRovingTabindex();
+    }
+
+    /**
+     * Roving tabindex per the ARIA tree pattern: exactly one visible
+     * treeitem is tabbable (tabindex="0"); Arrow/Home/End move that single
+     * stop among the currently rendered rows without changing selection.
+     */
+    function applyRovingTabindex() {
+        const rows = Array.from(document.querySelectorAll('#folderTree .folder-node'));
+        rows.forEach(function (r) { r.setAttribute('tabindex', '-1'); });
+
+        let target = null;
+        if (pendingFocus) {
+            target = rows.find(function (r) { return rowMatches(r, pendingFocus.kind, pendingFocus.key); });
+        }
+        if (!target && selection.kind) {
+            target = rows.find(function (r) { return rowMatches(r, selection.kind, selection.key); });
+        }
+        if (!target) target = rows[0];
+
+        if (target) {
+            target.setAttribute('tabindex', '0');
+            if (pendingFocus) target.focus();
+        }
+        pendingFocus = null;
+    }
+
+    function rowMatches(row, kind, key) {
+        const li = row.closest('li');
+        return li && li.getAttribute('data-node-kind') === kind && li.getAttribute('data-node-key') === String(key);
+    }
+
+    function focusRowDirect(row) {
+        if (!row) return;
+        document.querySelectorAll('#folderTree .folder-node').forEach(function (r) { r.setAttribute('tabindex', '-1'); });
+        row.setAttribute('tabindex', '0');
+        row.focus();
+    }
+
+    function setupTreeKeyboardNav() {
+        document.getElementById('folderTree').addEventListener('keydown', function (evt) {
+            if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(evt.key)) return;
+            const rows = Array.from(document.querySelectorAll('#folderTree .folder-node'));
+            const current = document.activeElement;
+            const index = rows.indexOf(current);
+            if (index === -1) return;
+            evt.preventDefault();
+
+            if (evt.key === 'ArrowDown') {
+                focusRowDirect(rows[Math.min(index + 1, rows.length - 1)]);
+            } else if (evt.key === 'ArrowUp') {
+                focusRowDirect(rows[Math.max(index - 1, 0)]);
+            } else if (evt.key === 'Home') {
+                focusRowDirect(rows[0]);
+            } else if (evt.key === 'End') {
+                focusRowDirect(rows[rows.length - 1]);
+            } else if (evt.key === 'ArrowRight') {
+                const li = current.closest('li');
+                const toggle = current.querySelector('.folder-toggle[aria-expanded]');
+                if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+                    pendingFocus = { kind: li.getAttribute('data-node-kind'), key: li.getAttribute('data-node-key') };
+                    toggle.click();
+                } else {
+                    const childUl = li.querySelector(':scope > ul');
+                    const firstChildRow = childUl && childUl.querySelector(':scope > li > .folder-node');
+                    if (firstChildRow) focusRowDirect(firstChildRow);
+                }
+            } else if (evt.key === 'ArrowLeft') {
+                const li = current.closest('li');
+                const toggle = current.querySelector('.folder-toggle[aria-expanded]');
+                if (toggle && toggle.getAttribute('aria-expanded') === 'true') {
+                    pendingFocus = { kind: li.getAttribute('data-node-kind'), key: li.getAttribute('data-node-key') };
+                    toggle.click();
+                } else {
+                    const parentLi = li.parentElement.closest('li');
+                    const parentRow = parentLi && parentLi.querySelector(':scope > .folder-node');
+                    if (parentRow) focusRowDirect(parentRow);
+                }
+            }
+        });
     }
 
     function buildNodeRow(kind, key, label, countText, expandable, expanded, onToggle) {
         const row = el('div', {
             class: 'folder-node' + (isSelected(kind, key) ? ' selected' : ''),
-            role: 'button',
-            tabindex: '0'
+            role: 'treeitem',
+            'aria-selected': isSelected(kind, key) ? 'true' : 'false',
+            tabindex: '-1'
         });
         if (expandable) {
             const toggle = el('button', {
@@ -425,7 +513,7 @@
             batch.studentCount + ' students, ' + batch.documentCount + ' docs',
             true, expanded, function () { toggleExpand(trackKey); }));
         if (expanded) {
-            const ul = el('ul');
+            const ul = el('ul', { role: 'group' });
             batch.sections.forEach(function (section) { ul.appendChild(buildSectionNode(section, forceExpand)); });
             ul.appendChild(buildUnassignedNode(batch, forceExpand));
             li.appendChild(ul);
@@ -443,7 +531,7 @@
             section.studentCount + ' students, ' + section.documentCount + ' docs',
             true, expanded, function () { toggleExpand(trackKey); }));
         if (expanded) {
-            const ul = el('ul');
+            const ul = el('ul', { role: 'group' });
             section.students.forEach(function (student) { ul.appendChild(buildStudentNode(student)); });
             li.appendChild(ul);
         }
@@ -460,7 +548,7 @@
             batch.unassignedStudents.length + ' students, ' + docCount + ' docs',
             true, expanded, function () { toggleExpand(trackKey); }));
         if (expanded) {
-            const ul = el('ul');
+            const ul = el('ul', { role: 'group' });
             batch.unassignedStudents.forEach(function (student) { ul.appendChild(buildStudentNode(student)); });
             li.appendChild(ul);
         }

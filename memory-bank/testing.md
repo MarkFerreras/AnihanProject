@@ -112,10 +112,48 @@ since MockMvc never enforces servlet-container multipart limits:**
   `GET /export/section/{populated}` → `200 application/zip`.
 
 **Not verified this session (explicit gaps, not silently skipped):** true concurrent-request
-abort/disconnect recovery mid-stream on a live export; mobile-viewport rendering; a
-screen-reader pass over the explorer's tree/breadcrumb (kept `role="tree"`/`aria-expanded`/
-real `<button>`s per spec, but not walked with assistive tech); the plan's required one
-independent final review has not yet been run.
+abort/disconnect recovery mid-stream on a live export; mobile-viewport rendering; a full
+screen-reader pass over the explorer's tree/breadcrumb.
+
+## Independent Final Review — 2026-09-27 (GO-WITH-FIXES) and Post-Review Fixes
+
+A fresh subagent with no prior context on this work reviewed the spec, the plan, and the
+full `main...feature/document-folder-management` diff, and independently re-ran
+`./gradlew test`, parsing the JUnit XML reports directly (confirmed 484/0 exactly). Verdict:
+**GO-WITH-FIXES** — scoping correctness (§2), transactional atomicity (§4), and ZIP
+safety/memory (§5) were all confirmed genuinely correct against real (non-mocked-persistence)
+tests. Two concrete gaps were found and are now fixed:
+
+1. **Upload filename validation didn't implement spec §4's stated rules** — the pre-existing
+   `isBlank() || contains("..")` check (shared with the pre-branch single-upload endpoint)
+   had no 255-char cap, no control-character/reserved-Windows-character rejection, and no
+   dot-only-name rejection. **Fixed:** a shared `DocumentService.requireValidFileName(...)`
+   now enforces all of spec §4's rules for both `upload()` and `uploadBatch()`; 8 new unit
+   tests added (`DocumentServiceTest`) covering >255 chars, control chars, reserved chars,
+   dot-only names (`"."`, not just `".."`, which the old check already caught), and
+   browser path-prefix stripping. `uploadIdPicture()`/`saveGenerated()` were correctly left
+   untouched (different spec section / server-generated name respectively).
+2. **The Folder Explorer's tree contradicted the spec's own explicit warning** ("Do not
+   claim an ARIA tree without its keyboard behavior") — rows were `<div role="button">` with
+   no `role="treeitem"`/`aria-selected` and no arrow-key navigation, which the reviewer
+   correctly flagged as inconsistent with this file's own prior claim of "real `<button>`s
+   per spec." **Fixed:** rows now carry `role="treeitem"`/`aria-selected`; nested `<ul>`s
+   carry `role="group"`; a roving-tabindex implementation (`applyRovingTabindex`,
+   `setupTreeKeyboardNav`) handles ArrowUp/ArrowDown/ArrowRight/ArrowLeft/Home/End per the
+   WAI-ARIA tree pattern, including re-focusing the same logical node across the
+   expand/collapse re-render. **Live-reverified** (second disposable-MySQL round, Playwright):
+   `role="treeitem"`/correct initial roving `tabindex` confirmed via DOM query; ArrowDown
+   moved focus+tabindex to the next batch row; ArrowRight on a collapsed batch expanded it
+   and kept focus on that same row; a second ArrowRight moved focus into its first child
+   section row (`role="treeitem"` confirmed); ArrowLeft moved focus back to the parent batch
+   row. All four moves worked exactly as the WAI-ARIA tree pattern requires.
+3. **[Low, also fixed]** `DocumentExportService.writeZip`'s inner `try/finally { closeEntry(); }`
+   could let a `closeEntry()` failure mask the real root-cause exception in server logs.
+   Removed the inner try/finally — `completed` still correctly stays `false` on any failure,
+   so the abort-without-trailer guarantee is unaffected; only log fidelity improves.
+
+Full suite after fixes: **492 tests, 0 failures** (484 + 8 new filename-validation tests).
+Commit: see `changeLog.md`'s next entry for the exact hash.
 
 ## Live Verification — 2026-09-22 (Interim Client Demo Stability Plan Execution)
 

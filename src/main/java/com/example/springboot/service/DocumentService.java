@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -178,11 +179,7 @@ public class DocumentService {
             }
             requireKnownType(documentType);
 
-            String originalName = StringUtils.cleanPath(
-                    file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
-            if (originalName.isBlank() || originalName.contains("..")) {
-                throw new IllegalArgumentException("Invalid file name at position " + position + ".");
-            }
+            String originalName = requireValidFileName(file.getOriginalFilename(), position);
 
             String extension = extensionOf(originalName);
             String mimeType = ALLOWED_EXTENSIONS.get(extension);
@@ -236,11 +233,7 @@ public class DocumentService {
             throw new IllegalArgumentException("File exceeds the 10MB size limit.");
         }
 
-        String originalName = StringUtils.cleanPath(
-                file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
-        if (originalName.isBlank() || originalName.contains("..")) {
-            throw new IllegalArgumentException("Invalid file name.");
-        }
+        String originalName = requireValidFileName(file.getOriginalFilename(), null);
 
         String extension = extensionOf(originalName);
         String mimeType = ALLOWED_EXTENSIONS.get(extension);
@@ -457,6 +450,33 @@ public class DocumentService {
             throw new IllegalArgumentException(
                     "Unknown document type. Allowed types: " + String.join(", ", DOCUMENT_TYPES));
         }
+    }
+
+    private static final Pattern INVALID_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1F<>:\"/\\\\|?*]");
+    private static final int MAX_FILE_NAME_LENGTH = 255;
+
+    /**
+     * Strips any browser-supplied path prefix and rejects a basename that is
+     * blank, dot-only, over 255 characters, or contains a control character
+     * or a Windows-reserved separator/wildcard (spec §4).
+     */
+    private static String requireValidFileName(String rawName, Integer position) {
+        String suffix = position == null ? "." : (" at position " + position + ".");
+        String name = StringUtils.cleanPath(rawName == null ? "" : rawName);
+        int lastSeparator = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        if (lastSeparator >= 0) {
+            name = name.substring(lastSeparator + 1);
+        }
+        if (name.isBlank() || name.contains("..") || INVALID_FILENAME_CHARS.matcher(name).find()) {
+            throw new IllegalArgumentException("Invalid file name" + suffix);
+        }
+        if (name.replaceAll("\\.+$", "").isBlank()) {
+            throw new IllegalArgumentException("Invalid file name" + suffix);
+        }
+        if (name.length() > MAX_FILE_NAME_LENGTH) {
+            throw new IllegalArgumentException("File name exceeds " + MAX_FILE_NAME_LENGTH + " characters" + suffix);
+        }
+        return name;
     }
 
     private static String extensionOf(String fileName) {

@@ -108,6 +108,62 @@ class DocumentServiceTest {
     }
 
     @Test
+    void uploadRejectsFileNameOverTwoHundredFiftyFiveCharacters() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        String longName = "a".repeat(252) + ".pdf"; // 256 chars total
+        var file = new MockMultipartFile("file", longName, "application/pdf", "x".getBytes());
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.upload("SR20260001", TOR_TYPE, file));
+        assertTrue(ex.getMessage().contains("255"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadRejectsFileNameWithControlCharacter() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var file = new MockMultipartFile("file", "a\u0007b.pdf", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upload("SR20260001", TOR_TYPE, file));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadRejectsFileNameWithReservedWindowsCharacter() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var file = new MockMultipartFile("file", "a:b.pdf", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upload("SR20260001", TOR_TYPE, file));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadRejectsDotOnlyFileName() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        // A single dot has no ".." substring, so this specifically exercises
+        // the trailing-dots-stripped-to-blank check, not the "../" guard.
+        var file = new MockMultipartFile("file", ".", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upload("SR20260001", TOR_TYPE, file));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadStripsABrowserSuppliedPathPrefix() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+        var file = new MockMultipartFile("file", "C:\\fakepath\\tor-scan.pdf", "application/pdf",
+                "x".getBytes(StandardCharsets.UTF_8));
+
+        DocumentSummaryResponse summary = service.upload("SR20260001", TOR_TYPE, file);
+
+        assertEquals("tor-scan.pdf", summary.fileName());
+    }
+
+    @Test
     void uploadRejectsEmptyFile() {
         when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
         var file = new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[0]);
@@ -588,6 +644,45 @@ class DocumentServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
                 "SR20260001", List.of(TOR_TYPE), List.of(f1), sampleAudit()));
         verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsFileNameOverTwoHundredFiftyFiveCharacters() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        String longName = "a".repeat(252) + ".pdf";
+        var f1 = new MockMultipartFile("files", longName, "application/pdf", "x".getBytes());
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(f1), sampleAudit()));
+        assertTrue(ex.getMessage().contains("255"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsDotOnlyFileName() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        // A single dot has no ".." substring, so this specifically exercises
+        // the trailing-dots-stripped-to-blank check, not the "../" guard.
+        var f1 = new MockMultipartFile("files", ".", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(f1), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchStripsABrowserSuppliedPathPrefix() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(documentRepository.findSummariesByIds(any())).thenReturn(List.of());
+        var f1 = new MockMultipartFile("files", "C:\\fakepath\\tor-scan.pdf", "application/pdf",
+                "x".getBytes(StandardCharsets.UTF_8));
+
+        service.uploadBatch("SR20260001", List.of(TOR_TYPE), List.of(f1), sampleAudit());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Document.class);
+        verify(documentRepository).save(captor.capture());
+        assertEquals("tor-scan.pdf", captor.getValue().getFileName());
     }
 
     @Test

@@ -37,9 +37,16 @@
   rejected with zero writes, 54MiB combined (container-level) rejected with zero writes, 21
   files rejected with zero writes; exactly one `system_logs` audit row per successful batch,
   none for any rejected attempt. Disposable container and all temp files removed after.
-- **Not yet done:** the plan's independent final review (Task 5's other acceptance item);
-  `superpowers:finishing-a-development-branch` for the merge/PR decision.
-- Active branch: `feature/document-folder-management`, 4 commits ahead of `main`, not merged.
+- **Independent final review:** GO-WITH-FIXES (see `memory-bank/testing.md`'s "Independent
+  Final Review" section for the full report). Both findings fixed and live-reverified:
+  shared `requireValidFileName` now enforces spec §4's filename rules (255-char cap,
+  control/reserved-char rejection, dot-only-name rejection) for `upload()`/`uploadBatch()`;
+  the Folder Explorer tree now has real `role="treeitem"`/`aria-selected`/`role="group"` +
+  full roving-tabindex arrow-key navigation (confirmed live via Playwright: ArrowDown/
+  ArrowRight/ArrowLeft all move focus correctly per the WAI-ARIA tree pattern). Full suite
+  after fixes: 492 tests, 0 failures.
+- **Not yet done:** `superpowers:finishing-a-development-branch` for the merge/PR decision.
+- Active branch: `feature/document-folder-management`, not yet merged.
 
 The two sessions below describe earlier checkouts, not the current branch.
 
