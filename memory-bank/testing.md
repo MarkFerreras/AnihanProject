@@ -43,12 +43,79 @@
 | `ClassManagementControllerWebMvcTest` (2026-09-22 addition) | WebMvc | +1 | `getAvailableSemestersReturnsYears` — same characterization purpose, registrar side |
 | `TrainerServiceTest` (2026-09-22 addition) | Mockito | +1 | `getMyClassesFiltersByExplicitSemester` — confirms `getMyClasses(String semester)` genuinely filters by year (not a tautology); zero production code touched |
 | `SchemaContractTest` | Pure unit | 2 | `documentFileTypeSupportsOpenXmlMimeTypesEverywhere` (Bug 12 fix: pins `Document.fileType`'s `@Column(length=100)` + both SQL schema files' `file_type VARCHAR(100) NOT NULL` text + the migration file's existence); `demoAccountSeedOnlyInsertsMissingUsers` (pins `seed-accounts.sql`'s insert-only contract via text-substring checks — present: `WHERE NOT EXISTS`, `TIMESTAMPDIFF(YEAR`, all 3 usernames; absent: `UPDATE users`, `DELETE FROM users`, `DELETE FROM user_security_answers`, `ON DUPLICATE KEY UPDATE`) |
+| `DocumentFolderServiceTest` | Mockito | 9 | Batch year-desc/code-asc sort + No Batch last, empty batch/section still appear, assigned student uses section's batch over its own mismatched batch, unassigned-with-null-batch → No Batch, No Batch omitted when empty, student sort (last/first/reference), aggregate count summation |
+| `DocumentExportServiceTest` | Mockito | 19 | 404 per scope (student/section/unassigned-batch/batch), 409 empty, filename per scope (studentNumber-or-id fallback), entry layout per scope (flat/student-folder/Sections-or-Unassigned), duplicate-filename `(1)`/`(2)` suffixing incl. case-insensitive, truncated-to-identical folder names disambiguated, unsafe/control-char stripping, Windows reserved-name rename, 120-char cap preserving extension, blank-name → `document-{id}` fallback, `writeZip` produces a valid parseable archive on success / no EOCD trailer on failure |
+| `DocumentStorageIntegrationTest` (extended) | `@SpringBootTest` real H2 (MySQL mode, real DDL script — not `create-drop`) | 10 | 3 scalar reads regardless of student count + no BLOB/`SELECT *`; exact `SR20260001` vs `SR202600010` lookup; folder-hierarchy real aggregation; **real transaction commit/rollback**: success commits N documents + exactly 1 audit row, a second-file `IOException` rolls back everything (0 documents, 0 audit rows), an audit-persistence failure (`@MockitoSpyBean` on `SystemLogRepository`) rolls back the documents too; section-scope includes an assigned student despite mismatched own batch; unassigned-scope uses the student's own batch, not any section's; batch-scope combines section-assigned + same-batch-unassigned only; `DocumentContentRepository` copies exact stored bytes; end-to-end `prepareExport`+`writeZip` produces a real parseable ZIP with the stored bytes |
+| `DocumentServiceTest` (extended) | Mockito | +16 | Exact student listing (200/`[]`/404/blank/no-prefix-collision); `uploadBatch` — in-order save + reorder-by-input via mocked `findSummariesByIds`, 0/21/exactly-20 files, >10MiB file, >50MiB combined (mocked `getSize()`, no giant byte arrays), any-file-empty, mismatched list sizes, unknown type, reserved ID-picture category, disallowed extension, unknown student → 404 (not 400, unlike single upload), file-read `IOException` → `UncheckedIOException` |
+| `DocumentControllerWebMvcTest` (extended) | WebMvc | +27 | `/folders/tree` (200/`[]`/403×2/401), `/student/{id}` (200/`[]`/404/403/401), `/batch` (201 ordered, 400 service-reject, 400 missing param, 400 missing part, 404 unknown student, 403×2/401), 4× `/export/...` (200+headers, 400 validation passthrough, 404, 409, 403×2/401 **per route**) |
 
-**Latest full-suite result:** `./gradlew clean test` → BUILD SUCCESSFUL — **393 tests, 0
-failures, 0 errors, 0 skipped** (2026-09-22, `fix/client-demo-readiness-and-audit` branch,
-the interim client-demo-stability-plan execution session; 385 baseline + 1 `AuthController
-WebMvcTest` + 3 `TrainerControllerWebMvcTest` + 1 `ClassManagementControllerWebMvcTest` + 1
-`TrainerServiceTest` + 2 `SchemaContractTest` = 393, exact match, no unexplained drift).
+**Latest full-suite result:** `./gradlew test` → BUILD SUCCESSFUL — **484 tests, 0
+failures, 0 errors, 0 skipped** (2026-09-27, `feature/document-folder-management` branch,
+after all 4 implementation tasks of the document-folder-management plan; 393 baseline + new
+tests added across the plan's 4 tasks; recount via the XML test reports, not a hand tally).
+
+## Live Verification — 2026-09-27 (Document Folder Management, Disposable DB)
+
+Real end-to-end verification against a **disposable** MySQL 8 Docker container (port 3307,
+`anihan-task5-test-mysql`, `schema.sql` applied fresh) and a locally-run `./gradlew bootRun`
+instance on port 8081 — the live `mysql-server` container (port 3306, real `AnihanSRMS`) was
+never connected to, migrated, or modified. Container and all temp files removed after.
+
+**Browser (Playwright), logged in as `registrar`:**
+- Folder tree renders real batches/sections/students with correct counts from the seeded
+  schema data; drill-down batch → section → student with correct breadcrumb at each level.
+- Batch overview: section/unassigned cards, "Export Entire Batch" correctly `disabled` at
+  zero documents.
+- Student detail: Reference No./Student Number line, status badge, "No documents uploaded
+  yet." (real async fetch to `/student/{id}`).
+- Locked upload (from student context): student field pre-filled+readonly, help text
+  correct; drag-and-drop staging (simulated via a real `DragEvent`/`DataTransfer`) added a
+  row with filename/size/category-select/Remove; Upload button transitioned
+  disabled→enabled once a valid file was staged.
+- Upload succeeded (real `POST /batch` against the real DB): tree count, Export Student
+  (disabled→enabled link), and the student's document list all refreshed in place.
+- Shared delegated View (iframe pointed at `/api/registrar/documents/{id}/view`) and Delete
+  (type-"delete"-to-confirm) both worked from the explorer-rendered row, with the same
+  handlers the table uses; after delete, counts and Export Student's disabled state
+  reverted correctly.
+- Explorer filter ("Lopez"): only the matching batch/section/student stayed visible,
+  ancestors retained, non-matching batches hidden; selection preserved across a tab switch
+  to "All Documents Table" and back.
+- Non-locked upload (Table tab entry point): student combobox required an **exact** label
+  match — typing a partial name (`"Lopez"`) left the Upload button `disabled` (no
+  auto-selection of the first match).
+- Table tab: DataTables renders with real batch/section/type filter options populated from
+  the live data.
+
+**Real HTTP (curl, session cookie from the same login) — confirms behavior MockMvc cannot,
+since MockMvc never enforces servlet-container multipart limits:**
+| Case | Combined size | Per-file | Result |
+|---|---|---|---|
+| 2 files | 16MiB | 8MiB each | **201**, above the *old* 15MiB cap |
+| 1 file | 11MiB | — | **400** `"...10MB per file..."` |
+| 6 files | 51MiB | 8.5MiB each | **400** `"Combined upload size exceeds the 50MB limit."` (business check; container's 52MiB cap alone would have let this through) |
+| 6 files | 54MiB | 9MiB each | **400** `"...maximum allowed size..."` (container-level, over the 52MiB request cap) |
+| 21 files | tiny | — | **400** `"A maximum of 20 files..."` |
+
+- `SELECT COUNT(*) FROM documents WHERE student_id=...` confirmed **0 new rows** after each
+  of the 4 rejected requests (still 8 from the 2 successful ones).
+- `system_logs` confirmed **exactly 2 rows** total for this student (`"Uploaded 2
+  document(s)..."`, `"Uploaded 6 document(s)..."`) — one per successful batch, zero for any
+  rejected attempt.
+- `GET /export/student/{id}` on the 8-document student: `200`, `Content-Type: application/zip`,
+  `Content-Disposition: attachment; filename="Documents_SR-CURL-001_Curl.zip"`,
+  `Cache-Control: no-store`; the downloaded ZIP parsed with Python's `zipfile` — 8 entries,
+  every filename and byte size matched exactly what was uploaded, `testzip()` returned
+  `None` (valid archive, no CRC errors).
+- `GET /export/section/{empty}` → `409 {"message":"No documents to export."}`;
+  `GET /export/section/{unknown}` → `404 {"message":"section not found: ..."}`;
+  `GET /export/section/{populated}` → `200 application/zip`.
+
+**Not verified this session (explicit gaps, not silently skipped):** true concurrent-request
+abort/disconnect recovery mid-stream on a live export; mobile-viewport rendering; a
+screen-reader pass over the explorer's tree/breadcrumb (kept `role="tree"`/`aria-expanded`/
+real `<button>`s per spec, but not walked with assistive tech); the plan's required one
+independent final review has not yet been run.
 
 ## Live Verification — 2026-09-22 (Interim Client Demo Stability Plan Execution)
 

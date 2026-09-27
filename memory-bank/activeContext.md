@@ -1,6 +1,49 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-27 - Document Folder Plan Review)
+## Latest Session (2026-09-27 - Document Folder Management Implementation)
+
+- Implemented `docs/superpowers/plans/2026-09-27-document-folder-management.md` in full
+  (Tasks 1-4) on branch `feature/document-folder-management`, as one sequential Sonnet 5
+  implementer per the plan's user-selected workflow (no per-task subagent/spec/code-review
+  split — that recommendation was explicitly overridden by the plan header).
+- **Task 1** (`02bb204`): folder-tree scalar reads (`DocumentFolderRepository` via
+  `JdbcTemplate`, batches/sections/students+counts, 3 queries regardless of student count,
+  BLOB-free) + exact-reference student document listing. Real-H2 test caught and fixed a
+  genuine cross-driver bug: `rs.getObject("batch_year")` returns `java.sql.Date` under real
+  MySQL Connector/J (`yearIsDateType=true` default), not `Short` — fixed with `getShort()`.
+- **Task 2** (`76ee381`): atomic `POST /api/registrar/documents/batch` — validates entirely
+  before writing (20 files / 10MiB per file / 50MiB combined), one transaction for all
+  inserts + the one success audit row, unknown student is 404 here (not 400, unlike single
+  upload). Raised `spring.servlet.multipart.max-request-size` 15MB→52MB.
+- **Task 3** (`0e8e9ac`): four ZIP export scopes (student/section/batch-unassigned/batch) —
+  one metadata query per scope, one document streamed at a time via `DocumentContentRepository`
+  (JDBC `getBinaryStream`), safe/unique/sanitized entry names, abort-without-trailer on
+  failure via a custom `AbortableZipOutputStream.abort()` (`Deflater.end()` without
+  `finish()`/`close()`), 409 for an existing-but-empty scope, 404 for an unknown one.
+- **Task 4** (`fff5648`): Folder Explorer tab (default) in `documents.html` + fully reworked
+  `registrar-documents.js` — batch/section/unassigned/student tree with filter+breadcrumbs,
+  native ZIP export links, multi-file upload staging (locked-student and open-selection
+  modes, explicit-selection combobox so duplicate names never auto-select), shared
+  delegated View/Download/Delete between the table and the explorer.
+- **Verification:** full suite 484 tests / 0 failures at every task boundary. Spun up a
+  **disposable** MySQL 8 container (port 3307, `anihan-task5-test-mysql`) — never the live
+  `mysql-server` (port 3306) — applied `schema.sql`, ran the real app against it, and via
+  Playwright + curl verified end-to-end: tree/breadcrumb/badges render from real data;
+  locked and open upload flows; shared view/download/delete with real refresh; explorer
+  filter with ancestor retention; all 4 export scopes (200/409/404) with correct
+  `Content-Disposition`/`Cache-Control` headers and byte-correct ZIP entries; **real servlet
+  multipart limits** (MockMvc cannot enforce these) — 16MiB combined succeeds (above the old
+  15MiB cap), single file >10MiB rejected, 51MiB combined (business check, each file <10MiB)
+  rejected with zero writes, 54MiB combined (container-level) rejected with zero writes, 21
+  files rejected with zero writes; exactly one `system_logs` audit row per successful batch,
+  none for any rejected attempt. Disposable container and all temp files removed after.
+- **Not yet done:** the plan's independent final review (Task 5's other acceptance item);
+  `superpowers:finishing-a-development-branch` for the merge/PR decision.
+- Active branch: `feature/document-folder-management`, 4 commits ahead of `main`, not merged.
+
+The two sessions below describe earlier checkouts, not the current branch.
+
+## Session (2026-09-27 - Document Folder Plan Review)
 
 - Reviewed/revised `docs/superpowers/specs/2026-09-27-document-folder-management-design.md`
   and its matching plan against current source and locally installed Claude plugins.

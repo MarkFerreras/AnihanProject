@@ -1,5 +1,28 @@
 # Progress - Anihan SRMS
 
+## 2026-09-27 - Document Folder Management Implementation (Tasks 1-4 Complete)
+
+- **Completed:** all 4 implementation tasks from
+  `docs/superpowers/plans/2026-09-27-document-folder-management.md`, on branch
+  `feature/document-folder-management` (4 commits, not yet merged):
+  folder metadata/exact listing, atomic bulk upload, four ZIP export scopes, and the
+  registrar Folder Explorer UI. Full suite: 484 tests, 0 failures.
+- **Verified live** against a disposable MySQL 8 container (never the live `AnihanSRMS`):
+  browser walkthrough of the explorer (tree/breadcrumb/badges/filter/upload/view/download/
+  delete/refresh) via Playwright, plus curl-based real-servlet multipart limit tests (16MiB
+  combined succeeds, single >10MiB file / 51MiB business-limit combined / 54MiB
+  container-limit combined / 21 files all rejected with zero writes and zero audit rows),
+  plus all 4 export scopes' real HTTP responses (200 with correct headers/bytes, 409 empty,
+  404 unknown).
+- **Deferred to before merge:** the plan's one independent final review (spec compliance +
+  code quality, focused on scoping/transactions/ZIP safety/UI regressions per Task 5) has
+  not yet been run. `superpowers:finishing-a-development-branch` has not yet been invoked
+  for the merge/PR decision.
+- **Not exercised this session** (acceptance items outside practical scope here): true
+  concurrent-request abort/disconnect recovery on a live export stream, and mobile-viewport/
+  screen-reader manual passes — the explorer's keyboard operability (real `<button>`s,
+  `tabindex`, `aria-expanded`) was implemented per spec but not walked with a screen reader.
+
 ## 2026-09-27 - Document Folder Plan Review (Documentation Only)
 
 - Revised the folder-management spec/plan with user-confirmed scope and sequential
