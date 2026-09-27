@@ -12,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,6 +36,7 @@ class DocumentServiceTest {
 
     @Mock private DocumentRepository documentRepository;
     @Mock private StudentRecordRepository studentRecordRepository;
+    @Mock private SystemLogService systemLogService;
 
     @InjectMocks private DocumentService service;
 
@@ -406,6 +408,212 @@ class DocumentServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.saveGenerated(
                 "SR20260001", TOR_TYPE, "SR20260001-TOR.html", "<html><body>v2</body></html>", 7));
         verify(documentRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------
+    // Atomic bulk upload
+    // -------------------------------------------------------
+
+    private com.example.springboot.dto.registrar.DocumentAuditContext sampleAudit() {
+        return new com.example.springboot.dto.registrar.DocumentAuditContext(
+                1, "registrar", "ROLE_REGISTRAR", "127.0.0.1");
+    }
+
+    private MultipartFile fakeSizedFile(String name, long size) {
+        MultipartFile file = mock(MultipartFile.class);
+        lenient().when(file.isEmpty()).thenReturn(false);
+        lenient().when(file.getSize()).thenReturn(size);
+        lenient().when(file.getOriginalFilename()).thenReturn(name);
+        return file;
+    }
+
+    @Test
+    void uploadBatchSavesAllFilesInInputOrderAndWritesOneAuditLog() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        java.util.concurrent.atomic.AtomicInteger idGen = new java.util.concurrent.atomic.AtomicInteger(100);
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> {
+            Document d = inv.getArgument(0);
+            d.setDocumentId(idGen.incrementAndGet());
+            return d;
+        });
+        // Return summaries in reverse order to prove the service reorders them.
+        when(documentRepository.findSummariesByIds(any())).thenAnswer(inv -> {
+            java.util.Collection<Integer> ids = inv.getArgument(0);
+            List<DocumentSummaryResponse> out = new java.util.ArrayList<>();
+            for (Integer id : ids) {
+                out.add(0, new DocumentSummaryResponse(id, "SR20260001", "Dela Cruz", "Maria",
+                        TOR_TYPE, "file" + id + ".pdf", "application/pdf", 9, null));
+            }
+            return out;
+        });
+
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        var f2 = new MockMultipartFile("files", "b.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "bbb".getBytes(StandardCharsets.UTF_8));
+
+        List<DocumentSummaryResponse> saved = service.uploadBatch("SR20260001",
+                List.of(TOR_TYPE, "PSA Birth Certificate"), List.of(f1, f2), sampleAudit());
+
+        assertEquals(2, saved.size());
+        assertEquals(101, saved.get(0).documentId());
+        assertEquals(102, saved.get(1).documentId());
+        verify(documentRepository, times(2)).save(any(Document.class));
+        verify(documentRepository).flush();
+        verify(systemLogService).logAction(eq(1), eq("registrar"), eq("ROLE_REGISTRAR"),
+                contains("2 document"), eq("127.0.0.1"));
+    }
+
+    @Test
+    void uploadBatchRejectsZeroFiles() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadBatch("SR20260001", List.of(), List.of(), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadBatchRejectsMoreThanTwentyFiles() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        List<MultipartFile> files = new java.util.ArrayList<>();
+        List<String> types = new java.util.ArrayList<>();
+        for (int i = 0; i < 21; i++) {
+            files.add(fakeSizedFile("f" + i + ".pdf", 10));
+            types.add(TOR_TYPE);
+        }
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadBatch("SR20260001", types, files, sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchAcceptsExactlyTwentyFiles() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(documentRepository.findSummariesByIds(any())).thenReturn(List.of());
+
+        List<MultipartFile> files = new java.util.ArrayList<>();
+        List<String> types = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            files.add(new MockMultipartFile("files", "f" + i + ".pdf", "application/pdf",
+                    "x".getBytes(StandardCharsets.UTF_8)));
+            types.add(TOR_TYPE);
+        }
+
+        service.uploadBatch("SR20260001", types, files, sampleAudit());
+
+        verify(documentRepository, times(20)).save(any(Document.class));
+    }
+
+    @Test
+    void uploadBatchRejectsFileOverTenMegabytes() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        MultipartFile huge = fakeSizedFile("huge.pdf", 10L * 1024 * 1024 + 1);
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(huge), sampleAudit()));
+        assertTrue(ex.getMessage().contains("10MB"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsCombinedSizeOverFiftyMegabytes() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        // Six files at 9MiB each = 54MiB combined; every file is individually under 10MiB.
+        List<MultipartFile> files = new java.util.ArrayList<>();
+        List<String> types = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            files.add(fakeSizedFile("f" + i + ".pdf", 9L * 1024 * 1024));
+            types.add(TOR_TYPE);
+        }
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.uploadBatch("SR20260001", types, files, sampleAudit()));
+        assertTrue(ex.getMessage().contains("50MB"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsWhenAnyFileIsEmpty() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var ok = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        var empty = new MockMultipartFile("files", "b.pdf", "application/pdf", new byte[0]);
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE, TOR_TYPE), List.of(ok, empty), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsMismatchedFileAndTypeListSizes() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE, "PSA Birth Certificate"), List.of(f1), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsUnknownDocumentType() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of("Not A Real Type"), List.of(f1), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsReservedIdPictureCategory() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var f1 = new MockMultipartFile("files", "a.jpg", "image/jpeg", "x".getBytes());
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(DocumentService.ID_PICTURE_TYPE), List.of(f1), sampleAudit()));
+        assertTrue(ex.getMessage().contains("ID Picture"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsDisallowedExtension() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        var f1 = new MockMultipartFile("files", "malware.exe", "application/octet-stream", "x".getBytes());
+
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(f1), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsUnknownStudentWith404NotFound() {
+        when(studentRecordRepository.findByStudentId("NOPE")).thenReturn(Optional.empty());
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+
+        assertThrows(NoSuchElementException.class, () -> service.uploadBatch(
+                "NOPE", List.of(TOR_TYPE), List.of(f1), sampleAudit()));
+        verify(documentRepository, never()).save(any());
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadBatchWrapsFileReadIOExceptionAsUncheckedForRollback() throws IOException {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        MultipartFile broken = mock(MultipartFile.class);
+        when(broken.isEmpty()).thenReturn(false);
+        when(broken.getSize()).thenReturn(9L);
+        when(broken.getOriginalFilename()).thenReturn("broken.pdf");
+        when(broken.getBytes()).thenThrow(new IOException("disk failure"));
+
+        assertThrows(java.io.UncheckedIOException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(broken), sampleAudit()));
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
     }
 
     // -------------------------------------------------------

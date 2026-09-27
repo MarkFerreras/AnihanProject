@@ -188,6 +188,123 @@ class DocumentControllerWebMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // -------------------------------------------------------
+    // Atomic bulk upload
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns201WithOrderedSummaries() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        var f2 = new MockMultipartFile("files", "b.pdf", "application/pdf", "bbb".getBytes(StandardCharsets.UTF_8));
+
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any()))
+                .thenReturn(List.of(
+                        new DocumentSummaryResponse(1, "SR20260001", "Dela Cruz", "Maria",
+                                TOR_TYPE, "a.pdf", "application/pdf", 3, LocalDateTime.now()),
+                        new DocumentSummaryResponse(2, "SR20260001", "Dela Cruz", "Maria",
+                                "PSA Birth Certificate", "b.pdf", "application/pdf", 3, LocalDateTime.now())));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1).file(f2)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE, "PSA Birth Certificate")
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].documentId").value(1))
+                .andExpect(jsonPath("$[1].documentId").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenServiceRejectsValidation() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.exe", "application/octet-stream", "x".getBytes());
+
+        when(documentService.uploadBatch(any(), any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("Unsupported file type at position 1. Allowed: pdf, docx, xlsx"));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("Unsupported file type")));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenStudentIdParamMissing() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenFilesPartMissing() throws Exception {
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns404WhenStudentUnknown() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any()))
+                .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "NOPE")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No student record found for ID: NOPE"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void uploadBatchForbiddenForTrainer() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void uploadBatchForbiddenForAdmin() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void uploadBatchUnauthorizedWhenAnonymous() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE))
+                .andExpect(status().isUnauthorized());
+    }
+
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void typesReturnsList() throws Exception {

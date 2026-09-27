@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.springboot.dto.registrar.DocumentAuditContext;
 import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
@@ -96,6 +97,23 @@ public class DocumentController {
                 "Uploaded document '" + saved.fileName() + "' (" + saved.documentType()
                         + ") for student " + saved.studentId(),
                 httpRequest.getRemoteAddr());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<DocumentSummaryResponse>> uploadBatch(
+            @RequestParam("studentId") String studentId,
+            @RequestParam("documentTypes") List<String> documentTypes,
+            @RequestParam("files") List<MultipartFile> files,
+            HttpServletRequest httpRequest
+    ) {
+        LogContext ctx = getLogContext();
+        DocumentAuditContext audit = new DocumentAuditContext(ctx.userId(), ctx.username(), ctx.role(),
+                httpRequest.getRemoteAddr());
+
+        List<DocumentSummaryResponse> saved = documentService.uploadBatch(
+                studentId, documentTypes, files, audit);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }

@@ -1,5 +1,6 @@
 package com.example.springboot.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,4 +66,20 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
             ORDER BY d.uploadDate DESC, d.documentId DESC
             """)
     List<DocumentSummaryResponse> findSummariesByStudentId(@Param("studentId") String studentId);
+
+    /**
+     * Re-reads just-saved rows by ID after a bulk upload flush, so the
+     * response carries the DB-assigned upload timestamps. The caller must
+     * reorder these into input order — this query's result order is
+     * unspecified.
+     */
+    @Query("""
+            SELECT new com.example.springboot.dto.registrar.DocumentSummaryResponse(
+                d.documentId, s.studentId, s.lastName, s.firstName,
+                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate)
+            FROM Document d
+            JOIN d.student s
+            WHERE d.documentId IN :ids
+            """)
+    List<DocumentSummaryResponse> findSummariesByIds(@Param("ids") Collection<Integer> ids);
 }

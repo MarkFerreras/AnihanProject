@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS student_records;
 DROP TABLE IF EXISTS sections;
 DROP TABLE IF EXISTS courses;
 DROP TABLE IF EXISTS batches;
+DROP TABLE IF EXISTS system_logs;
 
 CREATE TABLE batches (
     batch_code VARCHAR(20) NOT NULL PRIMARY KEY,
@@ -77,4 +78,14 @@ CREATE TABLE documents (
     content_data BLOB NOT NULL,
     upload_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
+);
+
+CREATE TABLE system_logs (
+    log_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    username VARCHAR(255) NOT NULL,
+    role VARCHAR(15) NOT NULL,
+    action VARCHAR(500) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

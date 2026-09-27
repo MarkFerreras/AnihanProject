@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.context.TestPropertySource;
 
 import com.example.springboot.SpringbootApplication;
+import com.example.springboot.dto.registrar.DocumentAuditContext;
 import com.example.springboot.model.Batch;
 import com.example.springboot.model.Course;
 import com.example.springboot.model.Document;
@@ -28,10 +29,20 @@ import com.example.springboot.repository.DocumentFolderRepository;
 import com.example.springboot.repository.DocumentRepository;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentRecordRepository;
+import com.example.springboot.repository.SystemLogRepository;
+import com.example.springboot.service.DocumentService;
+
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.web.multipart.MultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Real H2 (MySQL-mode) verification for the Documents folder-explorer scalar
@@ -63,6 +74,8 @@ class DocumentStorageIntegrationTest {
     @Autowired private BatchRepository batchRepository;
     @Autowired private CourseRepository courseRepository;
     @Autowired private SectionRepository sectionRepository;
+    @Autowired private DocumentService documentService;
+    @MockitoSpyBean private SystemLogRepository systemLogRepository;
 
     @BeforeEach
     void resetFixturesBetweenTests() {
@@ -74,7 +87,12 @@ class DocumentStorageIntegrationTest {
         jdbcTemplate.update("DELETE FROM sections");
         jdbcTemplate.update("DELETE FROM courses");
         jdbcTemplate.update("DELETE FROM batches");
+        jdbcTemplate.update("DELETE FROM system_logs");
         recordingJdbcTemplate().clear();
+    }
+
+    private DocumentAuditContext sampleAudit() {
+        return new DocumentAuditContext(1, "registrar", "ROLE_REGISTRAR", "127.0.0.1");
     }
 
     private RecordingJdbcTemplate recordingJdbcTemplate() {
@@ -182,6 +200,71 @@ class DocumentStorageIntegrationTest {
                 .mapToLong(DocumentFolderRepository.StudentRow::documentCount)
                 .sum();
         assertEquals(2, assignedDocs);
+    }
+
+    // -------------------------------------------------------
+    // Atomic bulk upload — real transaction commit/rollback
+    // -------------------------------------------------------
+
+    @Test
+    void uploadBatchCommitsAllDocumentsAndExactlyOneAuditLogOnSuccess() {
+        StudentRecord student = newStudent("SR20260001", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+
+        var f1 = new org.springframework.mock.web.MockMultipartFile(
+                "files", "a.pdf", "application/pdf", "aaa".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var f2 = new org.springframework.mock.web.MockMultipartFile(
+                "files", "b.pdf", "application/pdf", "bbb".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        documentService.uploadBatch("SR20260001",
+                List.of("Transcript of Records (TOR)", "PSA Birth Certificate"),
+                List.of(f1, f2), sampleAudit());
+
+        List<com.example.springboot.dto.registrar.DocumentSummaryResponse> docs =
+                documentRepository.findSummariesByStudentId("SR20260001");
+        assertEquals(2, docs.size());
+        assertEquals(1, systemLogRepository.count());
+    }
+
+    @Test
+    void uploadBatchRollsBackEverythingWhenASubsequentFileFailsToRead() throws Exception {
+        StudentRecord student = newStudent("SR20260001", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+
+        var f1 = new org.springframework.mock.web.MockMultipartFile(
+                "files", "a.pdf", "application/pdf", "aaa".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MultipartFile broken = mock(MultipartFile.class);
+        when(broken.isEmpty()).thenReturn(false);
+        when(broken.getSize()).thenReturn(3L);
+        when(broken.getOriginalFilename()).thenReturn("broken.pdf");
+        when(broken.getBytes()).thenThrow(new java.io.IOException("disk failure on second file"));
+
+        assertThrows(java.io.UncheckedIOException.class, () -> documentService.uploadBatch("SR20260001",
+                List.of("Transcript of Records (TOR)", "PSA Birth Certificate"),
+                List.of(f1, broken), sampleAudit()));
+
+        List<com.example.springboot.dto.registrar.DocumentSummaryResponse> docs =
+                documentRepository.findSummariesByStudentId("SR20260001");
+        assertTrue(docs.isEmpty(), "the first file's insert must roll back too");
+        assertEquals(0, systemLogRepository.count());
+    }
+
+    @Test
+    void uploadBatchRollsBackEverythingWhenAuditPersistenceFails() {
+        StudentRecord student = newStudent("SR20260001", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+
+        doThrow(new RuntimeException("audit table unavailable")).when(systemLogRepository).save(any());
+
+        var f1 = new org.springframework.mock.web.MockMultipartFile(
+                "files", "a.pdf", "application/pdf", "aaa".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertThrows(RuntimeException.class, () -> documentService.uploadBatch("SR20260001",
+                List.of("Transcript of Records (TOR)"), List.of(f1), sampleAudit()));
+
+        List<com.example.springboot.dto.registrar.DocumentSummaryResponse> docs =
+                documentRepository.findSummariesByStudentId("SR20260001");
+        assertTrue(docs.isEmpty(), "documents must roll back when the audit write fails");
     }
 
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
