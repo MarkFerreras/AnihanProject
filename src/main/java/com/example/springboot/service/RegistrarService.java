@@ -1,5 +1,6 @@
 package com.example.springboot.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -214,25 +215,25 @@ public class RegistrarService {
         String normalized = emptyToNull(batchCode);
 
         // Enforce Section Invariant: a student enrolled in a section cannot have their batch
-        // cleared, or changed to a batch other than their section's own batch.
+        // cleared, or changed to a batch other than their section's own batch. Section.batch
+        // is mapped NOT NULL, so a loaded Section always has a non-null Batch.
         if (record.getSection() != null) {
-            String currentSectionBatch = record.getSection().getBatch() != null
-                    ? record.getSection().getBatch().getBatchCode() : null;
-            if (normalized == null || (currentSectionBatch != null && !currentSectionBatch.equalsIgnoreCase(normalized))) {
+            String currentSectionBatch = record.getSection().getBatch().getBatchCode();
+            if (normalized == null || !currentSectionBatch.equalsIgnoreCase(normalized)) {
                 throw new IllegalArgumentException(
                         "Cannot change or clear batch while student is enrolled in section "
                                 + record.getSection().getSectionCode()
-                                + (currentSectionBatch != null ? " (Batch " + currentSectionBatch + ")" : "")
-                                + ". Remove the student from the section first.");
+                                + " (Batch " + currentSectionBatch + "). Remove the student from the section first.");
             }
         }
 
         if (normalized != null) {
             // Find existing batch, or auto-create one with the current calendar year if the
-            // registrar typed a brand-new code.
+            // registrar typed a brand-new code. findById is case-insensitive-safe here because
+            // batches.batch_code uses a _ci (case-insensitive) collation in the schema.
             Batch batch = batchRepository.findById(normalized)
                     .orElseGet(() -> {
-                        short currentYear = (short) java.time.LocalDate.now().getYear();
+                        short currentYear = (short) LocalDate.now().getYear();
                         return batchRepository.save(new Batch(normalized, currentYear));
                     });
             record.setBatch(batch);
