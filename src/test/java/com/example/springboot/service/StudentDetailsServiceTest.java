@@ -35,7 +35,6 @@ import com.example.springboot.dto.student.StudentDetailsResponse;
 import com.example.springboot.model.OtherGuardian;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentRecord;
-import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
@@ -50,7 +49,6 @@ class StudentDetailsServiceTest {
     @Mock private OtherGuardianRepository guardianRepo;
     @Mock private StudentEducationRepository educationRepo;
     @Mock private StudentSchoolYearRepository schoolYearRepo;
-    @Mock private BatchRepository batchRepo;
 
     @InjectMocks
     private StudentDetailsService service;
@@ -238,6 +236,7 @@ class StudentDetailsServiceTest {
             assertEquals(LocalDate.of(2004, 6, 15), saved.getBirthdate());
             assertNotNull(saved.getAge());
             assertEquals("+63 917 000 0000", saved.getContactNo());
+            assertNull(saved.getBatch(), "New enrollee should NOT have a batch auto-assigned");
 
             // Verify parents saved (father + mother = 2 calls)
             verify(parentRepo, Mockito.times(2)).save(any(Parent.class));
@@ -266,50 +265,6 @@ class StudentDetailsServiceTest {
 
             assertThrows(IllegalArgumentException.class,
                     () -> service.submitEnrollment("INVALID", req));
-        }
-
-        @Test
-        void submitDetails_newEnrollee_batchIsNull() {
-            StudentRecord record = buildMinimalRecord("SR20260001", "Enrolling");
-
-            // findByStudentId is called twice: once at top, once at bottom for buildResponse
-            when(studentRecordRepo.findByStudentId("SR20260001")).thenReturn(Optional.of(record));
-            when(studentRecordRepo.save(any(StudentRecord.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
-
-            // Parent upserts
-            when(parentRepo.findByStudentStudentIdAndRelation("SR20260001", "FATHER"))
-                    .thenReturn(Optional.empty());
-            when(parentRepo.findByStudentStudentIdAndRelation("SR20260001", "MOTHER"))
-                    .thenReturn(Optional.empty());
-            when(parentRepo.save(any(Parent.class))).thenAnswer(inv -> inv.getArgument(0));
-
-            // Guardian
-            when(guardianRepo.findByStudentStudentId("SR20260001")).thenReturn(Collections.emptyList());
-            when(guardianRepo.save(any(OtherGuardian.class))).thenAnswer(inv -> inv.getArgument(0));
-
-            // Education
-            when(educationRepo.findByStudentIdAndLevel(anyString(), anyString()))
-                    .thenReturn(Optional.empty());
-            Mockito.lenient().when(educationRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-            // School years
-            when(schoolYearRepo.findByStudentIdOrderByRowIndex("SR20260001"))
-                    .thenReturn(Collections.emptyList());
-            Mockito.lenient().when(schoolYearRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-            // Education list (for buildResponse)
-            Mockito.lenient().when(educationRepo.findByStudentIdOrderByLevel(anyString()))
-                    .thenReturn(Collections.emptyList());
-
-            StudentDetailsRequest req = buildFullRequest();
-            StudentDetailsResponse result = service.submitEnrollment("SR20260001", req);
-
-            // Verify that batch is NOT assigned to new enrollees
-            ArgumentCaptor<StudentRecord> captor = ArgumentCaptor.forClass(StudentRecord.class);
-            verify(studentRecordRepo, atLeastOnce()).save(captor.capture());
-            StudentRecord saved = captor.getValue();
-            assertNull(saved.getBatch(), "New enrollee should NOT have a batch auto-assigned");
         }
     }
 
