@@ -160,7 +160,6 @@
 
     async function loadAllLookups() {
         await Promise.all([
-            loadOptions('/api/lookup/batches', 'batchList'),
             loadOptions('/api/lookup/courses', 'courseList'),
             loadOptions('/api/lookup/sections', 'sectionList')
         ]);
@@ -464,7 +463,6 @@
             siblingCount: getNullableInt('editSiblingCount'),
             brotherCount: getNullableInt('editBrotherCount'),
             sisterCount: getNullableInt('editSisterCount'),
-            batchCode: getTrimmed('editBatchCode') || null,
             courseCode: getTrimmed('editCourseCode') || null,
             sectionCode: getTrimmed('editSectionCode') || null,
             ojt: buildOjt(),
