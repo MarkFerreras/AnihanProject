@@ -24,6 +24,148 @@
             font-size: 0.8rem;
             white-space: nowrap;
         }
+
+        /* ===== Folder Explorer (scoped to this page) ===== */
+        .folder-explorer-nav {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 0.75rem;
+        }
+        .folder-explorer-content {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            min-height: 300px;
+            padding: 1.25rem;
+        }
+        .folder-tree, .folder-tree ul {
+            list-style: none;
+            margin: 0;
+            padding-left: 0;
+        }
+        .folder-tree ul {
+            padding-left: 1.1rem;
+        }
+        .folder-tree li {
+            margin: 0.05rem 0;
+        }
+        .folder-node {
+            align-items: center;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: inherit;
+            display: flex;
+            gap: 0.4rem;
+            padding: 0.35rem 0.5rem;
+            text-align: left;
+            width: 100%;
+        }
+        .folder-node:hover,
+        .folder-node:focus-visible {
+            background: rgba(40, 167, 69, 0.08);
+        }
+        .folder-node.selected {
+            background: rgba(40, 167, 69, 0.16);
+            font-weight: 600;
+        }
+        .folder-node .folder-toggle {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            flex: 0 0 auto;
+            padding: 0 0.15rem;
+        }
+        .folder-node .folder-label {
+            flex: 1 1 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .folder-node .folder-count {
+            color: var(--color-text-muted);
+            flex: 0 0 auto;
+            font-size: 0.78rem;
+        }
+        .no-assignment-badge {
+            background: rgba(108, 117, 125, 0.14);
+            border-radius: 999px;
+            color: #55595c;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 0.2rem 0.5rem;
+            text-transform: uppercase;
+        }
+        .folder-breadcrumb {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .folder-breadcrumb .breadcrumb-item.active {
+            font-weight: 600;
+        }
+        .export-note {
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+        }
+        .staged-file-row {
+            align-items: center;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+            padding: 0.4rem 0.5rem;
+        }
+        .staged-file-row .staged-file-name {
+            flex: 1 1 auto;
+            font-size: 0.85rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .staged-file-row select {
+            flex: 0 0 auto;
+            font-size: 0.8rem;
+            width: auto;
+        }
+        .upload-drop-zone {
+            align-items: center;
+            border: 2px dashed #ced4da;
+            border-radius: 8px;
+            color: var(--color-text-muted);
+            display: flex;
+            font-size: 0.85rem;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            min-height: 80px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .upload-drop-zone.drag-over {
+            background: rgba(40, 167, 69, 0.06);
+            border-color: var(--color-green-primary);
+        }
+        .student-doc-row {
+            align-items: center;
+            border-bottom: 1px solid #f1f3f5;
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+        }
+        .student-doc-row:last-child { border-bottom: none; }
+        .folder-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0.9rem;
+            transition: box-shadow 0.15s ease;
+        }
+        .folder-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
     </style>
 </head>
 
@@ -107,78 +249,132 @@
                 </div>
             </section>
 
-            <section class="surface-card">
-                <div class="surface-card-header">
-                    <div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2">
-                        <div>
-                            <h2>All Documents</h2>
-                            <p>Search by student ID or name; filter by type, batch, or section.</p>
+            <ul class="nav nav-tabs record-edit-tabs" id="documentsViewTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-explorer" data-bs-toggle="tab"
+                        data-bs-target="#pane-explorer" type="button" role="tab"
+                        aria-controls="pane-explorer" aria-selected="true">Folder Explorer</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-table" data-bs-toggle="tab"
+                        data-bs-target="#pane-table" type="button" role="tab"
+                        aria-controls="pane-table" aria-selected="false">All Documents Table</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="documentsPageRoot">
+                <!-- ===== FOLDER EXPLORER ===== -->
+                <div class="tab-pane fade show active" id="pane-explorer" role="tabpanel" aria-labelledby="tab-explorer">
+                    <section class="surface-card">
+                        <div class="surface-card-header">
+                            <div>
+                                <h2>Document Folders</h2>
+                                <p>Browse batches, sections, and students to upload, view, or export their documents.</p>
+                            </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="generate-document.html" class="btn btn-surface">Generate Document</a>
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                    data-bs-target="#uploadDocumentModal">
-                                + Upload Document
-                            </button>
+                        <div class="surface-card-body compact">
+                            <div class="row g-3">
+                                <div class="col-lg-4">
+                                    <div class="mb-2">
+                                        <label for="explorerFilterInput" class="form-label visually-hidden">
+                                            Filter folders
+                                        </label>
+                                        <input type="search" class="form-control" id="explorerFilterInput"
+                                               placeholder="Filter by name, number, or reference"
+                                               autocomplete="off">
+                                    </div>
+                                    <nav class="folder-explorer-nav" aria-label="Document folders">
+                                        <ul class="folder-tree" id="folderTree" role="tree" aria-label="Batches"></ul>
+                                    </nav>
+                                </div>
+                                <div class="col-lg-8">
+                                    <nav aria-label="breadcrumb" class="folder-breadcrumb">
+                                        <ol class="breadcrumb mb-0" id="folderBreadcrumb"></ol>
+                                    </nav>
+                                    <div class="folder-explorer-content" id="folderContent"
+                                         aria-live="polite"></div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
-                <div class="surface-card-body compact">
-                    <div class="doc-filter-bar">
-                        <div>
-                            <label for="documentSearchInput" class="form-label">Search</label>
-                            <input type="search" class="form-control" id="documentSearchInput"
-                                   placeholder="Student ID or name" autocomplete="off">
+
+                <!-- ===== ALL DOCUMENTS TABLE ===== -->
+                <div class="tab-pane fade" id="pane-table" role="tabpanel" aria-labelledby="tab-table">
+                    <section class="surface-card">
+                        <div class="surface-card-header">
+                            <div class="d-flex justify-content-between align-items-center w-100 flex-wrap gap-2">
+                                <div>
+                                    <h2>All Documents</h2>
+                                    <p>Search by student ID or name; filter by type, batch, or section.</p>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="generate-document.html" class="btn btn-surface">Generate Document</a>
+                                    <button type="button" class="btn btn-primary" id="openUploadModalBtn"
+                                            data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                                        + Upload Document(s)
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label for="documentTypeFilter" class="form-label">Document Type</label>
-                            <select class="form-select" id="documentTypeFilter">
-                                <option value="">All Types</option>
-                            </select>
+                        <div class="surface-card-body compact">
+                            <div class="doc-filter-bar">
+                                <div>
+                                    <label for="documentSearchInput" class="form-label">Search</label>
+                                    <input type="search" class="form-control" id="documentSearchInput"
+                                           placeholder="Student ID or name" autocomplete="off">
+                                </div>
+                                <div>
+                                    <label for="documentTypeFilter" class="form-label">Document Type</label>
+                                    <select class="form-select" id="documentTypeFilter">
+                                        <option value="">All Types</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="documentBatchFilter" class="form-label">Batch</label>
+                                    <select class="form-select" id="documentBatchFilter">
+                                        <option value="">All Batches</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="documentSectionFilter" class="form-label">Section</label>
+                                    <select class="form-select" id="documentSectionFilter">
+                                        <option value="">All Sections</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-surface-secondary" id="resetDocumentFiltersBtn">Reset</button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table id="documentsTable" class="table admin-table align-middle mb-0 w-100">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th scope="col">Student ID</th>
+                                            <th scope="col">Student Name</th>
+                                            <th scope="col">Document Type</th>
+                                            <th scope="col">File Name</th>
+                                            <th scope="col">Size</th>
+                                            <th scope="col">Uploaded</th>
+                                            <th scope="col" class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div>
-                            <label for="documentBatchFilter" class="form-label">Batch</label>
-                            <select class="form-select" id="documentBatchFilter">
-                                <option value="">All Batches</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="documentSectionFilter" class="form-label">Section</label>
-                            <select class="form-select" id="documentSectionFilter">
-                                <option value="">All Sections</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-surface-secondary" id="resetDocumentFiltersBtn">Reset</button>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table id="documentsTable" class="table admin-table align-middle mb-0 w-100">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">Student ID</th>
-                                    <th scope="col">Student Name</th>
-                                    <th scope="col">Document Type</th>
-                                    <th scope="col">File Name</th>
-                                    <th scope="col">Size</th>
-                                    <th scope="col">Uploaded</th>
-                                    <th scope="col" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                    </section>
                 </div>
-            </section>
+            </div>
         </div>
     </main>
 
-    <!-- ===== UPLOAD DOCUMENT MODAL ===== -->
+    <!-- ===== UPLOAD DOCUMENT(S) MODAL — shared by both tabs ===== -->
     <div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Upload Document</h5>
+                    <h5 class="modal-title" id="uploadDocumentModalTitle">Upload Documents</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -188,21 +384,24 @@
                         <input type="text" class="form-control" id="uploadStudentId" list="studentsDatalist"
                                placeholder="Type a student ID or name" autocomplete="off">
                         <datalist id="studentsDatalist"></datalist>
-                        <div class="form-text">Pick the student the document belongs to.</div>
+                        <div class="form-text" id="uploadStudentHelp">Pick the student the documents belong to.</div>
+                    </div>
+                    <div class="upload-drop-zone" id="uploadDropZone">
+                        Drag files here, or use the chooser below (pdf, docx, xlsx — 20 files max, 10MB each, 50MB combined)
                     </div>
                     <div class="mb-3">
-                        <label for="uploadDocumentType" class="form-label">Document Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="uploadDocumentType"></select>
+                        <input type="file" class="form-control" id="uploadDocumentFile"
+                               accept=".pdf,.docx,.xlsx" multiple>
                     </div>
-                    <div class="mb-3">
-                        <label for="uploadDocumentFile" class="form-label">File <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" id="uploadDocumentFile" accept=".pdf,.docx,.xlsx">
-                        <div class="form-text">Allowed: .pdf, .docx, .xlsx — max 10MB.</div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Files to upload</strong>
+                        <span class="text-muted small" id="uploadStagedSummary">0 files, 0 B</span>
                     </div>
+                    <div id="stagedFilesList"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveUploadDocumentBtn">Upload</button>
+                    <button type="button" class="btn btn-primary" id="saveUploadDocumentBtn" disabled>Upload</button>
                 </div>
             </div>
         </div>
@@ -367,7 +566,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-documents.js?v=3"></script>
+    <script src="js/registrar-documents.js?v=4"></script>
 </body>
 
 </html>

@@ -1,7 +1,11 @@
 package com.example.springboot.controller;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,36 +24,120 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.springboot.dto.registrar.DocumentAuditContext;
+import com.example.springboot.dto.registrar.DocumentExportScope;
+import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
 import com.example.springboot.dto.registrar.GenerateDocumentRequest;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
+import com.example.springboot.service.DocumentExportService;
+import com.example.springboot.service.DocumentFolderService;
 import com.example.springboot.service.DocumentGenerationService;
 import com.example.springboot.service.DocumentService;
 import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/registrar/documents")
 public class DocumentController {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentController.class);
+
     private final DocumentService documentService;
+    private final DocumentFolderService documentFolderService;
+    private final DocumentExportService documentExportService;
     private final DocumentGenerationService documentGenerationService;
     private final SystemLogService systemLogService;
     private final UserRepository userRepository;
 
     public DocumentController(DocumentService documentService,
+                              DocumentFolderService documentFolderService,
+                              DocumentExportService documentExportService,
                               DocumentGenerationService documentGenerationService,
                               SystemLogService systemLogService,
                               UserRepository userRepository) {
         this.documentService = documentService;
+        this.documentFolderService = documentFolderService;
+        this.documentExportService = documentExportService;
         this.documentGenerationService = documentGenerationService;
         this.systemLogService = systemLogService;
         this.userRepository = userRepository;
+    }
+
+    @GetMapping("/export/student/{studentId}")
+    public void exportStudent(@PathVariable String studentId, HttpServletRequest httpRequest,
+                              HttpServletResponse httpResponse) throws IOException {
+        streamExport(DocumentExportScope.STUDENT, studentId, httpRequest, httpResponse);
+    }
+
+    @GetMapping("/export/section/{sectionCode}")
+    public void exportSection(@PathVariable String sectionCode, HttpServletRequest httpRequest,
+                              HttpServletResponse httpResponse) throws IOException {
+        streamExport(DocumentExportScope.SECTION, sectionCode, httpRequest, httpResponse);
+    }
+
+    @GetMapping("/export/batch/{batchCode}/unassigned")
+    public void exportBatchUnassigned(@PathVariable String batchCode, HttpServletRequest httpRequest,
+                                      HttpServletResponse httpResponse) throws IOException {
+        streamExport(DocumentExportScope.UNASSIGNED, batchCode, httpRequest, httpResponse);
+    }
+
+    @GetMapping("/export/batch/{batchCode}")
+    public void exportBatch(@PathVariable String batchCode, HttpServletRequest httpRequest,
+                            HttpServletResponse httpResponse) throws IOException {
+        streamExport(DocumentExportScope.BATCH, batchCode, httpRequest, httpResponse);
+    }
+
+    /**
+     * Prepares the manifest, writes one "Requested ZIP export" audit row
+     * before any headers are sent, then streams. A failure after the
+     * response is already committed (bytes flushed) cannot be turned into a
+     * JSON error any more — it is logged server-side and the connection is
+     * simply left to end; an uncommitted failure resets the response and
+     * rethrows so {@code GlobalExceptionHandler} produces a normal error.
+     */
+    private void streamExport(DocumentExportScope scope, String key,
+                              HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws IOException {
+        DocumentExportService.PreparedExport prepared = documentExportService.prepareExport(scope, key);
+
+        LogContext ctx = getLogContext();
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                "Requested ZIP export (" + scope.name().toLowerCase(Locale.ROOT) + " " + key + ", "
+                        + prepared.entries().size() + " document(s))",
+                httpRequest.getRemoteAddr());
+
+        httpResponse.setContentType("application/zip");
+        httpResponse.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment().filename(prepared.fileName()).build().toString());
+        httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+
+        try {
+            documentExportService.writeZip(prepared, httpResponse.getOutputStream());
+        } catch (IOException | RuntimeException e) {
+            log.error("ZIP export failed for scope={} key={}", scope, key, e);
+            if (!httpResponse.isCommitted()) {
+                httpResponse.reset();
+                throw e;
+            }
+            // Already committed: no further bytes can be sent as a normal
+            // error response — never append JSON to a partial ZIP.
+        }
+    }
+
+    @GetMapping("/folders/tree")
+    public ResponseEntity<List<DocumentFolderHierarchyResponse>> folderTree() {
+        return ResponseEntity.ok(documentFolderService.getFolderHierarchy());
+    }
+
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<List<DocumentSummaryResponse>> studentDocuments(@PathVariable String studentId) {
+        return ResponseEntity.ok(documentService.getStudentDocuments(studentId));
     }
 
     @GetMapping
@@ -81,6 +169,23 @@ public class DocumentController {
                 "Uploaded document '" + saved.fileName() + "' (" + saved.documentType()
                         + ") for student " + saved.studentId(),
                 httpRequest.getRemoteAddr());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<DocumentSummaryResponse>> uploadBatch(
+            @RequestParam("studentId") String studentId,
+            @RequestParam("documentTypes") List<String> documentTypes,
+            @RequestParam("files") List<MultipartFile> files,
+            HttpServletRequest httpRequest
+    ) {
+        LogContext ctx = getLogContext();
+        DocumentAuditContext audit = new DocumentAuditContext(ctx.userId(), ctx.username(), ctx.role(),
+                httpRequest.getRemoteAddr());
+
+        List<DocumentSummaryResponse> saved = documentService.uploadBatch(
+                studentId, documentTypes, files, audit);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }

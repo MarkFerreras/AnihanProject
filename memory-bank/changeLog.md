@@ -1,5 +1,49 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-27 - Document Folder Management Implementation
+**Branch:** `feature/document-folder-management` (4 commits ahead of `main`, not merged)
+
+### Task
+Implemented `docs/superpowers/plans/2026-09-27-document-folder-management.md` end to end,
+as one sequential implementer (per the plan's user-selected workflow override).
+
+### Commits
+1. `02bb204` — `feat: add document folder metadata and exact student listing`
+2. `76ee381` — `feat: add atomic multi-document upload`
+3. `0e8e9ac` — `feat: stream student section and batch document archives`
+4. `fff5648` — `feat: add registrar document folder explorer`
+
+### Files Created
+| File | Purpose |
+|---|---|
+| `dto/registrar/DocumentFolderHierarchyResponse.java` | Batch→Section/Unassigned→Student tree DTO |
+| `repository/DocumentFolderRepository.java` | `JdbcTemplate` scalar reads: batches/sections/students+counts, export-row projections |
+| `service/DocumentFolderService.java` | Assembles the tree in memory; No Batch synthetic group |
+| `dto/registrar/DocumentAuditContext.java` | Carries caller identity into the transactional bulk-upload service |
+| `dto/registrar/DocumentExportScope.java` | `STUDENT`/`SECTION`/`UNASSIGNED`/`BATCH` enum |
+| `service/DocumentExportService.java` | Builds/streams the 4 ZIP scopes; path sanitization/uniqueness; abortable ZIP |
+| `repository/DocumentContentRepository.java` | One-document-at-a-time BLOB streaming via JDBC `getBinaryStream` |
+| `exception/EmptyDocumentExportException.java` | 409 for an existing-but-empty export scope |
+| Corresponding test files under `src/test/...` | `DocumentFolderServiceTest`, `DocumentExportServiceTest`, extended `DocumentStorageIntegrationTest` (real H2), extended `DocumentServiceTest`/`DocumentControllerWebMvcTest` |
+| `src/test/resources/document-storage-h2-schema.sql` | Real DDL for the integration test — H2 `create-drop` cannot model `YEAR` or `DEFAULT CURRENT_TIMESTAMP` |
+
+### Files Modified
+| File | Change |
+|---|---|
+| `repository/{DocumentRepository,StudentRecordRepository}.java` | Exact-match queries: `findSummariesByStudentId`, `findSummariesByIds`, `existsByStudentId` |
+| `service/DocumentService.java` | `getStudentDocuments`, `uploadBatch` (all-or-nothing transaction, one audit row) |
+| `controller/DocumentController.java` | `/folders/tree`, `/student/{id}`, `/batch`, 4 `/export/...` streaming endpoints |
+| `exception/GlobalExceptionHandler.java` | 409 for empty export, 400 for missing multipart param/part, clearer oversized-upload message |
+| `application.properties` | `max-request-size` 15MB→52MB, `file-size-threshold=0` |
+| `static/documents.html` + `static/js/registrar-documents.js` | Folder Explorer tab, reworked multi-file upload modal, shared delegated view/download/delete |
+
+### Verification
+Full suite 484 tests / 0 failures. Live-verified against a disposable MySQL 8 container
+(port 3307) — browser walkthrough via Playwright, curl-based real servlet multipart-limit
+tests, all 4 export scopes' real HTTP responses. Live container and temp files removed
+after; the real `AnihanSRMS` database (port 3306) was never touched. Independent final
+review not yet run (deferred, see `activeContext.md`).
+
 ## 2026-09-27 - Document Folder Spec and Plan Review
 
 - Revised both `2026-09-27-document-folder-management` documents under

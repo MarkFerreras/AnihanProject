@@ -1,17 +1,23 @@
 package com.example.springboot.service;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.springboot.dto.registrar.DocumentAuditContext;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.StudentRecord;
@@ -47,6 +53,10 @@ public class DocumentService {
 
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
 
+    /** Bulk upload limits per spec §1/§4: 20 files max, 10 MiB/file, 50 MiB combined. */
+    private static final int MAX_BATCH_FILES = 20;
+    private static final long MAX_BATCH_TOTAL_BYTES = 50L * 1024 * 1024;
+
     /**
      * Image whitelist for the ID picture only. Deliberately separate from
      * {@link #ALLOWED_EXTENSIONS} so the general Documents page keeps accepting
@@ -75,11 +85,14 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final StudentRecordRepository studentRecordRepository;
+    private final SystemLogService systemLogService;
 
     public DocumentService(DocumentRepository documentRepository,
-                           StudentRecordRepository studentRecordRepository) {
+                           StudentRecordRepository studentRecordRepository,
+                           SystemLogService systemLogService) {
         this.documentRepository = documentRepository;
         this.studentRecordRepository = studentRecordRepository;
+        this.systemLogService = systemLogService;
     }
 
     public List<String> getDocumentTypes() {
@@ -93,6 +106,122 @@ public class DocumentService {
                 blankToNull(batchCode), blankToNull(sectionCode));
     }
 
+    /**
+     * Exact-reference document listing for a single student, used by the
+     * folder explorer's student panel. Unlike {@link #getDocuments}, this
+     * never does a substring/LIKE match.
+     */
+    public List<DocumentSummaryResponse> getStudentDocuments(String studentId) {
+        if (!StringUtils.hasText(studentId)) {
+            throw new IllegalArgumentException("A student ID is required.");
+        }
+        String trimmed = studentId.trim();
+        if (!studentRecordRepository.existsByStudentId(trimmed)) {
+            throw new NoSuchElementException("No student record found for ID: " + trimmed);
+        }
+        return documentRepository.findSummariesByStudentId(trimmed);
+    }
+
+    /** One validated, ready-to-persist file from a {@link #uploadBatch} request. */
+    private record ValidatedFile(MultipartFile file, String documentType, String fileName, String mimeType) {
+    }
+
+    /**
+     * Validates and saves an entire batch of files for one student inside a
+     * single database transaction: either every file and the one success
+     * audit row are committed, or nothing is (spec §4). All validation runs
+     * before any file is read or persisted.
+     */
+    @Transactional
+    public List<DocumentSummaryResponse> uploadBatch(String studentId, List<String> documentTypes,
+                                                      List<MultipartFile> files, DocumentAuditContext audit) {
+        if (!StringUtils.hasText(studentId)) {
+            throw new IllegalArgumentException("A student ID is required.");
+        }
+        // Unlike upload()/requireStudent() (400), an unknown-but-well-formed
+        // reference here is a 404 per spec §4 — the field itself was valid.
+        String trimmedStudentId = studentId.trim();
+        StudentRecord student = studentRecordRepository.findByStudentId(trimmedStudentId)
+                .orElseThrow(() -> new NoSuchElementException("No student record found for ID: " + trimmedStudentId));
+
+        if (files == null || documentTypes == null) {
+            throw new IllegalArgumentException("Files and document types are required.");
+        }
+        if (files.size() != documentTypes.size()) {
+            throw new IllegalArgumentException("The number of files and document types must match.");
+        }
+        int count = files.size();
+        if (count == 0) {
+            throw new IllegalArgumentException("At least one file is required.");
+        }
+        if (count > MAX_BATCH_FILES) {
+            throw new IllegalArgumentException("A maximum of " + MAX_BATCH_FILES + " files may be uploaded at once.");
+        }
+
+        List<ValidatedFile> validated = new ArrayList<>(count);
+        long totalSize = 0;
+        for (int i = 0; i < count; i++) {
+            MultipartFile file = files.get(i);
+            String documentType = documentTypes.get(i);
+            int position = i + 1;
+
+            if (file == null || file.isEmpty()) {
+                throw new IllegalArgumentException("File at position " + position + " is empty.");
+            }
+            if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+                throw new IllegalArgumentException("File at position " + position + " exceeds the 10MB size limit.");
+            }
+            totalSize += file.getSize();
+
+            if (ID_PICTURE_TYPE.equals(documentType)) {
+                throw new IllegalArgumentException(
+                        "ID Picture uploads use a dedicated endpoint, not batch upload (file " + position + ").");
+            }
+            requireKnownType(documentType);
+
+            String originalName = requireValidFileName(file.getOriginalFilename(), position);
+
+            String extension = extensionOf(originalName);
+            String mimeType = ALLOWED_EXTENSIONS.get(extension);
+            if (mimeType == null) {
+                throw new IllegalArgumentException(
+                        "Unsupported file type at position " + position + ". Allowed: "
+                                + String.join(", ", ALLOWED_EXTENSIONS.keySet()));
+            }
+
+            validated.add(new ValidatedFile(file, documentType, originalName, mimeType));
+        }
+
+        if (totalSize > MAX_BATCH_TOTAL_BYTES) {
+            throw new IllegalArgumentException("Combined upload size exceeds the 50MB limit.");
+        }
+
+        List<Integer> savedIds = new ArrayList<>(count);
+        for (ValidatedFile vf : validated) {
+            byte[] content;
+            try {
+                content = vf.file().getBytes();
+            } catch (IOException e) {
+                // Unchecked so the surrounding @Transactional method still rolls
+                // back — Spring only auto-rolls-back on RuntimeException/Error.
+                throw new UncheckedIOException("Could not read an uploaded file. Please try again.", e);
+            }
+            Document saved = save(student, vf.documentType(), vf.fileName(), vf.mimeType(), content);
+            savedIds.add(saved.getDocumentId());
+        }
+
+        systemLogService.logAction(audit.userId(), audit.username(), audit.role(),
+                "Uploaded " + count + " document(s) for student " + student.getStudentId(),
+                audit.ipAddress());
+
+        documentRepository.flush();
+        Map<Integer, DocumentSummaryResponse> byId = new LinkedHashMap<>();
+        for (DocumentSummaryResponse summary : documentRepository.findSummariesByIds(savedIds)) {
+            byId.put(summary.documentId(), summary);
+        }
+        return savedIds.stream().map(byId::get).toList();
+    }
+
     public DocumentSummaryResponse upload(String studentId, String documentType, MultipartFile file) {
         StudentRecord student = requireStudent(studentId);
         requireKnownType(documentType);
@@ -104,11 +233,7 @@ public class DocumentService {
             throw new IllegalArgumentException("File exceeds the 10MB size limit.");
         }
 
-        String originalName = StringUtils.cleanPath(
-                file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
-        if (originalName.isBlank() || originalName.contains("..")) {
-            throw new IllegalArgumentException("Invalid file name.");
-        }
+        String originalName = requireValidFileName(file.getOriginalFilename(), null);
 
         String extension = extensionOf(originalName);
         String mimeType = ALLOWED_EXTENSIONS.get(extension);
@@ -325,6 +450,33 @@ public class DocumentService {
             throw new IllegalArgumentException(
                     "Unknown document type. Allowed types: " + String.join(", ", DOCUMENT_TYPES));
         }
+    }
+
+    private static final Pattern INVALID_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1F<>:\"/\\\\|?*]");
+    private static final int MAX_FILE_NAME_LENGTH = 255;
+
+    /**
+     * Strips any browser-supplied path prefix and rejects a basename that is
+     * blank, dot-only, over 255 characters, or contains a control character
+     * or a Windows-reserved separator/wildcard (spec §4).
+     */
+    private static String requireValidFileName(String rawName, Integer position) {
+        String suffix = position == null ? "." : (" at position " + position + ".");
+        String name = StringUtils.cleanPath(rawName == null ? "" : rawName);
+        int lastSeparator = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        if (lastSeparator >= 0) {
+            name = name.substring(lastSeparator + 1);
+        }
+        if (name.isBlank() || name.contains("..") || INVALID_FILENAME_CHARS.matcher(name).find()) {
+            throw new IllegalArgumentException("Invalid file name" + suffix);
+        }
+        if (name.replaceAll("\\.+$", "").isBlank()) {
+            throw new IllegalArgumentException("Invalid file name" + suffix);
+        }
+        if (name.length() > MAX_FILE_NAME_LENGTH) {
+            throw new IllegalArgumentException("File name exceeds " + MAX_FILE_NAME_LENGTH + " characters" + suffix);
+        }
+        return name;
     }
 
     private static String extensionOf(String fileName) {

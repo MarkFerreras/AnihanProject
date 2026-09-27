@@ -1,12 +1,17 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.config.SecurityConfig;
+import com.example.springboot.dto.registrar.DocumentExportScope;
+import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
+import com.example.springboot.exception.EmptyDocumentExportException;
 import com.example.springboot.exception.GlobalExceptionHandler;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.CustomUserDetailsService;
+import com.example.springboot.service.DocumentExportService;
+import com.example.springboot.service.DocumentFolderService;
 import com.example.springboot.service.DocumentGenerationService;
 import com.example.springboot.service.DocumentService;
 import com.example.springboot.service.SystemLogService;
@@ -38,6 +43,8 @@ class DocumentControllerWebMvcTest {
 
     @Autowired private MockMvc mvc;
     @MockitoBean private DocumentService documentService;
+    @MockitoBean private DocumentFolderService documentFolderService;
+    @MockitoBean private DocumentExportService documentExportService;
     @MockitoBean private DocumentGenerationService documentGenerationService;
     @MockitoBean private SystemLogService systemLogService;
     @MockitoBean private UserRepository userRepository;
@@ -84,6 +91,369 @@ class DocumentControllerWebMvcTest {
     @Test
     void listUnauthorizedWhenAnonymous() throws Exception {
         mvc.perform(get("/api/registrar/documents"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // Folder tree
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void folderTreeReturnsHierarchyForRegistrar() throws Exception {
+        var batch = new DocumentFolderHierarchyResponse("B2026A", (short) 2026, 1, 2,
+                List.of(), List.of(new DocumentFolderHierarchyResponse.StudentFolderDto(
+                        "SR20260001", null, "Maria", "Dela Cruz", "Active", 2)));
+        when(documentFolderService.getFolderHierarchy()).thenReturn(List.of(batch));
+
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].batchCode").value("B2026A"))
+                .andExpect(jsonPath("$[0].unassignedStudents[0].studentId").value("SR20260001"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void folderTreeReturnsEmptyListWhenNoData() throws Exception {
+        when(documentFolderService.getFolderHierarchy()).thenReturn(List.of());
+
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void folderTreeForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void folderTreeForbiddenForAdmin() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void folderTreeUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // Exact-reference student documents
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturnsListForRegistrar() throws Exception {
+        when(documentService.getStudentDocuments("SR20260001")).thenReturn(List.of(sampleSummary()));
+
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentId").value("SR20260001"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturnsEmptyListWhenStudentHasNoDocuments() throws Exception {
+        when(documentService.getStudentDocuments("SR20260001")).thenReturn(List.of());
+
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturns404WhenStudentUnknown() throws Exception {
+        when(documentService.getStudentDocuments("NOPE"))
+                .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
+
+        mvc.perform(get("/api/registrar/documents/student/NOPE"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No student record found for ID: NOPE"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void studentDocumentsForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studentDocumentsUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // Atomic bulk upload
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns201WithOrderedSummaries() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        var f2 = new MockMultipartFile("files", "b.pdf", "application/pdf", "bbb".getBytes(StandardCharsets.UTF_8));
+
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any()))
+                .thenReturn(List.of(
+                        new DocumentSummaryResponse(1, "SR20260001", "Dela Cruz", "Maria",
+                                TOR_TYPE, "a.pdf", "application/pdf", 3, LocalDateTime.now()),
+                        new DocumentSummaryResponse(2, "SR20260001", "Dela Cruz", "Maria",
+                                "PSA Birth Certificate", "b.pdf", "application/pdf", 3, LocalDateTime.now())));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1).file(f2)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE, "PSA Birth Certificate")
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].documentId").value(1))
+                .andExpect(jsonPath("$[1].documentId").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenServiceRejectsValidation() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.exe", "application/octet-stream", "x".getBytes());
+
+        when(documentService.uploadBatch(any(), any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("Unsupported file type at position 1. Allowed: pdf, docx, xlsx"));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("Unsupported file type")));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenStudentIdParamMissing() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns400WhenFilesPartMissing() throws Exception {
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchReturns404WhenStudentUnknown() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any()))
+                .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "NOPE")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No student record found for ID: NOPE"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void uploadBatchForbiddenForTrainer() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void uploadBatchForbiddenForAdmin() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void uploadBatchUnauthorizedWhenAnonymous() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // ZIP exports
+    // -------------------------------------------------------
+
+    private DocumentExportService.PreparedExport samplePreparedExport(String zipName) {
+        return new DocumentExportService.PreparedExport(zipName,
+                List.of(new DocumentExportService.ExportEntry(1, "a.pdf")));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportStudentReturnsZipWithDownloadHeadersAndWritesAuditBeforeStreaming() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.STUDENT, "SR20260001"))
+                .thenReturn(samplePreparedExport("Documents_SR20260001_Dela Cruz.zip"));
+
+        mvc.perform(get("/api/registrar/documents/export/student/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/zip"))
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("Documents_SR20260001_Dela Cruz.zip")))
+                .andExpect(header().string("Cache-Control", "no-store"));
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                contains("Requested ZIP export"), any());
+        verify(documentExportService).writeZip(any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportStudentReturns404WhenStudentUnknown() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.STUDENT, "NOPE"))
+                .thenThrow(new java.util.NoSuchElementException("student not found: NOPE"));
+
+        mvc.perform(get("/api/registrar/documents/export/student/NOPE"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("student not found: NOPE"));
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportStudentReturns409WhenNoDocuments() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.STUDENT, "SR20260001"))
+                .thenThrow(new EmptyDocumentExportException("No documents to export."));
+
+        mvc.perform(get("/api/registrar/documents/export/student/SR20260001"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("No documents to export."));
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportSectionReturnsZipForCorrectScopeAndKey() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.SECTION, "S1"))
+                .thenReturn(samplePreparedExport("Documents_Section_S1.zip"));
+
+        mvc.perform(get("/api/registrar/documents/export/section/S1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("Documents_Section_S1.zip")));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportBatchUnassignedReturnsZipForCorrectScopeAndKey() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.UNASSIGNED, "B2026A"))
+                .thenReturn(samplePreparedExport("Documents_Batch_B2026A_Unassigned.zip"));
+
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A/unassigned"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("Documents_Batch_B2026A_Unassigned.zip")));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportBatchReturnsZipForCorrectScopeAndKey() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.BATCH, "B2026A"))
+                .thenReturn(samplePreparedExport("Documents_Batch_B2026A.zip"));
+
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("Documents_Batch_B2026A.zip")));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void exportStudentForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/student/SR20260001"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void exportSectionForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/section/S1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void exportBatchUnassignedForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A/unassigned"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void exportBatchForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void exportStudentForbiddenForAdmin() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/student/SR20260001"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportStudentUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/student/SR20260001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportSectionUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/section/S1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportBatchUnassignedUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A/unassigned"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportBatchUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A"))
                 .andExpect(status().isUnauthorized());
     }
 
