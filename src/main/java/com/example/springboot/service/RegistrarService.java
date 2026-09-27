@@ -196,9 +196,10 @@ public class RegistrarService {
     /**
      * Assigns, changes, or clears a student's batch.
      *
-     * <p>This is the ONLY write path for {@code batch} — the edit form deliberately leaves
-     * it out of {@link StudentRecordUpdateRequest} so a routine edit can never silently
-     * change it. A blank or null value clears the batch, unless the student is currently
+     * <p>This is the ONLY write path for {@code batch}. {@link StudentRecordUpdateRequest}
+     * still declares a {@code batchCode} field, but {@link #updateRecord} deliberately never
+     * reads it, so a routine edit can never silently change the batch. A blank or null value
+     * clears the batch, unless the student is currently
      * enrolled in a section: the Section Invariant forbids clearing or diverging a section
      * student's batch from their section's own batch, since a section's batch is the source
      * of truth for its enrolled students. Remove the student from the section first.
