@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -144,6 +145,57 @@ class DocumentServiceTest {
     void getDocumentThrowsWhenMissing() {
         when(documentRepository.findById(99)).thenReturn(Optional.empty());
         assertThrows(NoSuchElementException.class, () -> service.getDocument(99));
+    }
+
+    // -------------------------------------------------------
+    // Exact-reference student document listing (folder explorer)
+    // -------------------------------------------------------
+
+    @Test
+    void getStudentDocumentsReturnsExactMatchesWhenStudentExists() {
+        when(studentRecordRepository.existsByStudentId("SR20260001")).thenReturn(true);
+        when(documentRepository.findSummariesByStudentId("SR20260001"))
+                .thenReturn(List.of(new DocumentSummaryResponse(1, "SR20260001", "Dela Cruz", "Maria",
+                        TOR_TYPE, "tor-scan.pdf", "application/pdf", 9, null)));
+
+        var docs = service.getStudentDocuments("SR20260001");
+
+        assertEquals(1, docs.size());
+        assertEquals("SR20260001", docs.get(0).studentId());
+    }
+
+    @Test
+    void getStudentDocumentsReturnsEmptyListWhenStudentHasNoDocuments() {
+        when(studentRecordRepository.existsByStudentId("SR20260001")).thenReturn(true);
+        when(documentRepository.findSummariesByStudentId("SR20260001")).thenReturn(List.of());
+
+        assertTrue(service.getStudentDocuments("SR20260001").isEmpty());
+    }
+
+    @Test
+    void getStudentDocumentsThrowsWhenStudentDoesNotExist() {
+        when(studentRecordRepository.existsByStudentId("NOPE")).thenReturn(false);
+
+        assertThrows(NoSuchElementException.class, () -> service.getStudentDocuments("NOPE"));
+        verify(documentRepository, never()).findSummariesByStudentId(any());
+    }
+
+    @Test
+    void getStudentDocumentsRejectsBlankStudentId() {
+        assertThrows(IllegalArgumentException.class, () -> service.getStudentDocuments("   "));
+        verify(studentRecordRepository, never()).existsByStudentId(any());
+    }
+
+    @Test
+    void getStudentDocumentsDoesNotMatchAPrefixCollidingStudentId() {
+        // SR20260001 must not accidentally return documents belonging to SR202600010.
+        when(studentRecordRepository.existsByStudentId("SR20260001")).thenReturn(true);
+        when(documentRepository.findSummariesByStudentId("SR20260001")).thenReturn(List.of());
+
+        service.getStudentDocuments("SR20260001");
+
+        verify(documentRepository).findSummariesByStudentId("SR20260001");
+        verify(documentRepository, never()).findSummariesByStudentId("SR202600010");
     }
 
     // -------------------------------------------------------

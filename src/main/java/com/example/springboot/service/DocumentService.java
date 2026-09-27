@@ -93,6 +93,22 @@ public class DocumentService {
                 blankToNull(batchCode), blankToNull(sectionCode));
     }
 
+    /**
+     * Exact-reference document listing for a single student, used by the
+     * folder explorer's student panel. Unlike {@link #getDocuments}, this
+     * never does a substring/LIKE match.
+     */
+    public List<DocumentSummaryResponse> getStudentDocuments(String studentId) {
+        if (!StringUtils.hasText(studentId)) {
+            throw new IllegalArgumentException("A student ID is required.");
+        }
+        String trimmed = studentId.trim();
+        if (!studentRecordRepository.existsByStudentId(trimmed)) {
+            throw new NoSuchElementException("No student record found for ID: " + trimmed);
+        }
+        return documentRepository.findSummariesByStudentId(trimmed);
+    }
+
     public DocumentSummaryResponse upload(String studentId, String documentType, MultipartFile file) {
         StudentRecord student = requireStudent(studentId);
         requireKnownType(documentType);

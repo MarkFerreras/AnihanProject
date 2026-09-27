@@ -1,12 +1,14 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.config.SecurityConfig;
+import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
 import com.example.springboot.exception.GlobalExceptionHandler;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.CustomUserDetailsService;
+import com.example.springboot.service.DocumentFolderService;
 import com.example.springboot.service.DocumentGenerationService;
 import com.example.springboot.service.DocumentService;
 import com.example.springboot.service.SystemLogService;
@@ -38,6 +40,7 @@ class DocumentControllerWebMvcTest {
 
     @Autowired private MockMvc mvc;
     @MockitoBean private DocumentService documentService;
+    @MockitoBean private DocumentFolderService documentFolderService;
     @MockitoBean private DocumentGenerationService documentGenerationService;
     @MockitoBean private SystemLogService systemLogService;
     @MockitoBean private UserRepository userRepository;
@@ -84,6 +87,104 @@ class DocumentControllerWebMvcTest {
     @Test
     void listUnauthorizedWhenAnonymous() throws Exception {
         mvc.perform(get("/api/registrar/documents"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // Folder tree
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void folderTreeReturnsHierarchyForRegistrar() throws Exception {
+        var batch = new DocumentFolderHierarchyResponse("B2026A", (short) 2026, 1, 2,
+                List.of(), List.of(new DocumentFolderHierarchyResponse.StudentFolderDto(
+                        "SR20260001", null, "Maria", "Dela Cruz", "Active", 2)));
+        when(documentFolderService.getFolderHierarchy()).thenReturn(List.of(batch));
+
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].batchCode").value("B2026A"))
+                .andExpect(jsonPath("$[0].unassignedStudents[0].studentId").value("SR20260001"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void folderTreeReturnsEmptyListWhenNoData() throws Exception {
+        when(documentFolderService.getFolderHierarchy()).thenReturn(List.of());
+
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void folderTreeForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void folderTreeForbiddenForAdmin() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void folderTreeUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/folders/tree"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------
+    // Exact-reference student documents
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturnsListForRegistrar() throws Exception {
+        when(documentService.getStudentDocuments("SR20260001")).thenReturn(List.of(sampleSummary()));
+
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentId").value("SR20260001"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturnsEmptyListWhenStudentHasNoDocuments() throws Exception {
+        when(documentService.getStudentDocuments("SR20260001")).thenReturn(List.of());
+
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void studentDocumentsReturns404WhenStudentUnknown() throws Exception {
+        when(documentService.getStudentDocuments("NOPE"))
+                .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
+
+        mvc.perform(get("/api/registrar/documents/student/NOPE"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No student record found for ID: NOPE"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void studentDocumentsForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studentDocumentsUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/student/SR20260001"))
                 .andExpect(status().isUnauthorized());
     }
 

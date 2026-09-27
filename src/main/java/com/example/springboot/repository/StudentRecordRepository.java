@@ -17,6 +17,13 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord, In
     Optional<StudentRecord> findByStudentId(String studentId);
 
     /**
+     * Existence check for the exact-match student document endpoints — avoids
+     * loading the full entity (including the profile-picture BLOB) just to
+     * confirm a reference is valid.
+     */
+    boolean existsByStudentId(String studentId);
+
+    /**
      * Uniqueness pre-check for the registrar-assigned student number, so a clash
      * surfaces as a friendly 400 instead of a generic 409 from the unique index.
      */

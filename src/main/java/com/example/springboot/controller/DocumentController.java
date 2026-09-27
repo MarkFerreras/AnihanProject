@@ -20,12 +20,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
 import com.example.springboot.dto.registrar.GenerateDocumentRequest;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
+import com.example.springboot.service.DocumentFolderService;
 import com.example.springboot.service.DocumentGenerationService;
 import com.example.springboot.service.DocumentService;
 import com.example.springboot.service.SystemLogService;
@@ -38,18 +40,31 @@ import jakarta.validation.Valid;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final DocumentFolderService documentFolderService;
     private final DocumentGenerationService documentGenerationService;
     private final SystemLogService systemLogService;
     private final UserRepository userRepository;
 
     public DocumentController(DocumentService documentService,
+                              DocumentFolderService documentFolderService,
                               DocumentGenerationService documentGenerationService,
                               SystemLogService systemLogService,
                               UserRepository userRepository) {
         this.documentService = documentService;
+        this.documentFolderService = documentFolderService;
         this.documentGenerationService = documentGenerationService;
         this.systemLogService = systemLogService;
         this.userRepository = userRepository;
+    }
+
+    @GetMapping("/folders/tree")
+    public ResponseEntity<List<DocumentFolderHierarchyResponse>> folderTree() {
+        return ResponseEntity.ok(documentFolderService.getFolderHierarchy());
+    }
+
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<List<DocumentSummaryResponse>> studentDocuments(@PathVariable String studentId) {
+        return ResponseEntity.ok(documentService.getStudentDocuments(studentId));
     }
 
     @GetMapping
