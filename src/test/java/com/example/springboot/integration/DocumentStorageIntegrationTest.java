@@ -29,7 +29,10 @@ import com.example.springboot.repository.DocumentFolderRepository;
 import com.example.springboot.repository.DocumentRepository;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentRecordRepository;
+import com.example.springboot.dto.registrar.DocumentExportScope;
+import com.example.springboot.repository.DocumentContentRepository;
 import com.example.springboot.repository.SystemLogRepository;
+import com.example.springboot.service.DocumentExportService;
 import com.example.springboot.service.DocumentService;
 
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -75,6 +78,8 @@ class DocumentStorageIntegrationTest {
     @Autowired private CourseRepository courseRepository;
     @Autowired private SectionRepository sectionRepository;
     @Autowired private DocumentService documentService;
+    @Autowired private DocumentExportService documentExportService;
+    @Autowired private DocumentContentRepository documentContentRepository;
     @MockitoSpyBean private SystemLogRepository systemLogRepository;
 
     @BeforeEach
@@ -265,6 +270,121 @@ class DocumentStorageIntegrationTest {
         List<com.example.springboot.dto.registrar.DocumentSummaryResponse> docs =
                 documentRepository.findSummariesByStudentId("SR20260001");
         assertTrue(docs.isEmpty(), "documents must roll back when the audit write fails");
+    }
+
+    // -------------------------------------------------------
+    // ZIP export scope SQL and content-byte copying
+    // -------------------------------------------------------
+
+    @Test
+    void sectionScopeIncludesAssignedStudentRegardlessOfOwnMismatchedBatch() {
+        Batch sectionBatch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        Batch ownBatch = batchRepository.save(new Batch("B2025A", (short) 2025));
+        Course course = courseRepository.save(new Course("C1", "Culinary Arts and Restaurant Services"));
+        Section section = new Section();
+        section.setSectionCode("S1");
+        section.setSection("Section 1");
+        section.setBatch(sectionBatch);
+        section.setCourse(course);
+        sectionRepository.save(section);
+
+        // Assigned to S1 (batch B2026A) but the student's own batch is B2025A.
+        StudentRecord mismatched = newStudent("SR20260001", "Dela Cruz", "Maria", ownBatch, section);
+        studentRecordRepository.save(mismatched);
+        saveDocument(mismatched, "Transcript of Records (TOR)", "tor.pdf");
+
+        var rows = documentFolderRepository.findExportRows(DocumentExportScope.SECTION, "S1");
+        assertEquals(1, rows.size());
+        assertEquals("SR20260001", rows.get(0).studentId());
+    }
+
+    @Test
+    void unassignedScopeUsesStudentsOwnBatchNotAnySectionBatch() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        StudentRecord unassigned = newStudent("SR20260002", "Santos", "Juan", batch, null);
+        StudentRecord otherBatch = newStudent("SR20260003", "Reyes", "Ana", batchRepository.save(
+                new Batch("B2025A", (short) 2025)), null);
+        studentRecordRepository.saveAll(List.of(unassigned, otherBatch));
+        saveDocument(unassigned, "OJT Report", "ojt.pdf");
+        saveDocument(otherBatch, "OJT Report", "other.pdf");
+
+        var rows = documentFolderRepository.findExportRows(DocumentExportScope.UNASSIGNED, "B2026A");
+
+        assertEquals(1, rows.size());
+        assertEquals("SR20260002", rows.get(0).studentId());
+    }
+
+    @Test
+    void batchScopeCombinesSectionAssignedAndUnassignedStudentsOfThatBatchOnly() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        Batch otherBatch = batchRepository.save(new Batch("B2025A", (short) 2025));
+        Course course = courseRepository.save(new Course("C1", "Culinary Arts and Restaurant Services"));
+        Section section = new Section();
+        section.setSectionCode("S1");
+        section.setSection("Section 1");
+        section.setBatch(batch);
+        section.setCourse(course);
+        sectionRepository.save(section);
+
+        StudentRecord assigned = newStudent("SR1", "Dela Cruz", "Maria", batch, section);
+        StudentRecord unassignedSameBatch = newStudent("SR2", "Santos", "Juan", batch, null);
+        StudentRecord unassignedOtherBatch = newStudent("SR3", "Reyes", "Ana", otherBatch, null);
+        studentRecordRepository.saveAll(List.of(assigned, unassignedSameBatch, unassignedOtherBatch));
+        saveDocument(assigned, "Transcript of Records (TOR)", "a.pdf");
+        saveDocument(unassignedSameBatch, "OJT Report", "b.pdf");
+        saveDocument(unassignedOtherBatch, "OJT Report", "c.pdf");
+
+        var rows = documentFolderRepository.findExportRows(DocumentExportScope.BATCH, "B2026A");
+        var studentIds = rows.stream().map(DocumentFolderRepository.ExportRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertEquals(java.util.Set.of("SR1", "SR2"), studentIds);
+    }
+
+    @Test
+    void documentContentRepositoryCopiesTheExactStoredBytes() throws Exception {
+        StudentRecord student = newStudent("SR1", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+        byte[] original = "the exact original bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Document doc = new Document();
+        doc.setStudent(student);
+        doc.setDocumentType("Transcript of Records (TOR)");
+        doc.setFileName("tor.pdf");
+        doc.setFileType("application/pdf");
+        doc.setFileSize(original.length);
+        doc.setContentData(original);
+        Document saved = documentRepository.save(doc);
+
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        documentContentRepository.copyTo(saved.getDocumentId(), out);
+
+        assertTrue(java.util.Arrays.equals(original, out.toByteArray()));
+    }
+
+    @Test
+    void exportEndToEndProducesAZipWithTheStoredBytesForStudentScope() throws Exception {
+        StudentRecord student = newStudent("SR1", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+        byte[] content = "real stored content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Document doc = new Document();
+        doc.setStudent(student);
+        doc.setDocumentType("Transcript of Records (TOR)");
+        doc.setFileName("tor.pdf");
+        doc.setFileType("application/pdf");
+        doc.setFileSize(content.length);
+        doc.setContentData(content);
+        documentRepository.save(doc);
+
+        var prepared = documentExportService.prepareExport(DocumentExportScope.STUDENT, "SR1");
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        documentExportService.writeZip(prepared, out);
+
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
+                new java.io.ByteArrayInputStream(out.toByteArray()))) {
+            var entry = zis.getNextEntry();
+            assertEquals("tor.pdf", entry.getName());
+            assertTrue(java.util.Arrays.equals(content, zis.readAllBytes()));
+        }
     }
 
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
