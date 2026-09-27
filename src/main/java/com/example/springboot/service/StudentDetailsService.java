@@ -17,7 +17,6 @@ import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentEducation;
 import com.example.springboot.model.StudentRecord;
 import com.example.springboot.model.StudentSchoolYear;
-import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
@@ -32,21 +31,18 @@ public class StudentDetailsService {
     private final OtherGuardianRepository guardianRepo;
     private final StudentEducationRepository educationRepo;
     private final StudentSchoolYearRepository schoolYearRepo;
-    private final BatchRepository batchRepo;
 
     public StudentDetailsService(
             StudentRecordRepository studentRecordRepo,
             ParentRepository parentRepo,
             OtherGuardianRepository guardianRepo,
             StudentEducationRepository educationRepo,
-            StudentSchoolYearRepository schoolYearRepo,
-            BatchRepository batchRepo) {
+            StudentSchoolYearRepository schoolYearRepo) {
         this.studentRecordRepo = studentRecordRepo;
         this.parentRepo = parentRepo;
         this.guardianRepo = guardianRepo;
         this.educationRepo = educationRepo;
         this.schoolYearRepo = schoolYearRepo;
-        this.batchRepo = batchRepo;
     }
 
     /**
@@ -113,15 +109,6 @@ public class StudentDetailsService {
         applyPersonal(record, req);
         applyReligion(record, req);
         record.setStudentStatus("Submitted");
-
-        // Auto-assign batch for the current year; create one if none exists yet
-        if (record.getBatch() == null) {
-            short currentYear = (short) LocalDate.now().getYear();
-            com.example.springboot.model.Batch batch = batchRepo.findFirstByBatchYear(currentYear)
-                    .orElseGet(() -> batchRepo.save(
-                            new com.example.springboot.model.Batch("B" + currentYear + "A", currentYear)));
-            record.setBatch(batch);
-        }
 
         studentRecordRepo.save(record);
 
