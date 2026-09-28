@@ -1,6 +1,39 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-27 - Manual Batch Code Assignment Brainstorming, Spec & Plan)
+## Latest Session (2026-09-27 - Manual Batch Code Assignment: Implementation & Verification Complete)
+
+- **Manual Batch Code Assignment feature is complete** (Tasks 1-5 of
+  `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`) on branch
+  `feature/manual-batch-code-assignment` (8 commits: `ba28708`, `4afa98d`, `86901d5`,
+  `b830879`, `6c05fd8`, `6112ea0`, `14e0d4c`, `c53a7a0`).
+- Full suite: **511 tests, 0 failures, 0 errors, 0 skipped**. Live-verified end to end against
+  the real `AnihanSRMS` database via Playwright: enrollment decoupling, assign-existing-batch,
+  auto-create-new-batch (persistence confirmed via reload), the section invariant's inline
+  rejection message, and the edit-form batch field's genuine (`readonly`) non-editability. See
+  `memory-bank/progress.md` and `memory-bank/testing.md` for the full walkthrough.
+- **Independent final whole-feature code review completed** (Opus). Verdict: "merge with fixes."
+  Two Important issues were found; both are resolved as of `c53a7a0` (stale javadoc claiming
+  `batchCode` was removed from `StudentRecordUpdateRequest` — corrected; dead
+  `BatchRepository.findFirstByBatchYear` — removed). See [[manual-batch-section-invariant-gap]]
+  in `decisions.md` for the one Important issue deliberately NOT fixed in this branch (a
+  cross-subsystem scope decision, not a defect in this feature's own code).
+- **Ready for the "finishing a development branch" step** — `superpowers:finishing-a-development-branch`
+  has not yet been invoked for the merge/PR decision on `feature/manual-batch-code-assignment`.
+- **One non-blocking observation, not a defect:** the "Assign Batch" modal's batch-code datalist
+  is populated once per page load; a batch created via the modal in the current session won't
+  appear in that same session's datalist until the page is reloaded (confirmed it *is* correctly
+  persisted server-side — just not reflected in the in-memory datalist without a reload). Worth a
+  small follow-up polish (refresh the datalist after a successful save) if this branch is
+  revisited, but out of scope for this plan's acceptance criteria.
+- **Focus is shifting away from this feature** now that Task 5 is done; the next session should
+  either run the merge/PR decision for this branch or pick up the next planned work item (per
+  earlier session notes: Sub-project 2, Group Document Download Verification & Flagging, was
+  mentioned as a candidate next brainstorming topic, and `feature/document-folder-management`
+  also still has its own pending finishing-a-development-branch step — see the session below).
+
+The sessions below describe earlier checkouts and tasks.
+
+## Session (2026-09-27 - Manual Batch Code Assignment Brainstorming, Spec & Plan)
 
 - Brainstormed, specified, and planned **Manual Batch Code Assignment** (Sub-project 1 of the
   user's two requested features; Sub-project 2 is Group Document Download Verification & Flagging).

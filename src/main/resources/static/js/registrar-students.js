@@ -4,11 +4,13 @@
     let detailsModal = null;
     let deleteConfirmModal = null;
     let assignNumberModal = null;
+    let assignBatchModal = null;
     let editStatusModal = null;
     let currentRecordId = null;
     let currentRecordIdentifier = null;
     let currentRecordStatus = null;
     let assignTargetRecordId = null;
+    let assignBatchTargetRecordId = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -235,6 +237,9 @@
                             escapeHtml(row.recordId) + '" data-student-name="' + escapeHtml(name) +
                             '" data-student-number="' + escapeHtml(row.studentNumber ?? '') +
                             '">Assign Number</button>' +
+                            '<button class="btn btn-surface btn-sm js-assign-batch" data-record-id="' +
+                            escapeHtml(row.recordId) + '" data-student-name="' + escapeHtml(name) +
+                            '" data-batch-code="' + escapeHtml(row.batchCode ?? '') + '">Assign Batch</button>' +
                             '</div>';
                     }
                 }
@@ -271,6 +276,14 @@
                 this.getAttribute('data-record-id'),
                 this.getAttribute('data-student-name'),
                 this.getAttribute('data-student-number')
+            );
+        });
+
+        window.jQuery('#studentRecordsTable tbody').on('click', 'button.js-assign-batch', function () {
+            openAssignBatchModal(
+                this.getAttribute('data-record-id'),
+                this.getAttribute('data-student-name'),
+                this.getAttribute('data-batch-code')
             );
         });
 
@@ -314,6 +327,7 @@
 
         setupDeleteRecordFlow(dataTable);
         setupAssignStudentNumber(dataTable);
+        setupAssignBatch(dataTable);
         setupEditStatus(dataTable);
     });
 
@@ -409,6 +423,125 @@
             assignTargetRecordId = null;
             inputEl.value = '';
             hideAlert('assignStudentNumberAlert');
+        });
+    }
+
+    let batchLookupLoaded = false;
+
+    function openAssignBatchModal(recordId, studentName, batchCode) {
+        if (!assignBatchModal) return;
+        assignBatchTargetRecordId = recordId;
+
+        const nameEl = document.getElementById('assignBatchStudentName');
+        const inputEl = document.getElementById('assignBatchInput');
+        if (nameEl) nameEl.value = studentName || ('Record #' + recordId);
+        if (inputEl) inputEl.value = batchCode || '';
+        hideAlert('assignBatchAlert');
+
+        if (!batchLookupLoaded) {
+            loadBatchLookupOptions();
+        }
+
+        assignBatchModal.show();
+    }
+
+    async function loadBatchLookupOptions() {
+        try {
+            const response = await fetch('/api/lookup/batches', { credentials: 'same-origin' });
+            if (!response.ok) return;
+            const items = await response.json();
+            const datalist = document.getElementById('batchLookupList');
+            if (!datalist) return;
+            datalist.innerHTML = '';
+            items.forEach(function (item) {
+                const opt = document.createElement('option');
+                opt.value = item.code;
+                opt.label = item.code + ' — ' + item.name;
+                opt.textContent = item.code + ' — ' + item.name;
+                datalist.appendChild(opt);
+            });
+            batchLookupLoaded = true;
+        } catch (error) {
+            // Datalist stays empty; registrar can still type a free-text code.
+        }
+    }
+
+    function setupAssignBatch(dataTable) {
+        const modalEl = document.getElementById('assignBatchModal');
+        const saveBtn = document.getElementById('saveBatchBtn');
+        const inputEl = document.getElementById('assignBatchInput');
+        const alertEl = document.getElementById('assignBatchAlert');
+
+        if (!modalEl || !saveBtn || !inputEl) return;
+        assignBatchModal = new bootstrap.Modal(modalEl);
+
+        function showBatchAlert(message, type) {
+            if (!alertEl) return;
+            alertEl.className = 'alert alert-' + type + ' mt-3';
+            alertEl.textContent = message;
+            alertEl.classList.remove('d-none');
+        }
+
+        async function save() {
+            if (!assignBatchTargetRecordId) return;
+
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            hideAlert('assignBatchAlert');
+
+            try {
+                const res = await fetch(
+                    '/api/registrar/student-records/' + encodeURIComponent(assignBatchTargetRecordId) + '/batch',
+                    {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ batchCode: inputEl.value.trim() })
+                    }
+                );
+
+                if (!res.ok) {
+                    const body = await res.json().catch(function () { return null; });
+                    const fieldError = body && body.errors && body.errors.batchCode;
+                    showBatchAlert(
+                        fieldError || (body && body.message) || 'Could not save the batch.',
+                        'danger'
+                    );
+                    return;
+                }
+
+                const saved = await res.json();
+                showBatchAlert(
+                    saved.batchCode
+                        ? 'Batch saved as ' + saved.batchCode + '.'
+                        : 'Batch cleared.',
+                    'success'
+                );
+                window.setTimeout(function () {
+                    assignBatchModal.hide();
+                    dataTable.ajax.reload(null, false);
+                }, 900);
+            } catch (err) {
+                showBatchAlert('Network error. Could not save the batch.', 'danger');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+        }
+
+        saveBtn.addEventListener('click', save);
+        inputEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            assignBatchTargetRecordId = null;
+            inputEl.value = '';
+            hideAlert('assignBatchAlert');
         });
     }
 

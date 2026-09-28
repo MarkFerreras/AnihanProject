@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.springboot.dto.registrar.AssignBatchRequest;
 import com.example.springboot.dto.registrar.AssignStudentNumberRequest;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
@@ -103,6 +104,32 @@ public class RegistrarController {
         String action = updated.studentNumber() == null
                 ? "Cleared student number for: " + studentName
                 : "Assigned student number " + updated.studentNumber() + " to: " + studentName;
+        systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                action, httpRequest.getRemoteAddr());
+
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Assigns, changes, or clears a student's batch. A blank body value clears it — but only
+     * when the student isn't enrolled in a section (see RegistrarService.assignBatch's section
+     * invariant). Entering a batch code that doesn't exist yet auto-creates it with the current
+     * calendar year.
+     */
+    @PutMapping("/{recordId}/batch")
+    public ResponseEntity<StudentRecordDetailsResponse> assignBatch(
+            @PathVariable Integer recordId,
+            @Valid @RequestBody AssignBatchRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        StudentRecordDetailsResponse updated =
+                registrarService.assignBatch(recordId, request.batchCode());
+
+        LogContext ctx = getLogContext();
+        String studentName = updated.lastName() + ", " + updated.firstName();
+        String action = updated.batchCode() == null
+                ? "Cleared batch for: " + studentName
+                : "Assigned batch " + updated.batchCode() + " to: " + studentName;
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
                 action, httpRequest.getRemoteAddr());
 

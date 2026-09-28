@@ -1,5 +1,67 @@
 # Testing - Anihan SRMS
 
+## 2026-09-27 - Manual Batch Code Assignment: Full Regression + Live Verification (Task 5)
+
+**Full suite:** `./gradlew.bat test --rerun --console=plain` → **BUILD SUCCESSFUL — 511 tests,
+0 failures, 0 errors, 0 skipped** (summed from `build/test-results/test/*.xml`, 49 report
+files, on `feature/manual-batch-code-assignment` after all 4 implementation tasks). Matches
+the plan's ~511 expectation exactly (492 baseline, Task 1 removed/adjusted a couple of
+enrollment-batch assertions, Tasks 2-3 added two new test classes).
+
+**New test classes:**
+- `RegistrarBatchServiceTest` (Mockito) — `assignBatch`: assign to a batch-less record, reuse
+  an existing `Batch` by code, auto-create a new `Batch` (current calendar year) for an unknown
+  code, blank/null clears the batch, and the section invariant (`IllegalArgumentException` when
+  a section-enrolled student's batch would be cleared or changed away from the section's own
+  batch), plus unknown-record handling.
+- `RegistrarBatchControllerWebMvcTest` (WebMvc) — `PUT /api/registrar/student-records/{id}/batch`:
+  200 + audit log on assign/clear, 400 with the service's message passed through on an invariant
+  violation (no log written), 404 unknown record, 403 non-registrar roles, 401 anonymous.
+
+**Live verification — 2026-09-27, against the real `AnihanSRMS` database** (not a disposable
+container this time; `./gradlew.bat bootRun` on port 8080, stopped cleanly afterward via
+`taskkill` on the JVM PID, port 8080 confirmed free). All 6 flows from the plan's Task 5
+checklist verified live via Playwright, logged in as `registrar` where applicable:
+
+1. **Enrollment decoupling** — submitted a brand-new public enrollment through
+   `student-portal.html` → `student-details.html` (last name "Zyndrelith", first name
+   "Quovaxen") to final submit; got Reference No. `SR20260018`. Confirmed in `registrar.html`'s
+   DataTable that the row's Batch column reads **"Not Assigned"**, not an auto-assigned code.
+2. **Assign existing batch** — clicked "Assign Batch" on that row, typed the existing code
+   `B2026A` (visible elsewhere in the table), Save. Modal closed and the row updated in place to
+   `B2026A`.
+3. **Auto-create new batch** — re-opened "Assign Batch" on the same row, typed a brand-new code
+   `B2099Z`, Save. Row updated to `B2099Z`. Confirmed real persistence (not just an optimistic
+   UI update): a full page reload + re-opening the modal showed `B2099Z` now listed in the
+   `#assignBatchInput`'s `batchLookupList` datalist alongside `B2026A` — proving a real `Batch`
+   row was created server-side. Note: within the *same* page load (no reload), a just-created
+   code does not yet appear in the datalist — it's populated once per page load, not
+   live-refreshed after each save. This is a minor UX nuance worth a follow-up polish item, not
+   a functional defect (the assignment itself is correct and persists).
+4. **Section invariant** — verified live (not deferred to the automated suites): found student
+   `SR20260015` ("Plankton, Plank", section `TEST-T4`, batch `B2026A`) already in a section from
+   existing seed/test data. Opened "Assign Batch" and tried to change the code to `B2099Z`; got
+   the inline alert **"Cannot change or clear batch while student is enrolled in section
+   TEST-T4 (Batch B2026A). Remove the student from the section first."** — modal stayed open,
+   no crash, and the table row's Batch value remained unchanged at `B2026A` after the rejected
+   save.
+5. **Edit form read-only** — opened `student-records.html?id=15`, "Enrollment & Academics" tab.
+   The Batch field shows `B2026A` with hint text "Set via **Assign Batch** on the Student
+   Records list." Clicked "Edit Section" (which unlocks every other field in that tab) and
+   confirmed the Batch field remains non-editable: DOM inspection showed `readOnly: true`,
+   `disabled: false` (deliberately `readonly` rather than `disabled` so the value stays legible
+   and included in any future read-model, per the plan's Task 4 design); Playwright's own
+   `type()` call against the field timed out with "element is not editable", independently
+   confirming it cannot be typed into even while the surrounding section is unlocked.
+6. **Console errors** — checked after every navigation. Only three errors observed across the
+   whole session, all pre-existing/expected and unrelated to this feature: a 401 from the login
+   page's own session probe while unauthenticated, a 404 from the ID-picture lookup for a
+   student who has none on file, and the expected 400 from the deliberately-rejected
+   section-invariant save in check 4 above. No other console errors or warnings at any step.
+
+**Not yet done:** independent final code-quality review and
+`superpowers:finishing-a-development-branch` for the merge/PR decision.
+
 ## Current Test Suite
 
 | Module / Class | Type | Tests | Notes |

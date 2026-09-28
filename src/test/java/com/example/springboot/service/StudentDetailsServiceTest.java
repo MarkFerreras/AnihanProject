@@ -35,7 +35,6 @@ import com.example.springboot.dto.student.StudentDetailsResponse;
 import com.example.springboot.model.OtherGuardian;
 import com.example.springboot.model.Parent;
 import com.example.springboot.model.StudentRecord;
-import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.OtherGuardianRepository;
 import com.example.springboot.repository.ParentRepository;
 import com.example.springboot.repository.StudentEducationRepository;
@@ -50,7 +49,6 @@ class StudentDetailsServiceTest {
     @Mock private OtherGuardianRepository guardianRepo;
     @Mock private StudentEducationRepository educationRepo;
     @Mock private StudentSchoolYearRepository schoolYearRepo;
-    @Mock private BatchRepository batchRepo;
 
     @InjectMocks
     private StudentDetailsService service;
@@ -238,6 +236,7 @@ class StudentDetailsServiceTest {
             assertEquals(LocalDate.of(2004, 6, 15), saved.getBirthdate());
             assertNotNull(saved.getAge());
             assertEquals("+63 917 000 0000", saved.getContactNo());
+            assertNull(saved.getBatch(), "New enrollee should NOT have a batch auto-assigned");
 
             // Verify parents saved (father + mother = 2 calls)
             verify(parentRepo, Mockito.times(2)).save(any(Parent.class));

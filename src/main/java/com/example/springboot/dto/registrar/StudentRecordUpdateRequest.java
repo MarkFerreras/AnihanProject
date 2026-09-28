@@ -42,6 +42,9 @@ public record StudentRecordUpdateRequest(
         Integer siblingCount,
         Integer brotherCount,
         Integer sisterCount,
+
+        // Ignored by RegistrarService.updateRecord() — batch is written only through
+        // PUT /api/registrar/student-records/{id}/batch (see RegistrarService.assignBatch).
         String batchCode,
         String courseCode,
         String sectionCode,

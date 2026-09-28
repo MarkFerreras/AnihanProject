@@ -1,5 +1,47 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5)
+**Branch:** `feature/manual-batch-code-assignment` (6 commits, not yet merged)
+
+### Task
+Implemented `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md` end to end
+(Tasks 1-4), then ran full regression + live end-to-end verification (Task 5, this session).
+
+### Commits
+1. `ba28708` — `feat: decouple student enrollment from auto batch assignment`
+2. `4afa98d` — `test: remove duplicated setup and dead BatchRepository mock`
+3. `86901d5` — `feat: implement registrar batch assignment service and invariant guard`
+4. `b830879` — `refactor: simplify section invariant check in assignBatch`
+5. `6c05fd8` — `feat: expose assign batch endpoint with registrar role security`
+6. `6112ea0` — `feat: add assign batch modal and datalist integration to registrar UI`
+
+### Files Changed (full feature diff, `git diff --stat 1da0bc0..HEAD`)
+| File | Change |
+|---|---|
+| `service/StudentDetailsService.java` | Removed `B<Year>A` auto-batch-assignment from `applyDetails()`; new enrollees get `batch = null` |
+| `service/RegistrarService.java` | New `assignBatch(recordId, batchCode)` — reuse/auto-create `Batch`, blank clears, section invariant guard (`IllegalArgumentException` on violation) |
+| `controller/RegistrarController.java` | New `PUT /api/registrar/student-records/{recordId}/batch`, `ROLE_REGISTRAR`-only, audits via `SystemLogService` |
+| `dto/registrar/AssignBatchRequest.java` | New DTO — single `batchCode` field |
+| `static/js/registrar-students.js` | "Assign Batch" button + `#assignBatchModal` (datalist-autocomplete) wired into the `registrar.html` DataTable list page |
+| `static/registrar.html` | Added `#assignBatchModal` markup + `<datalist>` |
+| `static/js/registrar-student-records-edit.js` | Removed batch-code write path (2 lines) — field is now display-only |
+| `static/student-records.html` | `#editBatchCode` made `readonly` with hint text pointing back to "Assign Batch" on the list |
+| `src/test/.../RegistrarBatchServiceTest.java` | New — 249 lines covering reuse/auto-create/clear/invariant paths |
+| `src/test/.../RegistrarBatchControllerWebMvcTest.java` | New — 177 lines covering the endpoint's RBAC/validation/audit contract |
+| `src/test/.../StudentDetailsServiceTest.java` | Updated to pin the removed auto-assignment (`batch = null` on submit) |
+
+Full diff: **11 files, +687/-31 lines.**
+
+### Verification
+Full suite `./gradlew.bat test --rerun` → **511 tests, 0 failures, 0 errors, 0 skipped**
+(summed from `build/test-results/test/*.xml`). Live-verified against the real `AnihanSRMS`
+database via Playwright: fresh public enrollment lands with no batch; existing-code and
+new-code assignment both work and persist; section invariant blocks the change with the
+correct inline message and the modal stays open; edit-form batch field is genuinely
+non-editable. See `memory-bank/testing.md` for the full walkthrough and
+`memory-bank/progress.md` for the session summary. Independent final review /
+`superpowers:finishing-a-development-branch` not yet run.
+
 ## 2026-09-27 - Manual Batch Code Assignment Brainstorming, Spec & Plan
 **Branch:** `main` (Documentation-only preparation session per user instruction)
 
