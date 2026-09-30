@@ -16,26 +16,15 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Create and select the database (added so the dump can be restored on a new machine)
+-- DATA-ONLY restore. Table definitions were removed on purpose: apply
+-- src/main/sql/schema.sql first (empty tables), then run this file.
+-- security_questions uses INSERT IGNORE because schema.sql already seeds the
+-- same 6 default questions (IDs 1-6).
 --
 
 CREATE DATABASE IF NOT EXISTS `AnihanSRMS` DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci;
 
 USE `AnihanSRMS`;
-
---
--- Table structure for table `batches`
---
-
-DROP TABLE IF EXISTS `batches`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `batches` (
-  `batch_code` varchar(20) NOT NULL,
-  `batch_year` year NOT NULL,
-  PRIMARY KEY (`batch_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `batches`
@@ -48,26 +37,6 @@ INSERT INTO `batches` VALUES ('B2024A',2024),('B2025A',2025),('B2026A',2026);
 UNLOCK TABLES;
 
 --
--- Table structure for table `class_enrollments`
---
-
-DROP TABLE IF EXISTS `class_enrollments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `class_enrollments` (
-  `enrollment_id` int NOT NULL AUTO_INCREMENT,
-  `class_id` int NOT NULL,
-  `student_id` varchar(20) NOT NULL,
-  `enrolled_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`enrollment_id`),
-  UNIQUE KEY `uq_class_student` (`class_id`,`student_id`),
-  KEY `student_id` (`student_id`),
-  CONSTRAINT `class_enrollments_ibfk_1` FOREIGN KEY (`class_id`) REFERENCES `classes` (`class_id`) ON DELETE CASCADE,
-  CONSTRAINT `class_enrollments_ibfk_2` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `class_enrollments`
 --
 
@@ -77,30 +46,6 @@ LOCK TABLES `class_enrollments` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `classes`
---
-
-DROP TABLE IF EXISTS `classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `classes` (
-  `class_id` int NOT NULL AUTO_INCREMENT,
-  `section_code` varchar(20) NOT NULL,
-  `subject_code` varchar(20) NOT NULL,
-  `trainer_id` int DEFAULT NULL,
-  `semester` varchar(20) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`class_id`),
-  UNIQUE KEY `uq_class` (`section_code`,`subject_code`,`semester`),
-  KEY `fk_classes_subject` (`subject_code`),
-  KEY `trainer_id` (`trainer_id`),
-  CONSTRAINT `classes_ibfk_1` FOREIGN KEY (`section_code`) REFERENCES `sections` (`section_code`),
-  CONSTRAINT `classes_ibfk_2` FOREIGN KEY (`trainer_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_classes_subject` FOREIGN KEY (`subject_code`) REFERENCES `subjects` (`subject_code`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `classes`
 --
 
@@ -108,20 +53,6 @@ LOCK TABLES `classes` WRITE;
 /*!40000 ALTER TABLE `classes` DISABLE KEYS */;
 /*!40000 ALTER TABLE `classes` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `courses`
---
-
-DROP TABLE IF EXISTS `courses`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `courses` (
-  `course_code` varchar(20) NOT NULL,
-  `course_name` varchar(100) NOT NULL,
-  PRIMARY KEY (`course_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `courses`
@@ -134,28 +65,6 @@ INSERT INTO `courses` VALUES ('CARS','Culinary Arts and Restaurant Services');
 UNLOCK TABLES;
 
 --
--- Table structure for table `documents`
---
-
-DROP TABLE IF EXISTS `documents`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `documents` (
-  `document_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `document_type` varchar(255) NOT NULL,
-  `file_name` varchar(255) NOT NULL,
-  `file_type` varchar(100) NOT NULL,
-  `file_size` int NOT NULL,
-  `content_data` longblob NOT NULL,
-  `upload_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`document_id`),
-  KEY `student_id` (`student_id`),
-  CONSTRAINT `documents_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `documents`
 --
 
@@ -165,37 +74,6 @@ LOCK TABLES `documents` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `grades`
---
-
-DROP TABLE IF EXISTS `grades`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `grades` (
-  `grade_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `subject_code` varchar(20) NOT NULL,
-  `class_id` int DEFAULT NULL,
-  `final_percentage` decimal(5,2) DEFAULT NULL,
-  `re_exam_percentage` decimal(5,2) DEFAULT NULL,
-  `final_grade` decimal(5,2) DEFAULT NULL,
-  `re_exam_grade` decimal(5,2) DEFAULT NULL,
-  `grade_status` varchar(5) DEFAULT NULL,
-  `remarks` varchar(20) DEFAULT NULL,
-  `hours_rendered` decimal(5,2) DEFAULT NULL,
-  `locked` tinyint(1) NOT NULL DEFAULT '0',
-  `locked_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`grade_id`),
-  UNIQUE KEY `uq_grade_student_class` (`class_id`,`student_id`),
-  KEY `student_id` (`student_id`),
-  KEY `fk_grades_subject` (`subject_code`),
-  CONSTRAINT `fk_grades_subject` FOREIGN KEY (`subject_code`) REFERENCES `subjects` (`subject_code`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT `grades_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`),
-  CONSTRAINT `grades_ibfk_2` FOREIGN KEY (`class_id`) REFERENCES `classes` (`class_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `grades`
 --
 
@@ -203,28 +81,6 @@ LOCK TABLES `grades` WRITE;
 /*!40000 ALTER TABLE `grades` DISABLE KEYS */;
 /*!40000 ALTER TABLE `grades` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `other_guardians`
---
-
-DROP TABLE IF EXISTS `other_guardians`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `other_guardians` (
-  `guardian_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `relation` varchar(20) DEFAULT NULL,
-  `last_name` varchar(255) DEFAULT NULL,
-  `first_name` varchar(255) DEFAULT NULL,
-  `middle_name` varchar(255) DEFAULT NULL,
-  `birthdate` date DEFAULT NULL,
-  `address` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`guardian_id`),
-  KEY `student_id` (`student_id`),
-  CONSTRAINT `other_guardians_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `other_guardians`
@@ -237,32 +93,6 @@ INSERT INTO `other_guardians` VALUES (1,'SR20260016','Aunt','Tiu','Christine Gra
 UNLOCK TABLES;
 
 --
--- Table structure for table `parents`
---
-
-DROP TABLE IF EXISTS `parents`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `parents` (
-  `parent_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `relation` varchar(20) NOT NULL,
-  `family_name` varchar(255) DEFAULT NULL,
-  `first_name` varchar(255) DEFAULT NULL,
-  `middle_name` varchar(255) DEFAULT NULL,
-  `birthdate` date DEFAULT NULL,
-  `occupation` varchar(255) DEFAULT NULL,
-  `est_income` decimal(15,2) DEFAULT NULL,
-  `contact_no` varchar(20) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `address` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`parent_id`),
-  KEY `student_id` (`student_id`),
-  CONSTRAINT `parents_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `parents`
 --
 
@@ -271,21 +101,6 @@ LOCK TABLES `parents` WRITE;
 INSERT INTO `parents` VALUES (3,'SR20260013','FATHER','Lumasag Jr.','Roberto','Merino','1978-03-02','Factory Worker',20000.00,'+63 924 404 8082','robertolumasag@gmail.com','Block 16 Lot 19 Maresco, Brgy.Palo Alto, Calamba City, Laguna'),(4,'SR20260013','MOTHER','Lumasag','Charret','Mariñas','1979-09-05','None',0.00,'+63 924 404 8082','charretlumasag@gmail.com','Block 16 Lot 19 Maresco, Brgy. Palo Alto, Calamba City, Laguna'),(5,'SR20260022','FATHER','ABATONON','SATURNINO','-','1985-10-21','BUS DRIVER',20000.00,'+63 963 508 1451','N\\A','PUROK 6 MILAGROSA CALAMBA CITY, LAGUNA'),(6,'SR20260022','MOTHER','QUINTO','ROWENA','J.','1989-09-10','QA\\QC',20000.00,'+63 963 508 1451','N\\A','PUROK 6 MILAGROSA CALAMBA CITY, LAGUNA'),(7,'SR20260007','FATHER','Batingan','Julius','Dela Cruz','1984-11-25','Laborer',10000.00,'+63 960 689 1715','N/A','District 2, Sitio. Mandaloy, Brgy. Taltal, Masinloc, Zambales'),(8,'SR20260007','MOTHER','Batingan','Rumary Ann','Ebuen','1987-03-14','Housewife',0.00,'+63 960 689 1715','N/A','District 2, Sitio. Mandaloy, Brgy. Taltal, Masinloc, Zambales'),(9,'SR20260002','FATHER','Perez','Rufino','Robledo','1990-10-24','Construction Workers',5000.00,'+63 951 986 4015','N/A','LGU Balacbacan, Laiya Aplaya, San Juan Batangas'),(10,'SR20260002','MOTHER','Perez','Jessica','Valdez','1990-08-27','Housewife',NULL,'+63 951 986 4015',NULL,'LGU Balacbacan, San Juan Batangas'),(11,'SR20260026','FATHER','DELA PEÑA','LEO','ROSATASO','1979-12-15','SECURITY GUARD',15000.00,'+63 953 455 1122','NA','PUROK 6, BRGY MILAGROSA, CALAMBA CITY, LAGUNA'),(12,'SR20260026','MOTHER','RECARTE','MAREVIE','PIPITO','1983-07-25','QUALITY INSPECTOR',10000.00,'+63 946 265 7929','NA','PUROK 6, BRGY MILAGROSA, CALAMBA CITY,LAGUNA'),(13,'SR20260017','FATHER','CUPADA','REGIE','TAPALIA','1854-09-08','DECEASED',NULL,'+63 111 111 11','N/A','LAIYA APLAYA, SAN JUAN, BATANGAS'),(14,'SR20260017','MOTHER','ABANILLA','MYREEN','FLORENDO','1954-04-18','LANDLADY',3500.00,'+63 954 369 9441','N/A','LAIYA APLAYA, SAN JUAN, BATANGAS'),(15,'SR20260016','FATHER','Clark','Felizardo','Francisa','1984-03-25','Security Guard',30000.00,'+63 930 201 5469',NULL,'Porak, Pampanga'),(16,'SR20260016','MOTHER','Reyes','Valerie','Roy','1984-02-23','Teacher',25000.00,'+63 930 201 5469',NULL,'Sitio Coto Taltal, Masinloc, Zambales'),(17,'SR20260003','FATHER','Culminas','Nabie','Rabanos','1988-11-30','Delivery Driver',5000.00,'+63 967 681 4619','N/A','Purok 1, Corazon, San Miguel, Bohol'),(18,'SR20260003','MOTHER','Culminas','Charlita','Galo','1988-08-27','Barangay Health Worker',2000.00,'+63 967 681 4619','charlitaculminas@gmail.com','Purok 1, Corazon, San Miguel, Bohol'),(19,'SR20260010','FATHER','RAFA','RANDY','BUENO','1977-11-15','FISHERMAN',7000.00,'+63 966 592 9027',NULL,'ZONE 3 SITIO BAGOTAYOK BRGY. LOHONG RAGAY CAMARINES SUR'),(20,'SR20260010','MOTHER','HERNANDEZ','BABYLEN','ONA','1983-06-21','BNS (BARANGAY NUTRITION SCHOLAR)',5000.00,'+63 927 870 4867','hernandezbabylen21@gmail.com','ZONE 3 SITIO BAGOTAYOK BRGY. LOHONG, RAGAY, CAMARINES SUR'),(21,'SR20260018','FATHER','PIANO','EDGARDO','DELA CRUZ','1981-10-23','TRICYCLE DRIVER',5000.00,'+63 963 302 1989',NULL,'BRGY. LOOC BLK 9 LOT 25 CALAMBA CITY LAGUNA'),(22,'SR20260018','MOTHER','PIANO','ELIZABETH','QUIRAS','1980-11-17','N/A',0.00,'+63 983 299 93',NULL,'BRGY. LOOC BLK 9 LOT 25 CALAMBA CITY LAGUNA'),(23,'SR20260020','FATHER','LUMANGAYA','MICHAEL','GODULA','1980-08-07','BRGY. OFFICIAL',10000.00,'+63 950 506 7644','N/A','DISTRICT 1, BRGY. SABANG, DEL GALEEGO, CAMARINES SUR'),(24,'SR20260020','MOTHER','LUMANGAYA','ROSEMARIE','RAYLES','1983-11-11','N\\A',NULL,'+63 950 506 7644','N/A','DISTRICT1, BRGY. SABANG, DEL GALLEGO, CAMARINES SUR'),(25,'SR20260021','FATHER','FRANCE','DARWIN','MARCAIDA','1981-11-05','CONSTRACTION',15.00,'+63 936 874 5297',NULL,'SOUTHVILLE 6 KAY-ANLOG CALAMBA CITY BLK 20 LOT 224 PH3'),(26,'SR20260021','MOTHER','FRANCE','EMERLINDA','BAYONA','1979-04-15','HOUSE WIFE',0.00,'+63 936 874 5297',NULL,'SOUTH VILLE 6 KAY-ANLOG CALAMBA CITY BLK 20 LOT 224'),(27,'SR20260004','FATHER','Sevillena','Bernard','Bacallo','1969-07-06','Construction',17000.00,'+63 909 057 6255','bernardsevillena@gmail.com','itio Mandaloy, Brgy. TalTal, Masinloc, Zambales'),(28,'SR20260004','MOTHER','Sevillena','Loreta','Artillera','1965-03-28','N/A',NULL,'+63 909 057 6255','sevillenaloreta@gmail.com','Sitio Mandaloy, Brgy. TalTal, Masinloc, zambales'),(29,'SR20260015','FATHER','LOBUSTA','FERMIN','DELOS SANTOS','1981-02-08','FISHER MAN',20.00,'+63 951 098 6212',NULL,'RABUS 3, BRGY. MAGAIS 1, DEL GALLEGO CAMARINES SUR'),(30,'SR20260015','MOTHER','LOBUSTA','EMMALYN','NICOL','1976-08-31','LAUNDRY GIRL',1400.00,'+63 951 098 6212',NULL,'RABUS 3, BRGY. MAGAIS 1 DEL GALLEGO CAMARINES SUR'),(31,'SR20260009','FATHER','CAGAS','EDGARIO','ENOT','1962-09-25','FARMER',2000.00,'+63 955 555 4867','egariocagas@gmail.com','PUROK 3 BALITE BRGY  SAN JOSE BISLIG CITY, SURIGAO DEL SUR'),(32,'SR20260009','MOTHER','CAGAS','NORMA','PALMERO','1961-09-14','HOUSE WIFE/ SARI- SARI STORE',5000.00,'+63 955 555 4867','bengpalmero@gmail.com','PUROK 3 BALITE, BRGY SAN JOSE BISLIG CITY, SURIGAO DEL SUR'),(33,'SR20260008','FATHER','Cajes','Graciano Jr.','Cambangay','0001-01-06','Farmer',NULL,'+63 953 762 1787','N/A','P-2, Homesite, Corazon, San Miguel, Bohol'),(34,'SR20260008','MOTHER','Cajes','Judie','Cambangay','0001-05-20','Vendor',NULL,'+63 953 762 1787','N/A','P-2, Homesite, Corazon, San Miguel, Bohol'),(35,'SR20260023','FATHER','Castillo','Joel','Cadag','0001-12-07','Farmer',5000.00,'+63 900 000 0000','N/A','Purok- 1 Brgy, Baay, Labo, Camarines Norte'),(36,'SR20260023','MOTHER','Castillo','Rosalinda','Jariel','0001-03-09','House Wife',0.00,'+63 900 090 00','N/A','Purok-1, Brgy, Baay, Labo, Camarines Norte'),(37,'SR20260025','FATHER','Cuito','Alex','Nitor','1971-09-10','Farmer',5000.00,'+63 992 919 3160',NULL,'Purok 1,Sta Rita 1,Dell, Gallego, Camarines Sur'),(38,'SR20260025','MOTHER','Cuito','Ederlinda','Opiana','1972-10-26','Housewife',NULL,'+63 992 919 3160',NULL,'Purok 1,Sta Rita 1,Del Gallego,Camarines Sur'),(39,'SR20260001','FATHER','N\\A','N\\A','N\\A','2026-08-30','N\\A',NULL,'+63 900 000 0','N\\A','N\\A'),(40,'SR20260001','MOTHER','N\\A','N\\A','N\\A','2026-08-30','N\\A',0.00,'+63 900 000 0000','N\\A','N\\A'),(41,'SR20260019','FATHER','N/A','N/A',NULL,'2026-09-15','N/A',0.00,'+63 9',NULL,'N/A'),(42,'SR20260019','MOTHER','Moises','Marichu','Melgar','1985-04-21','Vendor\'s',5000.00,'+63 935 436 940',NULL,'District 2, #282 Saint Joan Street, Maricaban, Pasay City, Metro Manila'),(43,'SR20260012','FATHER','N/A','N/A','N/A','2026-09-23','N/A',NULL,'+63 900 000 000','N/A','N/A'),(44,'SR20260012','MOTHER','Aragon','Juvy Ann','D.','1986-09-18','Quality Control',0.00,'+63 900 000 000','N/A','Purok 5 Brgy. Prinza, Calamba City, Laguna'),(45,'SR20260011','FATHER','Evangelista','Roberto','Dela Fuente','1983-12-21','Brgy Staff',7000.00,'+63 966 796 8458',NULL,'Lubang Occidental Mindoro'),(46,'SR20260011','MOTHER','Evangelista','Lenylyn','Insigne','1974-11-23','Housekeeping',6000.00,'+63 966 796 8453',NULL,'Lubang Occidental Mindoro'),(47,'SR20260027','FATHER','NARITO','EDGAR','DULOSA','1977-09-15','CARPENTER',NULL,'+63 977 116 419',NULL,'BRGY. ABERAWAN EL NIDO, PALAWAN'),(48,'SR20260027','MOTHER','NARITO','JENNERIZA','CALUB','1992-06-07','HOUSEKEEPING',NULL,'+63 977 116 420',NULL,'BRGY. ABERAWAN EL NIDO, PALAWAN'),(49,'SR20260014','FATHER','Gutierrez','Teodoro','Dote','1983-01-07','Resort Maintenance',10.00,'+63 900 000 0000',NULL,'Brgy, Hugom. San Juan Batangas'),(50,'SR20260014','MOTHER','Gutierrez','Rosario','Magadia','1983-03-24','House Wife',NULL,'+63 985 873 2707',NULL,'Brgy, Hugom. San Juan Batangas'),(51,'SR20260028','FATHER','VILLACORTA','ROLANDO','LIMONDO','0001-01-01','DECEASE',0.00,'+63 900 000 0000','N/A','N/A'),(52,'SR20260028','MOTHER','LINCANAY','ROSE','NONGGOD','1984-05-04','HOUSEWIFE',10.00,'+63 910 419 4026','N/A','BAGANGA DAVAO ORIENTAL'),(53,'SR20260005','FATHER','Krowel','Leonicito','Cabares','1987-10-13','N/A',0.00,'+63 900 000 0000','N/A','N/A'),(54,'SR20260005','MOTHER','Calderon','Exel Mae','Timbal','1987-02-12','House Wife',0.00,'+63 900 000 0000','N/A','Hulo Bunga, Brgy. Hugom,  San Juan Batangas'),(55,'SR20260006','FATHER','Barquilla','Herme','Bañal','1987-10-03','Constraction Worker',10000.00,'+63 985 485 6931',NULL,'Phase2 Block10 Lot3 Casa Laguerta Subdivision, Calamba City, Laguna'),(56,'SR20260006','MOTHER','Barquilla','Arsenia','Rivera','1979-11-29','Manicurista',5000.00,'+63 955 257 1274',NULL,'Phase2 Block1P0 Lot3, Barangay Laguerta, Calamba City, Laguna'),(57,'SR20260024','FATHER','Agnote','Mario','Quina','1968-07-07','farmmer',10000.00,'+63 992 367 0336','agnotemarygrace6@gmail.com','barangay domagondong del gallego camarines sur'),(58,'SR20260024','MOTHER','Agnote','Marissa','Ramirez','1980-06-20','House wife',10000.00,'+63 992 367 0336','agnotemarygrace6@gmail.com','barangay domagondong del gallego camarines sur'),(59,'SR20260034','FATHER','Balbuena','Uzziel','Mondejar','1984-01-19','Self employed',25000.00,'+63 915 624 1167','uzzielbalbuena19','266 Metriko st. Kaybagal South, Tagaytay city'),(60,'SR20260034','MOTHER','Balbuena','Ma. Isabel','Gumanit','1983-02-18','Self employed',10000.00,'+63 956 403 8583','mariaisabelgumanit','266 Metriko st. Kaybagal South, Tagaytay city'),(61,'SR20260040','FATHER','Navarro','Gaudencio','Maala','1986-10-28','Technician',12.00,'+63 909 020 376','N\\A','Sitio Balagbag Araw'),(62,'SR20260040','MOTHER','Navarro','Rosalie','Layda','1983-01-26','Brgy. Assistant Secretary',5.00,'+63 910 940 0959','N\\A','Sitio. Balagbag Araw'),(63,'SR20260037','FATHER','DOMINGO','MA. ISABEL','GILBUENA','1970-04-21','NONE',0.00,'+63 977 652 3283','NONE','296 LAGUERTA ST BRGY SAN VICENTE SAN PEDRO LAGUNA'),(64,'SR20260037','MOTHER','DOMINGO','NORALYN','ABIAN','1980-06-03','CADDIE',0.02,'+63 993 633 6921','NONE','296 LAGUERTA ST BRGY SAN VICENTE SAN PEDRO LAGUNA'),(65,'SR20260042','FATHER','Albino','Rolando','Pagaspas','1970-02-15','deceased',NULL,'+63 900 000 0000',NULL,'Brgy. Prinza Calamba City Laguna'),(66,'SR20260042','MOTHER','Albino','Gloria','Dejan','1968-05-25','House Wife',6000.00,'+63 968 559 6332',NULL,'Brgy. Prinza Calamba City Laguna'),(67,'SR20260041','FATHER','INGLES','HENRY','DEVILLES','1978-02-19','DRIVER',10000.00,'+63 954 387 6235','N\\A','MALVAR, BATANGAS'),(68,'SR20260041','MOTHER','INGLES','MILA','PACIS','1978-09-19','N\\A',0.00,'+63 916 622 5814','N\\A','PUROK 2, STA RITA 1 DEL GALLEGO CAMARINES SUR'),(69,'SR20260030','FATHER','Banawa','Ramon','Tolentino','1982-08-02','Car Painter',15000.00,'+63 609 028 355','N/A','San Juan Alaminos, Laguna'),(70,'SR20260030','MOTHER','Banawa','Ellenita','Dungan','1986-07-10','Housewife',NULL,'+63 609 028 355','N/A','San Juan Alaminos, Laguna'),(71,'SR20260031','FATHER','Tabangay','Rio','Dalingding','1963-07-26','Carpenter',15000.00,'+63 946 180 8952',NULL,'Manamoc, Cuyo, Palawan'),(72,'SR20260031','MOTHER','Tabangay','Marife','Mamolo','1973-03-18','Baby Sitter',7000.00,'+63 946 180 8952',NULL,'Manamoc, Cuyo, Palawan'),(73,'SR20260046','FATHER','Intoy','Lonuel','Reyes','1983-01-22','Construction Worker',10000.00,'+63 995 400 3125','zarakilmer@gmail.com','San Antonio, Los Banos Laguna'),(74,'SR20260046','MOTHER','Mabag','Donna','Lantican','1985-09-09','Home Baker',10000.00,'+63 995 968 7446','zarakilmer@gmail.com','10775 Sta. Fe Bangkal Street, Batong Malake, Los Banos Laguna'),(75,'SR20260033','FATHER','Jesalva','Rodolfo','Delos Santos','1966-11-02','Deceased',NULL,'+63 900 000 0000',NULL,'Purok 2 Brgy. Pamplona, Del Gallego, Camarines Sur'),(76,'SR20260033','MOTHER','Jesalva','Angelina','Parado','1969-09-03','Farmer',10000.00,'+63 912 113 5134',NULL,'Purok 2 Brgy. Pamplona, Del Gallego, Camarines Sur'),(77,'SR20260035','FATHER','Iliw-Iliw','Arthur',NULL,'1980-09-30','Family Driver',10000.00,'+63 900 000 0000','N/A','N/A'),(78,'SR20260035','MOTHER','Magana','Realyn','Padilla','1985-12-08','OFW',28000.00,'+63 900 000 0000','N/A','Kuwait'),(79,'SR20260043','FATHER','Mosquera','Romeo','Mirano','1982-10-03','Constraction Worker',10000.00,'+63 981 503 8728',NULL,'Sapang Bato Brgy. Laing Laingan Calauag Quezon'),(80,'SR20260043','MOTHER','Mosquera','Jennifer','Abon','1985-02-05','OFW',39000.00,'+63 939 172 222',NULL,'Brgy, Tamis Calauag Quezon'),(81,'SR20260036','FATHER','Gomez','Wilbert','Tores','1971-07-22','OFW-Family Driver',30.00,'+63 966 573 6510','wilbertgomez22@gmail.com','Blk 8, Lt13, Next Asia, San Pablo, Laguna'),(82,'SR20260036','MOTHER','Gomez','Raquel','Santos','1967-12-20','House Wife',NULL,'+63 955 248 6643','N/A','Blk 8, Lt 13, Next Asia Subdivision, San Pablo Laguna'),(83,'SR20260045','FATHER','LUCEÑO','ANANIAS','MOSTOLES','1963-01-28','FARMER',10000.00,'+63 946 822 9870','N/A','BRGY. PINUGUSAN DEL GALLEGO CAMARINES SUR'),(84,'SR20260045','MOTHER','LUCEÑO','MERLINA','ALAMAG','1966-09-11','HOUSEWIFE',10000.00,'+63 946 590 1392','N/A','BRGY. PINUGUSAN DEL GALLEGO CAMARINES SUR'),(85,'SR20260044','FATHER','Roto','Ronald','Restar','1988-11-12','Deceases',0.01,'+63 900 000 0000','N/A','barangay  Lapu Lapu Santa Cruz Marinduque'),(86,'SR20260044','MOTHER','Roto','Elisa','Zulueta','1989-01-06','Vendor',0.03,'+63 951 600 6438','N/A','Barangay Lapu Lapu Santa Cruz Marinduque'),(87,'SR20260032','FATHER','NAJERA','MARVEN','VELASCO','1982-02-25','ANGKAS RIDER',5000.00,'+63 992 254 6045','N/A','B11 L09 BLUEBERRY STREET, NEW STA. ROSA HOMES BRGY. DITA, STA. ROSA CITY OF LAGUNA, PHILIPPINES 4026'),(88,'SR20260032','MOTHER','NAJERA','PAULA','PEREZ','1985-06-18','UTILITY WORKER',10000.00,'+63 924 525 4400','N/A','B11 L09 BLUEBERRY STREET, NEW STA. ROSA HOMES BRGY. DITA, STA. ROSA CITY OF LAGUNA, PHILIPPINES 4026'),(89,'SR20260039','FATHER','LOVENDINO','JOEL','LOMEBAO','1980-04-26','CONSTRRUCTION WORKER',10000.00,'+63 948 505 6976','N/A','SAN ROQUE ANTIPOLO RIZAL'),(90,'SR20260039','MOTHER','LOVENDINO','JESSIELY','LOPEZ','1988-10-10','HOUSEWIFE',NULL,'+63 963 875 7203','N/A','PUROK 3, BRGY. COMADOGCADOG, DEL GALLEGO, CAMARINES SUR'),(91,'SR20260047','FATHER','VAZQUEZ','BRYAN MAY','SARMIENTO','1980-05-12','SALES MANAGER',31000.00,'+63 998 845 5434','N/A','BLK 21, L5, LYNVILLE DIAMOND, BRGY. GATID, SANTA CRUZ, LAGUNA'),(92,'SR20260047','MOTHER','VAZQUEZ','MARICAR','GREGORIO','1980-07-18','HOUSEWIFE',0.00,'+63 928 994 7166','N/A','BLK 21, L5, LYNVILLE DIAMOND, BRGY. GATID, SANTA CRUZ, LAGUNA'),(93,'SR20260038','FATHER','Jordan','Joana','Cuevas','1995-10-13','Farmer',10.00,'+63 907 567 002','N/A','Palaspas Rabus 2 Del Gallego'),(94,'SR20260038','MOTHER','Simpliciano','Pacencia','Boya','1915-05-01','Avon Representative',5000.00,'+63 924 404 8082',NULL,'Palaspas Rabus 2 Del Gallego'),(95,'SR20260073','FATHER','Sangalang','Mario','De Castro','1978-08-15','Electrician',25000.00,'+63 954 289 1977','N/A','Taguig City'),(96,'SR20260073','MOTHER','Sangalang','Irene',NULL,'1980-09-30','HOUSEWIFE',NULL,'+63 549 930 375','N/A','Nasugbu, Batangas'),(97,'SR20260056','FATHER','REYES','REGIE','BELLEN','1974-01-26','COMPANY DRIVER',15000.00,'+63 900','N/A','PUROK 3, BRGY. MANSALAYA, DEL GALLEGO CAMARINES SUR'),(98,'SR20260056','MOTHER','REYES','LORENA','BELLEN','1973-11-19','HOUSEWIFE',NULL,'+63 950 196 6664','N/A','PUROK 3, BRGY. MANSALAYA, DEL GALLEGO CAMARINES SUR'),(99,'SR20260055','FATHER','Galang','Richard','Robles','1986-02-15','constraction worker',5000.00,'+63 948 996 9244','N/A','purok 5 brgy pambuan Gapan City Nueva Ecija'),(100,'SR20260055','MOTHER','Galang','Wilma','Malayo','1984-01-04','House Wife',NULL,'+63 981 316 0177','N/A','purok 5 Brgy pambuan gapan city nueva ecija'),(101,'SR20260052','FATHER','Balonga','Glenn','Andaya','1984-12-13','Farmer',10000.00,'+63 975 275 9224','none','Homesite, Corazon, San Miguel, Bohol'),(102,'SR20260052','MOTHER','Balonga','Maria','Cabugawas','1982-12-25','none',0.00,'+63 975 275 9224','none','Homesite, Corazon, San Miguel, Bohol'),(103,'SR20260060','FATHER','OMAÑA','MARIO','DERLA','1971-09-27','COCONUT FARMER',10000.00,'+63 900 000 0000','N/A','MAGAIS 1, DEL GALLEGO, CAMARINES SUR'),(104,'SR20260060','MOTHER','OMAÑA','ESTRELLA','PATEÑO','1984-06-04','HOUSEKEEPER',9000.00,'+63 926 688 6607','N/A','MAGAIS 1, DEL GALLEGO, CAMARINES SUR'),(105,'SR20260072','FATHER','DIMAANO','FLORENTINO','DUENAS','1984-03-14','DRIVER',10000.00,'+63 981 567 896','N/A','#47, IBABA 1, MABILOG NA BUNDOK LOBO BATANGAS'),(106,'SR20260072','MOTHER','DIMAANO','GEMMALYN','OROLA','1985-08-21','BABY    SITTER',7000.00,'+63 964 996 4989','N/A','BLK 12, LOT 21, DETALYDO ST. PUSIL, LIPA CITY'),(107,'SR20260064','FATHER','Escobin','Edwin','Llamas','1972-02-04','OFW',NULL,'+63 900 000 0000',NULL,'District 2, 9005 Phase 1, Summit Point, Marymount Village, Brgy. Anos, Los Banos, Laguna'),(108,'SR20260064','MOTHER','Suniega','Marife','Merridor','1973-02-12','deceased',NULL,'+63 900 000 0000',NULL,'n/a'),(109,'SR20260069','FATHER','Dela Cueva','Arnold','Orzo','1987-04-04','Truck Driver',25000.00,'+63 968 156 5903','arnolddelacueva@gmail.com','Lone District, Block 1 Lot 2 Phase 2, Carmel Village, Brgy. Barandal, Calamba City, Laguna'),(110,'SR20260069','MOTHER','Rebaton','Lalaine','Firmeza','1989-04-19','Housewife',0.01,'+63 909 327 7482','lhainedelacueva@gmail.com','Lone District, Block 1 Lot 2 Phase 2, Carmel Village, Brgy. Barandal, Calamba City, Laguna'),(111,'SR20260048','FATHER','Catalan','Antonio Rolando','Poblares','1979-10-23','Hardware',5000.00,'+63 924 580 8186','n/a','Lone District, 216 National Highway, Brgy. Paciano Rizal, Calamba City, Laguna'),(112,'SR20260048','MOTHER','Sagucio','Shirley','Dela Cruz','1986-06-20','Back Room',3000.00,'+63 994 644 5842','n/a','Lone District, 216 National Highway, Brgy. Paciano Rizal, Calamba City, Laguna'),(113,'SR20260061','FATHER','ROSALES','ARNEL','RAMOS','1971-10-25','FARMER',7000.00,'+63 900 000 0000','N/A','PALINGOWAK, SAN JUAN, BATANGAS'),(114,'SR20260061','MOTHER','ROSALES','VILMA','SALIMO','1974-09-30','SEAMSTRESS',3000.00,'+63 963 678 9614','N/A','PALINGOWAK, SAN JUAN, BATANGAS'),(115,'SR20260068','FATHER','Magpantay','Loreto','Arsenio','1969-12-09','Farmer',10000.00,'+63 900 000 000','N/A','Lone District, Purok 3, Brgy. Kay Anlog, Calamba City, Laguna'),(116,'SR20260068','MOTHER','Magpantay','Frilyn','Aya','1988-01-14','Farmer',10000.00,'+63 927 697 2842','N/A','Lone District, Purok 3, Brgy. Kay Anlog, Calamba City, Laguna'),(117,'SR20260049','FATHER','LACATAN','TEOFILO','ENDOZO','1976-12-28','SECURITY GUARD',20000.00,'+63 920 312 5024','NA','Lone District,Block 1 Lot 5, Majada IN Vesta Plain,Brgy, Canlubang,Calamba City,Laguna'),(118,'SR20260049','MOTHER','LACATAN','RACQUEL','JIMENO','1978-06-23','HOUSE WIFE',0.00,'+63 900 000 0000','NA','Lone District,Block 1 Lot 5, Majada IN Vesta Plain,Brgy, Canlubang,Calamba City,Laguna'),(119,'SR20260062','FATHER','Orbita','Eric','Prado','1973-10-17','Farmer',5000.00,'+63 9','N/A','Bago City, Negros Occidental'),(120,'SR20260062','MOTHER','Delos Santos','Merly','Astrologo','1972-02-16','Housewife',5000.00,'+63 945 471 8341','merlydelosantos213@gmail.com','Block 5 Lot 32, Matiwasay St. Bria Homes, Calamba City Laguna'),(121,'SR20260053','FATHER','ESPIRITU','GERRY','WERBA','1981-09-17','COMPANY DRIVER',25000.00,'+63 926 775 2564','N/A','Brgy, Paciano Rizal, Bay, Laguna'),(122,'SR20260053','MOTHER','ESPIRITU','JENNIFER','VILLAREY','1986-04-12','Bussiness woman',20000.00,'+63 906 935 1273','n/a','Brgy, Paciano Rizal, Bay laguna'),(123,'SR20260071','FATHER','GALECIO','JOHN CARLO','VERGARA','1989-01-24','LIAISON OFFICER',NULL,'+63 991 241 2075','N/A','Brgy. San Jose Lipa City'),(124,'SR20260071','MOTHER','GALECIO','MARIFE','SALVACION','1990-03-19','TEACHER',NULL,'+63 991 241 2075','N/A','Brgy. San Jose Lipa City'),(125,'SR20260066','FATHER','Macaburas','Nestor','Galarpe','1963-03-26','Deceased',NULL,'+63 9','N/A','Calamba, Laguna'),(126,'SR20260066','MOTHER','Tenorio','Marilyn','Medrano','1969-12-04','Housewife',NULL,'+63 906 414 9816','N/A','Calamba, Laguna'),(127,'SR20260050','FATHER','SALVACION','NICASIO','CASTILLO','1957-10-10','N/A',0.00,'+63 975 868 2009','N/A','DISTRICT 6, BRGY.SAN JOSE, LIPA CITY, BATANGAS'),(128,'SR20260050','MOTHER','SALVACION','LUZ','MAGWARI','1958-09-26','N\\A',0.00,'+63 900 000 0000','N/A','DISTRICT 6, BRGY. SAN JOSE. LIPA CITY, BATANGAS'),(129,'SR20260054','FATHER','Salli','Ben',NULL,'1977-02-16','CITI',NULL,'+63 342 546 5675','N/A','Lone District, Phase 1, Block Lot 30, Chili st., Aldea Real Ciudad de Calamba, Brgy. Punta, Calamba City, Laguna'),(130,'SR20260054','MOTHER','Salli','Luzbel Jane','Perez','1976-04-21','agent',200000.00,'+63 935 383 1913','n/a','Lone District, Phase 1, Block Lot 30, Chili st., Aldea Real Ciudad de Calamba, Brgy. Punta, Calamba City, Laguna'),(131,'SR20260065','FATHER','BAKILAN','JUNIFER','BATOY','1982-07-27','DECEASED',NULL,'+63 900 000 0000',NULL,'CALLAGDAO, PUROK 6, TABUK CITY, KALINGA'),(132,'SR20260065','MOTHER','BAKILAN','VEMA','MAGA-AO','1984-05-20','HOUSE WIFE',NULL,'+63 920 297 5655','vemabakilan1@gmail.com','CALLAGDAO, BULANAO, PUROK 6, TABUK CITY, KALINGA'),(133,'SR20260063','FATHER','Batingan','Leonido','Estarada','1972-04-20','Bantay Gubat',3500.00,'+63 910 016 1330','N/A','Mabini,Pangasinan'),(134,'SR20260063','MOTHER','Batingan','Juvie','Magno','1976-07-30','House wife',NULL,'+63 909 585 5036','N/A','Manaog,Pangasinan'),(135,'SR20260057','FATHER','Gadapan','Geson','Quiblat','1971-12-16','Driver',9000.00,'+63 900 000 0000','N/A','N/A'),(136,'SR20260057','MOTHER','Briones','Monina','Felizardo','1971-12-16','Housekeeper',8000.00,'+63 951 609 5332','moninagadapan57@gmail.com','Zone 6, Del Rosario, Pili Camarines'),(137,'SR20260059','FATHER','FUENTES','ROBERTO','SUAREZ','1969-08-05','pintor',11000.00,'+63 963 043 5982','N/A','DISTRICT1,1485 RIVERSIDE ST., SAN RAFAEL VILLAGE, NAVOTAS CITY'),(138,'SR20260059','MOTHER','FUENTES','ANALYN','TORRES','1983-06-02','HELPER',10000.00,'+63 900 000 0000','N/A','DISTRICT1,1485 RIVERSIDE ST., SAN RAFAEL VILLAGE, NAVOTAS CITY'),(139,'SR20260058','FATHER','Capus','Nolito','Postor','1980-11-14','N/A',NULL,'+63 900 000 0000','N/A','Burgost Street, Brgy. Gumamela, Labo Camarines Norte'),(140,'SR20260058','MOTHER','Capus','Anecyl','Postor','1084-05-07','Teacher',35000.00,'+63 956 806 3220','N/A','Burgost Street, Brgy. Gumamela, Labo Camarines Norte'),(141,'SR20260051','FATHER','Mapa','Dexter','lIAGAS','1966-04-10','Businessman',20.00,'+63 909 99','N\\A','Purok4ulikmasaya bay laguna'),(142,'SR20260051','MOTHER','Mapa','Ethel jane','Agustero','1979-05-05','Businesswomen',10.00,'+63 998 645 53','N\\A','purok4 ulik masaya bay  laguna'),(143,'SR20260070','FATHER','Delgado','Joshua',NULL,'2000-03-30','Truck Driver',15000.00,'+63 927 900 5689','N/A','Zone 2, Catabangan Proper, Ragay, Camarines Sur'),(144,'SR20260070','MOTHER','Lalogo','Ivy','Alcanar','1987-09-04','HOUSE WIFE',NULL,'+63 910 765 0131','N/A','Zone 2, Catabangan Proper, Ragay, Camarines Sur'),(145,'SR20260074','FATHER','CAMBANGAY','EUGENE','BAYOTLANG','1982-08-15','Farmer',2500.00,'+63 963 643 9700','N/A','Purok 7, Homesite, Corazon, San Miguel, Bohol'),(146,'SR20260074','MOTHER','CAMBANGAY','ALORA','MONTECINO','1988-10-14','Baby Sitter',10000.00,'+63 953 221 7631','aloramontecinocambangay@gamail.com','Purok 2 Lumangog, Ubay, Bohol'),(147,'SR20260029','FATHER','Gliponio','Alex','Del Mundo','1977-03-12','DECEASED',0.00,'+63 900 000 0000','N/A','Matagbak 1, Alfonso, Cavite'),(148,'SR20260029','MOTHER','Perea','Ethel','Laguardia','1978-12-09','Babysitter',5000.00,'+63 992 500 8099','N/A','JB Village 2, Balibago, Sta. Rosa, Balibago'),(149,'SR20260075','FATHER','Arevalo','Rogelio','Mestas','1995-08-10','N/A',NULL,'+63 975 766 4834','N/A','N/A'),(150,'SR20260075','MOTHER','Arevalo','Janeth','Densing','1995-03-09','N/A',NULL,'+63 975 766 4834','N/A','N/A'),(151,'SR20260076','FATHER','NAVARRO','NOEL','CALABANO','0001-01-21','Freelance Architect',20000.00,'+63 990 000 0000','N/A','GRAND RIVERSTONE VILLAGE B13/L38, BRGY. DITA, SANTA ROSA CITY, LAGUNA'),(152,'SR20260076','MOTHER','NAVARRO','REYNALYN','SAMARITA','0001-09-22','ONLINE SELLER',10000.00,'+63 912 805 0730','N/A','GRAND RIVERSTONE VILLAGE B13/L38, BRGY. DITA, SANTA ROSA CITY, LAGUNA'),(153,'SR20260067','FATHER','LUMAGUE','RONALD','DE GUZMAN','0982-08-01','DRIVER',8000.00,'+63 900 000 0000','N/A','PARANAQUE CITY'),(154,'SR20260067','MOTHER','LUMAGUE','LAYNETTE','BAGSAO','1983-01-03','BHW',4000.00,'+63 909 058 2370','laynettebagsao@gmail.com','KM. 21 SITIO MANDALOY, TALTAL, MASINLOC, ZAMBALES'),(155,'SR20260079','FATHER','DUMAS','RAYMUND','ALCANTARA','1976-02-14','N/A',NULL,'+63 999','N/A','N/A'),(156,'SR20260079','MOTHER','CAPUNPON','LORNA','BARIRING','1983-05-15','SERVER',20000.00,'+63 922 339 8812','capunponlorna15@gmail.com','364 BRGY BACLARAN CABUYAO LAGUNA'),(157,'SR20260080','FATHER','FERRERA','RICHARD','FERRERA','1970-12-26','DRIVER',25000.00,'+63 981 326 3669','richardferrera26@gmail.com','LUMINA HOMES, TIBIG, LIPA CITY BATANGAS'),(158,'SR20260080','MOTHER','FERRERA','MYRNA','DE TORRES','1977-08-26','N/A',0.00,'+63 924 448 1621','N/A','LUMINA HOMES, TIBIG, LIPA CITY, BATANGAS'),(159,'SR20260078','FATHER','MENDOZA','HILARIO','ESMEJARDA','1973-11-03','BRGY. TREASURER',30000.00,'+63 900 000 0000','N/A','BRGY. ILAYANG SAN ROQUE, LILIW, LAGUNA'),(160,'SR20260078','MOTHER','MENDOZA','MERLY','VILLEGAS','1968-01-03','HOUSEWIFE/FARMER',20000.00,'+63 900 000 0000','N/A','BRGY. ILAYANG SAN ROQUE, LILIW, LAGUNA'),(161,'SR20260083','FATHER','TAGLE','DENNIS','AQUINO','1974-11-29','FARMER',5000.00,'+63 991 167 7169','N/A','LAIYA IBABAO, SAN JUAN, BATANGAS'),(162,'SR20260083','MOTHER','TAGLE','LOIDA','VILLANUEVA','1973-09-18','Housewife',5000.00,'+63 991 167 7169','LDTGLE@GMAIL.COM','LAIYA IBABAO, SAN JUAN, BATANGAS'),(163,'SR20260098','FATHER','ACUÑA','JESUS','LIANTO','1978-12-05','MAINTENANCE',10000.00,'+63 900','N\\A','205, PUROK 1B, TADLAK, LOS BAÑOS, LAGUNA'),(164,'SR20260098','MOTHER','ACUÑA','OFELIA','LAMPAGO','1981-11-10','NONE',0.00,'+63 900','N\\A','205, PUROK 1B, TADLAK, LOS BAÑOS, LAGUNA'),(165,'SR20260082','FATHER','HERNANDEZ','LARRY','PARJAN','1970-08-23','TRICYCLE DRIVER',30000.00,'+63 955 792 9039','daroyhernandez@gmail.com','461 MABOLO PUROK 3 ST. BRGY. PARIAN CALAMBA, CITY LAGUNA'),(166,'SR20260082','MOTHER','ANORAS','AGNES','LAGUSTAN','1971-03-07','ON-CALL THERAPIST',15000.00,'+63 953 850 5939','neshernandez07@gmail.com','461 MABOLO PUROK 3 ST. BRGY. PARIAN CALAMBA, CITY LAGUNA'),(167,'SR20260091','FATHER','Arlegui','Geraldo','Roy','1964-11-16','NA',0.00,'+63 900 00','NA','NA'),(168,'SR20260091','MOTHER','Merlinda','Marcelo','Mondejar','1975-05-06','Sari-Sari Store Owner',NULL,'+63 900','NA','154 Lavesares St. Binondo Manila Brgy.286 Zone 26'),(169,'SR20260087','FATHER','DULAY','RODRIGO','GALOSO','1995-06-19','COMPANY WORKER',15000.00,'+63 900 000 0000','N/A','SITIO  MATAPAT PUROK 2 BRGY REAL CALAMBA CITY LAGUNA'),(170,'SR20260087','MOTHER','CAPOY','ADELINA','BASTIDA','1996-12-29','COMPANY WORKER',15000.00,'+63 900 000 0000','N/A','SITIO MATAPAT BRGY REAL CALAMBA CITY LAGUNA'),(171,'SR20260086','FATHER','MARCAIDA','ARVIN','DE LA CRUZ','1985-12-13','OFW-FACTORY WORKER',0.00,'+63 900','N/A','TAIWAN'),(172,'SR20260086','MOTHER','MARCAIDA','CRISTY','NIEVA','1986-01-06','House Wife',0.00,'+63 929 735 1337','cristymarcaida@gmail.com','PHASE 1 BLK 24 LOT 10, BELLAVITA, SAN ANDRES, ALAMINOS, LAGUNA'),(173,'SR20260088','FATHER','DATINGALING','HERMINIGILDO','ALBANIA','1975-04-13','TRICYCLE DRIVER',NULL,'+63 956 123 6984',NULL,'S3 BLK 7 LOT 11 STA. MARIA STA. TOMAS BATANGAS'),(174,'SR20260088','MOTHER','MAGPANTAY','ESTELA','COMIA','1978-09-02','PRODUCTION OPERATOR',NULL,'+63 956 123 6984','estelamagpantay05@gmail.com','S3 BLK 7 LOT 11 BLUE ISLE PHASE 1 STA. MARIA STO. TOMAS BATANGAS'),(175,'SR20260095','FATHER','SURARA','RENATO','CACERES','1965-11-15','FARMER',3000.00,'+63 900 000 0000','N/A','MAGUIBUAY, TAGKAWAYAN, QUEZON'),(176,'SR20260095','MOTHER','SURARA','JOSEPHINE','BANGA','1972-01-17','FARMER',3000.00,'+63 900 000 0000','N/A','MAGUIBUAY, TAGKAWAYAN, QUEZON'),(177,'SR20260084','FATHER','MERCADO','EDGAR','BRIÑOSA','1967-09-17','DECEASED',NULL,'+63 900','N/A','BLK 64 LOT 3 PHASE 2 SOUTHVILLE 5 TIMBAO BIÑAN LAGUNA'),(178,'SR20260084','MOTHER','LABODIT','BENEDICTA','CAÑO','1968-01-04','VENDOR',NULL,'+63 930 113 6247','N/A','BLK 64 LOT 3 PHASE 2 SOUTHVILLE 5 TIMBAO BIÑAN LAGUNA'),(179,'SR20260085','FATHER','DE CHAVEZ','FELIX','DE LAS ALAS','1981-11-23','SKILLED CONSTRUCTION WORKER',100.00,'+63 912 810 4565','N/A','LAIYA IBABAO,SAN JUAN, BATANGAS'),(180,'SR20260085','MOTHER','DE CHAVEZ','MARY ANN','AGARIN','1982-05-14','HOUSEWIFE',5000.00,'+63 948 806 7004','merlydelosantos213@gmail.com','Block 5 Lot 32, Matiwasay St. Bria Homes, Calamba City Laguna'),(181,'SR20260096','FATHER','BALDOVINO','RENZ ROMOLUS','BRION','1986-02-06','TRYCICLE DRIVER',0.00,'+63 900 000 000','N/A','BRGY. SANTA CATALINA SAN PABLO CITY, LAGUNA'),(182,'SR20260096','MOTHER','BALDOVINO','RUDYLYN','VILLANUEVA','1985-11-26','HOUSE WIFE',NULL,'+63 900 000 000','N/A','BRGY. SAN MARCOS SAN PABLO CITY, LAGUNA'),(183,'SR20260094','FATHER','Bechayda','Nick','Mari','1980-01-20','FisherMan',10000.00,'+63 900','N\\A','Purok Daisy,4336, Brgy Antikin Infanta Quezon'),(184,'SR20260094','MOTHER','Garcitos','Eliza','Septimo','1981-09-26','Housewife',5000.00,'+63 900','N\\A','Purok Daisy,4336, Brgy Antikin Infanta Quezon'),(185,'SR20260099','FATHER','MERIDA','CHRISTIAN','MAMAUAG','1979-11-13','OFW',NULL,'+63 900 000 000','N/A','N/A'),(186,'SR20260099','MOTHER','BALBA','KATHERINE','GRACIA','1984-03-13','MEDIA PRACTIONER',NULL,'+63 915 400 5186','kayebalba13@gmail.com','BLK 60 LOT 16 GARNET STREET, ASIA 2 , KAPAYAPAAN VILLE., CANLUBANG, CALAMBA, LAGUNA'),(187,'SR20260100','FATHER','CAMPANG','DOMINADOR','BICO','1971-11-05','DRIVER/FARMER',5000.00,'+63 993 011 4700','N/A','SITIO BANDERA BRGY. IMELDA SAN JUAN BATANGAS'),(188,'SR20260100','MOTHER','CAMPANG','VALENTINA','UMALI','1973-02-14','RESORT\'S EMPLOYEE',8500.00,'+63 916 652 5913','N/A','SITIO BANDERA BRGY. IMELDA SAN JUAN BATANGAS'),(189,'SR20260089','FATHER','Balahadia','Rogelio','Carandang','1968-04-12','Small Bussines owner',5000.00,'+63 919 376 7587','balahadiarogelio@gmail.com','Purok 5 Manggahan Palo Alto Calamba City Laguna'),(190,'SR20260089','MOTHER','Balahadia','Lucena','Navallo','1966-10-31','Small Bussines Owner',5000.00,'+63 926 843 967','balahadialucena@gmail.com','Purok 5 Manggahan Palo Alto Calamba City'),(191,'SR20260092','FATHER','ARELLANO','PETTER','HERNANDEZ','0001-01-01','SECURITY GUARD',20000.00,'+63 939 460 0565','N/A','CASA ISABEL, SAN ISIDRO NORTE, STO. TOMAS, BATANGAS'),(192,'SR20260092','MOTHER','ARELLANO','IRENE','COZ','0001-01-01','HOUSE WIFE',0.00,'+63 970 171 5920','N/A','CASA ISABEL, SAN ISIDRO NORTE, STO. TOMAS, BATANGAS'),(193,'SR20260097','FATHER','CENTENO','FERDINAND','CARAIG','1973-09-11','N/A',NULL,'+63 900 000 0000','none','SANTIAGO, STO.TOMAS BATANGAS'),(194,'SR20260097','MOTHER','CENTENO','TERESITA','SERDEÑA','1975-09-16','SARI-SARI STORE OWNER',5000.00,'+63 945 346 6552','none','DISTRICT 3 #640 PUROK 4 SANTIAGO, STO. TOMAS BATANGAS'),(195,'SR20260081','FATHER','ELQUIERO','MANUEL','SASON','1980-06-18','VULCANIZING',10000.00,'+63 900 000 0000','N/A','0407 PUROK 3 CURBA SAN ANTONIO LOS BAÑOS LAGUNA'),(196,'SR20260081','MOTHER','ELQUIERO','DOLORES','INAMARGA','1980-09-03','SARI-SARI STORE',5000.00,'+63 966 298 3753','N/A','0407 PUROK 3 SAN ANTONIO LOS BAÑOS LAGUNA'),(197,'SR20260093','FATHER','ATENDIDO','LARRY','ROMERO','1971-09-18','Fisherman',5000.00,'+63 900',NULL,'Purok Malvarosa, Barangay, Maypulot, Infanta, Quezon'),(198,'SR20260093','MOTHER','ATENDIDO','LORADEL','ROMANTICO','1976-10-02','House wife',NULL,'+63 900',NULL,'Purok Malvarosa, Barangay, Maypulot, Infanta, Quezon'),(199,'SR20260090','FATHER','N/A','N/A','N/A','2026-09-16','N/A',0.00,'+63 900 00','N\\A','N/A'),(200,'SR20260090','MOTHER','GOMADLAS','IAN','PASUMALA','1981-06-17','FLOWER VENDOR',10000.00,'+63 900 0','N/A','PUROK 9, KAMAKAWAN INDAHAG CAGAYN DE ORO CITY');
 /*!40000 ALTER TABLE `parents` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `qualifications`
---
-
-DROP TABLE IF EXISTS `qualifications`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `qualifications` (
-  `qualification_code` int NOT NULL AUTO_INCREMENT,
-  `qualification_name` varchar(255) NOT NULL,
-  `qualification_description` varchar(255) NOT NULL,
-  PRIMARY KEY (`qualification_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `qualifications`
@@ -298,26 +113,6 @@ INSERT INTO `qualifications` VALUES (1,'Cookery NC II','TESDA National Certifica
 UNLOCK TABLES;
 
 --
--- Table structure for table `sections`
---
-
-DROP TABLE IF EXISTS `sections`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sections` (
-  `section_code` varchar(20) NOT NULL,
-  `section` varchar(25) NOT NULL,
-  `batch_code` varchar(20) NOT NULL,
-  `course_code` varchar(20) NOT NULL,
-  PRIMARY KEY (`section_code`),
-  KEY `batch_code` (`batch_code`),
-  KEY `course_code` (`course_code`),
-  CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`batch_code`) REFERENCES `batches` (`batch_code`),
-  CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`course_code`) REFERENCES `courses` (`course_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `sections`
 --
 
@@ -328,51 +123,14 @@ INSERT INTO `sections` VALUES ('SEC-A24','Section A 2024','B2024A','CARS'),('SEC
 UNLOCK TABLES;
 
 --
--- Table structure for table `security_questions`
---
-
-DROP TABLE IF EXISTS `security_questions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `security_questions` (
-  `question_id` int NOT NULL AUTO_INCREMENT,
-  `question_text` varchar(255) NOT NULL,
-  `active` tinyint(1) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `security_questions`
 --
 
 LOCK TABLES `security_questions` WRITE;
 /*!40000 ALTER TABLE `security_questions` DISABLE KEYS */;
-INSERT INTO `security_questions` VALUES (1,'What is your favorite color',1),(2,'What is your favorite vacation place?',1),(3,'What is your favorite song?',1),(4,'Who is your favorite artist?',1),(5,'What is your favorite food?',1),(6,'What is the name of your pet?',1);
+INSERT IGNORE INTO `security_questions` VALUES (1,'What is your favorite color',1),(2,'What is your favorite vacation place?',1),(3,'What is your favorite song?',1),(4,'Who is your favorite artist?',1),(5,'What is your favorite food?',1),(6,'What is the name of your pet?',1);
 /*!40000 ALTER TABLE `security_questions` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `student_education`
---
-
-DROP TABLE IF EXISTS `student_education`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_education` (
-  `education_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `level` varchar(50) NOT NULL,
-  `school_name` varchar(255) DEFAULT NULL,
-  `school_address` varchar(255) DEFAULT NULL,
-  `grade_year` varchar(50) DEFAULT NULL,
-  `semester` varchar(20) DEFAULT NULL,
-  `ended_year` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`education_id`),
-  UNIQUE KEY `uq_student_education` (`student_id`,`level`),
-  CONSTRAINT `student_education_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=401 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `student_education`
@@ -385,25 +143,6 @@ INSERT INTO `student_education` VALUES (5,'SR20260013','Elementary',NULL,NULL,NU
 UNLOCK TABLES;
 
 --
--- Table structure for table `student_ojt`
---
-
-DROP TABLE IF EXISTS `student_ojt`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_ojt` (
-  `ojt_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `company_name` varchar(255) DEFAULT NULL,
-  `company_address` varchar(255) DEFAULT NULL,
-  `hours_rendered` decimal(8,2) DEFAULT NULL,
-  PRIMARY KEY (`ojt_id`),
-  UNIQUE KEY `uq_student_ojt` (`student_id`),
-  CONSTRAINT `student_ojt_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `student_ojt`
 --
 
@@ -411,53 +150,6 @@ LOCK TABLES `student_ojt` WRITE;
 /*!40000 ALTER TABLE `student_ojt` DISABLE KEYS */;
 /*!40000 ALTER TABLE `student_ojt` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `student_records`
---
-
-DROP TABLE IF EXISTS `student_records`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_records` (
-  `record_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `student_number` varchar(20) DEFAULT NULL,
-  `last_name` varchar(255) NOT NULL,
-  `first_name` varchar(255) NOT NULL,
-  `middle_name` varchar(255) DEFAULT NULL,
-  `birthdate` date DEFAULT NULL,
-  `age` int DEFAULT NULL,
-  `sex` varchar(10) DEFAULT NULL,
-  `civil_status` varchar(50) DEFAULT NULL,
-  `permanent_address` varchar(255) DEFAULT NULL,
-  `temporary_address` varchar(255) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `contact_no` varchar(255) DEFAULT NULL,
-  `religion` varchar(255) DEFAULT NULL,
-  `baptized` tinyint(1) NOT NULL DEFAULT '0',
-  `baptism_date` date DEFAULT NULL,
-  `baptism_place` varchar(255) DEFAULT NULL,
-  `sibling_count` int DEFAULT NULL,
-  `brother_count` int DEFAULT NULL,
-  `sister_count` int DEFAULT NULL,
-  `batch_code` varchar(20) DEFAULT NULL,
-  `course_code` varchar(20) DEFAULT NULL,
-  `section_code` varchar(20) DEFAULT NULL,
-  `profile_picture` mediumblob,
-  `enrollment_date` date DEFAULT NULL,
-  `student_status` varchar(25) NOT NULL DEFAULT 'Enrolling',
-  PRIMARY KEY (`record_id`),
-  UNIQUE KEY `idx_student_id` (`student_id`),
-  UNIQUE KEY `uq_student_number` (`student_number`),
-  KEY `batch_code` (`batch_code`),
-  KEY `course_code` (`course_code`),
-  KEY `section_code` (`section_code`),
-  CONSTRAINT `student_records_ibfk_1` FOREIGN KEY (`batch_code`) REFERENCES `batches` (`batch_code`),
-  CONSTRAINT `student_records_ibfk_2` FOREIGN KEY (`course_code`) REFERENCES `courses` (`course_code`),
-  CONSTRAINT `student_records_ibfk_3` FOREIGN KEY (`section_code`) REFERENCES `sections` (`section_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `student_records`
@@ -470,28 +162,6 @@ INSERT INTO `student_records` VALUES (1,'STU-2024-001',NULL,'Reyes','Anna','Cruz
 UNLOCK TABLES;
 
 --
--- Table structure for table `student_school_years`
---
-
-DROP TABLE IF EXISTS `student_school_years`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_school_years` (
-  `school_year_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `row_index` int NOT NULL,
-  `sy_start` varchar(20) DEFAULT NULL,
-  `sem_start` varchar(20) DEFAULT NULL,
-  `sy_end` varchar(20) DEFAULT NULL,
-  `sem_end` varchar(20) DEFAULT NULL,
-  `remarks` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`school_year_id`),
-  UNIQUE KEY `uq_student_school_year` (`student_id`,`row_index`),
-  CONSTRAINT `student_school_years_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `student_school_years`
 --
 
@@ -499,27 +169,6 @@ LOCK TABLES `student_school_years` WRITE;
 /*!40000 ALTER TABLE `student_school_years` DISABLE KEYS */;
 /*!40000 ALTER TABLE `student_school_years` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `student_tesda_qualifications`
---
-
-DROP TABLE IF EXISTS `student_tesda_qualifications`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_tesda_qualifications` (
-  `qual_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `slot` int NOT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `center_address` varchar(255) DEFAULT NULL,
-  `assessment_date` date DEFAULT NULL,
-  `result` varchar(50) DEFAULT NULL,
-  PRIMARY KEY (`qual_id`),
-  UNIQUE KEY `uq_student_tesda_qual` (`student_id`,`slot`),
-  CONSTRAINT `student_tesda_qualifications_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `student_tesda_qualifications`
@@ -531,28 +180,6 @@ LOCK TABLES `student_tesda_qualifications` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `student_uploads`
---
-
-DROP TABLE IF EXISTS `student_uploads`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `student_uploads` (
-  `upload_id` int NOT NULL AUTO_INCREMENT,
-  `student_id` varchar(20) NOT NULL,
-  `kind` varchar(30) NOT NULL,
-  `file_path` varchar(500) NOT NULL,
-  `original_name` varchar(255) DEFAULT NULL,
-  `mime_type` varchar(100) DEFAULT NULL,
-  `size_bytes` bigint DEFAULT NULL,
-  `uploaded_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`upload_id`),
-  KEY `student_id` (`student_id`),
-  CONSTRAINT `student_uploads_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_records` (`student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `student_uploads`
 --
 
@@ -560,25 +187,6 @@ LOCK TABLES `student_uploads` WRITE;
 /*!40000 ALTER TABLE `student_uploads` DISABLE KEYS */;
 /*!40000 ALTER TABLE `student_uploads` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `subjects`
---
-
-DROP TABLE IF EXISTS `subjects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `subjects` (
-  `subject_code` varchar(20) NOT NULL,
-  `subject_name` varchar(255) NOT NULL,
-  `qualification_code` int DEFAULT NULL,
-  `competency_type` varchar(15) NOT NULL,
-  `units` int NOT NULL,
-  PRIMARY KEY (`subject_code`),
-  KEY `qualification_code` (`qualification_code`),
-  CONSTRAINT `subjects_ibfk_1` FOREIGN KEY (`qualification_code`) REFERENCES `qualifications` (`qualification_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `subjects`
@@ -591,26 +199,6 @@ INSERT INTO `subjects` VALUES ('BPP-101','Bread Making Fundamentals',2,'CORE',3)
 UNLOCK TABLES;
 
 --
--- Table structure for table `system_logs`
---
-
-DROP TABLE IF EXISTS `system_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `system_logs` (
-  `log_id` int NOT NULL AUTO_INCREMENT,
-  `user_id` int DEFAULT NULL,
-  `username` varchar(255) NOT NULL,
-  `role` varchar(15) NOT NULL,
-  `action` varchar(500) NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`log_id`),
-  KEY `idx_system_logs_timestamp` (`timestamp` DESC)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `system_logs`
 --
 
@@ -621,31 +209,6 @@ INSERT INTO `system_logs` VALUES (1,1,'admin','ROLE_ADMIN','Completed security q
 UNLOCK TABLES;
 
 --
--- Table structure for table `user_security_answers`
---
-
-DROP TABLE IF EXISTS `user_security_answers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_security_answers` (
-  `answer_id` int NOT NULL AUTO_INCREMENT,
-  `user_id` int NOT NULL,
-  `question_id` int DEFAULT NULL,
-  `custom_question` varchar(255) DEFAULT NULL,
-  `answer_hash` varchar(255) NOT NULL,
-  `slot` int NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`answer_id`),
-  UNIQUE KEY `uq_user_slot` (`user_id`,`slot`),
-  UNIQUE KEY `uq_user_question` (`user_id`,`question_id`),
-  KEY `question_id` (`question_id`),
-  CONSTRAINT `user_security_answers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `user_security_answers_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `security_questions` (`question_id`),
-  CONSTRAINT `chk_question_xor_custom` CHECK (((`question_id` is null) <> (`custom_question` is null)))
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Dumping data for table `user_security_answers`
 --
 
@@ -654,35 +217,6 @@ LOCK TABLES `user_security_answers` WRITE;
 INSERT INTO `user_security_answers` VALUES (1,1,1,NULL,'$2a$10$CMXnm32tSVqSxP5q1fU6aux3bZl8Vz/BM0xbDLWUkUaHY3Df/95B6',1,'2026-09-23 09:17:48'),(2,1,4,NULL,'$2a$10$BNmPNmrvnpE0iM/UrXErwu6y2xjSXeR016iR8OoJbDoxs4Qt4R/s.',2,'2026-09-23 09:17:48'),(3,2,1,NULL,'$2a$10$gcG.lkuxGoH/ioAV9Zyn4uGJcYteEvi129kUlxSasZFNkZEnAF12a',1,'2026-09-23 09:24:11'),(4,2,5,NULL,'$2a$10$3sqfiWxuvwZxeYbPdd94O.nWMEXqYMBTaZCdg/y/B3l9.WNMGPGU.',2,'2026-09-23 09:24:12'),(5,3,1,NULL,'$2a$10$9Bwfz3RW4H1XUqzClAH5puA.RqyAi66F4T2acAnuz7ad31rpUq7Xu',1,'2026-09-23 10:12:20'),(6,3,NULL,'What is the name of the school?','$2a$10$xr1lLOClxe.XImenzZEOj.fPIyN7ck4F.eYWT4bWH0FFA3Skd3Lai',2,'2026-09-23 10:12:20');
 /*!40000 ALTER TABLE `user_security_answers` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Table structure for table `users`
---
-
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-  `user_id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `lastname` varchar(255) NOT NULL,
-  `firstname` varchar(255) NOT NULL,
-  `middlename` varchar(255) NOT NULL,
-  `birthdate` date NOT NULL DEFAULT '2000-01-01',
-  `age` int NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `role` varchar(15) NOT NULL,
-  `enabled` tinyint(1) NOT NULL DEFAULT '1',
-  `password_changed_at` datetime DEFAULT NULL,
-  `security_locked` tinyint(1) NOT NULL DEFAULT '0',
-  `failed_security_attempts` int NOT NULL DEFAULT '0',
-  `security_lockout_started_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `users`
