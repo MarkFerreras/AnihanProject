@@ -26,7 +26,8 @@
             seq++;
             input.classList.remove('is-invalid');
             feedback.textContent = '';
-            saveBtn.disabled = false;
+            // A save in flight owns the button; its finally block restores the right state.
+            if (!saveBtn.dataset.busy) saveBtn.disabled = false;
         }
 
         input.addEventListener('input', function () {

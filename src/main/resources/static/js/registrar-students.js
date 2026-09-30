@@ -369,7 +369,9 @@
 
         async function save() {
             if (!assignTargetRecordId) return;
+            if (saveBtn.disabled) return; // Enter must not bypass a disabled Save (clash warning or save in flight)
 
+            saveBtn.dataset.busy = '1';
             saveBtn.disabled = true;
             const originalLabel = saveBtn.textContent;
             saveBtn.textContent = 'Saving...';
@@ -413,7 +415,8 @@
             } catch (err) {
                 showAssignAlert('Network error. Could not save the student number.', 'danger');
             } finally {
-                saveBtn.disabled = false;
+                delete saveBtn.dataset.busy;
+                saveBtn.disabled = inputEl.classList.contains('is-invalid');
                 saveBtn.textContent = originalLabel;
             }
         }
@@ -537,6 +540,7 @@
 
         saveBtn.addEventListener('click', save);
         inputEl.addEventListener('keydown', function (e) {
+            if (e.defaultPrevented) return; // combobox already consumed this Enter to pick an option
             if (e.key === 'Enter') {
                 e.preventDefault();
                 save();

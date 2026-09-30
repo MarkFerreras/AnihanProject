@@ -148,6 +148,8 @@
             } else if (e.key === 'Enter') {
                 if (isOpen() && activeIndex >= 0) {
                     e.preventDefault();
+                    // Consumers often bind their own Enter-to-save on the same input; a pick must not also submit.
+                    e.stopImmediatePropagation();
                     choose(activeIndex);
                 }
             } else if (e.key === 'Escape') {
