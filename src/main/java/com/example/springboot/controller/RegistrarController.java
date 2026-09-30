@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.springboot.dto.registrar.AssignBatchRequest;
 import com.example.springboot.dto.registrar.AssignStudentNumberRequest;
+import com.example.springboot.dto.registrar.StudentNumberAvailability;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
@@ -108,6 +109,17 @@ public class RegistrarController {
                 action, httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Read-only pre-check behind the Assign Student Number modal's inline warning. The PUT
+     * above stays the authority; this only surfaces a clash before Save. Not audit-logged.
+     */
+    @GetMapping("/{recordId}/student-number/availability")
+    public ResponseEntity<StudentNumberAvailability> checkStudentNumberAvailability(
+            @PathVariable Integer recordId,
+            @RequestParam(name = "number", required = false) String number) {
+        return ResponseEntity.ok(registrarService.checkStudentNumberAvailability(recordId, number));
     }
 
     /**

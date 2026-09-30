@@ -1,6 +1,51 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-27 - Manual Batch Code Assignment: Implementation & Verification Complete)
+## Latest Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
+
+- **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged). Commits: `e459bef`
+  (CourseCodeGenerator), `2067870` (section create resolve-or-create + audit logs + code preview),
+  `7533ce9` (student-number availability + uniqueness tests), `efa071b` / `c81f43b` / `1233764`
+  (shared `SrmsCombobox` + `SrmsStudentNumberCheck` wired on 5 pages), `073562d` (review fix:
+  combobox Enter-pick no longer also submits; Save stays disabled while a number clash is shown or a
+  save is in flight), then the docs commit for this entry.
+- **Full suite (Confirmed):** 546 tests, 0 failures, 0 errors, 0 skipped (baseline 511, +35 as planned).
+- **Live check (Confirmed, real `AnihanSRMS` DB, Playwright):** Assign Batch, Create Section
+  (existing + new course, new batch, audit logs), Assign Student Number on both pages, student-records
+  edit form, and documents upload picker all behave as specified. No console errors caused by this
+  feature (only a pre-existing `favicon.ico` 404, an expected 404 for a missing ID picture, and
+  browser-extension noise). Details in `testing.md`.
+- **Open items:** the code-review Minor findings deliberately not fixed here are listed under
+  `progress.md` "Deferred / technical debt". The merge/PR decision
+  (`superpowers:finishing-a-development-branch`) is the user's. Plan Task 8 Steps 4-5 (independent
+  reviews, finish) were not done by this session.
+- **Test data left in the dev DB:** batches `BTEST1`, `BTEST2`; course `Test Bread and Pastry Practice`
+  (`TBPP`); section `SEC-TEST` (batch BTEST2, course TBPP). Delete manually if unwanted.
+
+## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Plan Written)
+
+- **Checkout:** `main` (documentation-only planning, per the user's instruction; same precedent as
+  2026-09-27). No product code changed.
+- **Plan (Confirmed scope, not yet executed):**
+  `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md` — 9 tasks (0–8).
+- **User-confirmed decisions:** (1) the registrar types a course *name*; its code is derived from
+  the initials of significant words (`CARS`), with a numeric suffix on collision, and previewed
+  before saving; (2) courses are auto-created only from the Create Section modal, whose Course and
+  Batch `<select>`s become type-or-pick fields (the Batch field auto-creates too); (3) every native
+  `<datalist>` (Assign Batch, student edit form Course/Section/Sex/Civil Status, Documents upload
+  picker) is replaced by one shared `js/combobox.js`; (4) student-number uniqueness already holds
+  (DB unique key, service pre-check, import conflict check), so the plan adds regression tests (incl.
+  real H2) and an inline "already assigned to X" warning that disables Save.
+- **Verified facts used by the plan:** Create Section Course/Batch were `<select>` (not text fields);
+  `courses` = `course_code` VARCHAR(20) PK + `course_name` VARCHAR(100) NOT NULL; `sections.section`
+  is VARCHAR(25); no existing test constructs `CreateSectionRequest`.
+- **Branch note:** the plan's Task 0 creates `feature/course-auto-create-combobox` for code commits
+  (project Phase 0 rule). The user said work may happen on `main` — **open question**, needs
+  confirmation before execution.
+- **Next step:** execute the plan (subagent-driven recommended; 4 grouped dispatches).
+
+The sessions below describe earlier checkouts and tasks.
+
+## Session (2026-09-27 - Manual Batch Code Assignment: Implementation & Verification Complete)
 
 - **Manual Batch Code Assignment feature is complete** (Tasks 1-5 of
   `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`) on branch

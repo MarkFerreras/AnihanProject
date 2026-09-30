@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=3">
+    <link rel="stylesheet" href="css/dashboard.css?v=4">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
@@ -381,9 +381,8 @@
                     <div class="alert d-none" id="uploadDocumentAlert" role="alert"></div>
                     <div class="mb-3">
                         <label for="uploadStudentId" class="form-label">Student <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="uploadStudentId" list="studentsDatalist"
+                        <input type="text" class="form-control" id="uploadStudentId"
                                placeholder="Type a student ID or name" autocomplete="off">
-                        <datalist id="studentsDatalist"></datalist>
                         <div class="form-text" id="uploadStudentHelp">Pick the student the documents belong to.</div>
                     </div>
                     <div class="upload-drop-zone" id="uploadDropZone">
@@ -566,7 +565,8 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-documents.js?v=4"></script>
+    <script src="js/combobox.js?v=2"></script>
+    <script src="js/registrar-documents.js?v=5"></script>
 </body>
 
 </html>

@@ -125,6 +125,10 @@ Controller → Service → Repository → Model (JPA Entity)
 
 **Student identifiers — two, deliberately:** `student_records.student_id` is an internal system reference (auto-generated as `SR{year}{seq}`, `NOT NULL UNIQUE`, immutable, and the FK target of 10 child tables). `student_records.student_number` is the *real* student number the Registrar and the archive import own — nullable, never auto-generated, unique when present. In the UI they are labelled **Reference No.** and **Student Number** respectively; never present `student_id` to a user as "the student number". The student number is written only through `PUT /api/registrar/student-records/{id}/student-number`; it is read-only on the edit form and absent from `StudentRecordUpdateRequest`, so a routine edit cannot wipe it.
 
+**Courses:** courses are created only from the Create Section modal (`sections.html`) by typing the course *name*; the code is derived by `CourseCodeGenerator` (initials of significant words, numeric suffix on collision) and previewed before saving. Input resolves code, then name (case-insensitive), then create. The student edit form still rejects unknown courses.
+
+**Dropdowns:** type-or-pick fields use `js/combobox.js` (`SrmsCombobox.attach`), never `<datalist>`. Native `<select>` remains fine for fixed pick-only filters.
+
 ## Database Schema
 
 Schema source of truth: `src/main/sql/schema.sql` (and `AnihanSRMS.sql` at root for device transfer).

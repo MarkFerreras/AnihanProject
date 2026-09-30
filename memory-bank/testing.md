@@ -1,5 +1,44 @@
 # Testing - Anihan SRMS
 
+## 2026-09-30 - Course Auto-Create / Combobox / Student-Number Guard: Full Regression + Live Verification
+
+**Full suite:** `./gradlew test` on `feature/course-auto-create-combobox` at `073562d` -> BUILD
+SUCCESSFUL; summed from `build/test-results/test/*.xml` (53 report files): **546 tests, 0 failures,
+0 errors, 0 skipped.** Baseline 511 + 35 new (10 generator, 9 section-create service, 6 course
+controller, 4 service + 2 controller student-number, 4 H2) = 546, exactly as planned.
+
+**Live check (Confirmed)** - real `AnihanSRMS` MySQL DB, `./gradlew bootRun` on port 8080, Playwright,
+logged in as `registrar` (admin used read-only afterwards to read logs). Server stopped afterwards; port 8080 free.
+1. **registrar.html Assign Batch - PASS.** Focus opens the styled list (no native popup, zero
+   `<datalist>` in DOM); typing `B2099` filtered to `B2099Z`; ArrowDown+Enter picked it and the modal
+   stayed open with no PUT fired (the `073562d` fix); Esc closed the list only; typing `BTEST1` showed the
+   "No existing batch matches" hint, Enter saved, reopening the modal on another student listed `BTEST1`
+   without a page reload. (A first attempt on a section-enrolled student correctly returned the existing
+   400 "Cannot change or clear batch while student is enrolled in section" - unrelated to this feature.)
+2. **sections.html Create Section - PASS.** Batch and Course use the custom list. Typing the existing
+   name `Bread and Pastry Production` showed "Existing course - code BPRO." (that course already existed
+   with code BPRO, so the plan's "BPP" example did not apply); typing `Test Bread and Pastry Practice`
+   showed "New course - it will be created with code TBPP."; new batch `BTEST2`; Create succeeded; the new
+   course appeared in the eligible-student Course filter (and BTEST2 in the Batch filter); `system_logs`
+   contains `Created course: Test Bread and Pastry Practice (TBPP)`, `Created batch: BTEST2`,
+   `Created section: Section Test (SEC-TEST)`.
+3. **Assign Student Number (registrar.html and student-numbers.html) - PASS.** Typing `2026-001` (held by
+   another student) showed the red "already assigned to <name>" message and disabled Save; Enter while
+   disabled fired no PUT; editing the text (`...9`) re-enabled Save; after clearing the holder's number,
+   retyping the same number cleared the warning and saved. Original numbers restored.
+4. **student-records.html edit form - PASS.** Sex, Civil Status, Course, Section use the custom list; while
+   a section is locked the inputs are `disabled` (not clickable) and the list cannot be opened by a user.
+   Caveat: a synthetic (script-dispatched) ArrowDown does open the menu on a disabled input; unreachable
+   by a real user (recorded as debt (f) in `progress.md`).
+5. **documents.html Upload - PASS.** Student picker uses the custom list (12 students); picking one plus a
+   staged file enabled Upload (file staged via a script-injected `File`, because the Playwright file chooser
+   was blocked; nothing was uploaded); the locked explorer entry ("Upload for this Student") shows the name
+   read-only and no list, even on ArrowDown.
+6. **Console - PASS.** No errors attributable to this feature on registrar, sections, student-numbers,
+   student-records, documents. Noise seen: `favicon.ico` 404, `404 /api/registrar/documents/id-picture/SR20260017`
+   (that student has no ID picture), the expected 400 above, and browser-extension "Receiving end does not exist".
+- **Unverified:** the Upload POST itself, and the student edit form Save, were not exercised.
+
 ## 2026-09-27 - Manual Batch Code Assignment: Full Regression + Live Verification (Task 5)
 
 **Full suite:** `./gradlew.bat test --rerun --console=plain` → **BUILD SUCCESSFUL — 511 tests,

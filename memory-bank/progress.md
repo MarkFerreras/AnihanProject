@@ -1,5 +1,47 @@
 # Progress - Anihan SRMS
 
+## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Implemented & Live-Verified
+
+- **Completed (branch `feature/course-auto-create-combobox`, commits `e459bef`, `2067870`, `7533ce9`,
+  `efa071b`, `c81f43b`, `1233764`, `073562d`):** `CourseCodeGenerator`; `createSection` resolves-or-creates
+  the batch and course (input matching: code, then name ignoring case, then create) and the controller
+  audit-logs each auto-creation; `GET /api/registrar/courses/preview-code`; student-number availability
+  endpoint + real-H2 uniqueness regression tests; shared `js/combobox.js` (`SrmsCombobox`) replacing all 5
+  `<datalist>`s; `js/student-number-check.js` inline clash warning on both Assign Student Number modals.
+  No schema change.
+- **Full suite:** 546 tests, 0 failures, 0 errors, 0 skipped (baseline 511).
+- **Live check:** passed for all 6 items (see `testing.md`).
+- **Remaining:** plan Task 8 Steps 4-5 (independent Java and frontend reviews were run during
+  implementation; final `superpowers:finishing-a-development-branch` decision is the user's). Still
+  pending from earlier: finishing `feature/document-folder-management`.
+- **Deferred / technical debt** (code-review Minor findings deliberately not fixed in this branch):
+  - (a) `createSection` / preview tests do not cover swapped `courseCreated`/`batchCreated` flags
+    `(true,false)` / `(false,true)`, generator 999-suffix exhaustion, or code-vs-name precedence.
+  - (b) `findFirstByCourseNameIgnoreCase` has no ORDER BY (`course_name` is not unique).
+  - (c) Generator fallback for a name with one significant word plus stop words uses the whole string.
+  - (d) `previewCourseCode` throws 400 on a blank name (frontend skips blank) and lacks a readOnly transaction.
+  - (e) The GET availability endpoint does not validate the number's pattern/length like the PUT does.
+  - (f) Combobox minor polish: empty-state `<li>` has no ARIA role; mousedown on the menu scrollbar can
+    close it; `scrollIntoView` can scroll the page; ArrowDown on a readonly input renders a hidden menu;
+    stale `activeIndex` after `setItems`; silent 50-result cap; the course preview has no error handler;
+    `loadFilterDropdowns()` resets the eligible-student filters after creating a section. Live-check
+    additions: `combobox.js` opens on a synthetic ArrowDown even when the input is `disabled` (not
+    reachable by a real user, since disabled inputs take no focus/keys); and a field with a pre-filled
+    value opens filtered to that value, so alternatives are only visible after clearing the text.
+  - (g) The H2 uniqueness test proves the entity mapping, not the `schema.sql` DDL.
+  - (h) `ClassManagementService` is ~650 lines (candidate to extract a `CourseService` later).
+
+## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Planned
+
+- **Completed:** clarification round (4 questions, all Confirmed) and the implementation plan
+  `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md`.
+- **Remaining:** Tasks 0–8 of that plan (branch, `CourseCodeGenerator`, section create
+  resolve-or-create + audit logs + code preview, student-number availability endpoint + H2
+  uniqueness tests, `SrmsCombobox` + `SrmsStudentNumberCheck`, wiring on 5 pages, verification).
+- **Carried over (still pending):** `superpowers:finishing-a-development-branch` for
+  `feature/manual-batch-code-assignment` and `feature/document-folder-management`.
+- **Testing status:** no code yet; baseline 511 tests, plan target 546.
+
 ## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5 Complete)
 
 - **Completed:** all 5 tasks of `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`

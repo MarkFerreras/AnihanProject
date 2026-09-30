@@ -1,6 +1,6 @@
 # Known Bugs & Technical Debt — Anihan SRMS
 
-> **Last updated:** September 22, 2026
+> **Last updated:** September 30, 2026
 
 ## Fixed Bugs (one-line summary)
 
@@ -14,6 +14,34 @@
 - **Merge integration (2026-09-06)** ✅ After merging grade_input_fix + student-ID-number: StudentRecordDetailsResponse arity mismatch in RegistrarStudentNumberControllerWebMvcTest, and a missing @Mock GradeRepository in RegistrarStudentNumberServiceTest (7 NPEs). Both fixed test-only (1916904, fec8004). Suite: 332 tests, 0 failures.
 
 ## Open Bugs
+
+### Bug 14 — Live `AnihanSRMS` database has two stray stored routines that `schema.sql` does not create 🟢
+- **Severity:** Low (no runtime impact; schema drift only) · **Status:** Open —
+  deliberately **left as-is** per the user · **Logged:** 2026-09-30, found while
+  comparing a schema-only `mysqldump` of the live database against `schema.sql`.
+- **What:** The live DB contains `FUNCTION column_exists(p_table_name, p_column_name)`
+  and `PROCEDURE AddColumnIfNotExists(p_table_name, p_column_name, p_column_definition)`
+  (both `DEFINER=root@localhost`). Neither is in `src/main/sql/schema.sql`, none of the
+  dated files in `src/main/sql/migrations/` create or call them, and nothing under
+  `src/main/java` references them. Only the three old snapshot files
+  `src/main/sql/backup-2026-09-06-pre-merge-sync.sql`,
+  `backup-2026-09-19-pre-log-purge.sql`, and `backup-2026-09-19-pre-schema-sync.sql`
+  mention them, so they are leftovers from an earlier hand-run migration.
+- **Impact:** A fresh install from `schema.sql` will not have them (the app does not
+  need them). A dump of the live DB used for device transfer *will* carry them.
+- **Everything else matched:** all 21 tables, every column type / nullability /
+  default, all keys, foreign keys (with `ON DELETE`/`ON UPDATE` rules), the
+  `chk_question_xor_custom` check, the `system_logs` timestamp index, the database
+  charset/collation (`utf8mb4` / `utf8mb4_0900_ai_ci`), and the 6 seeded security
+  questions. No triggers, views, or events exist.
+- **Course auto-create / combobox / student-number-guard work (PR #67):** required
+  **no schema change**, so `schema.sql` needed no update for it. `courses`
+  (`course_code VARCHAR(20)` PK, `course_name VARCHAR(100)`) is identical in the file
+  and the live DB.
+- **If resolved later:** either `DROP FUNCTION column_exists; DROP PROCEDURE
+  AddColumnIfNotExists;` on the live DB (nothing depends on them), or add them to
+  `schema.sql` if the team wants a reusable idempotent-migration helper. Back up
+  first per the usual practice.
 
 ### Bug 12 — `documents.file_type VARCHAR(50)` too short for the docx/xlsx MIME strings the code itself declares ✅ RESOLVED
 - **Severity:** was High (uploads silently fail against real MySQL) · **Status:**

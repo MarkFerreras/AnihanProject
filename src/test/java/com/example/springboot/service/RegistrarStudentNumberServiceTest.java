@@ -1,6 +1,7 @@
 package com.example.springboot.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.example.springboot.dto.registrar.StudentNumberAvailability;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
@@ -258,5 +260,44 @@ class RegistrarStudentNumberServiceTest {
 
         assertEquals(1, found.size());
         assertEquals("2026-001", found.get(0).studentNumber());
+    }
+
+    // ----- Availability check (inline warning before Save) -----
+
+    @Test
+    void availabilityNamesTheHolderWhenAnotherStudentHasTheNumber() {
+        StudentRecord holder = record(2, "SR20260002", "2026-001");
+        holder.setLastName("Santos");
+        holder.setFirstName("Ana");
+        when(studentRecordRepository.findByStudentNumber("2026-001")).thenReturn(Optional.of(holder));
+
+        StudentNumberAvailability result = registrarService.checkStudentNumberAvailability(1, " 2026-001 ");
+
+        assertFalse(result.available());
+        assertEquals("Santos, Ana", result.assignedTo());
+    }
+
+    @Test
+    void availabilityIsTrueWhenTheOnlyHolderIsTheSameStudent() {
+        when(studentRecordRepository.findByStudentNumber("2026-001"))
+                .thenReturn(Optional.of(record(1, "SR20260001", "2026-001")));
+
+        StudentNumberAvailability result = registrarService.checkStudentNumberAvailability(1, "2026-001");
+
+        assertTrue(result.available());
+        assertNull(result.assignedTo());
+    }
+
+    @Test
+    void availabilityIsTrueWhenNobodyHasTheNumber() {
+        when(studentRecordRepository.findByStudentNumber("2026-009")).thenReturn(Optional.empty());
+
+        assertTrue(registrarService.checkStudentNumberAvailability(1, "2026-009").available());
+    }
+
+    @Test
+    void aBlankNumberIsAlwaysAvailableAndNeverQueried() {
+        assertTrue(registrarService.checkStudentNumberAvailability(1, "   ").available());
+        verify(studentRecordRepository, never()).findByStudentNumber(any());
     }
 }

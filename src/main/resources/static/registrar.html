@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=3">
+    <link rel="stylesheet" href="css/dashboard.css?v=4">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
@@ -354,9 +354,8 @@
                     <div class="mb-2">
                         <label for="assignBatchInput" class="form-label">Batch Code</label>
                         <input type="text" class="form-control" id="assignBatchInput"
-                               list="batchLookupList" maxlength="20" autocomplete="off" spellcheck="false"
+                               maxlength="20" autocomplete="off" spellcheck="false"
                                placeholder="Type or pick a batch code (e.g. B2026A)">
-                        <datalist id="batchLookupList"></datalist>
                         <div class="form-text">
                             Pick an existing batch or type a new code to create one. Leave blank to clear the
                             batch (only allowed if the student isn't enrolled in a section).
@@ -517,6 +516,8 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-students.js?v=8"></script>
+    <script src="js/combobox.js?v=2"></script>
+    <script src="js/student-number-check.js?v=2"></script>
+    <script src="js/registrar-students.js?v=10"></script>
 </body>
 </html>

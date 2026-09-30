@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +26,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.example.springboot.config.SecurityConfig;
+import com.example.springboot.dto.registrar.StudentNumberAvailability;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.exception.GlobalExceptionHandler;
 import com.example.springboot.repository.UserRepository;
@@ -172,5 +174,27 @@ class RegistrarStudentNumberControllerWebMvcTest {
                 .andExpect(status().isUnauthorized());
 
         verify(registrarService, never()).assignStudentNumber(any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void availabilityReportsTheHolderWithoutLogging() throws Exception {
+        when(registrarService.checkStudentNumberAvailability(1, "2026-001"))
+                .thenReturn(new StudentNumberAvailability(false, "Santos, Ana"));
+
+        mvc.perform(get("/api/registrar/student-records/1/student-number/availability")
+                        .param("number", "2026-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.assignedTo").value("Santos, Ana"));
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void trainerCannotCheckAvailability() throws Exception {
+        mvc.perform(get("/api/registrar/student-records/1/student-number/availability")
+                        .param("number", "2026-001"))
+                .andExpect(status().isForbidden());
     }
 }

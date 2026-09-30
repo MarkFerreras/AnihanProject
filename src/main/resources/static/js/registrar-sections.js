@@ -135,11 +135,24 @@
     // Create Section
     // -------------------------------------------------------
 
+    const DEFAULT_COURSE_HELP = "Typing a course name that doesn't exist yet creates that course.";
+    let sectionBatchCombobox = null;
+    let sectionCourseCombobox = null;
+    let coursePreviewTimer = null;
+
     function setupCreateSection() {
+        sectionBatchCombobox = SrmsCombobox.attach(document.getElementById('sectionBatchInput'), {
+            emptyText: 'No existing batch matches — saving will create it.'
+        });
+        sectionCourseCombobox = SrmsCombobox.attach(document.getElementById('sectionCourseInput'), {
+            emptyText: 'No existing course matches — saving will create it.'
+        });
+        $('#sectionCourseInput').on('input', scheduleCoursePreview);
+
         $('#createSectionModal').on('show.bs.modal', function () {
             hideAlert('createSectionAlert');
-            $('#sectionCodeInput').val('');
-            $('#sectionNameInput').val('');
+            $('#sectionCodeInput, #sectionNameInput, #sectionBatchInput, #sectionCourseInput').val('');
+            $('#sectionCourseHelp').text(DEFAULT_COURSE_HELP);
             loadBatchesDropdown();
             loadCoursesDropdown();
         });
@@ -148,11 +161,11 @@
             const payload = {
                 sectionCode: $('#sectionCodeInput').val().trim(),
                 sectionName: $('#sectionNameInput').val().trim(),
-                batchCode: $('#sectionBatchSelect').val(),
-                courseCode: $('#sectionCourseSelect').val()
+                batchCode: $('#sectionBatchInput').val().trim(),
+                course: $('#sectionCourseInput').val().trim()
             };
 
-            if (!payload.sectionCode || !payload.sectionName || !payload.batchCode || !payload.courseCode) {
+            if (!payload.sectionCode || !payload.sectionName || !payload.batchCode || !payload.course) {
                 showAlert('createSectionAlert', 'Please fill in all required fields.', 'danger');
                 return;
             }
@@ -165,10 +178,12 @@
                 success: function () {
                     createSectionModal.hide();
                     sectionsTable.ajax.reload(null, false);
+                    loadFilterDropdowns(); // a new batch/course must appear in the eligible-student filters
                 },
                 error: function (xhr) {
-                    const msg = xhr.responseJSON?.message || 'Failed to create section.';
-                    showAlert('createSectionAlert', msg, 'danger');
+                    const body = xhr.responseJSON || {};
+                    const fieldErrors = body.errors ? Object.values(body.errors).join(' ') : '';
+                    showAlert('createSectionAlert', fieldErrors || body.message || 'Failed to create section.', 'danger');
                 }
             });
         });
@@ -179,12 +194,9 @@
             url: '/api/lookup/batches',
             method: 'GET',
             success: function (data) {
-                const select = $('#sectionBatchSelect');
-                select.find('option:not(:first)').remove();
-                data.forEach(function (b) {
-                    select.append('<option value="' + escapeHtml(b.code) + '">' +
-                        escapeHtml(b.code) + ' (' + escapeHtml(b.name) + ')</option>');
-                });
+                sectionBatchCombobox.setItems(data.map(function (b) {
+                    return { value: b.code, label: b.code, hint: b.name };
+                }));
             }
         });
     }
@@ -194,14 +206,33 @@
             url: '/api/lookup/courses',
             method: 'GET',
             success: function (data) {
-                const select = $('#sectionCourseSelect');
-                select.find('option:not(:first)').remove();
-                data.forEach(function (c) {
-                    select.append('<option value="' + escapeHtml(c.code) + '">' +
-                        escapeHtml(c.name) + ' (' + escapeHtml(c.code) + ')</option>');
-                });
+                sectionCourseCombobox.setItems(data.map(function (c) {
+                    return { value: c.name, label: c.name, hint: c.code };
+                }));
             }
         });
+    }
+
+    /** Debounced "code will be ..." hint under the Course field. */
+    function scheduleCoursePreview() {
+        window.clearTimeout(coursePreviewTimer);
+        const name = $('#sectionCourseInput').val().trim();
+        if (!name) {
+            $('#sectionCourseHelp').text(DEFAULT_COURSE_HELP);
+            return;
+        }
+        coursePreviewTimer = window.setTimeout(function () {
+            $.ajax({
+                url: '/api/registrar/courses/preview-code?name=' + encodeURIComponent(name),
+                method: 'GET',
+                success: function (preview) {
+                    if ($('#sectionCourseInput').val().trim() !== name) return; // stale response
+                    $('#sectionCourseHelp').text(preview.existing
+                        ? 'Existing course — code ' + preview.code + '.'
+                        : 'New course — it will be created with code ' + preview.code + '.');
+                }
+            });
+        }, 300);
     }
 
     // -------------------------------------------------------
