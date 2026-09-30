@@ -3,10 +3,12 @@ package com.example.springboot.service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.springboot.dto.registrar.StudentNumberAvailability;
 import com.example.springboot.dto.registrar.StudentRecordDetailsResponse;
 import com.example.springboot.dto.registrar.StudentRecordSummaryResponse;
 import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
@@ -180,17 +182,36 @@ public class RegistrarService {
         String normalized = emptyToNull(studentNumber);
 
         if (normalized != null) {
-            studentRecordRepository.findByStudentNumber(normalized)
-                    .filter(other -> !other.getRecordId().equals(recordId))
-                    .ifPresent(other -> {
-                        throw new IllegalArgumentException(
-                                "Student number " + normalized + " is already assigned to "
-                                        + other.getLastName() + ", " + other.getFirstName() + ".");
-                    });
+            findOtherHolder(recordId, normalized).ifPresent(other -> {
+                throw new IllegalArgumentException(
+                        "Student number " + normalized + " is already assigned to "
+                                + other.getLastName() + ", " + other.getFirstName() + ".");
+            });
         }
 
         record.setStudentNumber(normalized);
         return buildDetailsResponse(studentRecordRepository.save(record));
+    }
+
+    /**
+     * Read-only pre-check for the Assign Student Number modal's inline warning. Uses the same
+     * lookup as {@link #assignStudentNumber}, which remains the authority on save.
+     */
+    public StudentNumberAvailability checkStudentNumberAvailability(Integer recordId, String studentNumber) {
+        String normalized = emptyToNull(studentNumber);
+        if (normalized == null) {
+            return new StudentNumberAvailability(true, null);
+        }
+        return findOtherHolder(recordId, normalized)
+                .map(other -> new StudentNumberAvailability(false,
+                        other.getLastName() + ", " + other.getFirstName()))
+                .orElseGet(() -> new StudentNumberAvailability(true, null));
+    }
+
+    /** The student (other than {@code recordId}) currently holding {@code normalized}, if any. */
+    private Optional<StudentRecord> findOtherHolder(Integer recordId, String normalized) {
+        return studentRecordRepository.findByStudentNumber(normalized)
+                .filter(other -> !other.getRecordId().equals(recordId));
     }
 
     /**
