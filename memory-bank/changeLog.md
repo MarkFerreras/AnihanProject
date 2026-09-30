@@ -1,5 +1,27 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard (Implementation)
+**Branch:** `feature/course-auto-create-combobox` (not pushed, not merged)
+**Commits:** `e459bef`, `2067870`, `7533ce9`, `efa071b`, `c81f43b`, `1233764`, `073562d`, + docs commit.
+
+- **Backend (`src/main/java/com/example/springboot/`):** new `service/CourseCodeGenerator`,
+  `service/SectionCreationResult`, `dto/registrar/CourseCodePreview`, `dto/registrar/StudentNumberAvailability`;
+  modified `dto/registrar/CreateSectionRequest` (`courseCode` -> `course`), `repository/CourseRepository`
+  (`findFirstByCourseNameIgnoreCase`), `service/ClassManagementService` (`createSection` resolve-or-create,
+  `previewCourseCode`), `controller/ClassManagementController` (audit logs `Created course: ...`,
+  `Created batch: ...`; `GET /api/registrar/courses/preview-code`), `service/RegistrarService` (extracted
+  `findOtherHolder`, `checkStudentNumberAvailability`), `controller/RegistrarController`
+  (`GET .../student-records/{id}/student-number/availability`).
+- **Frontend (`src/main/resources/static/`):** new `js/combobox.js`, `js/student-number-check.js`; appended
+  combobox styles to `css/dashboard.css`; wired `registrar.html`, `sections.html`, `student-records.html`,
+  `documents.html`, `student-numbers.html` and their JS. Every `<datalist>` removed.
+- **Tests:** new `CourseCodeGeneratorTest`, `ClassManagementSectionCreateServiceTest`,
+  `ClassManagementCourseControllerWebMvcTest`, `StudentNumberUniquenessH2Test`; extended
+  `RegistrarStudentNumberServiceTest` and `RegistrarStudentNumberControllerWebMvcTest`.
+- **Docs:** `CLAUDE.md` (Courses + Dropdowns conventions), `memory-bank/systemPatterns.md`, and the
+  memory-bank logs.
+- **Verification:** 546 tests green; live Playwright check passed (see `testing.md`). No schema/SQL change.
+
 ## 2026-09-30 - Course Auto-Create / Custom Combobox Plan
 **Branch:** `main` (docs only)
 

@@ -4,6 +4,22 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-30 - Implemented: Course-Code Rule, Matching Order, SrmsCombobox, Advisory Availability Check (Confirmed)
+
+**Decision (as built on `feature/course-auto-create-combobox`):**
+- **Course code derivation:** `CourseCodeGenerator` takes the initials of the significant (non-stop-word)
+  words of the typed name, uppercased (`Culinary Arts and Restaurant Services` -> `CARS`); a single
+  significant word uses the whole word uppercased; base capped at 17 characters; on collision a numeric
+  suffix `2`, `3`, ... is appended (`CARS2`). The code is previewed under the field before saving.
+- **Input matching order** for the Create Section `course` value: existing course by code, then existing
+  course by name ignoring case, then create a new course. The same resolve-or-create runs for `batch`.
+- **`<datalist>` replaced by `SrmsCombobox`** (`js/combobox.js`, `SrmsCombobox.attach(input, opts)`): native
+  datalist popups differ by browser and cannot be styled. Type-or-pick fields must use it.
+- **Availability check is advisory:** `GET .../student-number/availability` and the inline warning only
+  guide the user; `PUT .../student-number` and the `uq_student_number` index stay authoritative.
+**Trade-off:** the `GET` availability endpoint does not repeat the PUT's pattern/length validation (debt
+item (e) in `progress.md`).
+
 ## 2026-09-30 - Courses Are Created by Name; Datalists Replaced by a Custom Combobox (Confirmed, planned)
 
 **Decision:** The registrar creates a course by typing its *name* in the Create Section modal. The

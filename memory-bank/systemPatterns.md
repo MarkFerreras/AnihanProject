@@ -25,6 +25,7 @@
 - **Styling**: Bootstrap 5.3 + custom CSS (`kebab-case` classes). Semantic HTML IDs (`camelCase`).
 - **Data Display**: DataTables 2 for high-efficiency tabular search, filtering, and sorting of student and grade data.
 - **JavaScript**: jQuery 4.0 handling AJAX requests and DOM manipulation.
+- **Type-or-pick fields**: use `js/combobox.js` (`SrmsCombobox.attach`), never `<datalist>`.
 
 ## Admin Page Template Pattern (Mandatory for All Admin Pages)
 Every admin page **must** include:
