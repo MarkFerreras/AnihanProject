@@ -9,7 +9,7 @@
 
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=3">
+    <link rel="stylesheet" href="css/dashboard.css?v=4">
     <style>
         body {
             display: flex;
@@ -238,23 +238,11 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editSex" class="form-label">Sex</label>
-                                            <input type="text" class="form-control" id="editSex"
-                                                list="sexList" autocomplete="off">
-                                            <datalist id="sexList">
-                                                <option value="Female"></option>
-                                                <option value="Male"></option>
-                                            </datalist>
+                                            <input type="text" class="form-control" id="editSex" autocomplete="off">
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editCivilStatus" class="form-label">Civil Status</label>
-                                            <input type="text" class="form-control" id="editCivilStatus"
-                                                list="civilStatusList" autocomplete="off">
-                                            <datalist id="civilStatusList">
-                                                <option value="Single"></option>
-                                                <option value="Married"></option>
-                                                <option value="Widowed"></option>
-                                                <option value="Separated"></option>
-                                            </datalist>
+                                            <input type="text" class="form-control" id="editCivilStatus" autocomplete="off">
                                         </div>
                                         <div class="col-md-6">
                                             <label for="editReligion" class="form-label">Religion</label>
@@ -455,16 +443,12 @@
                                         <div class="col-md-3">
                                             <label for="editCourseCode" class="form-label">Course</label>
                                             <input type="text" class="form-control" id="editCourseCode"
-                                                list="courseList" autocomplete="off"
-                                                placeholder="Type or pick a course code">
-                                            <datalist id="courseList"></datalist>
+                                                autocomplete="off" placeholder="Type or pick a course code">
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editSectionCode" class="form-label">Section</label>
                                             <input type="text" class="form-control" id="editSectionCode"
-                                                list="sectionList" autocomplete="off"
-                                                placeholder="Type or pick a section code">
-                                            <datalist id="sectionList"></datalist>
+                                                autocomplete="off" placeholder="Type or pick a section code">
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editEnrollmentDate" class="form-label">Enrollment Date</label>
@@ -690,7 +674,8 @@
     <script src="js/bootstrap.bundle.min.js"></script>
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-student-records-edit.js?v=8"></script>
+    <script src="js/combobox.js?v=1"></script>
+    <script src="js/registrar-student-records-edit.js?v=9"></script>
 
 </body>
 

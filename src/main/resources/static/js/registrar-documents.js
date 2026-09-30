@@ -20,6 +20,7 @@
     // -------------------------------------------------------
     let folderHierarchy = [];
     let flatStudents = [];
+    let uploadStudentCombobox = null;
     let selection = { kind: null, key: null };
     const expandedKeys = new Set();
     let studentRequestToken = 0;
@@ -894,13 +895,18 @@
             batch.sections.forEach(function (section) { flatStudents = flatStudents.concat(section.students); });
             flatStudents = flatStudents.concat(batch.unassignedStudents);
         });
-        const list = document.getElementById('studentsDatalist');
-        list.innerHTML = '';
-        flatStudents.forEach(function (s) {
-            const option = document.createElement('option');
-            option.value = studentOptionLabel(s);
-            list.appendChild(option);
-        });
+        if (!uploadStudentCombobox) {
+            uploadStudentCombobox = SrmsCombobox.attach(document.getElementById('uploadStudentId'), {
+                emptyText: 'No student matches.'
+            });
+        }
+        uploadStudentCombobox.setItems(flatStudents.map(function (s) {
+            return {
+                value: studentOptionLabel(s),
+                label: s.lastName + ', ' + s.firstName,
+                hint: s.studentNumber ? s.studentNumber : 'Ref: ' + s.studentId
+            };
+        }));
     }
 
     /** Opens the shared upload modal locked to one student (explorer entry point). */

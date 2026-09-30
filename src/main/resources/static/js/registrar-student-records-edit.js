@@ -136,32 +136,43 @@
         });
     }
 
-    // ----- Lookup loaders -----
+    // ----- Lookup comboboxes (custom dropdowns replacing native <datalist> popups) -----
 
-    async function loadOptions(url, datalistId) {
+    const comboboxes = {};
+
+    function setupComboboxes() {
+        comboboxes.sex = SrmsCombobox.attach(document.getElementById('editSex'), {
+            items: ['Female', 'Male'].map(function (v) { return { value: v }; })
+        });
+        comboboxes.civilStatus = SrmsCombobox.attach(document.getElementById('editCivilStatus'), {
+            items: ['Single', 'Married', 'Widowed', 'Separated'].map(function (v) { return { value: v }; })
+        });
+        comboboxes.course = SrmsCombobox.attach(document.getElementById('editCourseCode'), {
+            emptyText: 'No course matches. New courses are created from the Sections page.'
+        });
+        comboboxes.section = SrmsCombobox.attach(document.getElementById('editSectionCode'), {
+            emptyText: 'No section matches.'
+        });
+    }
+
+    async function loadOptions(url, combobox) {
         try {
             const response = await fetch(url, { credentials: 'same-origin' });
             if (!response.ok) return;
             const items = await response.json();
-            const datalist = document.getElementById(datalistId);
-            if (!datalist) return;
-            datalist.innerHTML = '';
-            items.forEach(function (item) {
-                const opt = document.createElement('option');
-                opt.value = item.code;
-                opt.label = item.code + ' — ' + item.name;
-                opt.textContent = item.code + ' — ' + item.name;
-                datalist.appendChild(opt);
-            });
+            combobox.setItems(items.map(function (item) {
+                return { value: item.code, label: item.code, hint: item.name };
+            }));
         } catch (error) {
-            // Datalist stays empty; user can still type free text.
+            // List stays empty; user can still type free text.
         }
     }
 
     async function loadAllLookups() {
+        if (!comboboxes.course) setupComboboxes();
         await Promise.all([
-            loadOptions('/api/lookup/courses', 'courseList'),
-            loadOptions('/api/lookup/sections', 'sectionList')
+            loadOptions('/api/lookup/courses', comboboxes.course),
+            loadOptions('/api/lookup/sections', comboboxes.section)
         ]);
     }
 

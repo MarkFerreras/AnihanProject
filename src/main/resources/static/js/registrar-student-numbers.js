@@ -11,6 +11,7 @@
     'use strict';
 
     let assignNumberModal = null;
+    let numberCheck = null;
     let assignTargetRecordId = null;
     let dataTable = null;
 
@@ -322,6 +323,7 @@
         document.getElementById('assignStudentName').value = studentName || ('Record #' + recordId);
         document.getElementById('assignStudentNumberInput').value = studentNumber || '';
         hideAlert('assignStudentNumberAlert');
+        if (numberCheck) numberCheck.reset();
         assignNumberModal.show();
     }
 
@@ -332,6 +334,11 @@
         if (!modalEl || !saveBtn || !inputEl) return;
 
         assignNumberModal = new bootstrap.Modal(modalEl);
+        numberCheck = SrmsStudentNumberCheck.attach({
+            input: inputEl,
+            saveBtn: saveBtn,
+            getRecordId: function () { return assignTargetRecordId; }
+        });
 
         async function save() {
             if (!assignTargetRecordId) return;
