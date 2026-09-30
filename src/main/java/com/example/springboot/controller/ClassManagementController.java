@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.springboot.dto.registrar.ClassResponse;
+import com.example.springboot.dto.registrar.CourseCodePreview;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
 import com.example.springboot.dto.registrar.CreateSubjectRequest;
@@ -39,6 +40,7 @@ import com.example.springboot.dto.registrar.UpdateSubjectRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.ClassManagementService;
+import com.example.springboot.service.SectionCreationResult;
 import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -261,14 +263,29 @@ public class ClassManagementController {
     public ResponseEntity<SectionResponse> createSection(
             @Valid @RequestBody CreateSectionRequest request,
             HttpServletRequest httpRequest) {
-        SectionResponse result = classManagementService.createSection(request);
+        SectionCreationResult result = classManagementService.createSection(request);
+        SectionResponse section = result.section();
 
         LogContext ctx = getLogContext();
+        String ip = httpRequest.getRemoteAddr();
+        if (result.batchCreated()) {
+            systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                    "Created batch: " + section.batchCode(), ip);
+        }
+        if (result.courseCreated()) {
+            systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
+                    "Created course: " + section.courseName() + " (" + section.courseCode() + ")", ip);
+        }
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Created section: " + result.sectionName() + " (" + result.sectionCode() + ")",
-                httpRequest.getRemoteAddr());
+                "Created section: " + section.sectionName() + " (" + section.sectionCode() + ")", ip);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+        return ResponseEntity.status(HttpStatus.CREATED).body(section);
+    }
+
+    /** Read-only preview behind the Create Section modal's "code will be ..." hint. */
+    @GetMapping("/courses/preview-code")
+    public ResponseEntity<CourseCodePreview> previewCourseCode(@RequestParam String name) {
+        return ResponseEntity.ok(classManagementService.previewCourseCode(name));
     }
 
     @PutMapping("/sections/{sectionCode}")
