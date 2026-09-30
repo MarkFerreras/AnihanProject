@@ -1,30 +1,27 @@
 -- ============================================================
--- schema.sql — Clean Schema + Default Security Questions
--- Updated: 2026-09-30 (removed account, student, and academic lookup seeds;
---            retained the 6 default security questions)
+-- schema.sql — Clean Schema + Seed Accounts + Sample Students
 -- Updated: 2026-09-22 (widened documents.file_type to VARCHAR(100) so
 --            uploaded DOCX/XLSX OpenXML MIME type strings fit — see
 --            migrations/2026-09-22-widen-documents-file-type.sql)
 -- Updated: 2026-09-19 (added security_questions + user_security_answers for
 --            the "forgot password" feature; added users.security_locked /
 --            failed_security_attempts / security_lockout_started_at;
---            users.email is now UNIQUE)
+--            users.email is now UNIQUE; the 3 seed accounts now use
+--            @anihan.local addresses instead of @example.com placeholders)
 -- Updated: 2026-08-29 (dropped subjects.trainer_id; grades overhauled to the
 --            TESDA model: final_percentage / re_exam_percentage / grade_status /
 --            hours_rendered replace midterm_grade / finals_grade / hours_studied)
 -- Updated: 2026-08-27 (added student_records.student_number — the
 --                       registrar-controlled, nullable student number)
 -- Updated: 2026-05-19 (added grades restructure for trainer grading)
--- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id)
+-- Updated: 2026-05-09 (added classes, class_enrollments, subjects.trainer_id,
+--                       seeded qualifications + subjects)
 -- Purpose: Set up a fresh AnihanSRMS database with:
---            * all 21 table definitions
---            * 6 default security questions for account recovery
---          Accounts are inserted manually. Student records, academic lookup
---          tables, and system logs start empty on a fresh installation.
---          Configure courses, batches, sections, qualifications, and subjects
---          before using the corresponding academic workflows.
---          This script does not clear existing data or migrate existing tables.
---          Run once on a fresh database; rerunning duplicates the question seeds.
+--            * 3 test accounts (admin, registrar, trainer)
+--            * lookup data (1 course, 3 batches, 3 sections,
+--              2 qualifications, 6 subjects)
+--            * 5 sample student records for development/testing
+--          No system log data is included.
 -- Tables: 21
 --
 -- Existing databases that predate the 2026-05-05 schema-drift fix
@@ -42,7 +39,7 @@
 --
 -- Existing databases that predate 2026-09-19 should run
 -- src/main/sql/migrations/2026-09-19-security-questions.sql to add the
--- security-questions tables/columns and update legacy seed-account emails.
+-- security-questions tables/columns and fix the 3 seed-account emails.
 --
 -- Existing databases that predate 2026-05-19 should also run
 -- src/main/sql/migrations/2026-05-19-grades-restructure.sql to add
@@ -66,7 +63,9 @@
 -- grade rows first — the overhaul drops the old component-grade columns).
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS AnihanSRMS DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS AnihanSRMS
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_0900_ai_ci;
 
 USE AnihanSRMS;
 
@@ -78,7 +77,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS batches (
     batch_code VARCHAR(20) NOT NULL PRIMARY KEY,
     batch_year YEAR NOT NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: courses
@@ -86,7 +85,7 @@ CREATE TABLE IF NOT EXISTS batches (
 CREATE TABLE IF NOT EXISTS courses (
     course_code VARCHAR(20) NOT NULL PRIMARY KEY,
     course_name VARCHAR(100) NOT NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: qualifications
@@ -95,7 +94,7 @@ CREATE TABLE IF NOT EXISTS qualifications (
     qualification_code INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     qualification_name VARCHAR(255) NOT NULL,
     qualification_description VARCHAR(255) NOT NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: sections
@@ -107,7 +106,7 @@ CREATE TABLE IF NOT EXISTS sections (
     course_code VARCHAR(20) NOT NULL,
     FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
     FOREIGN KEY (course_code) REFERENCES courses (course_code)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: subjects
@@ -126,7 +125,7 @@ CREATE TABLE IF NOT EXISTS subjects (
     competency_type VARCHAR(15) NOT NULL,
     units INT NOT NULL,
     FOREIGN KEY (qualification_code) REFERENCES qualifications (qualification_code)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: users
@@ -151,7 +150,7 @@ CREATE TABLE IF NOT EXISTS users (
     security_lockout_started_at DATETIME NULL,
     UNIQUE KEY uq_username (username),
     UNIQUE KEY uq_email (email)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: security_questions
@@ -163,7 +162,7 @@ CREATE TABLE IF NOT EXISTS security_questions (
     question_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     question_text VARCHAR(255) NOT NULL,
     active TINYINT(1) NOT NULL DEFAULT 1
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: user_security_answers
@@ -187,10 +186,9 @@ CREATE TABLE IF NOT EXISTS user_security_answers (
     FOREIGN KEY (question_id) REFERENCES security_questions (question_id),
     UNIQUE KEY uq_user_slot (user_id, slot),
     UNIQUE KEY uq_user_question (user_id, question_id),
-    CONSTRAINT chk_question_xor_custom CHECK (
-        (question_id IS NULL) <> (custom_question IS NULL)
-    )
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+    CONSTRAINT chk_question_xor_custom
+        CHECK ((question_id IS NULL) <> (custom_question IS NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_records
@@ -240,7 +238,7 @@ CREATE TABLE IF NOT EXISTS student_records (
     FOREIGN KEY (batch_code) REFERENCES batches (batch_code),
     FOREIGN KEY (course_code) REFERENCES courses (course_code),
     FOREIGN KEY (section_code) REFERENCES sections (section_code)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: parents
@@ -259,7 +257,7 @@ CREATE TABLE IF NOT EXISTS parents (
     email VARCHAR(255) NULL,
     address VARCHAR(255) NULL,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: other_guardians
@@ -274,7 +272,7 @@ CREATE TABLE IF NOT EXISTS other_guardians (
     birthdate DATE NULL,
     address VARCHAR(255) NULL,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: documents
@@ -289,7 +287,7 @@ CREATE TABLE IF NOT EXISTS documents (
     content_data LONGBLOB NOT NULL,
     upload_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: grades
@@ -303,21 +301,21 @@ CREATE TABLE IF NOT EXISTS grades (
     grade_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     subject_code VARCHAR(20) NOT NULL,
-    final_grade DECIMAL(5, 2) NULL, -- 1.00-5.00 equivalent, transmuted from final_percentage
-    re_exam_grade DECIMAL(5, 2) NULL, -- 1.00-5.00 equivalent, transmuted from re_exam_percentage
-    grade_status VARCHAR(5) NULL, -- C / FA / INC / D — used INSTEAD of a percentage
-    hours_rendered DECIMAL(5, 2) NULL, -- attendance hours (TESDA); separate from curriculum hours
-    remarks VARCHAR(20) NULL, -- derived token: COMPETENT / NOT_COMPETENT / NULL
+    final_grade DECIMAL(5, 2) NULL,           -- 1.00-5.00 equivalent, transmuted from final_percentage
+    re_exam_grade DECIMAL(5, 2) NULL,         -- 1.00-5.00 equivalent, transmuted from re_exam_percentage
+    grade_status VARCHAR(5) NULL,             -- C / FA / INC / D — used INSTEAD of a percentage
+    hours_rendered DECIMAL(5, 2) NULL,        -- attendance hours (TESDA); separate from curriculum hours
+    remarks VARCHAR(20) NULL,                 -- derived token: COMPETENT / NOT_COMPETENT / NULL
     class_id INT NULL,
-    final_percentage DECIMAL(5, 2) NULL, -- raw % the trainer enters (NULL when grade_status is used)
-    re_exam_percentage DECIMAL(5, 2) NULL, -- raw % for the optional re-exam (only when the final failed)
+    final_percentage DECIMAL(5, 2) NULL,      -- raw % the trainer enters (NULL when grade_status is used)
+    re_exam_percentage DECIMAL(5, 2) NULL,    -- raw % for the optional re-exam (only when the final failed)
     locked TINYINT(1) NOT NULL DEFAULT 0,
     locked_at DATETIME NULL,
     UNIQUE KEY uq_grade_student_class (class_id, student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id),
     CONSTRAINT fk_grades_subject FOREIGN KEY (subject_code) REFERENCES subjects (subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_grades_class FOREIGN KEY (class_id) REFERENCES classes (class_id) ON DELETE SET NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: system_logs (structure only, no data)
@@ -331,7 +329,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
     ip_address VARCHAR(45) NULL,
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_system_logs_timestamp (timestamp DESC)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_education
@@ -348,7 +346,7 @@ CREATE TABLE IF NOT EXISTS student_education (
     ended_year VARCHAR(20) NULL,
     UNIQUE KEY uq_student_education (student_id, level),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_school_years
@@ -365,7 +363,7 @@ CREATE TABLE IF NOT EXISTS student_school_years (
     remarks VARCHAR(255) NULL,
     UNIQUE KEY uq_student_school_year (student_id, row_index),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_ojt
@@ -379,7 +377,7 @@ CREATE TABLE IF NOT EXISTS student_ojt (
     hours_rendered DECIMAL(8, 2) NULL,
     UNIQUE KEY uq_student_ojt (student_id),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_tesda_qualifications
@@ -395,7 +393,7 @@ CREATE TABLE IF NOT EXISTS student_tesda_qualifications (
     result VARCHAR(50) NULL,
     UNIQUE KEY uq_student_tesda_qual (student_id, slot),
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: student_uploads
@@ -412,7 +410,7 @@ CREATE TABLE IF NOT EXISTS student_uploads (
     size_bytes BIGINT NULL,
     uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: classes
@@ -420,21 +418,17 @@ CREATE TABLE IF NOT EXISTS student_uploads (
 -- with an optional trainer assigned to teach the class.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS classes (
-    class_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    class_id     INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     section_code VARCHAR(20) NOT NULL,
     subject_code VARCHAR(20) NOT NULL,
-    trainer_id INT NULL,
-    semester VARCHAR(20) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_class (
-        section_code,
-        subject_code,
-        semester
-    ),
-    FOREIGN KEY (section_code) REFERENCES sections (section_code),
-    CONSTRAINT fk_classes_subject FOREIGN KEY (subject_code) REFERENCES subjects (subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT classes_ibfk_3 FOREIGN KEY (trainer_id) REFERENCES users (user_id) ON DELETE SET NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+    trainer_id   INT NULL,
+    semester     VARCHAR(20) NOT NULL,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_class (section_code, subject_code, semester),
+    FOREIGN KEY (section_code) REFERENCES sections(section_code),
+    CONSTRAINT fk_classes_subject FOREIGN KEY (subject_code) REFERENCES subjects(subject_code) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT classes_ibfk_3 FOREIGN KEY (trainer_id) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- TABLE: class_enrollments
@@ -442,30 +436,121 @@ CREATE TABLE IF NOT EXISTS classes (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS class_enrollments (
     enrollment_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    class_id INT NOT NULL,
-    student_id VARCHAR(20) NOT NULL,
-    enrolled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    class_id      INT NOT NULL,
+    student_id    VARCHAR(20) NOT NULL,
+    enrolled_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_class_student (class_id, student_id),
-    FOREIGN KEY (class_id) REFERENCES classes (class_id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES student_records (student_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+    FOREIGN KEY (class_id)   REFERENCES classes(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES student_records(student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
+-- SEED DATA: 3 Dummy Accounts
+-- Password for ALL accounts: password123
+-- BCrypt hash: $2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6
+-- ============================================================
+INSERT INTO users (username, password, lastname, firstname, middlename, birthdate, age, email, role, enabled, password_changed_at) VALUES
+('admin',     '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Dela Cruz',  'Juan',    'Santos',   '1995-06-15', 30, 'admin@anihan.local',     'ROLE_ADMIN',     1, NULL),
+('registrar', '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Reyes',      'Maria',   'Garcia',   '1990-03-22', 36, 'registrar@anihan.local', 'ROLE_REGISTRAR', 1, NULL),
+('trainer',   '$2a$10$MN4FaQaQ0DaFVFHVHQ8WceI4VPzaXmZqOhcF1fai.Rr7Jbude9kz6', 'Santos',     'Carlos',  'Mendoza',  '1988-11-08', 37, 'trainer@anihan.local',   'ROLE_TRAINER',   1, NULL);
+
+-- ============================================================
 -- SEED DATA: Default Security Questions (fixed wording — do not alter)
 -- ============================================================
-INSERT INTO
-    security_questions (question_text)
-VALUES ('What is your favorite color'),
-    (
-        'What is your favorite vacation place?'
-    ),
-    ('What is your favorite song?'),
-    (
-        'Who is your favorite artist?'
-    ),
-    ('What is your favorite food?'),
-    (
-        'What is the name of your pet?'
-    );
+INSERT INTO security_questions (question_text) VALUES
+('What is your favorite color'),
+('What is your favorite vacation place?'),
+('What is your favorite song?'),
+('Who is your favorite artist?'),
+('What is your favorite food?'),
+('What is the name of your pet?');
+
+-- ============================================================
+-- SEED DATA: Lookup Tables (course, batches, sections)
+-- Required as foreign-key targets for the dummy student records below.
+-- ============================================================
+INSERT INTO courses (course_code, course_name) VALUES
+('CARS', 'Culinary Arts and Restaurant Services');
+
+INSERT INTO batches (batch_code, batch_year) VALUES
+('B2024A', 2024),
+('B2025A', 2025),
+('B2026A', 2026);
+
+INSERT INTO sections (section_code, section, batch_code, course_code) VALUES
+('SEC-A24', 'Section A 2024', 'B2024A', 'CARS'),
+('SEC-A25', 'Section A 2025', 'B2025A', 'CARS'),
+('SEC-A26', 'Section A 2026', 'B2026A', 'CARS');
+
+-- ============================================================
+-- SEED DATA: Qualifications + Subjects
+-- ============================================================
+INSERT INTO qualifications (qualification_name, qualification_description) VALUES
+('Cookery NC II', 'TESDA National Certificate II in Cookery'),
+('Bread and Pastry Production NC II', 'TESDA NC II in Bread and Pastry Production');
+
+INSERT INTO subjects (subject_code, subject_name, qualification_code, competency_type, units) VALUES
+('COOK-101', 'Introduction to Cookery',    (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3),
+('COOK-102', 'Food Safety and Sanitation', (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 3),
+('COOK-103', 'Prepare Hot Meals',          (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 5),
+('COOK-104', 'Prepare Cold Meals',         (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Cookery NC II'),                       'CORE', 4),
+('BPP-101',  'Bread Making Fundamentals',  (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 3),
+('BPP-102',  'Pastry Arts',                (SELECT qualification_code FROM qualifications WHERE qualification_name = 'Bread and Pastry Production NC II'),  'CORE', 4);
+
+-- ============================================================
+-- SEED DATA: 5 Dummy Student Records — All Columns Populated
+-- profile_picture is intentionally an empty BLOB (X'') as a placeholder;
+-- replace with a real image upload once the registrar adds one.
+-- Image assets for the SRMS live at:
+--   src/main/resources/static/images/
+-- ============================================================
+INSERT INTO student_records (
+    student_id, last_name, first_name, middle_name,
+    birthdate, age, sex, civil_status,
+    permanent_address, temporary_address, email, contact_no, religion,
+    baptized, baptism_date, baptism_place,
+    sibling_count, brother_count, sister_count,
+    batch_code, course_code, section_code,
+    profile_picture, enrollment_date, student_status
+) VALUES
+('STU-2024-001', 'Reyes',     'Anna',     'Cruz',
+    '2003-04-12', 22, 'Female', 'Single',
+    '123 Mabini St, Quezon City',  '45 Aurora Blvd, Manila',  'anna.reyes@example.com',     '09171234001', 'Roman Catholic',
+    1, '2003-06-20', 'San Pedro Parish, Manila',
+    2, 1, 1,
+    'B2024A', 'CARS', 'SEC-A24',
+    X'', '2024-06-03', 'Active'),
+
+('STU-2024-002', 'Santos',    'Bea',      'Lim',
+    '2002-09-30', 23, 'Female', 'Single',
+    '88 Roxas Ave, Pasig',         '12 EDSA, Mandaluyong',    'bea.santos@example.com',     '09171234002', 'Iglesia ni Cristo',
+    1, '2003-01-15', 'INC Central Temple, Quezon City',
+    3, 2, 1,
+    'B2024A', 'CARS', 'SEC-A24',
+    X'', '2024-06-03', 'Active'),
+
+('STU-2025-001', 'Cruz',      'Carla',    'Mendoza',
+    '2004-01-18', 22, 'Female', 'Single',
+    '7 Bonifacio St, Makati',      '7 Bonifacio St, Makati',  'carla.cruz@example.com',     '09171234003', 'Christian',
+    1, '2004-05-10', 'Christ Fellowship Church, Makati',
+    1, 0, 1,
+    'B2025A', 'CARS', 'SEC-A25',
+    X'', '2025-06-02', 'Active'),
+
+('STU-2025-002', 'Garcia',    'Diana',    'Reyes',
+    '2003-12-05', 22, 'Female', 'Single',
+    '256 Espana Blvd, Manila',     '256 Espana Blvd, Manila', 'diana.garcia@example.com',   '09171234004', 'Roman Catholic',
+    1, '2004-02-28', 'Sto. Domingo Church, Manila',
+    4, 2, 2,
+    'B2025A', 'CARS', 'SEC-A25',
+    X'', '2025-06-02', 'Active'),
+
+('STU-2026-001', 'Lopez',     'Elise',    'Tan',
+    '2005-07-22', 20, 'Female', 'Single',
+    '19 Katipunan Ave, Quezon City','19 Katipunan Ave, Quezon City','elise.lopez@example.com', '09171234005', 'Roman Catholic',
+    1, '2005-10-14', 'Mary Immaculate Parish, Quezon City',
+    2, 0, 2,
+    'B2026A', 'CARS', 'SEC-A26',
+    X'', '2026-06-01', 'Active');
