@@ -1,5 +1,16 @@
 # Progress - Anihan SRMS
 
+## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Planned
+
+- **Completed:** clarification round (4 questions, all Confirmed) and the implementation plan
+  `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md`.
+- **Remaining:** Tasks 0–8 of that plan (branch, `CourseCodeGenerator`, section create
+  resolve-or-create + audit logs + code preview, student-number availability endpoint + H2
+  uniqueness tests, `SrmsCombobox` + `SrmsStudentNumberCheck`, wiring on 5 pages, verification).
+- **Carried over (still pending):** `superpowers:finishing-a-development-branch` for
+  `feature/manual-batch-code-assignment` and `feature/document-folder-management`.
+- **Testing status:** no code yet; baseline 511 tests, plan target 546.
+
 ## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5 Complete)
 
 - **Completed:** all 5 tasks of `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`

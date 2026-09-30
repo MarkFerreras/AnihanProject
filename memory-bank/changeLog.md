@@ -1,5 +1,14 @@
 # Change Log - Anihan SRMS
 
+## 2026-09-30 - Course Auto-Create / Custom Combobox Plan
+**Branch:** `main` (docs only)
+
+- Added `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md`: an implementation plan for
+  typing a course name to auto-create it, replacing `<datalist>` with a custom combobox, and an inline
+  student-number clash warning.
+- Updated `memory-bank/activeContext.md`, `progress.md`, `changeLog.md`, `decisions.md` (new top entries).
+- Verification: plan self-reviewed against the 4 confirmed requirements; no code or tests changed.
+
 ## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5)
 **Branch:** `feature/manual-batch-code-assignment` (6 commits, not yet merged)
 

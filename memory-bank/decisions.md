@@ -4,6 +4,20 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-09-30 - Courses Are Created by Name; Datalists Replaced by a Custom Combobox (Confirmed, planned)
+
+**Decision:** The registrar creates a course by typing its *name* in the Create Section modal. The
+input resolves in this order: existing course by code → existing course by name (case-insensitive) →
+a new course with a code from `CourseCodeGenerator` (initials of non-stop-words, e.g. `CARS`; single
+word → whole word uppercased; base ≤17 characters; suffix `2`, `3`… on collision). No schema change.
+Auto-create is limited to Create Section; the student edit form still rejects unknown courses.
+Every `<datalist>` is replaced by `js/combobox.js` (`SrmsCombobox`). The student-number availability
+endpoint is advisory only; `PUT …/student-number` and the `uq_student_number` index remain the authority.
+**Alternatives rejected:** typing the code with name = code (codes are meaningless to the registrar);
+separate code + name fields (more friction than asked for); auto-create from the edit form too (the
+user chose to keep a single creation point); keeping datalists (inconsistent browser popups, which the
+user explicitly asked to remove).
+
 ## 2026-09-27 - Manual Batch Code Assignment: Section-Side Invariant Gap Deferred (Blocked/Deferred)
 
 **Decision:** The final whole-feature code review (Opus, run against the complete
