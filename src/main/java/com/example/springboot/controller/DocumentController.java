@@ -178,6 +178,11 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.getDocumentTypes());
     }
 
+    @GetMapping("/labels")
+    public ResponseEntity<List<String>> labels() {
+        return ResponseEntity.ok(documentService.getDocumentLabels());
+    }
+
     @PostMapping
     public ResponseEntity<DocumentSummaryResponse> upload(
             @RequestParam("studentId") String studentId,

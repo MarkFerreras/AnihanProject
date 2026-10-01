@@ -110,6 +110,10 @@ public class DocumentService {
         return DOCUMENT_TYPES;
     }
 
+    public List<String> getDocumentLabels() {
+        return documentRepository.findDistinctDocumentLabels();
+    }
+
     public List<DocumentSummaryResponse> getDocuments(String q, String documentType,
                                                       String batchCode, String sectionCode) {
         return documentRepository.searchSummaries(
@@ -530,6 +534,7 @@ public class DocumentService {
                 d.getFileName(),
                 d.getFileType(),
                 d.getFileSize(),
-                d.getUploadDate());
+                d.getUploadDate(),
+                d.getDocumentLabel());
     }
 }

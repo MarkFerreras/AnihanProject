@@ -551,6 +551,17 @@ class DocumentControllerWebMvcTest {
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void labelsReturnsDistinctLabelsForRegistrar() throws Exception {
+        when(documentService.getDocumentLabels()).thenReturn(List.of("Barangay Clearance", "Medical Certificate"));
+
+        mvc.perform(get("/api/registrar/documents/labels"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("Barangay Clearance"))
+                .andExpect(jsonPath("$[1]").value("Medical Certificate"));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void uploadCreatesDocumentAndLogs() throws Exception {
         when(documentService.upload(eq("SR20260001"), eq(TOR_TYPE), any()))
                 .thenReturn(sampleSummary());

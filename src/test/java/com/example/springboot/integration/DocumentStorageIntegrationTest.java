@@ -463,6 +463,34 @@ class DocumentStorageIntegrationTest {
                 .collect(java.util.stream.Collectors.toSet());
     }
 
+    // -------------------------------------------------------
+    // Custom "Others" document labels (real SQL)
+    // -------------------------------------------------------
+
+    @Test
+    void documentLabelRoundTripsIsSearchableAndListedDistinct() {
+        StudentRecord student = newStudent("SR1", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+        saveLabelledOthers(student, "Medical Certificate", "med.pdf");
+        saveLabelledOthers(student, "Medical Certificate", "med2.pdf");
+        saveLabelledOthers(student, "Barangay Clearance", "brgy.pdf");
+        saveDocument(student, "Others", "plain.pdf");
+
+        var summaries = documentRepository.findSummariesByStudentId("SR1");
+        assertEquals(4, summaries.size());
+        assertEquals(java.util.Set.of("Medical Certificate", "Barangay Clearance"), summaries.stream()
+                .map(com.example.springboot.dto.registrar.DocumentSummaryResponse::documentLabel)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+
+        var found = documentRepository.searchSummaries("barangay", null, null, null);
+        assertEquals(1, found.size());
+        assertEquals("brgy.pdf", found.get(0).fileName());
+
+        assertEquals(List.of("Barangay Clearance", "Medical Certificate"),
+                documentRepository.findDistinctDocumentLabels());
+    }
+
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
                                      Batch batch, Section section) {
         StudentRecord student = new StudentRecord();
@@ -480,6 +508,19 @@ class DocumentStorageIntegrationTest {
         Document document = new Document();
         document.setStudent(student);
         document.setDocumentType(documentType);
+        document.setFileName(fileName);
+        document.setFileType("application/pdf");
+        byte[] content = "pdf-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        document.setFileSize(content.length);
+        document.setContentData(content);
+        documentRepository.save(document);
+    }
+
+    private void saveLabelledOthers(StudentRecord student, String label, String fileName) {
+        Document document = new Document();
+        document.setStudent(student);
+        document.setDocumentType("Others");
+        document.setDocumentLabel(label);
         document.setFileName(fileName);
         document.setFileType("application/pdf");
         byte[] content = "pdf-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
