@@ -1,6 +1,28 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
+## Latest Session (2026-10-01 - R4.2 SO Checklist: Design Spec Written)
+
+- **Checkout:** `main` (documentation only, per the user's instruction: brainstorm, then commit the spec to
+  `main`). No product code changed. **PR #68 is now merged** into `main` as `f6c3afe` (user merged it before
+  this session's spec), so the "not merged" note in the entry below is superseded.
+- **Spec (Confirmed, user-approved decision by decision, devil's-advocate brainstorm):**
+  `docs/superpowers/specs/2026-10-01-so-checklist-design.md` for Jira AGILE-87 "R4.2 SO Checklist"
+  (epic AGILE-44). Key decisions are in `decisions.md` 2026-10-01 "R4.2 SO Checklist".
+- **Scope trimmed (Confirmed):** R4.2 is per-student only. Follow-up cards proposed in spec §12 (SO Waivers &
+  Sign-off, SO Filing Folder, SO Number & Graduation, Archive Import, Form IX per qualification, data fix for
+  the three delayed batches). The user updates Jira themselves; nothing was changed on the board.
+- **Found while designing (Confirmed in code):** `student_records.enrollment_date` is never written anywhere
+  (`setEnrollmentDate` has no callers; the edit field is `disabled readonly`), so generated TOR "Start of
+  Training" / Form IX "Date of Admission" always print blank. R4.2 makes it editable on the edit form.
+- **Housekeeping:** a read-only `git status`/`git fetch` run through the remote device bridge left an empty
+  `.git/index.lock` (the bridge could not unlink it); it was removed after the user granted delete permission.
+  Through that bridge `git status` shows ~325 modified files that are only file-mode/CRLF noise (0 with
+  `-c core.fileMode=false -c core.autocrlf=true`); stage files by name, never `git add -A`, from there.
+- **Next step:** verify the four Registrar assumptions in spec §13 if possible, then write the implementation
+  plan (`docs/superpowers/plans/`) from the spec. Implementation needs a new migration applied to the live DB
+  with the user's approval.
+
+## Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
 
 - **Branch:** `feature/pre-export-missing-documents` (Confirmed; **pushed, PR #68 open into `main`
   (https://github.com/MarkFerreras/AnihanProject/pull/68), not merged**; `main` untouched).

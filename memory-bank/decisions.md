@@ -4,6 +4,35 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-01 - R4.2 SO Checklist (Confirmed, designed)
+
+**Decision** (spec: `docs/superpowers/specs/2026-10-01-so-checklist-design.md`):
+- **Source of truth is TESDA's 12 SO requirements** (Chapter 3), classified as 5 per-student files,
+  3 per-student data items, 4 per-batch items. R4.2 covers the 8 per-student items; batch items are a later
+  card. Rationale: the story is per-student and the card had grown to 4-5 stories' worth of scope.
+- **Separate pure `SoReadinessPolicy`** (SO readiness) beside `RequiredDocumentPolicy` (intake/export
+  completeness), both built from the shared `DocumentService.*_TYPE` constants. States MET / WARNING / UNMET /
+  NOT_DUE; stage from status: Enrolling/Submitted none, Active preview (no verdict), Completed/Graduated final.
+- **New status `Completed`** between Active and Graduated; Graduated means "SO issued". Transitions are
+  restricted only around Completed/Graduated (pure `StudentStatusTransitions`), with two logged escape hatches:
+  Graduated -> Completed (reason) and Active -> Graduated (completion date + reason, for digitized archive
+  records, since the portal is the only way records are created). `RequiredDocumentPolicy` completion documents
+  now apply to Completed and Graduated.
+- **New columns:** `student_records.employment_status` (Employed / Self-employed / Unemployed / Further
+  studies; met = answered, not employed) and `completion_date` (suggested when changing to Completed, cleared on
+  Completed -> Active). `enrollment_date` becomes editable on the edit form (historical records start in the
+  past, so a "today" suggestion was rejected).
+- **TOR rule:** file present + >= 1 enrollment + every enrollment has a locked grade row with
+  `remarks = 'COMPETENT'` (remarks already reflects re-exams; INC/D are NULL); TOR older than the latest
+  `locked_at` is a WARNING, not UNMET. **Form IX:** any one, labelled "at least one" and naming which is on file.
+  **Student Information:** core TOR/Form IX fields; blank middle name is a WARNING; course/batch section-first.
+- **UI:** view-only "SO Checklist" tab in the `registrar.html` details modal; wording "Student requirements",
+  never "Ready to file". Rejected: a manual "Ready to file" checkbox as the primary signal (moved to the later
+  Waivers & Sign-off card as a sign-off on top of the computed checklist).
+- **No new upload document types** for the 12 items (data and batch items would break the checklist); instead a
+  non-blocking whole-word "Did you mean ...?" hint on "Others" labels via a pure `DocumentTypeSuggester`.
+- **SO numbers assumed per student** (to verify with the Registrar); storing them is a later card.
+
 ## 2026-10-01 - Pre-Export Check & "Others" Names: Implementation-Time Decisions (Confirmed, built)
 
 **Decision (as built on `feature/pre-export-missing-documents`; the design decisions below stand unchanged):**
