@@ -315,7 +315,7 @@ class DocumentControllerWebMvcTest {
 
     private DocumentExportService.PreparedExport samplePreparedExport(String zipName) {
         return new DocumentExportService.PreparedExport(zipName,
-                List.of(new DocumentExportService.ExportEntry(1, "a.pdf")));
+                List.of(new DocumentExportService.ExportEntry(1, "a.pdf")), 3, 1);
     }
 
     @Test

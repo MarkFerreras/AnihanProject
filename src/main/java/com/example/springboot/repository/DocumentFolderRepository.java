@@ -37,6 +37,11 @@ public class DocumentFolderRepository {
                             String firstName, String lastName, String sectionCode, String fileName) {
     }
 
+    /** One student-document pair for the pre-export check; document fields are null for a student with none. */
+    public record CheckRow(String studentId, String studentNumber, String firstName, String lastName,
+                           String studentStatus, String sectionCode, Integer documentId, String documentType) {
+    }
+
     private static final String BATCH_SQL = """
             SELECT batch_code, batch_year
             FROM batches
@@ -148,5 +153,53 @@ public class DocumentFolderRepository {
                 rs.getString("last_name"),
                 rs.getString("section_code"),
                 rs.getString("file_name")), args);
+    }
+
+    /**
+     * Starts from student_records (LEFT JOIN documents) so students with zero
+     * documents are still returned. The WHERE clauses mirror the EXPORT_*_SQL
+     * membership exactly, so the check and the ZIP always cover the same students.
+     */
+    private static final String CHECK_ROW_SELECT = """
+            SELECT s.student_id, s.student_number, s.first_name, s.last_name, s.student_status,
+                   s.section_code, d.document_id, d.document_type
+            FROM student_records s
+            LEFT JOIN documents d ON d.student_id = s.student_id
+            """;
+
+    private static final String CHECK_ORDER =
+            " ORDER BY s.last_name ASC, s.first_name ASC, s.student_id ASC, d.document_id ASC";
+
+    private static final String CHECK_STUDENT_SQL = CHECK_ROW_SELECT
+            + " WHERE s.student_id = ?" + CHECK_ORDER;
+
+    private static final String CHECK_SECTION_SQL = CHECK_ROW_SELECT
+            + " WHERE s.section_code = ?" + CHECK_ORDER;
+
+    private static final String CHECK_UNASSIGNED_SQL = CHECK_ROW_SELECT
+            + " WHERE s.section_code IS NULL AND s.batch_code = ?" + CHECK_ORDER;
+
+    private static final String CHECK_BATCH_SQL = CHECK_ROW_SELECT
+            + " LEFT JOIN sections sec ON sec.section_code = s.section_code"
+            + " WHERE sec.batch_code = ? OR (s.section_code IS NULL AND s.batch_code = ?)" + CHECK_ORDER;
+
+    /** One parameterized, BLOB-free query per scope — never a per-student read. */
+    public List<CheckRow> findCheckRows(DocumentExportScope scope, String key) {
+        String sql = switch (scope) {
+            case STUDENT -> CHECK_STUDENT_SQL;
+            case SECTION -> CHECK_SECTION_SQL;
+            case UNASSIGNED -> CHECK_UNASSIGNED_SQL;
+            case BATCH -> CHECK_BATCH_SQL;
+        };
+        Object[] args = scope == DocumentExportScope.BATCH ? new Object[] { key, key } : new Object[] { key };
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new CheckRow(
+                rs.getString("student_id"),
+                rs.getString("student_number"),
+                rs.getString("first_name"),
+                rs.getString("last_name"),
+                rs.getString("student_status"),
+                rs.getString("section_code"),
+                rs.getObject("document_id", Integer.class),
+                rs.getString("document_type")), args);
     }
 }

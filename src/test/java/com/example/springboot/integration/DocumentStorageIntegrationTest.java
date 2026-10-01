@@ -387,6 +387,65 @@ class DocumentStorageIntegrationTest {
         }
     }
 
+    // -------------------------------------------------------
+    // Pre-export missing-documents check (real SQL)
+    // -------------------------------------------------------
+
+    @Test
+    void checkScopesMatchExportMembershipAndIncludeZeroDocumentStudents() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        Batch otherBatch = batchRepository.save(new Batch("B2025A", (short) 2025));
+        Course course = courseRepository.save(new Course("C1", "Culinary Arts and Restaurant Services"));
+        Section section = new Section();
+        section.setSectionCode("S1");
+        section.setSection("Section 1");
+        section.setBatch(batch);
+        section.setCourse(course);
+        sectionRepository.save(section);
+
+        // In S1 although the student's own batch is B2025A — section membership wins, as in export.
+        StudentRecord inSectionMismatched = newStudent("SR1", "Dela Cruz", "Maria", otherBatch, section);
+        // Unassigned, own batch B2026A, and NO documents at all.
+        StudentRecord unassignedSameBatch = newStudent("SR2", "Santos", "Juan", batch, null);
+        StudentRecord unassignedOtherBatch = newStudent("SR3", "Reyes", "Ana", otherBatch, null);
+        studentRecordRepository.saveAll(List.of(inSectionMismatched, unassignedSameBatch, unassignedOtherBatch));
+        saveDocument(inSectionMismatched, "PSA Birth Certificate", "psa.pdf");
+        saveDocument(inSectionMismatched, "Form 137", "f137.pdf");
+        saveDocument(unassignedOtherBatch, "OJT Report", "ojt.pdf");
+
+        assertEquals(java.util.Set.of("SR1"), checkStudentIds(DocumentExportScope.SECTION, "S1"));
+        assertEquals(java.util.Set.of("SR2"), checkStudentIds(DocumentExportScope.UNASSIGNED, "B2026A"));
+        assertEquals(java.util.Set.of("SR1", "SR2"), checkStudentIds(DocumentExportScope.BATCH, "B2026A"));
+        assertEquals(java.util.Set.of("SR3"), checkStudentIds(DocumentExportScope.STUDENT, "SR3"));
+    }
+
+    @Test
+    void checkMissingOnRealDatabaseCountsDocumentsAndFlagsZeroDocumentStudent() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        StudentRecord complete = newStudent("SR1", "Abad", "Ana", batch, null);
+        StudentRecord empty = newStudent("SR2", "Bautista", "Bea", batch, null);
+        studentRecordRepository.saveAll(List.of(complete, empty));
+        saveDocument(complete, "PSA Birth Certificate", "psa.pdf");
+        saveDocument(complete, "Form 137", "f137.pdf");
+        saveDocument(complete, "ID Picture (1x1 / 2x2)", "id.png");
+        saveDocument(complete, "Others", "extra.pdf");
+
+        var result = documentExportService.checkMissing(DocumentExportScope.UNASSIGNED, "B2026A");
+
+        assertEquals(2, result.studentsInScope());
+        assertEquals(1, result.flagged().size());
+        var flagged = result.flagged().get(0);
+        assertEquals("SR2", flagged.studentId());
+        assertEquals(0, flagged.documentCount());
+        assertEquals(List.of("PSA Birth Certificate", "Form 137", "ID Picture (1x1 / 2x2)"), flagged.missing());
+    }
+
+    private java.util.Set<String> checkStudentIds(DocumentExportScope scope, String key) {
+        return documentFolderRepository.findCheckRows(scope, key).stream()
+                .map(DocumentFolderRepository.CheckRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
                                      Batch batch, Section section) {
         StudentRecord student = new StudentRecord();
