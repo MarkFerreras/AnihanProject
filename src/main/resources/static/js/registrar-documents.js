@@ -31,7 +31,8 @@
     // -------------------------------------------------------
     // Upload staging state
     // -------------------------------------------------------
-    let stagedFiles = []; // [{ file, documentType }]
+    let stagedFiles = []; // [{ file, documentType, documentLabel }]
+    let documentLabelChoices = [];
     let uploadLockedStudentId = null;
     let uploadLockedLabel = null;
     let selectedUploadStudentId = null;
@@ -117,7 +118,13 @@
                         return escapeHtml(data.lastName + ', ' + data.firstName);
                     }
                 },
-                { data: 'documentType', render: escapeHtml },
+                {
+                    data: 'documentType',
+                    render: function (type, renderType, row) {
+                        // Display shows "Others — name"; sort/type keep the raw type so ordering stays by type.
+                        return renderType === 'display' ? escapeHtml(displayType(row)) : type;
+                    }
+                },
                 { data: 'fileName', render: escapeHtml },
                 {
                     data: 'fileSize',
@@ -1022,7 +1029,7 @@
             const row = el('div', { class: 'student-doc-row document-actions' });
             row.appendChild(el('span', {
                 class: 'flex-grow-1',
-                text: doc.fileName + ' (' + doc.documentType + ', ' + formatSize(doc.fileSize) + ')'
+                text: doc.fileName + ' (' + displayType(doc) + ', ' + formatSize(doc.fileSize) + ')'
             }));
             const actions = el('div', { class: 'd-flex gap-1' });
             actions.appendChild(buildActionButton('view-document-btn', 'View', {
@@ -1112,6 +1119,7 @@
                 selectedUploadStudentId = null;
             }
             updateUploadSubmitState();
+            loadDocumentLabelChoices();
         });
 
         $('#uploadDocumentModal').on('hidden.bs.modal', function () {
@@ -1125,6 +1133,17 @@
             const match = flatStudents.filter(function (s) { return studentOptionLabel(s) === typed; });
             selectedUploadStudentId = match.length === 1 ? match[0].studentId : null;
             updateUploadSubmitState();
+        });
+    }
+
+    function loadDocumentLabelChoices() {
+        $.ajax({
+            url: '/api/registrar/documents/labels',
+            method: 'GET',
+            success: function (labels) {
+                documentLabelChoices = Array.isArray(labels) ? labels : [];
+                renderStagedFiles();
+            }
         });
     }
 
@@ -1161,7 +1180,7 @@
 
     function addStagedFiles(files) {
         files.forEach(function (file) {
-            stagedFiles.push({ file: file, documentType: 'Others' });
+            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '' });
         });
         renderStagedFiles();
     }
@@ -1193,12 +1212,39 @@
                 if (type === entry.documentType) opt.selected = true;
                 select.appendChild(opt);
             });
-            select.addEventListener('change', function () { entry.documentType = select.value; });
+            select.addEventListener('change', function () {
+                entry.documentType = select.value;
+                if (entry.documentType !== 'Others') entry.documentLabel = '';
+                renderStagedFiles();
+                // The re-render replaced the select; hand focus to its replacement so keyboard use isn't interrupted.
+                const rebuilt = document.getElementById('stagedFilesList').querySelectorAll('select')[index];
+                if (rebuilt) rebuilt.focus();
+            });
             row.appendChild(select);
 
             const removeBtn = el('button', { type: 'button', class: 'btn btn-sm btn-surface-secondary', text: 'Remove' });
             removeBtn.addEventListener('click', function () { removeStagedFile(index); });
             row.appendChild(removeBtn);
+
+            if (entry.documentType === 'Others') {
+                const labelWrap = el('div', { class: 'staged-file-label' });
+                const inputId = 'stagedLabel' + index;
+                labelWrap.appendChild(el('label', {
+                    for: inputId, class: 'visually-hidden', text: 'Document name for ' + entry.file.name
+                }));
+                const input = el('input', {
+                    type: 'text', id: inputId, class: 'form-control form-control-sm', maxlength: '100',
+                    placeholder: 'Specify document name (optional)'
+                });
+                input.value = entry.documentLabel;
+                input.addEventListener('input', function () { entry.documentLabel = input.value; });
+                labelWrap.appendChild(input);
+                row.appendChild(labelWrap);
+                SrmsCombobox.attach(input, {
+                    items: documentLabelChoices.map(function (l) { return { value: l, label: l }; }),
+                    emptyText: 'No saved names yet — type a new one.'
+                });
+            }
 
             container.appendChild(row);
         });
@@ -1234,6 +1280,7 @@
         stagedFiles.forEach(function (entry) {
             formData.append('files', entry.file);
             formData.append('documentTypes', entry.documentType);
+            formData.append('documentLabels', entry.documentType === 'Others' ? entry.documentLabel.trim() : '');
         });
 
         const btn = $('#saveUploadDocumentBtn');
@@ -1377,6 +1424,11 @@
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    /** "Others — Medical Certificate" for a named Others document, else the type. */
+    function displayType(doc) {
+        return doc.documentLabel ? doc.documentType + ' — ' + doc.documentLabel : doc.documentType;
     }
 
     function formatDateTime(value) {
