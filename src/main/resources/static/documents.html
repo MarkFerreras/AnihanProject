@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=3">
+    <link rel="stylesheet" href="css/dashboard.css?v=4">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
@@ -112,18 +112,40 @@
             font-size: 0.8rem;
             margin-top: 0.35rem;
         }
+        .missing-doc-icon {
+            align-items: center;
+            background: var(--bs-danger);
+            border-radius: 50%;
+            color: #fff;
+            display: inline-flex;
+            flex: 0 0 auto;
+            font-size: 0.75rem;
+            font-weight: 700;
+            height: 1.25rem;
+            justify-content: center;
+            width: 1.25rem;
+        }
+        .export-check-row {
+            border-bottom: 1px solid #f1f3f5;
+            padding: 0.6rem 0;
+        }
+        .export-check-row:last-child {
+            border-bottom: none;
+        }
         .staged-file-row {
             align-items: center;
             border: 1px solid #e9ecef;
             border-radius: 6px;
             display: flex;
+            flex-wrap: wrap;
             gap: 0.5rem;
             margin-bottom: 0.4rem;
             padding: 0.4rem 0.5rem;
         }
         .staged-file-row .staged-file-name {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             font-size: 0.85rem;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -132,6 +154,9 @@
             flex: 0 0 auto;
             font-size: 0.8rem;
             width: auto;
+        }
+        .staged-file-row .staged-file-label {
+            flex: 1 0 100%;
         }
         .upload-drop-zone {
             align-items: center;
@@ -381,9 +406,8 @@
                     <div class="alert d-none" id="uploadDocumentAlert" role="alert"></div>
                     <div class="mb-3">
                         <label for="uploadStudentId" class="form-label">Student <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="uploadStudentId" list="studentsDatalist"
+                        <input type="text" class="form-control" id="uploadStudentId"
                                placeholder="Type a student ID or name" autocomplete="off">
-                        <datalist id="studentsDatalist"></datalist>
                         <div class="form-text" id="uploadStudentHelp">Pick the student the documents belong to.</div>
                     </div>
                     <div class="upload-drop-zone" id="uploadDropZone">
@@ -459,6 +483,23 @@
                     <button type="button" class="btn btn-permanent-delete" id="confirmDeleteDocumentBtn" disabled>
                         Permanently Delete
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== PRE-EXPORT MISSING-DOCUMENTS CHECK MODAL ===== -->
+    <div class="modal fade" id="exportCheckModal" tabindex="-1" aria-labelledby="exportCheckModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportCheckModalLabel">Missing documents</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="exportCheckBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal" id="exportCheckCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="exportCheckProceedBtn">Export anyway</button>
                 </div>
             </div>
         </div>
@@ -566,7 +607,8 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-documents.js?v=4"></script>
+    <script src="js/combobox.js?v=2"></script>
+    <script src="js/registrar-documents.js?v=7"></script>
 </body>
 
 </html>

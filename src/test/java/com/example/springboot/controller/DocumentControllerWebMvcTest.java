@@ -4,6 +4,8 @@ import com.example.springboot.config.SecurityConfig;
 import com.example.springboot.dto.registrar.DocumentExportScope;
 import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
+import com.example.springboot.dto.registrar.ExportCheckResponse;
+import com.example.springboot.dto.registrar.FlaggedStudent;
 import com.example.springboot.exception.EmptyDocumentExportException;
 import com.example.springboot.exception.GlobalExceptionHandler;
 import com.example.springboot.model.Document;
@@ -202,7 +204,7 @@ class DocumentControllerWebMvcTest {
         var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
         var f2 = new MockMultipartFile("files", "b.pdf", "application/pdf", "bbb".getBytes(StandardCharsets.UTF_8));
 
-        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any()))
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any()))
                 .thenReturn(List.of(
                         new DocumentSummaryResponse(1, "SR20260001", "Dela Cruz", "Maria",
                                 TOR_TYPE, "a.pdf", "application/pdf", 3, LocalDateTime.now()),
@@ -224,7 +226,7 @@ class DocumentControllerWebMvcTest {
     void uploadBatchReturns400WhenServiceRejectsValidation() throws Exception {
         var f1 = new MockMultipartFile("files", "a.exe", "application/octet-stream", "x".getBytes());
 
-        when(documentService.uploadBatch(any(), any(), any(), any()))
+        when(documentService.uploadBatch(any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Unsupported file type at position 1. Allowed: pdf, docx, xlsx"));
 
         mvc.perform(multipart("/api/registrar/documents/batch")
@@ -263,7 +265,7 @@ class DocumentControllerWebMvcTest {
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void uploadBatchReturns404WhenStudentUnknown() throws Exception {
         var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
-        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any()))
+        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any(), any()))
                 .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
 
         mvc.perform(multipart("/api/registrar/documents/batch")
@@ -309,13 +311,47 @@ class DocumentControllerWebMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchForwardsLabelsWithoutSplittingOnCommas() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any())).thenReturn(List.of());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", "Others")
+                        .param("documentLabels", "Barangay Clearance, 2026")
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).uploadBatch(eq("SR20260001"), eq(List.of("Others")),
+                eq(List.of("Barangay Clearance, 2026")), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchPassesNullLabelsWhenTheParameterIsAbsent() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any())).thenReturn(List.of());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).uploadBatch(eq("SR20260001"), eq(List.of(TOR_TYPE)), isNull(), any(), any());
+    }
+
     // -------------------------------------------------------
     // ZIP exports
     // -------------------------------------------------------
 
     private DocumentExportService.PreparedExport samplePreparedExport(String zipName) {
         return new DocumentExportService.PreparedExport(zipName,
-                List.of(new DocumentExportService.ExportEntry(1, "a.pdf")));
+                List.of(new DocumentExportService.ExportEntry(1, "a.pdf")), 3, 1);
     }
 
     @Test
@@ -457,6 +493,87 @@ class DocumentControllerWebMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // -------------------------------------------------------
+    // Pre-export missing-documents check
+    // -------------------------------------------------------
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportCheckReturnsFlaggedStudentsAndWritesNoAuditRow() throws Exception {
+        when(documentExportService.checkMissing(DocumentExportScope.SECTION, "S1")).thenReturn(
+                new ExportCheckResponse(3, List.of(new FlaggedStudent("SR20260001", null, "Dela Cruz", "Maria",
+                        "Active", "S1", 0, List.of("PSA Birth Certificate", "Form 137", "ID Picture (1x1 / 2x2)")))));
+
+        mvc.perform(get("/api/registrar/documents/export-check/section/S1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentsInScope").value(3))
+                .andExpect(jsonPath("$.flagged[0].studentId").value("SR20260001"))
+                .andExpect(jsonPath("$.flagged[0].documentCount").value(0))
+                .andExpect(jsonPath("$.flagged[0].missing[1]").value("Form 137"));
+        verify(documentExportService).checkMissing(DocumentExportScope.SECTION, "S1");
+
+        // Every other scope word maps to its enum and passes the key through;
+        // the scope word is case-insensitive (upper-case SECTION, key S2).
+        mvc.perform(get("/api/registrar/documents/export-check/student/SR20260001")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.STUDENT, "SR20260001");
+        mvc.perform(get("/api/registrar/documents/export-check/unassigned/B2026A")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.UNASSIGNED, "B2026A");
+        mvc.perform(get("/api/registrar/documents/export-check/batch/B2026A")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.BATCH, "B2026A");
+        mvc.perform(get("/api/registrar/documents/export-check/SECTION/S2")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.SECTION, "S2");
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportCheckReturns400ForUnknownScopeWord() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export-check/classroom/S1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Unknown export scope: classroom"));
+
+        verify(documentExportService, never()).checkMissing(any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportCheckReturns404ForUnknownKey() throws Exception {
+        when(documentExportService.checkMissing(DocumentExportScope.BATCH, "NOPE"))
+                .thenThrow(new java.util.NoSuchElementException("batch not found: NOPE"));
+
+        mvc.perform(get("/api/registrar/documents/export-check/batch/NOPE"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("batch not found: NOPE"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void exportCheckForbiddenForTrainer() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export-check/unassigned/B2026A"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void exportCheckUnauthorizedWhenAnonymous() throws Exception {
+        mvc.perform(get("/api/registrar/documents/export-check/student/SR20260001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void exportAuditRowIncludesTheFlaggedCount() throws Exception {
+        when(documentExportService.prepareExport(DocumentExportScope.BATCH, "B2026A"))
+                .thenReturn(samplePreparedExport("Documents_Batch_B2026A.zip"));
+
+        mvc.perform(get("/api/registrar/documents/export/batch/B2026A"))
+                .andExpect(status().isOk());
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Requested ZIP export (batch B2026A, 1 document(s), 1 of 3 student(s) with missing documents)"),
+                any());
+    }
+
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void typesReturnsList() throws Exception {
@@ -464,6 +581,17 @@ class DocumentControllerWebMvcTest {
         mvc.perform(get("/api/registrar/documents/types"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value(TOR_TYPE));
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void labelsReturnsDistinctLabelsForRegistrar() throws Exception {
+        when(documentService.getDocumentLabels()).thenReturn(List.of("Barangay Clearance", "Medical Certificate"));
+
+        mvc.perform(get("/api/registrar/documents/labels"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("Barangay Clearance"))
+                .andExpect(jsonPath("$[1]").value("Medical Certificate"));
     }
 
     @Test

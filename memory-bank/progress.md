@@ -1,5 +1,96 @@
 # Progress - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified
+
+- **Completed (branch `feature/pre-export-missing-documents`, 13 code commits `765a4f8`..`bcd6052`):**
+  `RequiredDocumentPolicy`; the BLOB-free `student_records LEFT JOIN documents` check query and
+  `DocumentExportService.checkMissing`; `GET /api/registrar/documents/export-check/{scope}/{key}` (read-only, no
+  audit row); the ZIP audit row now reads `... N document(s), X of Y student(s) with missing documents)`;
+  `documents.document_label` (migration + `schema.sql` + `AnihanSRMS.sql` + H2 test schema + entity + summary DTO
+  + search + `GET /api/registrar/documents/labels`); label validation on `POST .../batch`
+  (`documentLabels`, comma-safe via `getParameterValues`); the pre-export dialog; the Others name field and
+  "Others — name" display. Reviewed per task (spec + quality) and once as a whole branch.
+- **Full suite:** 546 -> 578 tests, 0 failures, 0 errors. **Live check:** passed (see `testing.md`).
+- **Migration applied to the live DB with the user's approval** (see `activeContext.md`); `schema.sql` already
+  matched the live tables/columns, so no further `schema.sql` change was needed.
+- **Remaining:** review and merge PR #68 (branch pushed; the user chose "push and create a PR"). The two
+  leftover live-DB routines (`column_exists`, `AddColumnIfNotExists`) are deliberately left alone (Confirmed).
+- **Deferred / technical debt** (review Minor findings deliberately not fixed in this branch):
+  - (a) `loadDocumentLabelChoices` re-renders every staged row when `/labels` returns; a field being typed in
+    can lose focus (text is kept). Fix: keep the `SrmsCombobox` handles and call `setItems`.
+  - (b) Label hygiene is ASCII-only: `LABEL_CONTROL_CHARS` allows C1 controls, U+2028/2029, zero-width and
+    bidi-override characters; internal whitespace is not collapsed; case-only duplicates collapse in MySQL
+    `DISTINCT` (case-insensitive collation) but not on H2; a "equals a known type" look-alike (double space,
+    en dash) is accepted — fail-safe, since "Others" never satisfies a requirement.
+  - (c) `/labels` is unbounded and `documents.document_label` is not indexed (`DISTINCT` scans the table);
+    negligible at this scale. `ADD COLUMN ... AFTER` is INSTANT only on MySQL 8.0.29+ (live is 8.0.45).
+  - (d) `DocumentSummaryResponse` carries a 9-arg constructor used only by tests; `RequiredDocumentPolicy`
+    takes its type constants from the Spring `DocumentService` (a small constants holder would be cleaner);
+    `DocumentFolderRepository`'s class Javadoc still says "three flat projections".
+  - (e) The check's four `WHERE` clauses duplicate the `EXPORT_*_SQL` text; parity is pinned by
+    `DocumentStorageIntegrationTest.assertCheckMatchesExport`, not by shared constants.
+  - (f) The audit "X of Y" counts zero-document students in scope who are not in the ZIP (by design).
+  - (g) Dialog a11y polish: "Checking…" is not announced to screen readers; the hidden "Missing documents:"
+    text is redundant; the summary is not `aria-describedby`; Retry replaces the body and drops focus; Cancel
+    could read "Close" in the 401/404 states; `renderExportCheckResult` could extract a row builder.
+  - (h) Error wording: a label equal to "Others" or to "ID Picture (1x1 / 2x2)" is rejected with "pick it from
+    the type list", which reads oddly for those two.
+  - (i) Documents-table search placeholder still reads "Student ID or name" although the backend search also
+    matches custom names.
+  - (j) Task 1 minor: no partial-set policy test (only none/all per tier); `missing()` returns a mutable list.
+
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written
+
+- **Completed:** brainstorming + approved design spec
+  `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` (on `main`, docs only).
+- **Completed:** implementation plan `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md`
+  (9 tasks, 32 new tests planned → 578 total).
+- **Remaining:** execute the plan on `feature/pre-export-missing-documents`, including the manual migration
+  `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql` (apply only with user approval).
+- **No code or schema changed in this session.** Test baseline unchanged (546).
+
+## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Implemented & Live-Verified
+
+- **Completed (branch `feature/course-auto-create-combobox`, commits `e459bef`, `2067870`, `7533ce9`,
+  `efa071b`, `c81f43b`, `1233764`, `073562d`):** `CourseCodeGenerator`; `createSection` resolves-or-creates
+  the batch and course (input matching: code, then name ignoring case, then create) and the controller
+  audit-logs each auto-creation; `GET /api/registrar/courses/preview-code`; student-number availability
+  endpoint + real-H2 uniqueness regression tests; shared `js/combobox.js` (`SrmsCombobox`) replacing all 5
+  `<datalist>`s; `js/student-number-check.js` inline clash warning on both Assign Student Number modals.
+  No schema change.
+- **Full suite:** 546 tests, 0 failures, 0 errors, 0 skipped (baseline 511).
+- **Live check:** passed for all 6 items (see `testing.md`).
+- **Remaining:** plan Task 8 Steps 4-5 (independent Java and frontend reviews were run during
+  implementation; final `superpowers:finishing-a-development-branch` decision is the user's). Still
+  pending from earlier: finishing `feature/document-folder-management`.
+- **Deferred / technical debt** (code-review Minor findings deliberately not fixed in this branch):
+  - (a) `createSection` / preview tests do not cover swapped `courseCreated`/`batchCreated` flags
+    `(true,false)` / `(false,true)`, generator 999-suffix exhaustion, or code-vs-name precedence.
+  - (b) `findFirstByCourseNameIgnoreCase` has no ORDER BY (`course_name` is not unique).
+  - (c) Generator fallback for a name with one significant word plus stop words uses the whole string.
+  - (d) `previewCourseCode` throws 400 on a blank name (frontend skips blank) and lacks a readOnly transaction.
+  - (e) The GET availability endpoint does not validate the number's pattern/length like the PUT does.
+  - (f) Combobox minor polish: empty-state `<li>` has no ARIA role; mousedown on the menu scrollbar can
+    close it; `scrollIntoView` can scroll the page; ArrowDown on a readonly input renders a hidden menu;
+    stale `activeIndex` after `setItems`; silent 50-result cap; the course preview has no error handler;
+    `loadFilterDropdowns()` resets the eligible-student filters after creating a section. Live-check
+    additions: `combobox.js` opens on a synthetic ArrowDown even when the input is `disabled` (not
+    reachable by a real user, since disabled inputs take no focus/keys); and a field with a pre-filled
+    value opens filtered to that value, so alternatives are only visible after clearing the text.
+  - (g) The H2 uniqueness test proves the entity mapping, not the `schema.sql` DDL.
+  - (h) `ClassManagementService` is ~650 lines (candidate to extract a `CourseService` later).
+
+## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Planned
+
+- **Completed:** clarification round (4 questions, all Confirmed) and the implementation plan
+  `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md`.
+- **Remaining:** Tasks 0–8 of that plan (branch, `CourseCodeGenerator`, section create
+  resolve-or-create + audit logs + code preview, student-number availability endpoint + H2
+  uniqueness tests, `SrmsCombobox` + `SrmsStudentNumberCheck`, wiring on 5 pages, verification).
+- **Carried over (still pending):** `superpowers:finishing-a-development-branch` for
+  `feature/manual-batch-code-assignment` and `feature/document-folder-management`.
+- **Testing status:** no code yet; baseline 511 tests, plan target 546.
+
 ## 2026-09-27 - Manual Batch Code Assignment Implementation & Verification (Tasks 1-5 Complete)
 
 - **Completed:** all 5 tasks of `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`

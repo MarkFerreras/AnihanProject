@@ -942,3 +942,36 @@ body.dashboard-page {
     height: 16px;
     width: 16px;
 }
+
+/* ===== SrmsCombobox (js/combobox.js) — replaces native <datalist> popups ===== */
+.srms-combobox {
+    position: relative;
+}
+
+.srms-combobox-menu {
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 16rem;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.srms-combobox-option {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+    white-space: normal;
+}
+
+.srms-combobox-hint {
+    flex-shrink: 0;
+    color: var(--bs-secondary-color);
+    font-size: 0.8125rem;
+}
+
+.srms-combobox-option.active .srms-combobox-hint {
+    color: inherit;
+    opacity: 0.85;
+}

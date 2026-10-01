@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/datatables.min.css">
     <link rel="stylesheet" href="css/login.css">
-    <link rel="stylesheet" href="css/dashboard.css?v=3">
+    <link rel="stylesheet" href="css/dashboard.css?v=4">
     <style>
         body { display: flex; flex-direction: column; min-height: 100vh; background-color: var(--color-off-white); }
         main { flex: 1; }
@@ -149,23 +149,24 @@
                     <div class="alert d-none" id="createSectionAlert" role="alert"></div>
                     <div class="mb-3">
                         <label for="sectionCodeInput" class="form-label">Section Code *</label>
-                        <input type="text" class="form-control" id="sectionCodeInput" placeholder="e.g. SEC-B26" required>
+                        <input type="text" class="form-control" id="sectionCodeInput" maxlength="20" placeholder="e.g. SEC-B26" required>
                     </div>
                     <div class="mb-3">
                         <label for="sectionNameInput" class="form-label">Section Name *</label>
-                        <input type="text" class="form-control" id="sectionNameInput" placeholder="e.g. Section B 2026" required>
+                        <input type="text" class="form-control" id="sectionNameInput" maxlength="25" placeholder="e.g. Section B 2026" required>
                     </div>
                     <div class="mb-3">
-                        <label for="sectionBatchSelect" class="form-label">Batch *</label>
-                        <select class="form-select" id="sectionBatchSelect" required>
-                            <option value="">— Select Batch —</option>
-                        </select>
+                        <label for="sectionBatchInput" class="form-label">Batch *</label>
+                        <input type="text" class="form-control" id="sectionBatchInput" maxlength="20"
+                               autocomplete="off" spellcheck="false" required
+                               placeholder="Type or pick a batch code (e.g. B2026A)">
+                        <div class="form-text">Typing a batch code that doesn't exist yet creates that batch.</div>
                     </div>
                     <div class="mb-3">
-                        <label for="sectionCourseSelect" class="form-label">Course *</label>
-                        <select class="form-select" id="sectionCourseSelect" required>
-                            <option value="">— Select Course —</option>
-                        </select>
+                        <label for="sectionCourseInput" class="form-label">Course *</label>
+                        <input type="text" class="form-control" id="sectionCourseInput" maxlength="100"
+                               autocomplete="off" required placeholder="Type or pick a course name">
+                        <div class="form-text" id="sectionCourseHelp">Typing a course name that doesn't exist yet creates that course.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -415,7 +416,8 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/datatables.min.js"></script>
     <script src="js/auth-guard.js"></script>
-    <script src="js/registrar-sections.js?v=3"></script>
+    <script src="js/combobox.js?v=2"></script>
+    <script src="js/registrar-sections.js?v=4"></script>
 </body>
 
 </html>

@@ -1,5 +1,107 @@
 # Testing - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & "Others" Names: Full Regression + Live Verification
+
+**Full suite:** `./gradlew test --rerun-tasks` on `feature/pre-export-missing-documents` at `bcd6052` -> BUILD
+SUCCESSFUL; summed from `build/test-results/test/*.xml` (54 report files): **578 tests, 0 failures, 0 errors.**
+Baseline 546 + 32 new (8 `RequiredDocumentPolicyTest`, 5 check/service + 2 real-H2 check, 6 export-check
+controller, 2 label round-trip/`/labels`, 7 service label validation + 2 controller label forwarding) = 578,
+exactly as planned. Extra assertions added during review (parity of check vs export manifest on real H2, every
+scope word, blank-label and 100-char boundary) went into existing tests, so the count did not change.
+
+**Live check (Confirmed)** — real `AnihanSRMS` MySQL 8.0.45 (migration applied first), `bootRun` on port 8080,
+Playwright, logged in as `registrar` (admin used to read `/logs.html`). Data used: existing developer test
+students only; documents were uploaded for SR20260003 (`ZZ_TEST_*`) and removed afterwards.
+1. **Complete non-Graduated student -> Export Student - PASS.** (SR20260003 given PSA, Form 137 and an ID picture.)
+   `export-check/student/SR20260003` returned `{"studentsInScope":1,"flagged":[]}`; no dialog; the ZIP request fired.
+2. **Section with gaps -> Export Section - PASS.** TEST-T1: "5 of 5 students ... are missing required documents";
+   exactly the 5 students the DB shows, "Missing: PSA Birth Certificate, Form 137, ID Picture (1x1 / 2x2)", the
+   "No documents — won't be included in the ZIP." note on the 4 zero-document students and none on Ferreras (TOR
+   only); red "!" icons; focus on Cancel when shown. Cancel/Esc/X closed it, cleared the body and returned focus
+   to the Export button.
+3. **Export anyway - PASS.** `GET /api/registrar/documents/export/section/TEST-T1` -> 200 and an audit row.
+   (Playwright's `download` event is not observable in this harness; verified via the network request + audit row.)
+4. **Export Entire Batch - PASS.** B2026A: "11 of 11 students" = 9 section students + 2 unassigned, matching the DB.
+5. **Audit rows - PASS.** `/logs.html` as admin lists `Requested ZIP export (section TEST-T1, 1 document(s), 5 of 5
+   student(s) with missing documents)` and `(student SR20260003, 6 document(s), 0 of 1 student(s) ...)`. Opening
+   the dialog and cancelling added no `system_logs` row (164 rows / max id 361 before and after).
+6. **Name an Others file - PASS.** `ZZ_TEST Alpha` shows as `Others — ZZ_TEST Alpha` in the table and the folder
+   view; unnamed Others and other types show their plain type.
+7. **Suggestions / type switch - PASS.** The name field's combobox listed the saved `ZZ_TEST Alpha` and picking it
+   filled the field; switching a row to Form 137 removed the field.
+8. **Mixed batch alignment (real servlet multipart) - PASS.** One upload of [Others+"ZZ_TEST Alpha", Form 137,
+   Others unnamed] stored exactly Others/"ZZ_TEST Alpha", Form 137/NULL, Others/NULL (read back from the DB). The
+   upload audit row is `Uploaded 3 document(s) for student SR20260003` (no label in the log).
+9. **Filter / search - PASS.** Type filter "Others" listed the named and unnamed documents; search `alpha` found
+   only the named one (label search).
+10. **Reserved name - PASS.** Naming a file `psa birth certificate` -> HTTP 400 `'psa birth certificate' is a
+    document type — pick it from the type list instead of using Others (file 2).`, shown in the dialog (which
+    stayed open); the DB confirmed nothing from that batch was saved (all-or-nothing).
+11. **Dialog edge cases - PASS.** (b) delayed check + switching folder -> no dialog, no download; (c) forced 500 ->
+    "Couldn't check documents" with Retry and "Export without checking" (starts the export; audit row written);
+    Retry with the real endpoint re-rendered the list in the open dialog; Retry -> Cancel while a zero-flag
+    response lands during the fade-out -> **no download** (positive control without Cancel does download); (d) forced
+    401 -> session-expired notice, no proceed button; (e) forced 404 -> "This item is no longer available —
+    refresh to continue.", no proceed button.
+12. **Console - PASS.** No JS exceptions. Errors seen were all explained: Grammarly extension noise, the
+    deliberate 500/400 test responses, the expected 404 for a missing ID picture, and a 401 from clearing cookies.
+13. **Long staged file name - PASS.** A 70+ character name is ellipsised with the type select and Remove on the
+    same line and only the name field wrapping below (screenshot `.playwright-mcp/live-check-staged-rows.png`,
+    git-ignored).
+
+**Harness notes (not app defects):** the browser window was often reported `visibilityState: "hidden"` so
+animation frames stalled and plain clicks timed out on "stable" — forced clicks were used, and the dialog focus
+checks were re-run on a visible window; `DOM.setFileInputFiles` is not permitted, so files were attached by
+building `File` objects in the page and dispatching `change` (the app's staging code and real multipart upload
+ran unchanged, the native file picker itself was not exercised); the ID picture controls on
+`student-records.html` are locked until "Edit Section" is pressed (existing behaviour). A first live-check subagent
+stalled (watchdog) before creating any data and left the app running; it was stopped afterwards.
+
+**Cleanup:** documents 13-18 (SR20260003) deleted via the app's own endpoints (204 each); only the pre-existing
+document id 7 remains; app stopped, port 8080 free; append-only `system_logs` rows from the run remain.
+
+**Unverified:** the native OS file-picker path (see harness notes); behaviour of a Graduated student's extra
+requirements is covered by unit tests only (no Graduated student exists in the dev data).
+
+## 2026-09-30 - Course Auto-Create / Combobox / Student-Number Guard: Full Regression + Live Verification
+
+**Full suite:** `./gradlew test` on `feature/course-auto-create-combobox` at `073562d` -> BUILD
+SUCCESSFUL; summed from `build/test-results/test/*.xml` (53 report files): **546 tests, 0 failures,
+0 errors, 0 skipped.** Baseline 511 + 35 new (10 generator, 9 section-create service, 6 course
+controller, 4 service + 2 controller student-number, 4 H2) = 546, exactly as planned.
+
+**Live check (Confirmed)** - real `AnihanSRMS` MySQL DB, `./gradlew bootRun` on port 8080, Playwright,
+logged in as `registrar` (admin used read-only afterwards to read logs). Server stopped afterwards; port 8080 free.
+1. **registrar.html Assign Batch - PASS.** Focus opens the styled list (no native popup, zero
+   `<datalist>` in DOM); typing `B2099` filtered to `B2099Z`; ArrowDown+Enter picked it and the modal
+   stayed open with no PUT fired (the `073562d` fix); Esc closed the list only; typing `BTEST1` showed the
+   "No existing batch matches" hint, Enter saved, reopening the modal on another student listed `BTEST1`
+   without a page reload. (A first attempt on a section-enrolled student correctly returned the existing
+   400 "Cannot change or clear batch while student is enrolled in section" - unrelated to this feature.)
+2. **sections.html Create Section - PASS.** Batch and Course use the custom list. Typing the existing
+   name `Bread and Pastry Production` showed "Existing course - code BPRO." (that course already existed
+   with code BPRO, so the plan's "BPP" example did not apply); typing `Test Bread and Pastry Practice`
+   showed "New course - it will be created with code TBPP."; new batch `BTEST2`; Create succeeded; the new
+   course appeared in the eligible-student Course filter (and BTEST2 in the Batch filter); `system_logs`
+   contains `Created course: Test Bread and Pastry Practice (TBPP)`, `Created batch: BTEST2`,
+   `Created section: Section Test (SEC-TEST)`.
+3. **Assign Student Number (registrar.html and student-numbers.html) - PASS.** Typing `2026-001` (held by
+   another student) showed the red "already assigned to <name>" message and disabled Save; Enter while
+   disabled fired no PUT; editing the text (`...9`) re-enabled Save; after clearing the holder's number,
+   retyping the same number cleared the warning and saved. Original numbers restored.
+4. **student-records.html edit form - PASS.** Sex, Civil Status, Course, Section use the custom list; while
+   a section is locked the inputs are `disabled` (not clickable) and the list cannot be opened by a user.
+   Caveat: a synthetic (script-dispatched) ArrowDown does open the menu on a disabled input; unreachable
+   by a real user (recorded as debt (f) in `progress.md`).
+5. **documents.html Upload - PASS.** Student picker uses the custom list (12 students); picking one plus a
+   staged file enabled Upload (file staged via a script-injected `File`, because the Playwright file chooser
+   was blocked; nothing was uploaded); the locked explorer entry ("Upload for this Student") shows the name
+   read-only and no list, even on ArrowDown.
+6. **Console - PASS.** No errors attributable to this feature on registrar, sections, student-numbers,
+   student-records, documents. Noise seen: `favicon.ico` 404, `404 /api/registrar/documents/id-picture/SR20260017`
+   (that student has no ID picture), the expected 400 above, and browser-extension "Receiving end does not exist".
+- **Unverified:** the Upload POST itself, and the student edit form Save, were not exercised.
+
 ## 2026-09-27 - Manual Batch Code Assignment: Full Regression + Live Verification (Task 5)
 
 **Full suite:** `./gradlew.bat test --rerun --console=plain` → **BUILD SUCCESSFUL — 511 tests,

@@ -4,6 +4,7 @@
     let detailsModal = null;
     let deleteConfirmModal = null;
     let assignNumberModal = null;
+    let numberCheck = null;
     let assignBatchModal = null;
     let editStatusModal = null;
     let currentRecordId = null;
@@ -341,6 +342,7 @@
         if (inputEl) inputEl.value = studentNumber || '';
         hideAlert('assignStudentNumberAlert');
 
+        if (numberCheck) numberCheck.reset();
         assignNumberModal.show();
     }
 
@@ -352,6 +354,11 @@
 
         if (!modalEl || !saveBtn || !inputEl) return;
         assignNumberModal = new bootstrap.Modal(modalEl);
+        numberCheck = SrmsStudentNumberCheck.attach({
+            input: inputEl,
+            saveBtn: saveBtn,
+            getRecordId: function () { return assignTargetRecordId; }
+        });
 
         function showAssignAlert(message, type) {
             if (!alertEl) return;
@@ -362,7 +369,9 @@
 
         async function save() {
             if (!assignTargetRecordId) return;
+            if (saveBtn.disabled) return; // Enter must not bypass a disabled Save (clash warning or save in flight)
 
+            saveBtn.dataset.busy = '1';
             saveBtn.disabled = true;
             const originalLabel = saveBtn.textContent;
             saveBtn.textContent = 'Saving...';
@@ -406,7 +415,8 @@
             } catch (err) {
                 showAssignAlert('Network error. Could not save the student number.', 'danger');
             } finally {
-                saveBtn.disabled = false;
+                delete saveBtn.dataset.busy;
+                saveBtn.disabled = inputEl.classList.contains('is-invalid');
                 saveBtn.textContent = originalLabel;
             }
         }
@@ -427,6 +437,7 @@
     }
 
     let batchLookupLoaded = false;
+    let batchCombobox = null;
 
     function openAssignBatchModal(recordId, studentName, batchCode) {
         if (!assignBatchModal) return;
@@ -448,21 +459,14 @@
     async function loadBatchLookupOptions() {
         try {
             const response = await fetch('/api/lookup/batches', { credentials: 'same-origin' });
-            if (!response.ok) return;
+            if (!response.ok || !batchCombobox) return;
             const items = await response.json();
-            const datalist = document.getElementById('batchLookupList');
-            if (!datalist) return;
-            datalist.innerHTML = '';
-            items.forEach(function (item) {
-                const opt = document.createElement('option');
-                opt.value = item.code;
-                opt.label = item.code + ' — ' + item.name;
-                opt.textContent = item.code + ' — ' + item.name;
-                datalist.appendChild(opt);
-            });
+            batchCombobox.setItems(items.map(function (item) {
+                return { value: item.code, label: item.code, hint: item.name };
+            }));
             batchLookupLoaded = true;
         } catch (error) {
-            // Datalist stays empty; registrar can still type a free-text code.
+            // List stays empty; registrar can still type a free-text code.
         }
     }
 
@@ -474,6 +478,9 @@
 
         if (!modalEl || !saveBtn || !inputEl) return;
         assignBatchModal = new bootstrap.Modal(modalEl);
+        batchCombobox = SrmsCombobox.attach(inputEl, {
+            emptyText: 'No existing batch matches — saving will create it.'
+        });
 
         function showBatchAlert(message, type) {
             if (!alertEl) return;
@@ -512,6 +519,7 @@
                 }
 
                 const saved = await res.json();
+                batchLookupLoaded = false;
                 showBatchAlert(
                     saved.batchCode
                         ? 'Batch saved as ' + saved.batchCode + '.'
@@ -532,6 +540,7 @@
 
         saveBtn.addEventListener('click', save);
         inputEl.addEventListener('keydown', function (e) {
+            if (e.defaultPrevented) return; // combobox already consumed this Enter to pick an option
             if (e.key === 'Enter') {
                 e.preventDefault();
                 save();

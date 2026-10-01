@@ -1,10 +1,12 @@
 package com.example.springboot.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.springboot.dto.registrar.ClassResponse;
+import com.example.springboot.dto.registrar.CourseCodePreview;
 import com.example.springboot.dto.registrar.CreateClassRequest;
 import com.example.springboot.dto.registrar.UpdateClassTrainerRequest;
 import com.example.springboot.dto.registrar.CreateSectionRequest;
@@ -404,18 +407,26 @@ public class ClassManagementService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Creates a section. The batch code and course are free text: an unknown batch is created
+     * with the current calendar year (same rule as RegistrarService.assignBatch), and an
+     * unknown course is created with a code derived from its name (CourseCodeGenerator).
+     */
     @Transactional
-    public SectionResponse createSection(CreateSectionRequest request) {
-        // Check uniqueness
+    public SectionCreationResult createSection(CreateSectionRequest request) {
         if (sectionRepository.existsById(request.sectionCode())) {
             throw new IllegalArgumentException("Section code already exists: " + request.sectionCode());
         }
 
-        Batch batch = batchRepository.findById(request.batchCode())
-                .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + request.batchCode()));
+        String batchCode = request.batchCode().trim();
+        Optional<Batch> existingBatch = batchRepository.findById(batchCode);
+        Batch batch = existingBatch.orElseGet(() ->
+                batchRepository.save(new Batch(batchCode, (short) LocalDate.now().getYear())));
 
-        Course course = courseRepository.findById(request.courseCode())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found: " + request.courseCode()));
+        String courseInput = request.course().trim();
+        Optional<Course> existingCourse = findCourse(courseInput);
+        Course course = existingCourse.orElseGet(() -> courseRepository.save(new Course(
+                CourseCodeGenerator.uniqueCode(courseInput, courseRepository::existsById), courseInput)));
 
         Section section = new Section();
         section.setSectionCode(request.sectionCode());
@@ -424,7 +435,26 @@ public class ClassManagementService {
         section.setCourse(course);
 
         sectionRepository.save(section);
-        return SectionResponse.from(section);
+        return new SectionCreationResult(SectionResponse.from(section),
+                existingCourse.isEmpty(), existingBatch.isEmpty());
+    }
+
+    /** Read-only: the code a typed course name would resolve to, shown before saving. */
+    public CourseCodePreview previewCourseCode(String courseName) {
+        String name = courseName == null ? "" : courseName.trim();
+        return findCourse(name)
+                .map(c -> new CourseCodePreview(c.getCourseCode(), true))
+                .orElseGet(() -> new CourseCodePreview(
+                        CourseCodeGenerator.uniqueCode(name, courseRepository::existsById), false));
+    }
+
+    /** A typed course matches an existing course by code first, then by name (case-insensitive). */
+    private Optional<Course> findCourse(String input) {
+        if (input.isEmpty()) {
+            return Optional.empty();
+        }
+        return courseRepository.findById(input)
+                .or(() -> courseRepository.findFirstByCourseNameIgnoreCase(input));
     }
 
     @Transactional

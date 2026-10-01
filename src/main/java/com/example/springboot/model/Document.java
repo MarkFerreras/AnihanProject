@@ -28,6 +28,10 @@ public class Document {
     @Column(name = "document_type", nullable = false)
     private String documentType;
 
+    /** Optional custom name; only ever set when documentType is "Others". */
+    @Column(name = "document_label", length = 100)
+    private String documentLabel;
+
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
@@ -71,6 +75,14 @@ public class Document {
 
     public void setDocumentType(String documentType) {
         this.documentType = documentType;
+    }
+
+    public String getDocumentLabel() {
+        return documentLabel;
+    }
+
+    public void setDocumentLabel(String documentLabel) {
+        this.documentLabel = documentLabel;
     }
 
     public String getFileName() {

@@ -387,6 +387,110 @@ class DocumentStorageIntegrationTest {
         }
     }
 
+    // -------------------------------------------------------
+    // Pre-export missing-documents check (real SQL)
+    // -------------------------------------------------------
+
+    @Test
+    void checkScopesMatchExportMembershipAndIncludeZeroDocumentStudents() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        Batch otherBatch = batchRepository.save(new Batch("B2025A", (short) 2025));
+        Course course = courseRepository.save(new Course("C1", "Culinary Arts and Restaurant Services"));
+        Section section = new Section();
+        section.setSectionCode("S1");
+        section.setSection("Section 1");
+        section.setBatch(batch);
+        section.setCourse(course);
+        sectionRepository.save(section);
+
+        // In S1 although the student's own batch is B2025A — section membership wins, as in export.
+        StudentRecord inSectionMismatched = newStudent("SR1", "Dela Cruz", "Maria", otherBatch, section);
+        // Unassigned, own batch B2026A, and NO documents at all.
+        StudentRecord unassignedSameBatch = newStudent("SR2", "Santos", "Juan", batch, null);
+        StudentRecord unassignedOtherBatch = newStudent("SR3", "Reyes", "Ana", otherBatch, null);
+        studentRecordRepository.saveAll(List.of(inSectionMismatched, unassignedSameBatch, unassignedOtherBatch));
+        saveDocument(inSectionMismatched, "PSA Birth Certificate", "psa.pdf");
+        saveDocument(inSectionMismatched, "Form 137", "f137.pdf");
+        saveDocument(unassignedOtherBatch, "OJT Report", "ojt.pdf");
+
+        assertEquals(java.util.Set.of("SR1"), checkStudentIds(DocumentExportScope.SECTION, "S1"));
+        assertEquals(java.util.Set.of("SR2"), checkStudentIds(DocumentExportScope.UNASSIGNED, "B2026A"));
+        assertEquals(java.util.Set.of("SR1", "SR2"), checkStudentIds(DocumentExportScope.BATCH, "B2026A"));
+        assertEquals(java.util.Set.of("SR3"), checkStudentIds(DocumentExportScope.STUDENT, "SR3"));
+
+        // Parity: the check covers exactly the students the ZIP covers (those with >= 1 document).
+        assertCheckMatchesExport(DocumentExportScope.SECTION, "S1");
+        assertCheckMatchesExport(DocumentExportScope.UNASSIGNED, "B2026A");
+        assertCheckMatchesExport(DocumentExportScope.BATCH, "B2026A");
+        assertCheckMatchesExport(DocumentExportScope.STUDENT, "SR3");
+    }
+
+    private void assertCheckMatchesExport(DocumentExportScope scope, String key) {
+        java.util.Set<String> exported = documentFolderRepository.findExportRows(scope, key).stream()
+                .map(DocumentFolderRepository.ExportRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> checkedWithDocuments = documentFolderRepository.findCheckRows(scope, key).stream()
+                .filter(row -> row.documentId() != null)
+                .map(DocumentFolderRepository.CheckRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(exported, checkedWithDocuments, "check/export membership differs for " + scope + " " + key);
+    }
+
+    @Test
+    void checkMissingOnRealDatabaseCountsDocumentsAndFlagsZeroDocumentStudent() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        StudentRecord complete = newStudent("SR1", "Abad", "Ana", batch, null);
+        StudentRecord empty = newStudent("SR2", "Bautista", "Bea", batch, null);
+        studentRecordRepository.saveAll(List.of(complete, empty));
+        saveDocument(complete, "PSA Birth Certificate", "psa.pdf");
+        saveDocument(complete, "Form 137", "f137.pdf");
+        saveDocument(complete, "ID Picture (1x1 / 2x2)", "id.png");
+        saveDocument(complete, "Others", "extra.pdf");
+
+        var result = documentExportService.checkMissing(DocumentExportScope.UNASSIGNED, "B2026A");
+
+        assertEquals(2, result.studentsInScope());
+        assertEquals(1, result.flagged().size());
+        var flagged = result.flagged().get(0);
+        assertEquals("SR2", flagged.studentId());
+        assertEquals(0, flagged.documentCount());
+        assertEquals(List.of("PSA Birth Certificate", "Form 137", "ID Picture (1x1 / 2x2)"), flagged.missing());
+    }
+
+    private java.util.Set<String> checkStudentIds(DocumentExportScope scope, String key) {
+        return documentFolderRepository.findCheckRows(scope, key).stream()
+                .map(DocumentFolderRepository.CheckRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    // -------------------------------------------------------
+    // Custom "Others" document labels (real SQL)
+    // -------------------------------------------------------
+
+    @Test
+    void documentLabelRoundTripsIsSearchableAndListedDistinct() {
+        StudentRecord student = newStudent("SR1", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+        saveLabelledOthers(student, "Medical Certificate", "med.pdf");
+        saveLabelledOthers(student, "Medical Certificate", "med2.pdf");
+        saveLabelledOthers(student, "Barangay Clearance", "brgy.pdf");
+        saveDocument(student, "Others", "plain.pdf");
+
+        var summaries = documentRepository.findSummariesByStudentId("SR1");
+        assertEquals(4, summaries.size());
+        assertEquals(java.util.Set.of("Medical Certificate", "Barangay Clearance"), summaries.stream()
+                .map(com.example.springboot.dto.registrar.DocumentSummaryResponse::documentLabel)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+
+        var found = documentRepository.searchSummaries("barangay", null, null, null);
+        assertEquals(1, found.size());
+        assertEquals("brgy.pdf", found.get(0).fileName());
+
+        assertEquals(List.of("Barangay Clearance", "Medical Certificate"),
+                documentRepository.findDistinctDocumentLabels());
+    }
+
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
                                      Batch batch, Section section) {
         StudentRecord student = new StudentRecord();
@@ -404,6 +508,19 @@ class DocumentStorageIntegrationTest {
         Document document = new Document();
         document.setStudent(student);
         document.setDocumentType(documentType);
+        document.setFileName(fileName);
+        document.setFileType("application/pdf");
+        byte[] content = "pdf-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        document.setFileSize(content.length);
+        document.setContentData(content);
+        documentRepository.save(document);
+    }
+
+    private void saveLabelledOthers(StudentRecord student, String label, String fileName) {
+        Document document = new Document();
+        document.setStudent(student);
+        document.setDocumentType("Others");
+        document.setDocumentLabel(label);
         document.setFileName(fileName);
         document.setFileType("application/pdf");
         byte[] content = "pdf-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);

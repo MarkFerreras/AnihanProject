@@ -1,6 +1,104 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-27 - Manual Batch Code Assignment: Implementation & Verification Complete)
+## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
+
+- **Branch:** `feature/pre-export-missing-documents` (Confirmed; **pushed, PR #68 open into `main`
+  (https://github.com/MarkFerreras/AnihanProject/pull/68), not merged**; `main` untouched).
+  Executed with `superpowers:subagent-driven-development` (user's chosen mode): a fresh subagent per task,
+  then a spec-compliance review, then a code-quality review, and a fix round whenever a review required one.
+  Commits on top of `a855196`: `765a4f8` (RequiredDocumentPolicy + type constants), `3834c95` + `41c90c2`
+  (check query/service + parity test), `6182123` + `0e95d97` (export-check endpoint + audit text + scope-word
+  test), `2ed6605` (document_label column/entity/summary/search/`/labels`), `c2eaa70` + `4d3f95c` (label
+  validation on batch upload + boundary test), `52d5a5c` + `eec76dc` + `1fc0afc` (pre-export dialog + stale
+  response/focus fixes), `f84bcc1` + `bcd6052` (Others name field + display + staged-row layout fix), plus
+  this docs commit.
+- **Full suite (Confirmed):** 546 -> 578 tests, 0 failures, 0 errors (54 report files), exactly the plan's
+  target. Run at `bcd6052`.
+- **Migration (Confirmed, user-approved):** `2026-10-01-add-documents-document-label.sql` was applied to the
+  live `AnihanSRMS` DB (Docker container `mysql-server`, MySQL 8.0.45). Verified `document_label VARCHAR(100)`
+  nullable right after `document_type`; a second run was a no-op. The user also asked that `schema.sql` match
+  the live DB: a full comparison (21 tables, 163 columns, indexes, FKs, charset) found `schema.sql` already
+  identical, so nothing changed there. Live DB has two leftover routines not in `schema.sql`
+  (`FUNCTION column_exists`, `PROCEDURE AddColumnIfNotExists`, created 2026-05-19, only referenced by old
+  `backup-*.sql` dumps) — **left alone, the user decides** (add to schema.sql / drop / ignore).
+- **Live check (Confirmed, Playwright against the real app + DB):** all items passed; details in `testing.md`.
+  Test data was created and fully removed (documents 13-18 for SR20260003); the only document left is the
+  pre-existing id 7. Append-only `system_logs` rows from the run remain. App stopped, port 8080 free.
+- **Open items for the user:** (1) review and merge PR #68 (user chose "push and create a PR" at
+  `superpowers:finishing-a-development-branch`); (2) the two leftover DB routines — **Confirmed: leave them
+  alone** (no change to the live DB or `schema.sql`); (3) the deferred minor review findings in
+  `progress.md`; (4) this build **requires
+  the migration** — against a DB without `documents.document_label` every Document-entity path returns HTTP
+  500 (listing, search, upload, view/download/delete, generate, ID picture) while the app still starts.
+
+## Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written)
+
+- **Checkout:** `main` (documentation-only brainstorming/planning per the user's explicit instruction "no
+  need to create a separate branch"; same precedent as 2026-09-27 and 2026-09-30). No product code changed.
+- **Spec (Confirmed, user-approved section by section):**
+  `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md`. This is "Sub-project 2: Group
+  Document Download Verification & Flagging" from the 2026-09-27 notes, expanded (user's choice) to include
+  custom names for "Others" documents.
+- **Key decisions:** see `decisions.md` 2026-10-01. In short: tiered required set (intake for all, completion
+  docs for Graduated only, any one Form IX); warning shown only at export time as a dialog with a red "!";
+  new read-only `GET /api/registrar/documents/export-check/{scope}/{key}`; export audit row gains the flagged
+  count; new nullable `documents.document_label` column (needs a manual migration).
+- **Plan written (Confirmed, not yet executed):** `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md`
+  — 9 tasks (0–8), TDD, expected suite 546 → 578. Task 0 creates `feature/pre-export-missing-documents`.
+- **Spec corrected while planning (verified against code):** check errors render inside `#exportCheckModal`;
+  page CSS goes in `documents.html`'s `<style>`; labels only display in the table and folder doc list (View/Delete
+  dialogs show no type); `AnihanSRMS.sql` is at `src/main/sql/`; labels are read via `getParameterValues`
+  because Spring comma-splits a single `@RequestParam List<String>` value.
+- **Next step:** execute the plan in a new session with `superpowers:subagent-driven-development` (Confirmed —
+  user's chosen execution mode). Task 8 needs the user's approval before the migration is applied to the live
+  `AnihanSRMS` DB.
+
+## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
+
+- **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged). Commits: `e459bef`
+  (CourseCodeGenerator), `2067870` (section create resolve-or-create + audit logs + code preview),
+  `7533ce9` (student-number availability + uniqueness tests), `efa071b` / `c81f43b` / `1233764`
+  (shared `SrmsCombobox` + `SrmsStudentNumberCheck` wired on 5 pages), `073562d` (review fix:
+  combobox Enter-pick no longer also submits; Save stays disabled while a number clash is shown or a
+  save is in flight), then the docs commit for this entry.
+- **Full suite (Confirmed):** 546 tests, 0 failures, 0 errors, 0 skipped (baseline 511, +35 as planned).
+- **Live check (Confirmed, real `AnihanSRMS` DB, Playwright):** Assign Batch, Create Section
+  (existing + new course, new batch, audit logs), Assign Student Number on both pages, student-records
+  edit form, and documents upload picker all behave as specified. No console errors caused by this
+  feature (only a pre-existing `favicon.ico` 404, an expected 404 for a missing ID picture, and
+  browser-extension noise). Details in `testing.md`.
+- **Open items:** the code-review Minor findings deliberately not fixed here are listed under
+  `progress.md` "Deferred / technical debt". The merge/PR decision
+  (`superpowers:finishing-a-development-branch`) is the user's. Plan Task 8 Steps 4-5 (independent
+  reviews, finish) were not done by this session.
+- **Test data left in the dev DB:** batches `BTEST1`, `BTEST2`; course `Test Bread and Pastry Practice`
+  (`TBPP`); section `SEC-TEST` (batch BTEST2, course TBPP). Delete manually if unwanted.
+
+## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Plan Written)
+
+- **Checkout:** `main` (documentation-only planning, per the user's instruction; same precedent as
+  2026-09-27). No product code changed.
+- **Plan (Confirmed scope, not yet executed):**
+  `docs/superpowers/plans/2026-09-30-course-auto-create-and-combobox.md` — 9 tasks (0–8).
+- **User-confirmed decisions:** (1) the registrar types a course *name*; its code is derived from
+  the initials of significant words (`CARS`), with a numeric suffix on collision, and previewed
+  before saving; (2) courses are auto-created only from the Create Section modal, whose Course and
+  Batch `<select>`s become type-or-pick fields (the Batch field auto-creates too); (3) every native
+  `<datalist>` (Assign Batch, student edit form Course/Section/Sex/Civil Status, Documents upload
+  picker) is replaced by one shared `js/combobox.js`; (4) student-number uniqueness already holds
+  (DB unique key, service pre-check, import conflict check), so the plan adds regression tests (incl.
+  real H2) and an inline "already assigned to X" warning that disables Save.
+- **Verified facts used by the plan:** Create Section Course/Batch were `<select>` (not text fields);
+  `courses` = `course_code` VARCHAR(20) PK + `course_name` VARCHAR(100) NOT NULL; `sections.section`
+  is VARCHAR(25); no existing test constructs `CreateSectionRequest`.
+- **Branch note:** the plan's Task 0 creates `feature/course-auto-create-combobox` for code commits
+  (project Phase 0 rule). The user said work may happen on `main` — **open question**, needs
+  confirmation before execution.
+- **Next step:** execute the plan (subagent-driven recommended; 4 grouped dispatches).
+
+The sessions below describe earlier checkouts and tasks.
+
+## Session (2026-09-27 - Manual Batch Code Assignment: Implementation & Verification Complete)
 
 - **Manual Batch Code Assignment feature is complete** (Tasks 1-5 of
   `docs/superpowers/plans/2026-09-27-manual-batch-code-assignment.md`) on branch

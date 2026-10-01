@@ -11,6 +11,7 @@
     'use strict';
 
     let assignNumberModal = null;
+    let numberCheck = null;
     let assignTargetRecordId = null;
     let dataTable = null;
 
@@ -322,6 +323,7 @@
         document.getElementById('assignStudentName').value = studentName || ('Record #' + recordId);
         document.getElementById('assignStudentNumberInput').value = studentNumber || '';
         hideAlert('assignStudentNumberAlert');
+        if (numberCheck) numberCheck.reset();
         assignNumberModal.show();
     }
 
@@ -332,9 +334,16 @@
         if (!modalEl || !saveBtn || !inputEl) return;
 
         assignNumberModal = new bootstrap.Modal(modalEl);
+        numberCheck = SrmsStudentNumberCheck.attach({
+            input: inputEl,
+            saveBtn: saveBtn,
+            getRecordId: function () { return assignTargetRecordId; }
+        });
 
         async function save() {
             if (!assignTargetRecordId) return;
+            if (saveBtn.disabled) return; // Enter must not bypass a disabled Save (clash warning or save in flight)
+            saveBtn.dataset.busy = '1';
             saveBtn.disabled = true;
             const original = saveBtn.textContent;
             saveBtn.textContent = 'Saving...';
@@ -374,7 +383,8 @@
             } catch (err) {
                 showAlert('assignStudentNumberAlert', 'Network error. Could not save the student number.', 'danger');
             } finally {
-                saveBtn.disabled = false;
+                delete saveBtn.dataset.busy;
+                saveBtn.disabled = inputEl.classList.contains('is-invalid');
                 saveBtn.textContent = original;
             }
         }
