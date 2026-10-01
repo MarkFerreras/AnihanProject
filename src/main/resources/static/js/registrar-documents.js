@@ -16,6 +16,7 @@
     let documentTypeChoices = [];
     let exportCheckModal = null;
     let exportCheckContext = null; // { url, check, label, btn } of the export being checked
+    let exportCheckToken = 0;
 
     // -------------------------------------------------------
     // Explorer state
@@ -704,14 +705,18 @@
         fetchExportCheck(ctx, function () {
             ctx.btn.disabled = false;
             ctx.btn.textContent = ctx.label;
+            // Disabling a focused button drops focus to <body>; give it back.
+            if (ctx.btn.isConnected && document.activeElement === document.body) ctx.btn.focus();
         });
     }
 
     function fetchExportCheck(ctx, onComplete) {
+        const token = ++exportCheckToken;
         $.ajax({
             url: exportCheckUrl(ctx.check),
             method: 'GET',
             success: function (result) {
+                if (token !== exportCheckToken) return; // cancelled or superseded
                 if (!result.flagged.length) {
                     exportCheckModal.hide();
                     startDownload(ctx.url);
@@ -721,6 +726,7 @@
                 openExportCheck(ctx);
             },
             error: function (xhr) {
+                if (token !== exportCheckToken) return; // cancelled or superseded
                 renderExportCheckError(ctx, xhr);
                 openExportCheck(ctx);
             },
@@ -821,8 +827,11 @@
         });
 
         modalEl.addEventListener('hidden.bs.modal', function () {
+            const btn = exportCheckContext && exportCheckContext.btn;
             exportCheckContext = null;
+            exportCheckToken++; // closing the dialog invalidates any pending retry
             document.getElementById('exportCheckBody').innerHTML = '';
+            if (btn && btn.isConnected) btn.focus();
         });
     }
 
