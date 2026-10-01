@@ -98,6 +98,7 @@ public class DocumentController {
     /**
      * Read-only pre-export check (spec 2026-10-01 §3): which students in the
      * scope are missing required documents. Writes no audit row.
+     * Errors: 400 for an unknown scope word, 404 when the key does not exist.
      */
     @GetMapping("/export-check/{scope}/{key}")
     public ResponseEntity<ExportCheckResponse> exportCheck(@PathVariable String scope, @PathVariable String key) {

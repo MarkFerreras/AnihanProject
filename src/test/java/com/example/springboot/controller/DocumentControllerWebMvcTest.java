@@ -476,6 +476,18 @@ class DocumentControllerWebMvcTest {
                 .andExpect(jsonPath("$.flagged[0].studentId").value("SR20260001"))
                 .andExpect(jsonPath("$.flagged[0].documentCount").value(0))
                 .andExpect(jsonPath("$.flagged[0].missing[1]").value("Form 137"));
+        verify(documentExportService).checkMissing(DocumentExportScope.SECTION, "S1");
+
+        // Every other scope word maps to its enum and passes the key through;
+        // the scope word is case-insensitive (upper-case SECTION, key S2).
+        mvc.perform(get("/api/registrar/documents/export-check/student/SR20260001")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.STUDENT, "SR20260001");
+        mvc.perform(get("/api/registrar/documents/export-check/unassigned/B2026A")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.UNASSIGNED, "B2026A");
+        mvc.perform(get("/api/registrar/documents/export-check/batch/B2026A")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.BATCH, "B2026A");
+        mvc.perform(get("/api/registrar/documents/export-check/SECTION/S2")).andExpect(status().isOk());
+        verify(documentExportService).checkMissing(DocumentExportScope.SECTION, "S2");
 
         verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
     }
