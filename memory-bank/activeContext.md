@@ -18,8 +18,9 @@
   page CSS goes in `documents.html`'s `<style>`; labels only display in the table and folder doc list (View/Delete
   dialogs show no type); `AnihanSRMS.sql` is at `src/main/sql/`; labels are read via `getParameterValues`
   because Spring comma-splits a single `@RequestParam List<String>` value.
-- **Next step:** execute the plan (subagent-driven recommended). Task 8 needs the user's approval before the
-  migration is applied to the live `AnihanSRMS` DB.
+- **Next step:** execute the plan in a new session with `superpowers:subagent-driven-development` (Confirmed —
+  user's chosen execution mode). Task 8 needs the user's approval before the migration is applied to the live
+  `AnihanSRMS` DB.
 
 ## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
 

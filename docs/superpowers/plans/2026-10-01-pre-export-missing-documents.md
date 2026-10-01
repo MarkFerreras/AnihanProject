@@ -1,6 +1,6 @@
 # Pre-Export Missing-Documents Check & Custom "Others" Names Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use **superpowers:subagent-driven-development** to implement this plan task-by-task (user-confirmed choice, 2026-10-01 — do not ask again, do not switch to executing-plans). Dispatch a fresh subagent per task, in order (Task 0 → Task 8), with the spec and code-quality reviews between tasks. Task 8 Step 2 (applying the migration to the live DB) must stop and ask the user. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** When the Registrar clicks any Export button on the Documents page, warn (in a dialog, red "!" per student) which students in that scope are missing required documents; and let "Others" uploads carry a custom document name.
 
