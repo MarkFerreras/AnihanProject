@@ -1,5 +1,12 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Design Spec)
+**Branch:** `main` (documentation only, per the user's instruction)
+
+- **Added:** `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` — approved design.
+- **Updated:** `memory-bank/activeContext.md`, `progress.md`, `decisions.md`, `changeLog.md` (this entry).
+- **No product code, SQL, or tests changed.** Verification status: n/a (design only).
+
 ## 2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard (Implementation)
 **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged)
 **Commits:** `e459bef`, `2067870`, `7533ce9`, `efa071b`, `c81f43b`, `1233764`, `073562d`, + docs commit.

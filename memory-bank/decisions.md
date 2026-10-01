@@ -4,6 +4,24 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Confirmed, designed)
+
+**Decision** (spec: `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md`):
+- **Required documents are tiered by status** in a pure `RequiredDocumentPolicy`: PSA Birth Certificate,
+  Form 137, ID Picture for every student; TOR, any one Form IX, OJT Report, Certificate of TVET Program only
+  for `Graduated`. "Others" never counts. Rationale: flagging completion docs for current students would make
+  the flag meaningless.
+- **Warn only at export time, dialog only:** Export runs `GET .../documents/export-check/{scope}/{key}`;
+  no gaps → immediate download, gaps → modal with a red "!" per student and Cancel / Export anyway. No marks
+  in the tree (user wants the warning to appear only when exporting).
+- **Separate check endpoint (Approach A)** over browser-side computation (stale tree data, rules in JS) or a
+  409-gated export (would break the streaming `<a href>` download design). The check uses the same scope
+  membership as the export queries and includes zero-document students.
+- **Export audit row records the flagged count**, computed server-side in `prepareExport`.
+- **Custom "Others" names** go in a new nullable `documents.document_label VARCHAR(100)`; `document_type`
+  stays `Others`, keeping the type whitelist strict and the "Others" filter grouping intact. Labels equal to a
+  known type are rejected. Rejected alternative: storing free text in `document_type`.
+
 ## 2026-09-30 - Implemented: Course-Code Rule, Matching Order, SrmsCombobox, Advisory Availability Check (Confirmed)
 
 **Decision (as built on `feature/course-auto-create-combobox`):**

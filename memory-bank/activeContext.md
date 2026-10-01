@@ -1,6 +1,21 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
+## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written)
+
+- **Checkout:** `main` (documentation-only brainstorming/planning per the user's explicit instruction "no
+  need to create a separate branch"; same precedent as 2026-09-27 and 2026-09-30). No product code changed.
+- **Spec (Confirmed, user-approved section by section):**
+  `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md`. This is "Sub-project 2: Group
+  Document Download Verification & Flagging" from the 2026-09-27 notes, expanded (user's choice) to include
+  custom names for "Others" documents.
+- **Key decisions:** see `decisions.md` 2026-10-01. In short: tiered required set (intake for all, completion
+  docs for Graduated only, any one Form IX); warning shown only at export time as a dialog with a red "!";
+  new read-only `GET /api/registrar/documents/export-check/{scope}/{key}`; export audit row gains the flagged
+  count; new nullable `documents.document_label` column (needs a manual migration).
+- **Next step:** user reviews the written spec, then `superpowers:writing-plans` produces the implementation
+  plan. Implementation must happen on a feature branch (Phase 0 rule).
+
+## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
 
 - **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged). Commits: `e459bef`
   (CourseCodeGenerator), `2067870` (section create resolve-or-create + audit logs + code preview),

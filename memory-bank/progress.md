@@ -1,5 +1,14 @@
 # Progress - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written
+
+- **Completed:** brainstorming + approved design spec
+  `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` (on `main`, docs only).
+- **In progress:** user review of the written spec.
+- **Remaining:** implementation plan (`superpowers:writing-plans`), then implementation on a feature branch,
+  including a manual migration `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql`.
+- **No code or schema changed in this session.** Test baseline unchanged (546).
+
 ## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Implemented & Live-Verified
 
 - **Completed (branch `feature/course-auto-create-combobox`, commits `e459bef`, `2067870`, `7533ce9`,
