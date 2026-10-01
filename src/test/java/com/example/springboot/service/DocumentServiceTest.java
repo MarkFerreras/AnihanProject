@@ -585,12 +585,16 @@ class DocumentServiceTest {
         when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
         List<Document> saved = captureSavedDocuments();
 
-        service.uploadBatch("SR20260001", List.of("Others", "Others"),
-                java.util.Arrays.asList("  Medical Certificate  ", "   "),
-                List.of(pdf("a.pdf"), pdf("b.pdf")), sampleAudit());
+        // Mixed batch: the Documents page sends "" for every non-Others row,
+        // which must be accepted and stored as null; exactly 100 chars is allowed.
+        service.uploadBatch("SR20260001", List.of("Others", "Others", TOR_TYPE, "Others"),
+                java.util.Arrays.asList("  Medical Certificate  ", "   ", "", "x".repeat(100)),
+                List.of(pdf("a.pdf"), pdf("b.pdf"), pdf("c.pdf"), pdf("d.pdf")), sampleAudit());
 
         assertEquals("Medical Certificate", saved.get(0).getDocumentLabel());
         assertNull(saved.get(1).getDocumentLabel());
+        assertNull(saved.get(2).getDocumentLabel());
+        assertEquals("x".repeat(100), saved.get(3).getDocumentLabel());
     }
 
     @Test
