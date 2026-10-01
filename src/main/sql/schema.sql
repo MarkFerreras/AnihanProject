@@ -1,5 +1,8 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Default Security Questions
+-- Updated: 2026-10-01 (added documents.document_label — optional custom name
+--            for "Others" documents — see
+--            migrations/2026-10-01-add-documents-document-label.sql)
 -- Updated: 2026-09-30 (removed account, student, and academic lookup seeds;
 --            retained the 6 default security questions)
 -- Updated: 2026-09-22 (widened documents.file_type to VARCHAR(100) so
@@ -283,6 +286,7 @@ CREATE TABLE IF NOT EXISTS documents (
     document_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     document_type VARCHAR(255) NOT NULL,
+    document_label VARCHAR(100) NULL,
     file_name VARCHAR(255) NOT NULL,
     file_type VARCHAR(100) NOT NULL,
     file_size INT NOT NULL,

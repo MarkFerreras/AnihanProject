@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS documents (
     document_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(20) NOT NULL,
     document_type VARCHAR(255) NOT NULL,
+    document_label VARCHAR(100) NULL,
     file_name VARCHAR(255) NOT NULL,
     file_type VARCHAR(100) NOT NULL,
     file_size INT NOT NULL,

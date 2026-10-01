@@ -1,6 +1,59 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
+## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
+
+- **Branch:** `feature/pre-export-missing-documents` (Confirmed; **pushed, PR #68 open into `main`
+  (https://github.com/MarkFerreras/AnihanProject/pull/68), not merged**; `main` untouched).
+  Executed with `superpowers:subagent-driven-development` (user's chosen mode): a fresh subagent per task,
+  then a spec-compliance review, then a code-quality review, and a fix round whenever a review required one.
+  Commits on top of `a855196`: `765a4f8` (RequiredDocumentPolicy + type constants), `3834c95` + `41c90c2`
+  (check query/service + parity test), `6182123` + `0e95d97` (export-check endpoint + audit text + scope-word
+  test), `2ed6605` (document_label column/entity/summary/search/`/labels`), `c2eaa70` + `4d3f95c` (label
+  validation on batch upload + boundary test), `52d5a5c` + `eec76dc` + `1fc0afc` (pre-export dialog + stale
+  response/focus fixes), `f84bcc1` + `bcd6052` (Others name field + display + staged-row layout fix), plus
+  this docs commit.
+- **Full suite (Confirmed):** 546 -> 578 tests, 0 failures, 0 errors (54 report files), exactly the plan's
+  target. Run at `bcd6052`.
+- **Migration (Confirmed, user-approved):** `2026-10-01-add-documents-document-label.sql` was applied to the
+  live `AnihanSRMS` DB (Docker container `mysql-server`, MySQL 8.0.45). Verified `document_label VARCHAR(100)`
+  nullable right after `document_type`; a second run was a no-op. The user also asked that `schema.sql` match
+  the live DB: a full comparison (21 tables, 163 columns, indexes, FKs, charset) found `schema.sql` already
+  identical, so nothing changed there. Live DB has two leftover routines not in `schema.sql`
+  (`FUNCTION column_exists`, `PROCEDURE AddColumnIfNotExists`, created 2026-05-19, only referenced by old
+  `backup-*.sql` dumps) — **left alone, the user decides** (add to schema.sql / drop / ignore).
+- **Live check (Confirmed, Playwright against the real app + DB):** all items passed; details in `testing.md`.
+  Test data was created and fully removed (documents 13-18 for SR20260003); the only document left is the
+  pre-existing id 7. Append-only `system_logs` rows from the run remain. App stopped, port 8080 free.
+- **Open items for the user:** (1) review and merge PR #68 (user chose "push and create a PR" at
+  `superpowers:finishing-a-development-branch`); (2) the two leftover DB routines — **Confirmed: leave them
+  alone** (no change to the live DB or `schema.sql`); (3) the deferred minor review findings in
+  `progress.md`; (4) this build **requires
+  the migration** — against a DB without `documents.document_label` every Document-entity path returns HTTP
+  500 (listing, search, upload, view/download/delete, generate, ID picture) while the app still starts.
+
+## Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written)
+
+- **Checkout:** `main` (documentation-only brainstorming/planning per the user's explicit instruction "no
+  need to create a separate branch"; same precedent as 2026-09-27 and 2026-09-30). No product code changed.
+- **Spec (Confirmed, user-approved section by section):**
+  `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md`. This is "Sub-project 2: Group
+  Document Download Verification & Flagging" from the 2026-09-27 notes, expanded (user's choice) to include
+  custom names for "Others" documents.
+- **Key decisions:** see `decisions.md` 2026-10-01. In short: tiered required set (intake for all, completion
+  docs for Graduated only, any one Form IX); warning shown only at export time as a dialog with a red "!";
+  new read-only `GET /api/registrar/documents/export-check/{scope}/{key}`; export audit row gains the flagged
+  count; new nullable `documents.document_label` column (needs a manual migration).
+- **Plan written (Confirmed, not yet executed):** `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md`
+  — 9 tasks (0–8), TDD, expected suite 546 → 578. Task 0 creates `feature/pre-export-missing-documents`.
+- **Spec corrected while planning (verified against code):** check errors render inside `#exportCheckModal`;
+  page CSS goes in `documents.html`'s `<style>`; labels only display in the table and folder doc list (View/Delete
+  dialogs show no type); `AnihanSRMS.sql` is at `src/main/sql/`; labels are read via `getParameterValues`
+  because Spring comma-splits a single `@RequestParam List<String>` value.
+- **Next step:** execute the plan in a new session with `superpowers:subagent-driven-development` (Confirmed —
+  user's chosen execution mode). Task 8 needs the user's approval before the migration is applied to the live
+  `AnihanSRMS` DB.
+
+## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
 
 - **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged). Commits: `e459bef`
   (CourseCodeGenerator), `2067870` (section create resolve-or-create + audit logs + code preview),

@@ -565,6 +565,104 @@ class DocumentServiceTest {
         verify(documentRepository, times(20)).save(any(Document.class));
     }
 
+    private MockMultipartFile pdf(String name) {
+        return new MockMultipartFile("files", name, "application/pdf", "x".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private List<Document> captureSavedDocuments() {
+        List<Document> saved = new java.util.ArrayList<>();
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> {
+            Document d = inv.getArgument(0);
+            saved.add(d);
+            return d;
+        });
+        when(documentRepository.findSummariesByIds(any())).thenReturn(List.of());
+        return saved;
+    }
+
+    @Test
+    void uploadBatchStoresTrimmedLabelOnOthersAndNullForBlank() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        List<Document> saved = captureSavedDocuments();
+
+        // Mixed batch: the Documents page sends "" for every non-Others row,
+        // which must be accepted and stored as null; exactly 100 chars is allowed.
+        service.uploadBatch("SR20260001", List.of("Others", "Others", TOR_TYPE, "Others"),
+                java.util.Arrays.asList("  Medical Certificate  ", "   ", "", "x".repeat(100)),
+                List.of(pdf("a.pdf"), pdf("b.pdf"), pdf("c.pdf"), pdf("d.pdf")), sampleAudit());
+
+        assertEquals("Medical Certificate", saved.get(0).getDocumentLabel());
+        assertNull(saved.get(1).getDocumentLabel());
+        assertNull(saved.get(2).getDocumentLabel());
+        assertEquals("x".repeat(100), saved.get(3).getDocumentLabel());
+    }
+
+    @Test
+    void uploadBatchWithoutLabelsStoresNullLabel() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        List<Document> saved = captureSavedDocuments();
+
+        service.uploadBatch("SR20260001", List.of("Others"), List.of(pdf("a.pdf")), sampleAudit());
+
+        assertNull(saved.get(0).getDocumentLabel());
+    }
+
+    @Test
+    void uploadBatchRejectsLabelOnNonOthersType() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of(TOR_TYPE), List.of("My TOR"), List.of(pdf("a.pdf")), sampleAudit()));
+
+        assertTrue(ex.getMessage().contains("'Others'"));
+        verify(documentRepository, never()).save(any());
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadBatchRejectsLabelOverOneHundredCharacters() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of("Others"), List.of("x".repeat(101)), List.of(pdf("a.pdf")), sampleAudit()));
+
+        assertTrue(ex.getMessage().contains("100 characters"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsLabelWithControlCharacters() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of("Others"), List.of("Medical\u0007Certificate"), List.of(pdf("a.pdf")), sampleAudit()));
+
+        assertTrue(ex.getMessage().contains("invalid characters"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsLabelEqualToAKnownTypeIgnoringCase() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of("Others"), List.of("  psa birth certificate "), List.of(pdf("a.pdf")), sampleAudit()));
+
+        assertTrue(ex.getMessage().contains("pick it from the type list"));
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBatchRejectsLabelCountMismatch() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of("Others"), List.of("A", "B"), List.of(pdf("a.pdf")), sampleAudit()));
+
+        assertEquals("The number of files and document labels must match.", ex.getMessage());
+        verify(documentRepository, never()).save(any());
+    }
+
     @Test
     void uploadBatchRejectsFileOverTenMegabytes() {
         when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));

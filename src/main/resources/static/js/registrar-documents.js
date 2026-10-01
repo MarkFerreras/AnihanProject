@@ -14,6 +14,9 @@
     let deleteDocumentModal = null;
     let currentDeleteDocumentId = null;
     let documentTypeChoices = [];
+    let exportCheckModal = null;
+    let exportCheckContext = null; // { url, check, label, btn } of the export being checked
+    let exportCheckToken = 0;
 
     // -------------------------------------------------------
     // Explorer state
@@ -28,7 +31,8 @@
     // -------------------------------------------------------
     // Upload staging state
     // -------------------------------------------------------
-    let stagedFiles = []; // [{ file, documentType }]
+    let stagedFiles = []; // [{ file, documentType, documentLabel }]
+    let documentLabelChoices = [];
     let uploadLockedStudentId = null;
     let uploadLockedLabel = null;
     let selectedUploadStudentId = null;
@@ -41,6 +45,7 @@
         uploadModal = new bootstrap.Modal(document.getElementById('uploadDocumentModal'));
         viewModal = new bootstrap.Modal(document.getElementById('viewDocumentModal'));
         deleteDocumentModal = new bootstrap.Modal(document.getElementById('deleteDocumentConfirmModal'));
+        exportCheckModal = new bootstrap.Modal(document.getElementById('exportCheckModal'));
 
         initTable();
         loadDocumentTypes();
@@ -50,6 +55,7 @@
         setupUploadModal();
         setupUploadStaging();
         setupSharedActions();
+        setupExportCheck();
         setupExplorerFilter();
         setupTreeKeyboardNav();
         initExplorer();
@@ -112,7 +118,13 @@
                         return escapeHtml(data.lastName + ', ' + data.firstName);
                     }
                 },
-                { data: 'documentType', render: escapeHtml },
+                {
+                    data: 'documentType',
+                    render: function (type, renderType, row) {
+                        // Display shows "Others — name"; sort/type keep the raw type so ordering stays by type.
+                        return renderType === 'display' ? escapeHtml(displayType(row)) : type;
+                    }
+                },
                 { data: 'fileName', render: escapeHtml },
                 {
                     data: 'fileSize',
@@ -571,6 +583,7 @@
     }
 
     function selectFolder(kind, key) {
+        exportCheckToken++; // leaving this folder invalidates any pending export check
         selection = { kind: kind, key: key };
         renderFolderTree();
         renderBreadcrumb();
@@ -596,10 +609,7 @@
             rootCrumb.textContent = 'All Batches';
         } else {
             rootCrumb.appendChild(makeCrumbLink('All Batches', function () {
-                selection = { kind: null, key: null };
-                renderFolderTree();
-                renderBreadcrumb();
-                renderContentPanel();
+                selectFolder(null, null);
             }));
         }
         bc.appendChild(rootCrumb);
@@ -656,11 +666,20 @@
         return '/api/registrar/documents/export/batch/' + encodeURIComponent(key);
     }
 
-    function buildExportButton(label, url, disabled) {
+    /**
+     * Export buttons run the pre-export missing-documents check first; the ZIP
+     * itself is still the unchanged streaming GET (exportUrl).
+     * check = { scope: 'student'|'section'|'unassigned'|'batch', key, scopeLabel }.
+     */
+    function buildExportButton(label, url, check, disabled) {
         if (disabled) {
             return el('button', { type: 'button', class: 'btn btn-surface-secondary disabled', 'aria-disabled': 'true', disabled: 'disabled', text: label });
         }
-        return el('a', { href: url, class: 'btn btn-primary', text: label });
+        const btn = el('button', { type: 'button', class: 'btn btn-primary', text: label });
+        btn.addEventListener('click', function () {
+            runExportCheck({ url: url, check: check, label: label, btn: btn });
+        });
+        return btn;
     }
 
     function exportNote() {
@@ -668,6 +687,161 @@
             class: 'export-note',
             text: 'ZIP exports download the original stored files (including generated HTML and ID photos), '
                 + 'unlike the single-document Download button, which converts a generated document to an editable Word file.'
+        });
+    }
+
+    // -------------------------------------------------------
+    // Pre-export missing-documents check (dialog only — nothing is left
+    // on the page once the dialog closes)
+    // -------------------------------------------------------
+
+    function exportCheckUrl(check) {
+        return '/api/registrar/documents/export-check/' + encodeURIComponent(check.scope)
+            + '/' + encodeURIComponent(check.key);
+    }
+
+    function startDownload(url) {
+        window.location.href = url;
+    }
+
+    function runExportCheck(ctx) {
+        ctx.btn.disabled = true;
+        ctx.btn.textContent = 'Checking…';
+        fetchExportCheck(ctx, function () {
+            ctx.btn.disabled = false;
+            ctx.btn.textContent = ctx.label;
+            // Disabling a focused button drops focus to <body>; give it back.
+            if (!exportCheckContext && ctx.btn.isConnected && document.activeElement === document.body) ctx.btn.focus();
+        });
+    }
+
+    function fetchExportCheck(ctx, onComplete) {
+        const token = ++exportCheckToken;
+        $.ajax({
+            url: exportCheckUrl(ctx.check),
+            method: 'GET',
+            success: function (result) {
+                if (token !== exportCheckToken) return; // cancelled or superseded
+                if (!result.flagged.length) {
+                    exportCheckModal.hide();
+                    startDownload(ctx.url);
+                    return;
+                }
+                renderExportCheckResult(ctx, result);
+                openExportCheck(ctx);
+            },
+            error: function (xhr) {
+                if (token !== exportCheckToken) return; // cancelled or superseded
+                renderExportCheckError(ctx, xhr);
+                openExportCheck(ctx);
+            },
+            complete: function () {
+                if (onComplete) onComplete();
+            }
+        });
+    }
+
+    function openExportCheck(ctx) {
+        exportCheckContext = ctx;
+        exportCheckModal.show(); // no-op when already open (Retry)
+    }
+
+    function setExportCheckFooter(proceedText) {
+        const proceed = document.getElementById('exportCheckProceedBtn');
+        if (proceedText) {
+            proceed.textContent = proceedText;
+            proceed.classList.remove('d-none');
+        } else {
+            proceed.classList.add('d-none');
+        }
+    }
+
+    function renderExportCheckResult(ctx, result) {
+        document.getElementById('exportCheckModalLabel').textContent = 'Missing documents';
+        const body = document.getElementById('exportCheckBody');
+        body.innerHTML = '';
+
+        const flaggedCount = result.flagged.length;
+        const summary = el('p', { class: 'mb-3' });
+        summary.appendChild(el('strong', { text: flaggedCount + ' of ' + result.studentsInScope }));
+        summary.appendChild(document.createTextNode(
+            ' student' + (result.studentsInScope === 1 ? '' : 's') + ' in '));
+        summary.appendChild(el('em', { text: ctx.check.scopeLabel }));
+        summary.appendChild(document.createTextNode(
+            ' ' + (flaggedCount === 1 ? 'is' : 'are') + ' missing required documents.'));
+        body.appendChild(summary);
+
+        const list = el('ul', { class: 'list-unstyled mb-0' });
+        result.flagged.forEach(function (s) {
+            const item = el('li', { class: 'export-check-row' });
+            const head = el('div', { class: 'd-flex align-items-center flex-wrap gap-2' });
+            head.appendChild(el('span', { class: 'missing-doc-icon', 'aria-hidden': 'true', text: '!' }));
+            head.appendChild(el('span', { class: 'visually-hidden', text: 'Missing documents:' }));
+            head.appendChild(el('strong', { text: s.lastName + ', ' + s.firstName }));
+            head.appendChild(el('span', {
+                class: 'text-muted small',
+                text: 'Reference No. ' + s.studentId + ' · ' + (s.studentStatus || 'Unknown')
+            }));
+            item.appendChild(head);
+            item.appendChild(el('div', { class: 'small ms-4 mt-1', text: 'Missing: ' + s.missing.join(', ') }));
+            if (s.documentCount === 0) {
+                item.appendChild(el('div', {
+                    class: 'small text-muted ms-4',
+                    text: "No documents — won't be included in the ZIP."
+                }));
+            }
+            list.appendChild(item);
+        });
+        body.appendChild(list);
+        setExportCheckFooter('Export anyway');
+    }
+
+    function renderExportCheckError(ctx, xhr) {
+        document.getElementById('exportCheckModalLabel').textContent = "Couldn't check documents";
+        const body = document.getElementById('exportCheckBody');
+        body.innerHTML = '';
+
+        if (xhr.status === 401) {
+            body.appendChild(buildSessionExpiredNotice());
+            setExportCheckFooter(null);
+        } else if (xhr.status === 404) {
+            body.appendChild(el('p', { class: 'mb-0', text: 'This item is no longer available — refresh to continue.' }));
+            setExportCheckFooter(null);
+        } else {
+            body.appendChild(buildRetryableError("Couldn't check for missing documents.", function () {
+                body.innerHTML = '';
+                body.appendChild(el('p', { class: 'text-muted mb-0', text: 'Checking…' }));
+                fetchExportCheck(ctx, null);
+            }));
+            // A failed check must never block an export.
+            setExportCheckFooter('Export without checking');
+        }
+    }
+
+    function setupExportCheck() {
+        const modalEl = document.getElementById('exportCheckModal');
+
+        document.getElementById('exportCheckProceedBtn').addEventListener('click', function () {
+            const url = exportCheckContext ? exportCheckContext.url : null;
+            exportCheckModal.hide();
+            if (url) startDownload(url);
+        });
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            document.getElementById('exportCheckCancelBtn').focus();
+        });
+
+        // Fires synchronously when hide() starts (not after the fade-out), so a
+        // late Retry response can never start a download the user cancelled.
+        modalEl.addEventListener('hide.bs.modal', function () {
+            exportCheckToken++;
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            const btn = exportCheckContext && exportCheckContext.btn;
+            exportCheckContext = null;
+            document.getElementById('exportCheckBody').innerHTML = '';
+            if (btn && btn.isConnected) btn.focus();
         });
     }
 
@@ -685,10 +859,18 @@
         }
         if (selection.kind === 'batch') renderBatchOverview(ctx.batch);
         else if (selection.kind === 'section') renderStudentListView(ctx.section.students,
-            'Section ' + ctx.section.sectionCode, { url: exportUrl('section', ctx.section.sectionCode), label: 'Export Section' });
+            'Section ' + ctx.section.sectionCode, {
+                url: exportUrl('section', ctx.section.sectionCode),
+                label: 'Export Section',
+                check: { scope: 'section', key: ctx.section.sectionCode, scopeLabel: 'Section ' + ctx.section.sectionCode }
+            });
         else if (selection.kind === 'unassigned') renderStudentListView(ctx.batch.unassignedStudents,
             'Unassigned Students',
-            ctx.batch.batchCode ? { url: exportUrl('unassignedBatch', batchNodeKey(ctx.batch)), label: 'Export Unassigned' } : null);
+            ctx.batch.batchCode ? {
+                url: exportUrl('unassignedBatch', batchNodeKey(ctx.batch)),
+                label: 'Export Unassigned',
+                check: { scope: 'unassigned', key: ctx.batch.batchCode, scopeLabel: 'Unassigned Students of ' + ctx.batch.batchCode }
+            } : null);
         else if (selection.kind === 'student') renderStudentDetail(ctx.student, ctx.batch, ctx.section);
     }
 
@@ -715,7 +897,9 @@
         }));
         if (batch.batchCode) {
             const wrap = el('div');
-            wrap.appendChild(buildExportButton('Export Entire Batch', exportUrl('batch', batch.batchCode), batch.documentCount === 0));
+            wrap.appendChild(buildExportButton('Export Entire Batch', exportUrl('batch', batch.batchCode),
+                { scope: 'batch', key: batch.batchCode, scopeLabel: 'Batch ' + batch.batchCode },
+                batch.documentCount === 0));
             wrap.appendChild(exportNote());
             header.appendChild(wrap);
         }
@@ -740,7 +924,7 @@
         if (exportConfig) {
             const totalDocs = students.reduce(function (s, x) { return s + x.documentCount; }, 0);
             const wrap = el('div');
-            wrap.appendChild(buildExportButton(exportConfig.label, exportConfig.url, totalDocs === 0));
+            wrap.appendChild(buildExportButton(exportConfig.label, exportConfig.url, exportConfig.check, totalDocs === 0));
             wrap.appendChild(exportNote());
             header.appendChild(wrap);
         }
@@ -787,7 +971,9 @@
         header.appendChild(left);
 
         const right = el('div', { class: 'text-end' });
-        right.appendChild(buildExportButton('Export Student', exportUrl('student', student.studentId), student.documentCount === 0));
+        right.appendChild(buildExportButton('Export Student', exportUrl('student', student.studentId),
+            { scope: 'student', key: student.studentId, scopeLabel: student.lastName + ', ' + student.firstName },
+            student.documentCount === 0));
         const uploadBtn = el('button', { type: 'button', class: 'btn btn-surface mt-2', text: 'Upload for this Student' });
         uploadBtn.addEventListener('click', function () {
             openUploadForStudent(student.studentId, student.lastName + ', ' + student.firstName);
@@ -843,7 +1029,7 @@
             const row = el('div', { class: 'student-doc-row document-actions' });
             row.appendChild(el('span', {
                 class: 'flex-grow-1',
-                text: doc.fileName + ' (' + doc.documentType + ', ' + formatSize(doc.fileSize) + ')'
+                text: doc.fileName + ' (' + displayType(doc) + ', ' + formatSize(doc.fileSize) + ')'
             }));
             const actions = el('div', { class: 'd-flex gap-1' });
             actions.appendChild(buildActionButton('view-document-btn', 'View', {
@@ -933,6 +1119,7 @@
                 selectedUploadStudentId = null;
             }
             updateUploadSubmitState();
+            loadDocumentLabelChoices();
         });
 
         $('#uploadDocumentModal').on('hidden.bs.modal', function () {
@@ -946,6 +1133,17 @@
             const match = flatStudents.filter(function (s) { return studentOptionLabel(s) === typed; });
             selectedUploadStudentId = match.length === 1 ? match[0].studentId : null;
             updateUploadSubmitState();
+        });
+    }
+
+    function loadDocumentLabelChoices() {
+        $.ajax({
+            url: '/api/registrar/documents/labels',
+            method: 'GET',
+            success: function (labels) {
+                documentLabelChoices = Array.isArray(labels) ? labels : [];
+                renderStagedFiles();
+            }
         });
     }
 
@@ -982,7 +1180,7 @@
 
     function addStagedFiles(files) {
         files.forEach(function (file) {
-            stagedFiles.push({ file: file, documentType: 'Others' });
+            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '' });
         });
         renderStagedFiles();
     }
@@ -1014,12 +1212,39 @@
                 if (type === entry.documentType) opt.selected = true;
                 select.appendChild(opt);
             });
-            select.addEventListener('change', function () { entry.documentType = select.value; });
+            select.addEventListener('change', function () {
+                entry.documentType = select.value;
+                if (entry.documentType !== 'Others') entry.documentLabel = '';
+                renderStagedFiles();
+                // The re-render replaced the select; hand focus to its replacement so keyboard use isn't interrupted.
+                const rebuilt = document.getElementById('stagedFilesList').querySelectorAll('select')[index];
+                if (rebuilt) rebuilt.focus();
+            });
             row.appendChild(select);
 
             const removeBtn = el('button', { type: 'button', class: 'btn btn-sm btn-surface-secondary', text: 'Remove' });
             removeBtn.addEventListener('click', function () { removeStagedFile(index); });
             row.appendChild(removeBtn);
+
+            if (entry.documentType === 'Others') {
+                const labelWrap = el('div', { class: 'staged-file-label' });
+                const inputId = 'stagedLabel' + index;
+                labelWrap.appendChild(el('label', {
+                    for: inputId, class: 'visually-hidden', text: 'Document name for ' + entry.file.name
+                }));
+                const input = el('input', {
+                    type: 'text', id: inputId, class: 'form-control form-control-sm', maxlength: '100',
+                    placeholder: 'Specify document name (optional)'
+                });
+                input.value = entry.documentLabel;
+                input.addEventListener('input', function () { entry.documentLabel = input.value; });
+                labelWrap.appendChild(input);
+                row.appendChild(labelWrap);
+                SrmsCombobox.attach(input, {
+                    items: documentLabelChoices.map(function (l) { return { value: l, label: l }; }),
+                    emptyText: 'No saved names yet — type a new one.'
+                });
+            }
 
             container.appendChild(row);
         });
@@ -1055,6 +1280,7 @@
         stagedFiles.forEach(function (entry) {
             formData.append('files', entry.file);
             formData.append('documentTypes', entry.documentType);
+            formData.append('documentLabels', entry.documentType === 'Others' ? entry.documentLabel.trim() : '');
         });
 
         const btn = $('#saveUploadDocumentBtn');
@@ -1198,6 +1424,11 @@
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    /** "Others — Medical Certificate" for a named Others document, else the type. */
+    function displayType(doc) {
+        return doc.documentLabel ? doc.documentType + ' — ' + doc.documentLabel : doc.documentType;
     }
 
     function formatDateTime(value) {

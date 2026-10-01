@@ -72,6 +72,7 @@ CREATE TABLE documents (
     document_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(20) NOT NULL,
     document_type VARCHAR(255) NOT NULL,
+    document_label VARCHAR(100) NULL,
     file_name VARCHAR(255) NOT NULL,
     file_type VARCHAR(100) NOT NULL,
     file_size INT NOT NULL,

@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -16,10 +17,13 @@ import java.util.zip.ZipOutputStream;
 import org.springframework.stereotype.Service;
 
 import com.example.springboot.dto.registrar.DocumentExportScope;
+import com.example.springboot.dto.registrar.ExportCheckResponse;
+import com.example.springboot.dto.registrar.FlaggedStudent;
 import com.example.springboot.exception.EmptyDocumentExportException;
 import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.DocumentContentRepository;
 import com.example.springboot.repository.DocumentFolderRepository;
+import com.example.springboot.repository.DocumentFolderRepository.CheckRow;
 import com.example.springboot.repository.DocumentFolderRepository.ExportRow;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentRecordRepository;
@@ -61,13 +65,21 @@ public class DocumentExportService {
     public record ExportEntry(Integer documentId, String entryName) {
     }
 
-    public record PreparedExport(String fileName, List<ExportEntry> entries) {
+    /**
+     * {@code studentsInScope}/{@code flaggedCount} come from the same
+     * missing-documents check the page runs, recomputed server-side for the
+     * export audit row.
+     */
+    public record PreparedExport(String fileName, List<ExportEntry> entries,
+                                 int studentsInScope, int flaggedCount) {
     }
 
     /**
      * Validates the scope's key exists, reads its BLOB-free manifest, and
      * allocates every ZIP entry path up front — nothing here touches
-     * {@code content_data}.
+     * {@code content_data}. It also runs the missing-documents check query to
+     * compute the {@code studentsInScope}/{@code flaggedCount} recorded in the
+     * export audit row (skipped when the export is empty).
      */
     public PreparedExport prepareExport(DocumentExportScope scope, String key) {
         requireScopeExists(scope, key);
@@ -79,7 +91,51 @@ public class DocumentExportService {
 
         String zipFileName = buildZipFileName(scope, key, rows.get(0));
         List<ExportEntry> entries = buildEntries(scope, rows);
-        return new PreparedExport(zipFileName, entries);
+        ExportCheckResponse check = evaluate(documentFolderRepository.findCheckRows(scope, key));
+        return new PreparedExport(zipFileName, entries, check.studentsInScope(), check.flagged().size());
+    }
+
+    /**
+     * Pre-export check (spec 2026-10-01 §3): every student in the scope —
+     * including students with zero documents — who is missing a required
+     * document per {@link RequiredDocumentPolicy}.
+     */
+    public ExportCheckResponse checkMissing(DocumentExportScope scope, String key) {
+        requireScopeExists(scope, key);
+        return evaluate(documentFolderRepository.findCheckRows(scope, key));
+    }
+
+    /** Groups check rows per student (preserving query order) and applies the policy. */
+    private static ExportCheckResponse evaluate(List<CheckRow> rows) {
+        Map<String, StudentDocuments> byStudent = new LinkedHashMap<>();
+        for (CheckRow row : rows) {
+            StudentDocuments docs = byStudent.computeIfAbsent(row.studentId(), id -> new StudentDocuments(row));
+            if (row.documentId() != null) {
+                docs.documentCount++;
+                docs.types.add(row.documentType());
+            }
+        }
+
+        List<FlaggedStudent> flagged = new ArrayList<>();
+        for (StudentDocuments docs : byStudent.values()) {
+            List<String> missing = RequiredDocumentPolicy.missing(docs.student.studentStatus(), docs.types);
+            if (!missing.isEmpty()) {
+                CheckRow s = docs.student;
+                flagged.add(new FlaggedStudent(s.studentId(), s.studentNumber(), s.lastName(), s.firstName(),
+                        s.studentStatus(), s.sectionCode(), docs.documentCount, missing));
+            }
+        }
+        return new ExportCheckResponse(byStudent.size(), flagged);
+    }
+
+    private static final class StudentDocuments {
+        private final CheckRow student;
+        private final Set<String> types = new HashSet<>();
+        private long documentCount;
+
+        private StudentDocuments(CheckRow student) {
+            this.student = student;
+        }
     }
 
     /**

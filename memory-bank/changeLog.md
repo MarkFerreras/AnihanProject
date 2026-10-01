@@ -1,5 +1,46 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Implementation)
+**Branch:** `feature/pre-export-missing-documents` (pushed; PR #68 open into `main`, not merged)
+**Commits:** `765a4f8`, `3834c95`, `41c90c2`, `6182123`, `0e95d97`, `2ed6605`, `c2eaa70`, `4d3f95c`, `52d5a5c`,
+`eec76dc`, `1fc0afc`, `f84bcc1`, `bcd6052`, + docs commit.
+
+- **Backend (`src/main/java/com/example/springboot/`):** new `service/RequiredDocumentPolicy` (what counts as
+  missing), `dto/registrar/ExportCheckResponse`, `dto/registrar/FlaggedStudent`. Modified
+  `service/DocumentService` (public type constants; `uploadBatch` 5-arg overload + `normalizeLabel`;
+  `getDocumentLabels`; label threaded through `save`/`toSummary`), `service/DocumentExportService`
+  (`checkMissing`, `evaluate`; `PreparedExport` now carries `studentsInScope`/`flaggedCount`),
+  `repository/DocumentFolderRepository` (`CheckRow`, `findCheckRows`), `repository/DocumentRepository` (label in
+  the three projections, label in the `:q` search, `findDistinctDocumentLabels`), `model/Document`
+  (`documentLabel`), `dto/registrar/DocumentSummaryResponse` (`documentLabel` component + 9-arg convenience
+  constructor), `controller/DocumentController` (`GET /export-check/{scope}/{key}`, `GET /labels`, labels read via
+  `getParameterValues`, audit text with the flagged count).
+- **SQL:** new `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql` (idempotent; **applied to the
+  live DB** on 2026-10-01 with the user's approval); `documents.document_label VARCHAR(100) NULL` mirrored in
+  `schema.sql`, `AnihanSRMS.sql` and `src/test/resources/document-storage-h2-schema.sql`.
+- **Frontend (`src/main/resources/static/`):** `documents.html` (`#exportCheckModal`, page CSS for the red "!" icon
+  and rows, staged-row wrapping and the `.staged-file-name` flex fix, script `?v=7`); `js/registrar-documents.js`
+  (check-before-export flow with a request token invalidated on dialog hide and folder change, focus restoration,
+  401/404/retry/"Export without checking" states; name field + `SrmsCombobox` suggestions on staged "Others" rows;
+  `documentLabels` sent parallel to files; `displayType()` in the table and folder view).
+- **Tests (+32):** new `RequiredDocumentPolicyTest`; extended `DocumentExportServiceTest`,
+  `DocumentServiceTest`, `DocumentControllerWebMvcTest`, `DocumentStorageIntegrationTest` (including the real-H2
+  parity test between the check and the export manifest).
+- **Docs:** `CLAUDE.md` (Required documents & labels convention) and the memory-bank logs. The plan and spec
+  were written the same day (see the entry below).
+- **Verification:** 578 tests green; live Playwright check passed (see `testing.md`). Schema change applied to the
+  live DB by the user's approval; `schema.sql` verified identical to the live tables/columns.
+
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Design Spec)
+**Branch:** `main` (documentation only, per the user's instruction)
+
+- **Added:** `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` — approved design.
+- **Added:** `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md` — implementation plan.
+- **Updated (spec):** five corrections found while reading the code for the plan (error display location,
+  CSS location, label display scope, `AnihanSRMS.sql` path, comma-safe label parameter).
+- **Updated:** `memory-bank/activeContext.md`, `progress.md`, `decisions.md`, `changeLog.md` (this entry).
+- **No product code, SQL, or tests changed.** Verification status: n/a (design only).
+
 ## 2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard (Implementation)
 **Branch:** `feature/course-auto-create-combobox` (not pushed, not merged)
 **Commits:** `e459bef`, `2067870`, `7533ce9`, `efa071b`, `c81f43b`, `1233764`, `073562d`, + docs commit.

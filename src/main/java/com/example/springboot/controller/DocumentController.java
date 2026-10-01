@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,6 +30,7 @@ import com.example.springboot.dto.registrar.DocumentExportScope;
 import com.example.springboot.dto.registrar.DocumentFolderHierarchyResponse;
 import com.example.springboot.dto.registrar.DocumentGenerateDataResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
+import com.example.springboot.dto.registrar.ExportCheckResponse;
 import com.example.springboot.dto.registrar.GenerateDocumentRequest;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.User;
@@ -95,6 +97,26 @@ public class DocumentController {
     }
 
     /**
+     * Read-only pre-export check (spec 2026-10-01 §3): which students in the
+     * scope are missing required documents. Writes no audit row.
+     * Errors: 400 for an unknown scope word, 404 when the key does not exist.
+     */
+    @GetMapping("/export-check/{scope}/{key}")
+    public ResponseEntity<ExportCheckResponse> exportCheck(@PathVariable String scope, @PathVariable String key) {
+        return ResponseEntity.ok(documentExportService.checkMissing(parseExportScope(scope), key));
+    }
+
+    private static DocumentExportScope parseExportScope(String scope) {
+        return switch (scope.toLowerCase(Locale.ROOT)) {
+            case "student" -> DocumentExportScope.STUDENT;
+            case "section" -> DocumentExportScope.SECTION;
+            case "unassigned" -> DocumentExportScope.UNASSIGNED;
+            case "batch" -> DocumentExportScope.BATCH;
+            default -> throw new IllegalArgumentException("Unknown export scope: " + scope);
+        };
+    }
+
+    /**
      * Prepares the manifest, writes one "Requested ZIP export" audit row
      * before any headers are sent, then streams. A failure after the
      * response is already committed (bytes flushed) cannot be turned into a
@@ -109,7 +131,9 @@ public class DocumentController {
         LogContext ctx = getLogContext();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
                 "Requested ZIP export (" + scope.name().toLowerCase(Locale.ROOT) + " " + key + ", "
-                        + prepared.entries().size() + " document(s))",
+                        + prepared.entries().size() + " document(s), "
+                        + prepared.flaggedCount() + " of " + prepared.studentsInScope()
+                        + " student(s) with missing documents)",
                 httpRequest.getRemoteAddr());
 
         httpResponse.setContentType("application/zip");
@@ -155,6 +179,11 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.getDocumentTypes());
     }
 
+    @GetMapping("/labels")
+    public ResponseEntity<List<String>> labels() {
+        return ResponseEntity.ok(documentService.getDocumentLabels());
+    }
+
     @PostMapping
     public ResponseEntity<DocumentSummaryResponse> upload(
             @RequestParam("studentId") String studentId,
@@ -184,8 +213,13 @@ public class DocumentController {
         DocumentAuditContext audit = new DocumentAuditContext(ctx.userId(), ctx.username(), ctx.role(),
                 httpRequest.getRemoteAddr());
 
+        // Read raw values: @RequestParam List<String> would split a single
+        // label such as "Barangay Clearance, 2026" on its comma.
+        String[] rawLabels = httpRequest.getParameterValues("documentLabels");
+        List<String> documentLabels = rawLabels == null ? null : Arrays.asList(rawLabels);
+
         List<DocumentSummaryResponse> saved = documentService.uploadBatch(
-                studentId, documentTypes, files, audit);
+                studentId, documentTypes, documentLabels, files, audit);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }

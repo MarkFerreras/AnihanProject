@@ -20,6 +20,8 @@ import com.example.springboot.repository.BatchRepository;
 import com.example.springboot.repository.DocumentContentRepository;
 import com.example.springboot.repository.DocumentFolderRepository;
 import com.example.springboot.repository.DocumentFolderRepository.ExportRow;
+import com.example.springboot.dto.registrar.ExportCheckResponse;
+import com.example.springboot.repository.DocumentFolderRepository.CheckRow;
 import com.example.springboot.repository.SectionRepository;
 import com.example.springboot.repository.StudentRecordRepository;
 
@@ -31,6 +33,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,6 +88,7 @@ class DocumentExportServiceTest {
 
         assertThrows(EmptyDocumentExportException.class,
                 () -> service.prepareExport(DocumentExportScope.STUDENT, "SR20260001"));
+        verify(documentFolderRepository, never()).findCheckRows(any(), any());
     }
 
     // -------------------------------------------------------
@@ -294,7 +299,7 @@ class DocumentExportServiceTest {
 
         var prepared = new DocumentExportService.PreparedExport("Documents_test.zip", List.of(
                 new DocumentExportService.ExportEntry(1, "a.pdf"),
-                new DocumentExportService.ExportEntry(2, "folder/b.pdf")));
+                new DocumentExportService.ExportEntry(2, "folder/b.pdf")), 0, 0);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         service.writeZip(prepared, out);
@@ -316,7 +321,7 @@ class DocumentExportServiceTest {
 
         var prepared = new DocumentExportService.PreparedExport("Documents_test.zip", List.of(
                 new DocumentExportService.ExportEntry(1, "a.pdf"),
-                new DocumentExportService.ExportEntry(2, "b.pdf")));
+                new DocumentExportService.ExportEntry(2, "b.pdf")), 0, 0);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertThrows(IOException.class, () -> service.writeZip(prepared, out));
@@ -328,8 +333,92 @@ class DocumentExportServiceTest {
     }
 
     // -------------------------------------------------------
+    // Pre-export missing-documents check
+    // -------------------------------------------------------
+
+    @Test
+    void checkMissingGroupsRowsPerStudentAndCountsDocuments() {
+        when(sectionRepository.existsById("S1")).thenReturn(true);
+        when(documentFolderRepository.findCheckRows(DocumentExportScope.SECTION, "S1")).thenReturn(List.of(
+                check("SR1", "Active", 1, "PSA Birth Certificate"),
+                check("SR1", "Active", 2, "Form 137"),
+                check("SR2", "Graduated", 3, "PSA Birth Certificate"),
+                check("SR2", "Graduated", 4, "Form 137"),
+                check("SR2", "Graduated", 5, "ID Picture (1x1 / 2x2)"),
+                check("SR2", "Graduated", 6, "Form IX - Cookery NC II")));
+
+        ExportCheckResponse result = service.checkMissing(DocumentExportScope.SECTION, "S1");
+
+        assertEquals(2, result.studentsInScope());
+        assertEquals(2, result.flagged().size());
+        var first = result.flagged().get(0);
+        assertEquals("SR1", first.studentId());
+        assertEquals(2, first.documentCount());
+        assertEquals(List.of("ID Picture (1x1 / 2x2)"), first.missing());
+        var second = result.flagged().get(1);
+        assertEquals("SR2", second.studentId());
+        assertEquals(4, second.documentCount());
+        assertEquals(List.of("Transcript of Records (TOR)", "OJT Report", "Certificate of TVET Program"),
+                second.missing());
+    }
+
+    @Test
+    void checkMissingFlagsAStudentWithZeroDocuments() {
+        when(batchRepository.existsById("B2026A")).thenReturn(true);
+        when(documentFolderRepository.findCheckRows(DocumentExportScope.UNASSIGNED, "B2026A"))
+                .thenReturn(List.of(check("SR9", "Enrolling", null, null)));
+
+        ExportCheckResponse result = service.checkMissing(DocumentExportScope.UNASSIGNED, "B2026A");
+
+        assertEquals(1, result.studentsInScope());
+        assertEquals(0, result.flagged().get(0).documentCount());
+        assertEquals(List.of("PSA Birth Certificate", "Form 137", "ID Picture (1x1 / 2x2)"),
+                result.flagged().get(0).missing());
+    }
+
+    @Test
+    void checkMissingReturnsNoFlaggedStudentsWhenEveryoneIsComplete() {
+        when(studentRecordRepository.existsByStudentId("SR1")).thenReturn(true);
+        when(documentFolderRepository.findCheckRows(DocumentExportScope.STUDENT, "SR1")).thenReturn(List.of(
+                check("SR1", "Active", 1, "PSA Birth Certificate"),
+                check("SR1", "Active", 2, "Form 137"),
+                check("SR1", "Active", 3, "ID Picture (1x1 / 2x2)")));
+
+        ExportCheckResponse result = service.checkMissing(DocumentExportScope.STUDENT, "SR1");
+
+        assertEquals(1, result.studentsInScope());
+        assertTrue(result.flagged().isEmpty());
+    }
+
+    @Test
+    void checkMissingThrowsNotFoundWhenSectionUnknown() {
+        when(sectionRepository.existsById("NOPE")).thenReturn(false);
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> service.checkMissing(DocumentExportScope.SECTION, "NOPE"));
+    }
+
+    @Test
+    void prepareExportCarriesStudentsInScopeAndFlaggedCount() {
+        when(sectionRepository.existsById("S1")).thenReturn(true);
+        when(documentFolderRepository.findExportRows(DocumentExportScope.SECTION, "S1"))
+                .thenReturn(List.of(row(1, "SR1", null, "A", "One", "S1", "psa.pdf")));
+        when(documentFolderRepository.findCheckRows(DocumentExportScope.SECTION, "S1")).thenReturn(List.of(
+                check("SR1", "Active", 1, "PSA Birth Certificate"),
+                check("SR2", "Active", null, null)));
+
+        var prepared = service.prepareExport(DocumentExportScope.SECTION, "S1");
+
+        assertEquals(2, prepared.studentsInScope());
+        assertEquals(2, prepared.flaggedCount());
+    }
+
+    // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------
+
+    private static CheckRow check(String studentId, String status, Integer documentId, String documentType) {
+        return new CheckRow(studentId, null, "First", "Last" + studentId, status, null, documentId, documentType);
+    }
 
     private static ExportRow row(int documentId, String studentId, String studentNumber,
                                  String firstName, String lastName, String sectionCode, String fileName) {

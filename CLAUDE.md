@@ -129,6 +129,8 @@ Controller → Service → Repository → Model (JPA Entity)
 
 **Dropdowns:** type-or-pick fields use `js/combobox.js` (`SrmsCombobox.attach`), never `<datalist>`. Native `<select>` remains fine for fixed pick-only filters.
 
+**Required documents & labels:** what counts as "missing" before a Documents-page export lives only in `service/RequiredDocumentPolicy.java` (intake documents — PSA Birth Certificate, Form 137, ID Picture — for everyone; TOR, any one Form IX, OJT Report and Certificate of TVET Program only for `Graduated`). "Others" documents may carry a custom `documents.document_label` (set only through `uploadBatch`, never written to `system_logs`); it never satisfies a requirement. The check (`GET /api/registrar/documents/export-check/{scope}/{key}`) is read-only and must cover the same students as the ZIP export — `DocumentStorageIntegrationTest.assertCheckMatchesExport` pins that.
+
 ## Database Schema
 
 Schema source of truth: `src/main/sql/schema.sql` (and `AnihanSRMS.sql` at root for device transfer).

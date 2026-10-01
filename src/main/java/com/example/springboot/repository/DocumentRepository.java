@@ -21,7 +21,7 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
     @Query("""
             SELECT new com.example.springboot.dto.registrar.DocumentSummaryResponse(
                 d.documentId, s.studentId, s.lastName, s.firstName,
-                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate)
+                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate, d.documentLabel)
             FROM Document d
             JOIN d.student s
             LEFT JOIN s.batch b
@@ -31,7 +31,8 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
                    OR LOWER(s.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
                    OR LOWER(s.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
                    OR LOWER(CONCAT(s.firstName, ' ', s.lastName)) LIKE LOWER(CONCAT('%', :q, '%'))
-                   OR LOWER(CONCAT(s.lastName, ', ', s.firstName)) LIKE LOWER(CONCAT('%', :q, '%')))
+                   OR LOWER(CONCAT(s.lastName, ', ', s.firstName)) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(d.documentLabel) LIKE LOWER(CONCAT('%', :q, '%')))
               AND (:documentType IS NULL OR d.documentType = :documentType)
               AND (:batchCode IS NULL OR b.batchCode = :batchCode)
               AND (:sectionCode IS NULL OR sec.sectionCode = :sectionCode)
@@ -59,7 +60,7 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
     @Query("""
             SELECT new com.example.springboot.dto.registrar.DocumentSummaryResponse(
                 d.documentId, s.studentId, s.lastName, s.firstName,
-                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate)
+                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate, d.documentLabel)
             FROM Document d
             JOIN d.student s
             WHERE s.studentId = :studentId
@@ -76,10 +77,19 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
     @Query("""
             SELECT new com.example.springboot.dto.registrar.DocumentSummaryResponse(
                 d.documentId, s.studentId, s.lastName, s.firstName,
-                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate)
+                d.documentType, d.fileName, d.fileType, d.fileSize, d.uploadDate, d.documentLabel)
             FROM Document d
             JOIN d.student s
             WHERE d.documentId IN :ids
             """)
     List<DocumentSummaryResponse> findSummariesByIds(@Param("ids") Collection<Integer> ids);
+
+    /** Distinct custom "Others" names in use, for the upload combobox suggestions. */
+    @Query("""
+            SELECT DISTINCT d.documentLabel
+            FROM Document d
+            WHERE d.documentLabel IS NOT NULL
+            ORDER BY d.documentLabel
+            """)
+    List<String> findDistinctDocumentLabels();
 }
