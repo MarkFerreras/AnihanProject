@@ -204,7 +204,7 @@ class DocumentControllerWebMvcTest {
         var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
         var f2 = new MockMultipartFile("files", "b.pdf", "application/pdf", "bbb".getBytes(StandardCharsets.UTF_8));
 
-        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any()))
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any()))
                 .thenReturn(List.of(
                         new DocumentSummaryResponse(1, "SR20260001", "Dela Cruz", "Maria",
                                 TOR_TYPE, "a.pdf", "application/pdf", 3, LocalDateTime.now()),
@@ -226,7 +226,7 @@ class DocumentControllerWebMvcTest {
     void uploadBatchReturns400WhenServiceRejectsValidation() throws Exception {
         var f1 = new MockMultipartFile("files", "a.exe", "application/octet-stream", "x".getBytes());
 
-        when(documentService.uploadBatch(any(), any(), any(), any()))
+        when(documentService.uploadBatch(any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Unsupported file type at position 1. Allowed: pdf, docx, xlsx"));
 
         mvc.perform(multipart("/api/registrar/documents/batch")
@@ -265,7 +265,7 @@ class DocumentControllerWebMvcTest {
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void uploadBatchReturns404WhenStudentUnknown() throws Exception {
         var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "x".getBytes());
-        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any()))
+        when(documentService.uploadBatch(eq("NOPE"), any(), any(), any(), any()))
                 .thenThrow(new java.util.NoSuchElementException("No student record found for ID: NOPE"));
 
         mvc.perform(multipart("/api/registrar/documents/batch")
@@ -309,6 +309,40 @@ class DocumentControllerWebMvcTest {
                         .param("studentId", "SR20260001")
                         .param("documentTypes", TOR_TYPE))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchForwardsLabelsWithoutSplittingOnCommas() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any())).thenReturn(List.of());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", "Others")
+                        .param("documentLabels", "Barangay Clearance, 2026")
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).uploadBatch(eq("SR20260001"), eq(List.of("Others")),
+                eq(List.of("Barangay Clearance, 2026")), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void uploadBatchPassesNullLabelsWhenTheParameterIsAbsent() throws Exception {
+        var f1 = new MockMultipartFile("files", "a.pdf", "application/pdf", "aaa".getBytes(StandardCharsets.UTF_8));
+        when(documentService.uploadBatch(eq("SR20260001"), any(), any(), any(), any())).thenReturn(List.of());
+
+        mvc.perform(multipart("/api/registrar/documents/batch")
+                        .file(f1)
+                        .param("studentId", "SR20260001")
+                        .param("documentTypes", TOR_TYPE)
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).uploadBatch(eq("SR20260001"), eq(List.of(TOR_TYPE)), isNull(), any(), any());
     }
 
     // -------------------------------------------------------

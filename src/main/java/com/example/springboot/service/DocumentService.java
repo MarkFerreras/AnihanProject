@@ -68,6 +68,10 @@ public class DocumentService {
     private static final int MAX_BATCH_FILES = 20;
     private static final long MAX_BATCH_TOTAL_BYTES = 50L * 1024 * 1024;
 
+    /** Custom "Others" name limit — matches documents.document_label VARCHAR(100). */
+    private static final int MAX_LABEL_LENGTH = 100;
+    private static final Pattern LABEL_CONTROL_CHARS = Pattern.compile("[\\x00-\\x1F\\x7F]");
+
     /**
      * Image whitelist for the ID picture only. Deliberately separate from
      * {@link #ALLOWED_EXTENSIONS} so the general Documents page keeps accepting
@@ -138,17 +142,28 @@ public class DocumentService {
     }
 
     /** One validated, ready-to-persist file from a {@link #uploadBatch} request. */
-    private record ValidatedFile(MultipartFile file, String documentType, String fileName, String mimeType) {
+    private record ValidatedFile(MultipartFile file, String documentType, String documentLabel,
+                                 String fileName, String mimeType) {
+    }
+
+    /** Batch upload without custom names — every file is stored unlabelled. */
+    @Transactional
+    public List<DocumentSummaryResponse> uploadBatch(String studentId, List<String> documentTypes,
+                                                      List<MultipartFile> files, DocumentAuditContext audit) {
+        return uploadBatch(studentId, documentTypes, null, files, audit);
     }
 
     /**
      * Validates and saves an entire batch of files for one student inside a
      * single database transaction: either every file and the one success
      * audit row are committed, or nothing is (spec §4). All validation runs
-     * before any file is read or persisted.
+     * before any file is read or persisted. {@code documentLabels} is
+     * optional (null = no names) and parallel to {@code files}; a label is
+     * only allowed on an "Others" document (spec 2026-10-01 §5.2).
      */
     @Transactional
     public List<DocumentSummaryResponse> uploadBatch(String studentId, List<String> documentTypes,
+                                                      List<String> documentLabels,
                                                       List<MultipartFile> files, DocumentAuditContext audit) {
         if (!StringUtils.hasText(studentId)) {
             throw new IllegalArgumentException("A student ID is required.");
@@ -164,6 +179,9 @@ public class DocumentService {
         }
         if (files.size() != documentTypes.size()) {
             throw new IllegalArgumentException("The number of files and document types must match.");
+        }
+        if (documentLabels != null && documentLabels.size() != files.size()) {
+            throw new IllegalArgumentException("The number of files and document labels must match.");
         }
         int count = files.size();
         if (count == 0) {
@@ -193,6 +211,8 @@ public class DocumentService {
                         "ID Picture uploads use a dedicated endpoint, not batch upload (file " + position + ").");
             }
             requireKnownType(documentType);
+            String documentLabel = normalizeLabel(
+                    documentLabels == null ? null : documentLabels.get(i), documentType, position);
 
             String originalName = requireValidFileName(file.getOriginalFilename(), position);
 
@@ -204,7 +224,7 @@ public class DocumentService {
                                 + String.join(", ", ALLOWED_EXTENSIONS.keySet()));
             }
 
-            validated.add(new ValidatedFile(file, documentType, originalName, mimeType));
+            validated.add(new ValidatedFile(file, documentType, documentLabel, originalName, mimeType));
         }
 
         if (totalSize > MAX_BATCH_TOTAL_BYTES) {
@@ -221,7 +241,8 @@ public class DocumentService {
                 // back — Spring only auto-rolls-back on RuntimeException/Error.
                 throw new UncheckedIOException("Could not read an uploaded file. Please try again.", e);
             }
-            Document saved = save(student, vf.documentType(), vf.fileName(), vf.mimeType(), content);
+            Document saved = save(student, vf.documentType(), vf.documentLabel(), vf.fileName(), vf.mimeType(),
+                    content);
             savedIds.add(saved.getDocumentId());
         }
 
@@ -235,6 +256,37 @@ public class DocumentService {
             byId.put(summary.documentId(), summary);
         }
         return savedIds.stream().map(byId::get).toList();
+    }
+
+    /**
+     * Trims a custom "Others" name; blank becomes null. Rejects a name on any
+     * other type, an over-long name, control characters, and a name equal to
+     * a real type — a real required document must never hide under "Others".
+     */
+    private static String normalizeLabel(String rawLabel, String documentType, int position) {
+        if (!StringUtils.hasText(rawLabel)) {
+            return null;
+        }
+        String label = rawLabel.trim();
+        if (!OTHERS_TYPE.equals(documentType)) {
+            throw new IllegalArgumentException(
+                    "A document name can only be given to 'Others' documents (file " + position + ").");
+        }
+        if (label.length() > MAX_LABEL_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Document name exceeds " + MAX_LABEL_LENGTH + " characters (file " + position + ").");
+        }
+        if (LABEL_CONTROL_CHARS.matcher(label).find()) {
+            throw new IllegalArgumentException(
+                    "Document name contains invalid characters (file " + position + ").");
+        }
+        for (String type : DOCUMENT_TYPES) {
+            if (type.equalsIgnoreCase(label)) {
+                throw new IllegalArgumentException("'" + label + "' is a document type — pick it from the type "
+                        + "list instead of using Others (file " + position + ").");
+            }
+        }
+        return label;
     }
 
     public DocumentSummaryResponse upload(String studentId, String documentType, MultipartFile file) {
@@ -264,7 +316,7 @@ public class DocumentService {
             throw new IllegalArgumentException("Could not read the uploaded file. Please try again.");
         }
 
-        return toSummary(save(student, documentType, originalName, mimeType, content));
+        return toSummary(save(student, documentType, null, originalName, mimeType, content));
     }
 
     /**
@@ -331,7 +383,7 @@ public class DocumentService {
         }
 
         StudentRecord student = requireStudent(studentId);
-        return toSummary(save(student, documentType, cleanName, "text/html", content));
+        return toSummary(save(student, documentType, null, cleanName, "text/html", content));
     }
 
     /** Deletes a document and returns its summary so the caller can write the audit log. */
@@ -440,11 +492,12 @@ public class DocumentService {
                 .ifPresent(documentRepository::delete);
     }
 
-    private Document save(StudentRecord student, String documentType,
+    private Document save(StudentRecord student, String documentType, String documentLabel,
                           String fileName, String mimeType, byte[] content) {
         Document document = new Document();
         document.setStudent(student);
         document.setDocumentType(documentType);
+        document.setDocumentLabel(documentLabel);
         document.setFileName(fileName);
         document.setFileType(mimeType);
         document.setFileSize(content.length);

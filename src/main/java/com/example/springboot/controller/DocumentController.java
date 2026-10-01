@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -212,8 +213,13 @@ public class DocumentController {
         DocumentAuditContext audit = new DocumentAuditContext(ctx.userId(), ctx.username(), ctx.role(),
                 httpRequest.getRemoteAddr());
 
+        // Read raw values: @RequestParam List<String> would split a single
+        // label such as "Barangay Clearance, 2026" on its comma.
+        String[] rawLabels = httpRequest.getParameterValues("documentLabels");
+        List<String> documentLabels = rawLabels == null ? null : Arrays.asList(rawLabels);
+
         List<DocumentSummaryResponse> saved = documentService.uploadBatch(
-                studentId, documentTypes, files, audit);
+                studentId, documentTypes, documentLabels, files, audit);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
