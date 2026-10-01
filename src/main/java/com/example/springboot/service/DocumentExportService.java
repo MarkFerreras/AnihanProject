@@ -77,7 +77,9 @@ public class DocumentExportService {
     /**
      * Validates the scope's key exists, reads its BLOB-free manifest, and
      * allocates every ZIP entry path up front — nothing here touches
-     * {@code content_data}.
+     * {@code content_data}. It also runs the missing-documents check query to
+     * compute the {@code studentsInScope}/{@code flaggedCount} recorded in the
+     * export audit row (skipped when the export is empty).
      */
     public PreparedExport prepareExport(DocumentExportScope scope, String key) {
         requireScopeExists(scope, key);

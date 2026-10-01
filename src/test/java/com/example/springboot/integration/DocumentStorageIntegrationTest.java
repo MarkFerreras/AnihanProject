@@ -417,6 +417,23 @@ class DocumentStorageIntegrationTest {
         assertEquals(java.util.Set.of("SR2"), checkStudentIds(DocumentExportScope.UNASSIGNED, "B2026A"));
         assertEquals(java.util.Set.of("SR1", "SR2"), checkStudentIds(DocumentExportScope.BATCH, "B2026A"));
         assertEquals(java.util.Set.of("SR3"), checkStudentIds(DocumentExportScope.STUDENT, "SR3"));
+
+        // Parity: the check covers exactly the students the ZIP covers (those with >= 1 document).
+        assertCheckMatchesExport(DocumentExportScope.SECTION, "S1");
+        assertCheckMatchesExport(DocumentExportScope.UNASSIGNED, "B2026A");
+        assertCheckMatchesExport(DocumentExportScope.BATCH, "B2026A");
+        assertCheckMatchesExport(DocumentExportScope.STUDENT, "SR3");
+    }
+
+    private void assertCheckMatchesExport(DocumentExportScope scope, String key) {
+        java.util.Set<String> exported = documentFolderRepository.findExportRows(scope, key).stream()
+                .map(DocumentFolderRepository.ExportRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> checkedWithDocuments = documentFolderRepository.findCheckRows(scope, key).stream()
+                .filter(row -> row.documentId() != null)
+                .map(DocumentFolderRepository.CheckRow::studentId)
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(exported, checkedWithDocuments, "check/export membership differs for " + scope + " " + key);
     }
 
     @Test
