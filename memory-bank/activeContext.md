@@ -2,7 +2,8 @@
 
 ## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
 
-- **Branch:** `feature/pre-export-missing-documents` (Confirmed; **not pushed, not merged**; `main` untouched).
+- **Branch:** `feature/pre-export-missing-documents` (Confirmed; **pushed, PR #68 open into `main`
+  (https://github.com/MarkFerreras/AnihanProject/pull/68), not merged**; `main` untouched).
   Executed with `superpowers:subagent-driven-development` (user's chosen mode): a fresh subagent per task,
   then a spec-compliance review, then a code-quality review, and a fix round whenever a review required one.
   Commits on top of `a855196`: `765a4f8` (RequiredDocumentPolicy + type constants), `3834c95` + `41c90c2`
@@ -23,8 +24,10 @@
 - **Live check (Confirmed, Playwright against the real app + DB):** all items passed; details in `testing.md`.
   Test data was created and fully removed (documents 13-18 for SR20260003); the only document left is the
   pre-existing id 7. Append-only `system_logs` rows from the run remain. App stopped, port 8080 free.
-- **Open items for the user:** (1) merge/PR decision (`superpowers:finishing-a-development-branch`); (2) the
-  two leftover DB routines; (3) the deferred minor review findings in `progress.md`; (4) this build **requires
+- **Open items for the user:** (1) review and merge PR #68 (user chose "push and create a PR" at
+  `superpowers:finishing-a-development-branch`); (2) the two leftover DB routines — **Confirmed: leave them
+  alone** (no change to the live DB or `schema.sql`); (3) the deferred minor review findings in
+  `progress.md`; (4) this build **requires
   the migration** — against a DB without `documents.document_label` every Document-entity path returns HTTP
   500 (listing, search, upload, view/download/delete, generate, ID picture) while the app still starts.
 

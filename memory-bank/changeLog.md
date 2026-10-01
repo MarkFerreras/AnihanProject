@@ -1,7 +1,7 @@
 # Change Log - Anihan SRMS
 
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Implementation)
-**Branch:** `feature/pre-export-missing-documents` (not pushed, not merged)
+**Branch:** `feature/pre-export-missing-documents` (pushed; PR #68 open into `main`, not merged)
 **Commits:** `765a4f8`, `3834c95`, `41c90c2`, `6182123`, `0e95d97`, `2ed6605`, `c2eaa70`, `4d3f95c`, `52d5a5c`,
 `eec76dc`, `1fc0afc`, `f84bcc1`, `bcd6052`, + docs commit.
 

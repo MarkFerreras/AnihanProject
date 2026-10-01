@@ -13,8 +13,8 @@
 - **Full suite:** 546 -> 578 tests, 0 failures, 0 errors. **Live check:** passed (see `testing.md`).
 - **Migration applied to the live DB with the user's approval** (see `activeContext.md`); `schema.sql` already
   matched the live tables/columns, so no further `schema.sql` change was needed.
-- **Remaining:** the merge/PR decision (`superpowers:finishing-a-development-branch`); the user's decision on
-  the two leftover live-DB routines (`column_exists`, `AddColumnIfNotExists`).
+- **Remaining:** review and merge PR #68 (branch pushed; the user chose "push and create a PR"). The two
+  leftover live-DB routines (`column_exists`, `AddColumnIfNotExists`) are deliberately left alone (Confirmed).
 - **Deferred / technical debt** (review Minor findings deliberately not fixed in this branch):
   - (a) `loadDocumentLabelChoices` re-renders every staged row when `/labels` returns; a field being typed in
     can lose focus (text is kept). Fix: keep the `SrmsCombobox` handles and call `setItems`.
