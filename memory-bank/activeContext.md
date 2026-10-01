@@ -1,6 +1,34 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written)
+## Latest Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified)
+
+- **Branch:** `feature/pre-export-missing-documents` (Confirmed; **not pushed, not merged**; `main` untouched).
+  Executed with `superpowers:subagent-driven-development` (user's chosen mode): a fresh subagent per task,
+  then a spec-compliance review, then a code-quality review, and a fix round whenever a review required one.
+  Commits on top of `a855196`: `765a4f8` (RequiredDocumentPolicy + type constants), `3834c95` + `41c90c2`
+  (check query/service + parity test), `6182123` + `0e95d97` (export-check endpoint + audit text + scope-word
+  test), `2ed6605` (document_label column/entity/summary/search/`/labels`), `c2eaa70` + `4d3f95c` (label
+  validation on batch upload + boundary test), `52d5a5c` + `eec76dc` + `1fc0afc` (pre-export dialog + stale
+  response/focus fixes), `f84bcc1` + `bcd6052` (Others name field + display + staged-row layout fix), plus
+  this docs commit.
+- **Full suite (Confirmed):** 546 -> 578 tests, 0 failures, 0 errors (54 report files), exactly the plan's
+  target. Run at `bcd6052`.
+- **Migration (Confirmed, user-approved):** `2026-10-01-add-documents-document-label.sql` was applied to the
+  live `AnihanSRMS` DB (Docker container `mysql-server`, MySQL 8.0.45). Verified `document_label VARCHAR(100)`
+  nullable right after `document_type`; a second run was a no-op. The user also asked that `schema.sql` match
+  the live DB: a full comparison (21 tables, 163 columns, indexes, FKs, charset) found `schema.sql` already
+  identical, so nothing changed there. Live DB has two leftover routines not in `schema.sql`
+  (`FUNCTION column_exists`, `PROCEDURE AddColumnIfNotExists`, created 2026-05-19, only referenced by old
+  `backup-*.sql` dumps) — **left alone, the user decides** (add to schema.sql / drop / ignore).
+- **Live check (Confirmed, Playwright against the real app + DB):** all items passed; details in `testing.md`.
+  Test data was created and fully removed (documents 13-18 for SR20260003); the only document left is the
+  pre-existing id 7. Append-only `system_logs` rows from the run remain. App stopped, port 8080 free.
+- **Open items for the user:** (1) merge/PR decision (`superpowers:finishing-a-development-branch`); (2) the
+  two leftover DB routines; (3) the deferred minor review findings in `progress.md`; (4) this build **requires
+  the migration** — against a DB without `documents.document_label` every Document-entity path returns HTTP
+  500 (listing, search, upload, view/download/delete, generate, ID picture) while the app still starts.
+
+## Session (2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written)
 
 - **Checkout:** `main` (documentation-only brainstorming/planning per the user's explicit instruction "no
   need to create a separate branch"; same precedent as 2026-09-27 and 2026-09-30). No product code changed.

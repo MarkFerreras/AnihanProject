@@ -4,6 +4,31 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-01 - Pre-Export Check & "Others" Names: Implementation-Time Decisions (Confirmed, built)
+
+**Decision (as built on `feature/pre-export-missing-documents`; the design decisions below stand unchanged):**
+- **Stale-response guard:** `fetchExportCheck` takes a token (`exportCheckToken`); the token is bumped on
+  `hide.bs.modal` (fires when `hide()` starts), **not** `hidden.bs.modal` (fires after the fade), and at the top
+  of `selectFolder`. Rationale: a late zero-flag Retry response arriving during the ~300 ms fade-out would
+  otherwise start a download the user just cancelled. It is deliberately **not** bumped in `renderContentPanel`,
+  because upload/delete refreshes call it and would silently drop a legitimate pending check. Verified live.
+- **Focus returns to the originating Export button** on hidden; a fallback refocus on the no-dialog path is
+  skipped while a dialog is open.
+- **Check/ZIP parity is enforced by a test, not shared constants:** `assertCheckMatchesExport` asserts that for
+  all four scopes the export manifest's students equal the check's students that have a document.
+- **Labels are read with `HttpServletRequest.getParameterValues("documentLabels")`**, never
+  `@RequestParam List<String>` (Spring splits a single value on commas, which would corrupt
+  `Barangay Clearance, 2026`). `""` is sent for non-Others rows so the arrays stay parallel; the server stores
+  blank as no label and rejects a label on a non-"Others" type, >100 chars, control characters, or a name equal
+  to a real type (case-insensitive). The label is never written to `system_logs`.
+- **`prepareExport` reuses `evaluate(findCheckRows(...))`** (not `checkMissing`) to avoid a second
+  `requireScopeExists`; it is skipped when the export is empty (the empty-export exception is unchanged).
+- **Deployment ordering:** the migration must be applied before running this build, and re-run after restoring
+  any pre-2026-10-01 backup. It is backward-compatible with `main` (nullable column, old inserts leave NULL).
+- **Not done on purpose:** Unicode normalisation of labels (NBSP, bidi, whitespace collapsing) — see
+  `progress.md` debt item (b); `AFTER document_type` kept for column order despite INSTANT-only-at-end on
+  MySQL < 8.0.29 (live is 8.0.45).
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Confirmed, designed)
 
 **Decision** (spec: `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md`):

@@ -1,5 +1,44 @@
 # Progress - Anihan SRMS
 
+## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified
+
+- **Completed (branch `feature/pre-export-missing-documents`, 13 code commits `765a4f8`..`bcd6052`):**
+  `RequiredDocumentPolicy`; the BLOB-free `student_records LEFT JOIN documents` check query and
+  `DocumentExportService.checkMissing`; `GET /api/registrar/documents/export-check/{scope}/{key}` (read-only, no
+  audit row); the ZIP audit row now reads `... N document(s), X of Y student(s) with missing documents)`;
+  `documents.document_label` (migration + `schema.sql` + `AnihanSRMS.sql` + H2 test schema + entity + summary DTO
+  + search + `GET /api/registrar/documents/labels`); label validation on `POST .../batch`
+  (`documentLabels`, comma-safe via `getParameterValues`); the pre-export dialog; the Others name field and
+  "Others — name" display. Reviewed per task (spec + quality) and once as a whole branch.
+- **Full suite:** 546 -> 578 tests, 0 failures, 0 errors. **Live check:** passed (see `testing.md`).
+- **Migration applied to the live DB with the user's approval** (see `activeContext.md`); `schema.sql` already
+  matched the live tables/columns, so no further `schema.sql` change was needed.
+- **Remaining:** the merge/PR decision (`superpowers:finishing-a-development-branch`); the user's decision on
+  the two leftover live-DB routines (`column_exists`, `AddColumnIfNotExists`).
+- **Deferred / technical debt** (review Minor findings deliberately not fixed in this branch):
+  - (a) `loadDocumentLabelChoices` re-renders every staged row when `/labels` returns; a field being typed in
+    can lose focus (text is kept). Fix: keep the `SrmsCombobox` handles and call `setItems`.
+  - (b) Label hygiene is ASCII-only: `LABEL_CONTROL_CHARS` allows C1 controls, U+2028/2029, zero-width and
+    bidi-override characters; internal whitespace is not collapsed; case-only duplicates collapse in MySQL
+    `DISTINCT` (case-insensitive collation) but not on H2; a "equals a known type" look-alike (double space,
+    en dash) is accepted — fail-safe, since "Others" never satisfies a requirement.
+  - (c) `/labels` is unbounded and `documents.document_label` is not indexed (`DISTINCT` scans the table);
+    negligible at this scale. `ADD COLUMN ... AFTER` is INSTANT only on MySQL 8.0.29+ (live is 8.0.45).
+  - (d) `DocumentSummaryResponse` carries a 9-arg constructor used only by tests; `RequiredDocumentPolicy`
+    takes its type constants from the Spring `DocumentService` (a small constants holder would be cleaner);
+    `DocumentFolderRepository`'s class Javadoc still says "three flat projections".
+  - (e) The check's four `WHERE` clauses duplicate the `EXPORT_*_SQL` text; parity is pinned by
+    `DocumentStorageIntegrationTest.assertCheckMatchesExport`, not by shared constants.
+  - (f) The audit "X of Y" counts zero-document students in scope who are not in the ZIP (by design).
+  - (g) Dialog a11y polish: "Checking…" is not announced to screen readers; the hidden "Missing documents:"
+    text is redundant; the summary is not `aria-describedby`; Retry replaces the body and drops focus; Cancel
+    could read "Close" in the 401/404 states; `renderExportCheckResult` could extract a row builder.
+  - (h) Error wording: a label equal to "Others" or to "ID Picture (1x1 / 2x2)" is rejected with "pick it from
+    the type list", which reads oddly for those two.
+  - (i) Documents-table search placeholder still reads "Student ID or name" although the backend search also
+    matches custom names.
+  - (j) Task 1 minor: no partial-set policy test (only none/all per tier); `missing()` returns a mutable list.
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Design Spec Written
 
 - **Completed:** brainstorming + approved design spec
