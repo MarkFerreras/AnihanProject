@@ -12,8 +12,14 @@
   docs for Graduated only, any one Form IX); warning shown only at export time as a dialog with a red "!";
   new read-only `GET /api/registrar/documents/export-check/{scope}/{key}`; export audit row gains the flagged
   count; new nullable `documents.document_label` column (needs a manual migration).
-- **Next step:** user reviews the written spec, then `superpowers:writing-plans` produces the implementation
-  plan. Implementation must happen on a feature branch (Phase 0 rule).
+- **Plan written (Confirmed, not yet executed):** `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md`
+  — 9 tasks (0–8), TDD, expected suite 546 → 578. Task 0 creates `feature/pre-export-missing-documents`.
+- **Spec corrected while planning (verified against code):** check errors render inside `#exportCheckModal`;
+  page CSS goes in `documents.html`'s `<style>`; labels only display in the table and folder doc list (View/Delete
+  dialogs show no type); `AnihanSRMS.sql` is at `src/main/sql/`; labels are read via `getParameterValues`
+  because Spring comma-splits a single `@RequestParam List<String>` value.
+- **Next step:** execute the plan (subagent-driven recommended). Task 8 needs the user's approval before the
+  migration is applied to the live `AnihanSRMS` DB.
 
 ## Session (2026-09-30 - Course Auto-Create, Custom Combobox & Student-Number Guard: Implemented & Verified)
 

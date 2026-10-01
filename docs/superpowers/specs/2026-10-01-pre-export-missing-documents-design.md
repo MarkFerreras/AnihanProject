@@ -115,25 +115,26 @@ public record FlaggedStudent(String studentId, String studentNumber, String last
 - Footer: **Cancel** (secondary, receives initial focus) · **Export anyway** (primary → hide modal, then `window.location.href = exportUrl`).
 - Nothing persists after close; the tree is not marked.
 
-### 4.4 Errors
-- 401 → existing `buildSessionExpiredNotice()` behaviour.
-- 404 → "This item is no longer available — refresh to continue."
-- Any other failure → inline alert "Couldn't check for missing documents." with **Retry** and **Export without checking**. A failed check must never prevent an export.
+### 4.4 Errors (shown inside `#exportCheckModal` — the folder content panel is re-rendered too often to host an alert)
+- 401 → existing `buildSessionExpiredNotice()` in the modal body; no export button.
+- 404 → "This item is no longer available — refresh to continue."; no export button.
+- Any other failure → "Couldn't check for missing documents." with **Retry** (re-runs the check in place) and an **Export without checking** footer button. A failed check must never prevent an export.
 
 ### 4.5 Safety & style
 - All server text via the existing `el()` helper / `textContent` — never `innerHTML`.
-- `.missing-doc-icon` in `dashboard.css`: small round badge, white bold "!" on `var(--bs-danger)`. No icon library (air-gapped; everything local).
+- `.missing-doc-icon` in the page-scoped `<style>` block of `documents.html` (where the other folder-explorer styles live): small round badge, white bold "!" on `var(--bs-danger)`. No icon library (air-gapped; everything local).
 
 ## 5. Custom Names for "Others" Documents
 
 ### 5.1 Schema
 - New `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql`: adds `documents.document_label VARCHAR(100) NULL` **idempotently** (check `information_schema.COLUMNS` first, then `ALTER TABLE` via prepared statement, matching earlier migrations' style).
-- Mirror in `src/main/sql/schema.sql` (+ header "Updated:" line), `AnihanSRMS.sql`, and `src/test/resources/document-storage-h2-schema.sql`.
+- Mirror in `src/main/sql/schema.sql` (+ header "Updated:" line), `src/main/sql/AnihanSRMS.sql`, and `src/test/resources/document-storage-h2-schema.sql`.
 - Existing rows get `NULL` = plain "Others"; no backfill. Applied manually (JPA DDL is `none`).
 - `model/Document.java`: `@Column(name = "document_label", length = 100) private String documentLabel;` + accessors.
 
 ### 5.2 Write rules — `DocumentService.uploadBatch` (validate-before-write, as today)
 - `POST /api/registrar/documents/batch` accepts optional `documentLabels` (parallel to `files` / `documentTypes`). Absent → all `null` (old callers keep working). Present with a different length → 400.
+- The controller reads it with `HttpServletRequest.getParameterValues("documentLabels")`, **not** `@RequestParam List<String>` — Spring splits a single list value on commas, which would break a one-file upload labelled e.g. "Barangay Clearance, 2026".
 - Each label: trimmed; blank → `null`.
 - A non-null label is allowed **only when the type is `Others`**; otherwise 400.
 - Max 100 characters; control characters rejected → 400.
@@ -146,7 +147,7 @@ public record FlaggedStudent(String studentId, String studentNumber, String last
 - `DocumentSummaryResponse` gains `String documentLabel`; the three JPQL constructor projections in `DocumentRepository` and `DocumentService.toSummary` include it.
 - The `q` search in the Documents list also matches `document_label`.
 - New `GET /api/registrar/documents/labels` → sorted distinct non-null labels (`DocumentRepository` query); used for combobox suggestions.
-- Display text everywhere a type is shown (Documents DataTable type column, folder-view student document list, view/delete confirmations): `Others — {label}` when labelled, else the type.
+- Display text where a type is shown (Documents DataTable type column and the folder-view student document list — the View and Delete dialogs never show a type): `Others — {label}` when labelled, else the type.
 - Document Type filter unchanged: "Others" returns labelled and unlabelled "Others" documents.
 - ZIP entry names still come from `file_name` — export unaffected.
 

@@ -4,6 +4,9 @@
 **Branch:** `main` (documentation only, per the user's instruction)
 
 - **Added:** `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` — approved design.
+- **Added:** `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md` — implementation plan.
+- **Updated (spec):** five corrections found while reading the code for the plan (error display location,
+  CSS location, label display scope, `AnihanSRMS.sql` path, comma-safe label parameter).
 - **Updated:** `memory-bank/activeContext.md`, `progress.md`, `decisions.md`, `changeLog.md` (this entry).
 - **No product code, SQL, or tests changed.** Verification status: n/a (design only).
 

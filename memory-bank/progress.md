@@ -4,9 +4,10 @@
 
 - **Completed:** brainstorming + approved design spec
   `docs/superpowers/specs/2026-10-01-pre-export-missing-documents-design.md` (on `main`, docs only).
-- **In progress:** user review of the written spec.
-- **Remaining:** implementation plan (`superpowers:writing-plans`), then implementation on a feature branch,
-  including a manual migration `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql`.
+- **Completed:** implementation plan `docs/superpowers/plans/2026-10-01-pre-export-missing-documents.md`
+  (9 tasks, 32 new tests planned → 578 total).
+- **Remaining:** execute the plan on `feature/pre-export-missing-documents`, including the manual migration
+  `src/main/sql/migrations/2026-10-01-add-documents-document-label.sql` (apply only with user approval).
 - **No code or schema changed in this session.** Test baseline unchanged (546).
 
 ## 2026-09-30 - Course Auto-Create / Custom Combobox / Student-Number Guard: Implemented & Live-Verified
