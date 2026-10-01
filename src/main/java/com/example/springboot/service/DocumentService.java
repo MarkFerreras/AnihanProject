@@ -30,17 +30,28 @@ public class DocumentService {
     /** Document type reserved for the student's 1x1 / 2x2 ID picture. */
     public static final String ID_PICTURE_TYPE = "ID Picture (1x1 / 2x2)";
 
+    public static final String TOR_TYPE = "Transcript of Records (TOR)";
+    public static final String FORM_IX_BPP_TYPE = "Form IX - Bread and Pastry Production NC II";
+    public static final String FORM_IX_COOKERY_TYPE = "Form IX - Cookery NC II";
+    public static final String FORM_IX_FBS_TYPE = "Form IX - Food and Beverage Services NC II";
+    public static final String FORM_137_TYPE = "Form 137";
+    public static final String PSA_BIRTH_CERTIFICATE_TYPE = "PSA Birth Certificate";
+    public static final String OJT_REPORT_TYPE = "OJT Report";
+    public static final String TVET_CERTIFICATE_TYPE = "Certificate of TVET Program";
+    /** The only type that may carry a custom {@code document_label}. */
+    public static final String OTHERS_TYPE = "Others";
+
     /** Document categories per R3.2 (AGILE-76) — the four generated templates plus common uploads. */
     private static final List<String> DOCUMENT_TYPES = List.of(
-            "Transcript of Records (TOR)",
-            "Form IX - Bread and Pastry Production NC II",
-            "Form IX - Cookery NC II",
-            "Form IX - Food and Beverage Services NC II",
-            "Form 137",
-            "PSA Birth Certificate",
-            "OJT Report",
-            "Certificate of TVET Program",
-            "Others",
+            TOR_TYPE,
+            FORM_IX_BPP_TYPE,
+            FORM_IX_COOKERY_TYPE,
+            FORM_IX_FBS_TYPE,
+            FORM_137_TYPE,
+            PSA_BIRTH_CERTIFICATE_TYPE,
+            OJT_REPORT_TYPE,
+            TVET_CERTIFICATE_TYPE,
+            OTHERS_TYPE,
             ID_PICTURE_TYPE
     );
 
@@ -77,10 +88,10 @@ public class DocumentService {
      * documents — mirrors TEMPLATES[*].shortName in curriculum-templates.js.
      */
     private static final Map<String, String> TYPE_SHORT_NAMES = Map.of(
-            "Transcript of Records (TOR)", "TOR",
-            "Form IX - Bread and Pastry Production NC II", "FormIX-BPP",
-            "Form IX - Cookery NC II", "FormIX-Cookery",
-            "Form IX - Food and Beverage Services NC II", "FormIX-FBS"
+            TOR_TYPE, "TOR",
+            FORM_IX_BPP_TYPE, "FormIX-BPP",
+            FORM_IX_COOKERY_TYPE, "FormIX-Cookery",
+            FORM_IX_FBS_TYPE, "FormIX-FBS"
     );
 
     private final DocumentRepository documentRepository;
