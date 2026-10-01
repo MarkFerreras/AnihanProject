@@ -576,6 +576,7 @@
     }
 
     function selectFolder(kind, key) {
+        exportCheckToken++; // leaving this folder invalidates any pending export check
         selection = { kind: kind, key: key };
         renderFolderTree();
         renderBreadcrumb();
@@ -601,10 +602,7 @@
             rootCrumb.textContent = 'All Batches';
         } else {
             rootCrumb.appendChild(makeCrumbLink('All Batches', function () {
-                selection = { kind: null, key: null };
-                renderFolderTree();
-                renderBreadcrumb();
-                renderContentPanel();
+                selectFolder(null, null);
             }));
         }
         bc.appendChild(rootCrumb);
@@ -706,7 +704,7 @@
             ctx.btn.disabled = false;
             ctx.btn.textContent = ctx.label;
             // Disabling a focused button drops focus to <body>; give it back.
-            if (ctx.btn.isConnected && document.activeElement === document.body) ctx.btn.focus();
+            if (!exportCheckContext && ctx.btn.isConnected && document.activeElement === document.body) ctx.btn.focus();
         });
     }
 
@@ -826,10 +824,15 @@
             document.getElementById('exportCheckCancelBtn').focus();
         });
 
+        // Fires synchronously when hide() starts (not after the fade-out), so a
+        // late Retry response can never start a download the user cancelled.
+        modalEl.addEventListener('hide.bs.modal', function () {
+            exportCheckToken++;
+        });
+
         modalEl.addEventListener('hidden.bs.modal', function () {
             const btn = exportCheckContext && exportCheckContext.btn;
             exportCheckContext = null;
-            exportCheckToken++; // closing the dialog invalidates any pending retry
             document.getElementById('exportCheckBody').innerHTML = '';
             if (btn && btn.isConnected) btn.focus();
         });
