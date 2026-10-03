@@ -31,7 +31,7 @@
     // -------------------------------------------------------
     // Upload staging state
     // -------------------------------------------------------
-    let stagedFiles = []; // [{ file, documentType, documentLabel }]
+    let stagedFiles = []; // [{ file, documentType, documentLabel, suggestion }]
     let documentLabelChoices = [];
     let uploadLockedStudentId = null;
     let uploadLockedLabel = null;
@@ -1180,7 +1180,7 @@
 
     function addStagedFiles(files) {
         files.forEach(function (file) {
-            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '' });
+            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '', suggestion: null });
         });
         renderStagedFiles();
     }
@@ -1214,7 +1214,10 @@
             });
             select.addEventListener('change', function () {
                 entry.documentType = select.value;
-                if (entry.documentType !== 'Others') entry.documentLabel = '';
+                if (entry.documentType !== 'Others') {
+                    entry.documentLabel = '';
+                    entry.suggestion = null;
+                }
                 renderStagedFiles();
                 // The re-render replaced the select; hand focus to its replacement so keyboard use isn't interrupted.
                 const rebuilt = document.getElementById('stagedFilesList').querySelectorAll('select')[index];
@@ -1237,8 +1240,14 @@
                     placeholder: 'Specify document name (optional)'
                 });
                 input.value = entry.documentLabel;
-                input.addEventListener('input', function () { entry.documentLabel = input.value; });
+                const hint = el('div', { class: 'staged-file-hint small mt-1', 'aria-live': 'polite' });
+                input.addEventListener('input', function () {
+                    entry.documentLabel = input.value;
+                    scheduleTypeSuggestion(entry, hint);
+                });
                 labelWrap.appendChild(input);
+                labelWrap.appendChild(hint);
+                renderTypeSuggestion(hint, entry);
                 row.appendChild(labelWrap);
                 SrmsCombobox.attach(input, {
                     items: documentLabelChoices.map(function (l) { return { value: l, label: l }; }),
@@ -1251,6 +1260,56 @@
 
         $('#uploadStagedSummary').text(stagedFiles.length + ' file' + (stagedFiles.length === 1 ? '' : 's') + ', ' + formatSize(totalBytes));
         updateUploadSubmitState();
+    }
+
+    // "Did you mean …?" for "Others" labels (spec 2026-10-01 SO checklist §9). The alias list
+    // lives on the server (DocumentTypeSuggester); this only asks and shows the answer. It
+    // never switches the type on its own and never blocks the upload.
+    const SUGGESTION_DELAY_MS = 300;
+    const FORM_IX_GENERIC = 'Form IX';
+
+    function scheduleTypeSuggestion(entry, hint) {
+        clearTimeout(entry.suggestionTimer);
+        entry.suggestion = null;
+        renderTypeSuggestion(hint, entry);
+        const label = entry.documentLabel.trim();
+        if (!label) return;
+        entry.suggestionTimer = setTimeout(function () {
+            $.ajax({
+                url: '/api/registrar/documents/type-suggestion',
+                data: { label: label },
+                success: function (res) {
+                    // Ignore a reply for a label the Registrar has since changed.
+                    if (entry.documentType !== 'Others' || entry.documentLabel.trim() !== label) return;
+                    entry.suggestion = res && res.suggestedType ? res.suggestedType : null;
+                    renderTypeSuggestion(hint, entry);
+                }
+                // No error handler on purpose: the hint is optional, so a failed lookup shows nothing.
+            });
+        }, SUGGESTION_DELAY_MS);
+    }
+
+    function renderTypeSuggestion(hint, entry) {
+        hint.replaceChildren();
+        if (!entry.suggestion) return;
+        if (entry.suggestion === FORM_IX_GENERIC) {
+            hint.appendChild(document.createTextNode(
+                'Did you mean a Form IX? Pick the matching Form IX type from the list.'));
+            return;
+        }
+        hint.appendChild(document.createTextNode('Did you mean '));
+        hint.appendChild(el('em', { text: entry.suggestion }));
+        hint.appendChild(document.createTextNode('? '));
+        const switchBtn = el('button', {
+            type: 'button', class: 'btn btn-link btn-sm p-0 align-baseline', text: 'Switch'
+        });
+        switchBtn.addEventListener('click', function () {
+            entry.documentType = entry.suggestion;
+            entry.documentLabel = '';
+            entry.suggestion = null;
+            renderStagedFiles();
+        });
+        hint.appendChild(switchBtn);
     }
 
     function updateUploadSubmitState() {
