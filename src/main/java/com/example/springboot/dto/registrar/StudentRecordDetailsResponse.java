@@ -44,7 +44,9 @@ public record StudentRecordDetailsResponse(
         ParentDto father,
         ParentDto mother,
         GuardianDto guardian,
-        BigDecimal totalGwa
+        BigDecimal totalGwa,
+        LocalDate completionDate,
+        String employmentStatus
 ) {
 
     public static StudentRecordDetailsResponse from(StudentRecord r,
@@ -88,7 +90,9 @@ public record StudentRecordDetailsResponse(
                 father,
                 mother,
                 guardian,
-                totalGwa
+                totalGwa,
+                r.getCompletionDate(),
+                r.getEmploymentStatus()
         );
     }
 

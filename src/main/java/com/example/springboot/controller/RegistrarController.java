@@ -1,5 +1,6 @@
 package com.example.springboot.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ import com.example.springboot.dto.registrar.UpdateStudentStatusRequest;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.service.RegistrarService;
+import com.example.springboot.service.StudentStatusTransitions;
 import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -151,7 +153,8 @@ public class RegistrarController {
     /**
      * Changes a student's enrollment status. Pulled out of the general update endpoint so a
      * status change is always a deliberate, separately audited action — mirrors the treatment
-     * given to the student number.
+     * given to the student number. The audit line also records a set or cleared completion
+     * date and, when the move required one, the reason (spec 2026-10-01 SO checklist 10).
      */
     @PutMapping("/{recordId}/status")
     public ResponseEntity<StudentRecordDetailsResponse> updateStatus(
@@ -159,18 +162,44 @@ public class RegistrarController {
             @Valid @RequestBody UpdateStudentStatusRequest request,
             HttpServletRequest httpRequest
     ) {
-        String oldStatus = registrarService.getRecordById(recordId).studentStatus();
+        StudentRecordDetailsResponse before = registrarService.getRecordById(recordId);
 
-        StudentRecordDetailsResponse updated =
-                registrarService.updateStatus(recordId, request.studentStatus());
+        StudentRecordDetailsResponse updated = registrarService.updateStatus(
+                recordId, request.studentStatus(), request.completionDate(), request.reason());
 
         LogContext ctx = getLogContext();
-        String studentName = updated.lastName() + ", " + updated.firstName();
         systemLogService.logAction(ctx.userId(), ctx.username(), ctx.role(),
-                "Changed status of " + studentName + " from " + oldStatus + " to " + updated.studentStatus(),
+                statusChangeAction(before, updated, request.reason()),
                 httpRequest.getRemoteAddr());
 
         return ResponseEntity.ok(updated);
+    }
+
+    /** system_logs.action is VARCHAR(500). */
+    private static final int MAX_ACTION_LENGTH = 500;
+
+    /**
+     * e.g. "Changed status of Dela Cruz, Ana from Active to Graduated (completion date
+     * 2014-03-15; reason: Digitized archive record)". The reason is logged only when the move
+     * required one (the service has already rejected a blank one).
+     */
+    private String statusChangeAction(StudentRecordDetailsResponse before,
+                                      StudentRecordDetailsResponse after, String reason) {
+        List<String> notes = new ArrayList<>();
+        if (after.completionDate() != null && !after.completionDate().equals(before.completionDate())) {
+            notes.add("completion date " + after.completionDate());
+        } else if (after.completionDate() == null && before.completionDate() != null) {
+            notes.add("cleared completion date " + before.completionDate());
+        }
+        if (StudentStatusTransitions.check(before.studentStatus(), after.studentStatus()).requiresReason()) {
+            notes.add("reason: " + (reason == null ? "" : reason.trim()));
+        }
+        String action = "Changed status of " + after.lastName() + ", " + after.firstName()
+                + " from " + before.studentStatus() + " to " + after.studentStatus();
+        if (!notes.isEmpty()) {
+            action += " (" + String.join("; ", notes) + ")";
+        }
+        return action.length() <= MAX_ACTION_LENGTH ? action : action.substring(0, MAX_ACTION_LENGTH - 3) + "...";
     }
 
     @DeleteMapping("/{recordId}")

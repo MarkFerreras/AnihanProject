@@ -3,6 +3,7 @@ package com.example.springboot.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -47,19 +49,25 @@ class RegistrarStatusControllerWebMvcTest {
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
 
     private StudentRecordDetailsResponse details(String status) {
+        return details(status, null);
+    }
+
+    private StudentRecordDetailsResponse details(String status, LocalDate completionDate) {
         return new StudentRecordDetailsResponse(
                 1, "SR20260001", null, "Lipata", "Maria", null,
                 null, null, null, null, null, null, null, null, null,
                 false, null, null, null, null, null,
                 null, null, null, null, status,
-                null, List.of(), List.of(), null, null, null, null);
+                null, List.of(), List.of(), null, null, null, null,
+                completionDate, null);
     }
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void changesStatusAndLogsTheTransition() throws Exception {
         when(registrarService.getRecordById(1)).thenReturn(details("Enrolling"));
-        when(registrarService.updateStatus(eq(1), eq("Active"))).thenReturn(details("Active"));
+        when(registrarService.updateStatus(eq(1), eq("Active"), isNull(), isNull()))
+                .thenReturn(details("Active"));
 
         mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,7 +88,7 @@ class RegistrarStatusControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.studentStatus").exists());
 
-        verify(registrarService, never()).updateStatus(any(), any());
+        verify(registrarService, never()).updateStatus(any(), any(), any(), any());
     }
 
     @Test
@@ -91,7 +99,7 @@ class RegistrarStatusControllerWebMvcTest {
                         .content("{\"studentStatus\":\"\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(registrarService, never()).updateStatus(any(), any());
+        verify(registrarService, never()).updateStatus(any(), any(), any(), any());
     }
 
     @Test
@@ -114,7 +122,7 @@ class RegistrarStatusControllerWebMvcTest {
                         .content("{\"studentStatus\":\"Active\"}"))
                 .andExpect(status().isForbidden());
 
-        verify(registrarService, never()).updateStatus(any(), any());
+        verify(registrarService, never()).updateStatus(any(), any(), any(), any());
     }
 
     @Test
@@ -124,6 +132,106 @@ class RegistrarStatusControllerWebMvcTest {
                         .content("{\"studentStatus\":\"Active\"}"))
                 .andExpect(status().isUnauthorized());
 
-        verify(registrarService, never()).updateStatus(any(), any());
+        verify(registrarService, never()).updateStatus(any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void completingAStudentForwardsTheDateAndLogsIt() throws Exception {
+        LocalDate done = LocalDate.of(2026, 9, 30);
+        when(registrarService.getRecordById(1)).thenReturn(details("Active"));
+        when(registrarService.updateStatus(eq(1), eq("Completed"), eq(done), isNull()))
+                .thenReturn(details("Completed", done));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Completed\",\"completionDate\":\"2026-09-30\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completionDate").value("2026-09-30"));
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Changed status of Lipata, Maria from Active to Completed (completion date 2026-09-30)"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void archiveGraduationLogsTheDateAndTheTrimmedReason() throws Exception {
+        LocalDate done = LocalDate.of(2014, 3, 15);
+        when(registrarService.getRecordById(1)).thenReturn(details("Active"));
+        when(registrarService.updateStatus(eq(1), eq("Graduated"), eq(done), eq("  Digitized archive record  ")))
+                .thenReturn(details("Graduated", done));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Graduated\",\"completionDate\":\"2014-03-15\","
+                                + "\"reason\":\"  Digitized archive record  \"}"))
+                .andExpect(status().isOk());
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Changed status of Lipata, Maria from Active to Graduated "
+                        + "(completion date 2014-03-15; reason: Digitized archive record)"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void movingBackToActiveLogsTheClearedDate() throws Exception {
+        when(registrarService.getRecordById(1)).thenReturn(details("Completed", LocalDate.of(2026, 9, 30)));
+        when(registrarService.updateStatus(eq(1), eq("Active"), isNull(), isNull())).thenReturn(details("Active"));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Active\"}"))
+                .andExpect(status().isOk());
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Changed status of Lipata, Maria from Completed to Active (cleared completion date 2026-09-30)"),
+                any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void graduatedBackToCompletedLogsTheReasonOnly() throws Exception {
+        LocalDate done = LocalDate.of(2014, 3, 15);
+        when(registrarService.getRecordById(1)).thenReturn(details("Graduated", done));
+        when(registrarService.updateStatus(eq(1), eq("Completed"), isNull(), eq("Wrong batch on the SO")))
+                .thenReturn(details("Completed", done));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Completed\",\"reason\":\"Wrong batch on the SO\"}"))
+                .andExpect(status().isOk());
+
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"),
+                eq("Changed status of Lipata, Maria from Graduated to Completed (reason: Wrong batch on the SO)"),
+                any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void returns400ForAReasonLongerThan255Characters() throws Exception {
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Graduated\",\"completionDate\":\"2014-03-15\",\"reason\":\""
+                                + "a".repeat(256) + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.reason").exists());
+
+        verify(registrarService, never()).updateStatus(any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void returns400WithTheRuleMessageWhenTheMoveIsNotAllowed() throws Exception {
+        when(registrarService.getRecordById(1)).thenReturn(details("Enrolling"));
+        when(registrarService.updateStatus(eq(1), eq("Completed"), any(), any()))
+                .thenThrow(new IllegalArgumentException("Only an Active student can be marked Completed."));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Completed\",\"completionDate\":\"2026-09-30\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Only an Active student can be marked Completed."));
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
     }
 }

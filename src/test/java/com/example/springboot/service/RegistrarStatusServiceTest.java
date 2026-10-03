@@ -1,10 +1,14 @@
 package com.example.springboot.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -79,7 +83,7 @@ class RegistrarStatusServiceTest {
         when(studentRecordRepository.save(any(StudentRecord.class))).thenAnswer(inv -> inv.getArgument(0));
         stubEmptyChildLookups();
 
-        StudentRecordDetailsResponse result = registrarService.updateStatus(1, "Active");
+        StudentRecordDetailsResponse result = registrarService.updateStatus(1, "Active", null, null);
 
         assertEquals("Active", result.studentStatus());
         assertEquals("Active", target.getStudentStatus());
@@ -90,6 +94,128 @@ class RegistrarStatusServiceTest {
         when(studentRecordRepository.findById(999)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
-                () -> registrarService.updateStatus(999, "Active"));
+                () -> registrarService.updateStatus(999, "Active", null, null));
+    }
+
+    // ----- Completed / Graduated transitions (spec 2026-10-01 SO checklist 4.2) -----
+
+    private void stubSuccessfulSave(StudentRecord target) {
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+        when(studentRecordRepository.save(any(StudentRecord.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubEmptyChildLookups();
+    }
+
+    @Test
+    void activeToCompletedSetsTheCompletionDate() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        stubSuccessfulSave(target);
+
+        StudentRecordDetailsResponse result =
+                registrarService.updateStatus(1, "Completed", LocalDate.of(2026, 9, 30), null);
+
+        assertEquals("Completed", result.studentStatus());
+        assertEquals(LocalDate.of(2026, 9, 30), result.completionDate());
+        assertEquals(LocalDate.of(2026, 9, 30), target.getCompletionDate());
+    }
+
+    @Test
+    void activeToCompletedWithoutADateIsRejected() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateStatus(1, "Completed", null, null));
+
+        assertEquals("A completion date is required for this status change.", ex.getMessage());
+        assertEquals("Active", target.getStudentStatus());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void aCompletionDateInTheFutureIsRejected() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateStatus(1, "Completed", LocalDate.now().plusDays(1), null));
+
+        assertEquals("Completion date cannot be in the future.", ex.getMessage());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void aCompletionDateBeforeTheEnrollmentDateIsRejected() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        target.setEnrollmentDate(LocalDate.of(2025, 6, 2));
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateStatus(1, "Completed", LocalDate.of(2025, 6, 1), null));
+
+        assertEquals("Completion date cannot be before the enrollment date (2025-06-02).", ex.getMessage());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void completedBackToActiveClearsTheCompletionDate() {
+        StudentRecord target = record(1, "SR20260001", "Completed");
+        target.setCompletionDate(LocalDate.of(2026, 9, 30));
+        stubSuccessfulSave(target);
+
+        StudentRecordDetailsResponse result = registrarService.updateStatus(1, "Active", null, null);
+
+        assertEquals("Active", result.studentStatus());
+        assertNull(result.completionDate());
+        assertNull(target.getCompletionDate());
+    }
+
+    @Test
+    void activeToGraduatedWithoutAReasonIsRejected() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateStatus(1, "Graduated", LocalDate.of(2014, 3, 15), "   "));
+
+        assertEquals("A reason is required for this status change.", ex.getMessage());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void activeToGraduatedWithADateAndAReasonSetsTheDate() {
+        StudentRecord target = record(1, "SR20260001", "Active");
+        stubSuccessfulSave(target);
+
+        StudentRecordDetailsResponse result = registrarService.updateStatus(
+                1, "Graduated", LocalDate.of(2014, 3, 15), "Digitized archive record");
+
+        assertEquals("Graduated", result.studentStatus());
+        assertEquals(LocalDate.of(2014, 3, 15), result.completionDate());
+    }
+
+    @Test
+    void graduatedBackToCompletedKeepsTheCompletionDate() {
+        StudentRecord target = record(1, "SR20260001", "Graduated");
+        target.setCompletionDate(LocalDate.of(2014, 3, 15));
+        stubSuccessfulSave(target);
+
+        StudentRecordDetailsResponse result =
+                registrarService.updateStatus(1, "Completed", null, "Wrong batch on the SO");
+
+        assertEquals("Completed", result.studentStatus());
+        assertEquals(LocalDate.of(2014, 3, 15), result.completionDate());
+    }
+
+    @Test
+    void aDisallowedMoveIsRejectedWithTheRuleMessage() {
+        StudentRecord target = record(1, "SR20260001", "Enrolling");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateStatus(1, "Completed", LocalDate.of(2026, 9, 30), null));
+
+        assertEquals("Only an Active student can be marked Completed.", ex.getMessage());
+        assertEquals("Enrolling", target.getStudentStatus());
+        verify(studentRecordRepository, never()).save(any());
     }
 }
