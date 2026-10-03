@@ -8,16 +8,16 @@ import java.util.Set;
 /**
  * Which required documents a student is missing (spec 2026-10-01 §2).
  * Intake documents are required for every student; completion documents
- * only once the student is Graduated, so the warning stays meaningful for
- * students who are still studying. Pure and stateless — to change what is
- * required, edit this class.
+ * once the student is Completed or Graduated (spec 2026-10-01 SO checklist
+ * §4.5), so the warning stays meaningful for students who are still studying.
+ * Pure and stateless — to change what is required, edit this class.
  */
 public final class RequiredDocumentPolicy {
 
-    /** Label reported when a Graduated student has none of the three Form IX types. */
+    /** Label reported when a Completed/Graduated student has none of the three Form IX types. */
     public static final String FORM_IX_ANY_LABEL = "Form IX (any one)";
 
-    private static final String GRADUATED_STATUS = "graduated";
+    private static final Set<String> COMPLETION_STATUSES = Set.of("completed", "graduated");
 
     private static final List<String> INTAKE_TYPES = List.of(
             DocumentService.PSA_BIRTH_CERTIFICATE_TYPE,
@@ -44,7 +44,7 @@ public final class RequiredDocumentPolicy {
             requireType(present, type, missing);
         }
 
-        if (isGraduated(studentStatus)) {
+        if (requiresCompletionDocuments(studentStatus)) {
             requireType(present, DocumentService.TOR_TYPE, missing);
             if (FORM_IX_TYPES.stream().noneMatch(present::contains)) {
                 missing.add(FORM_IX_ANY_LABEL);
@@ -61,9 +61,9 @@ public final class RequiredDocumentPolicy {
         }
     }
 
-    /** Anything other than "Graduated" (incl. null/unknown) gets intake requirements only. */
-    private static boolean isGraduated(String studentStatus) {
+    /** Completed or Graduated; anything else (incl. null/unknown) gets intake requirements only. */
+    private static boolean requiresCompletionDocuments(String studentStatus) {
         return studentStatus != null
-                && GRADUATED_STATUS.equals(studentStatus.trim().toLowerCase(Locale.ROOT));
+                && COMPLETION_STATUSES.contains(studentStatus.trim().toLowerCase(Locale.ROOT));
     }
 }
