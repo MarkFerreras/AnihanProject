@@ -596,6 +596,31 @@ class DocumentControllerWebMvcTest {
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void typeSuggestionReturnsTheSuggestedTypeAndWritesNoAuditRow() throws Exception {
+        mvc.perform(get("/api/registrar/documents/type-suggestion").param("label", "TOR copy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestedType").value(TOR_TYPE));
+
+        verifyNoInteractions(systemLogService);
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void typeSuggestionIsNullWhenNothingMatches() throws Exception {
+        mvc.perform(get("/api/registrar/documents/type-suggestion").param("label", "History"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"suggestedType\":null}"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void trainerCannotAskForATypeSuggestion() throws Exception {
+        mvc.perform(get("/api/registrar/documents/type-suggestion").param("label", "TOR"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
     void uploadCreatesDocumentAndLogs() throws Exception {
         when(documentService.upload(eq("SR20260001"), eq(TOR_TYPE), any()))
                 .thenReturn(sampleSummary());
