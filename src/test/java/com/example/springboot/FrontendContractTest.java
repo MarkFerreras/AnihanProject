@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.springboot.dto.registrar.UpdateStudentStatusRequest;
+
 /**
  * Pins static HTML choices that mirror server-side constants, so the two cannot drift
  * (spec 2026-10-01 SO checklist §4.4 and §5).
@@ -39,5 +41,11 @@ class FrontendContractTest {
             assertEquals(List.of("", "Enrolling", "Submitted", "Active", "Completed", "Graduated"),
                     optionValues(page, "studentStatusFilter"), page);
         }
+    }
+
+    @Test
+    void editStatusOptionsMatchTheServerAllowedValues() throws Exception {
+        assertEquals(List.of(UpdateStudentStatusRequest.ALLOWED_VALUES_DISPLAY.split(", ")),
+                optionValues("registrar.html", "editStatusSelect"));
     }
 }

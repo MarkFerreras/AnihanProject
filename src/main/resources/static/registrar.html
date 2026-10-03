@@ -252,11 +252,28 @@
                     <p class="mb-3">Changing status for <strong id="editStatusStudentName">this student</strong>.</p>
                     <div class="alert d-none" id="editStatusAlert" role="alert"></div>
                     <label for="editStatusSelect" class="form-label">New Status</label>
-                    <select class="form-select" id="editStatusSelect">
+                    <select class="form-select" id="editStatusSelect" aria-describedby="editStatusSelectHelp">
                         <option value="Enrolling">Enrolling</option>
                         <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
                         <option value="Graduated">Graduated</option>
                     </select>
+                    <div class="form-text" id="editStatusSelectHelp">
+                        Completed = training and OJT finished. Graduated = Special Order issued.
+                        Statuses that cannot be reached from the current one are disabled.
+                    </div>
+                    <div class="mt-3 d-none" id="editStatusDateGroup">
+                        <label for="editStatusCompletionDate" class="form-label">Completion Date</label>
+                        <input type="date" class="form-control" id="editStatusCompletionDate"
+                               aria-describedby="editStatusDateHelp">
+                        <div class="form-text" id="editStatusDateHelp"></div>
+                    </div>
+                    <div class="mt-3 d-none" id="editStatusReasonGroup">
+                        <label for="editStatusReason" class="form-label">Reason</label>
+                        <input type="text" class="form-control" id="editStatusReason" maxlength="255"
+                               aria-describedby="editStatusReasonHelp" placeholder="e.g. Digitized archive record">
+                        <div class="form-text" id="editStatusReasonHelp">Saved in the system log with this change.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-surface-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -519,6 +536,6 @@
     <script src="js/auth-guard.js"></script>
     <script src="js/combobox.js?v=2"></script>
     <script src="js/student-number-check.js?v=2"></script>
-    <script src="js/registrar-students.js?v=11"></script>
+    <script src="js/registrar-students.js?v=12"></script>
 </body>
 </html>

@@ -642,6 +642,35 @@
         }
     }
 
+    // Mirrors service/StudentStatusTransitions.java so the dialog only offers moves the
+    // server will accept. The server stays the authority and re-checks every change.
+    function statusRule(from, to) {
+        if (from === to) return { allowed: true };
+        if (to === 'Completed') {
+            if (from === 'Active') return { allowed: true, needsDate: true };
+            if (from === 'Graduated') return { allowed: true, needsReason: true };
+            return { allowed: false };
+        }
+        if (to === 'Graduated') {
+            if (from === 'Completed') return { allowed: true };
+            if (from === 'Active') return { allowed: true, needsDate: true, needsReason: true, archive: true };
+            return { allowed: false };
+        }
+        if (from === 'Graduated') return { allowed: false };
+        if (from === 'Completed') return { allowed: to === 'Active' };
+        return { allowed: true };
+    }
+
+    /** Today as yyyy-mm-dd in the browser's local time (toISOString would give the UTC date). */
+    function todayIso() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getDate()).padStart(2, '0');
+    }
+
+    // Replaced by the real implementation in Task 13 (SO Checklist tab).
+    function resetSoChecklistTab() {}
+
     function setupEditStatus(dataTable) {
         const editBtn = document.getElementById('editStatusBtn');
         const modalEl = document.getElementById('editStatusModal');
@@ -649,8 +678,14 @@
         const selectEl = document.getElementById('editStatusSelect');
         const saveBtn = document.getElementById('saveStatusBtn');
         const alertEl = document.getElementById('editStatusAlert');
+        const dateGroup = document.getElementById('editStatusDateGroup');
+        const dateInput = document.getElementById('editStatusCompletionDate');
+        const dateHelp = document.getElementById('editStatusDateHelp');
+        const reasonGroup = document.getElementById('editStatusReasonGroup');
+        const reasonInput = document.getElementById('editStatusReason');
 
-        if (!editBtn || !modalEl || !selectEl || !saveBtn || !editStatusModal) return;
+        if (!editBtn || !modalEl || !selectEl || !saveBtn || !editStatusModal
+                || !dateGroup || !dateInput || !reasonGroup || !reasonInput) return;
 
         function showStatusAlert(message, type) {
             if (!alertEl) return;
@@ -659,19 +694,64 @@
             alertEl.classList.remove('d-none');
         }
 
+        function currentRule() {
+            return statusRule(currentRecordStatus, selectEl.value);
+        }
+
+        function updateStatusFields() {
+            const rule = currentRule();
+            dateGroup.classList.toggle('d-none', !rule.needsDate);
+            reasonGroup.classList.toggle('d-none', !rule.needsReason);
+            if (rule.needsDate && !dateInput.value) {
+                dateInput.value = todayIso();
+            }
+            if (dateHelp) {
+                dateHelp.textContent = rule.archive
+                    ? 'Moving an Active record straight to Graduated is for digitized archive records. '
+                        + 'Enter the date this student actually finished training and OJT.'
+                    : 'The day the student finished training and OJT. Defaults to today.';
+            }
+        }
+
         editBtn.addEventListener('click', function () {
             if (!currentRecordId) return;
             if (nameEl) {
                 nameEl.textContent = currentRecordIdentifier || ('Record #' + currentRecordId);
             }
+            Array.prototype.forEach.call(selectEl.options, function (option) {
+                option.disabled = !statusRule(currentRecordStatus, option.value).allowed;
+            });
             selectEl.value = currentRecordStatus || 'Enrolling';
+            dateInput.value = '';
+            dateInput.max = todayIso();
+            reasonInput.value = '';
+            updateStatusFields();
             hideAlert('editStatusAlert');
             detailsModal.hide();
             editStatusModal.show();
         });
 
+        selectEl.addEventListener('change', updateStatusFields);
+
         saveBtn.addEventListener('click', async function () {
             if (!currentRecordId) return;
+
+            const rule = currentRule();
+            const payload = { studentStatus: selectEl.value };
+            if (rule.needsDate) {
+                if (!dateInput.value) {
+                    showStatusAlert('Enter the completion date.', 'danger');
+                    return;
+                }
+                payload.completionDate = dateInput.value;
+            }
+            if (rule.needsReason) {
+                if (!reasonInput.value.trim()) {
+                    showStatusAlert('Enter a reason for this change.', 'danger');
+                    return;
+                }
+                payload.reason = reasonInput.value.trim();
+            }
 
             saveBtn.disabled = true;
             const originalLabel = saveBtn.textContent;
@@ -685,15 +765,15 @@
                         method: 'PUT',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ studentStatus: selectEl.value })
+                        body: JSON.stringify(payload)
                     }
                 );
 
                 if (!res.ok) {
                     const body = await res.json().catch(function () { return null; });
-                    const fieldError = body && body.errors && body.errors.studentStatus;
+                    const fieldErrors = body && body.errors ? Object.values(body.errors).join(' ') : '';
                     showStatusAlert(
-                        fieldError || (body && body.message) || 'Could not save the status.',
+                        fieldErrors || (body && body.message) || 'Could not save the status.',
                         'danger'
                     );
                     return;
@@ -702,6 +782,7 @@
                 const saved = await res.json();
                 currentRecordStatus = saved.studentStatus;
                 setText('detailsStudentStatus', saved.studentStatus);
+                resetSoChecklistTab(saved.studentStatus);
                 dataTable.ajax.reload(null, false);
                 editStatusModal.hide();
             } catch (err) {
