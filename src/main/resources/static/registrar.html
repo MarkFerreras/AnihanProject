@@ -42,6 +42,37 @@
             border-radius: 6px;
             background: #f7f7f7;
         }
+
+        /* SO Checklist tab: icon + visually-hidden state text, never colour alone. */
+        .so-checklist {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .so-checklist-row {
+            align-items: flex-start;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+        }
+        .so-checklist-row:last-child {
+            border-bottom: none;
+        }
+        .so-state-icon {
+            flex: 0 0 1.5rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .so-state-met { color: var(--color-green-dark); }
+        .so-state-warning { color: #856404; }
+        .so-state-unmet { color: #b02a37; }
+        .so-state-not_due { color: #6c757d; }
+        .so-checklist-detail {
+            color: #555;
+            font-size: 0.85rem;
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -204,27 +235,48 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert d-none" id="studentDetailsAlert" role="alert"></div>
-                    <div class="text-center mb-3">
-                        <img id="detailsIdPicture" class="id-picture-preview"
-                             src="images/TempProfile%201.webp" alt="No ID picture on file">
-                    </div>
-                    <div class="detail-grid">
-                        <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Reference No.</span><p class="detail-value" id="detailsStudentId">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Student Number</span><p class="detail-value" id="detailsStudentNumber">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsLastName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFirstName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMiddleName">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Batch</span><p class="detail-value" id="detailsBatchCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Course</span><p class="detail-value" id="detailsCourseCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Section</span><p class="detail-value" id="detailsSectionCode">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
-                        <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
+                    <ul class="nav nav-tabs mb-3" id="studentDetailsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-details-info" data-bs-toggle="tab"
+                                data-bs-target="#pane-details-info" type="button" role="tab"
+                                aria-controls="pane-details-info" aria-selected="true">Details</button>
+                        </li>
+                        <li class="nav-item d-none" role="presentation" id="soChecklistTabItem">
+                            <button class="nav-link" id="tab-details-so" data-bs-toggle="tab"
+                                data-bs-target="#pane-details-so" type="button" role="tab"
+                                aria-controls="pane-details-so" aria-selected="false">SO Checklist</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="pane-details-info" role="tabpanel"
+                             aria-labelledby="tab-details-info">
+                            <div class="text-center mb-3">
+                                <img id="detailsIdPicture" class="id-picture-preview"
+                                     src="images/TempProfile%201.webp" alt="No ID picture on file">
+                            </div>
+                            <div class="detail-grid">
+                                <article class="detail-card"><span class="detail-label">Record ID</span><p class="detail-value" id="detailsRecordId">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Reference No.</span><p class="detail-value" id="detailsStudentId">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Student Number</span><p class="detail-value" id="detailsStudentNumber">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Last Name</span><p class="detail-value" id="detailsLastName">null</p></article>
+                                <article class="detail-card"><span class="detail-label">First Name</span><p class="detail-value" id="detailsFirstName">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Middle Name</span><p class="detail-value" id="detailsMiddleName">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Batch</span><p class="detail-value" id="detailsBatchCode">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Course</span><p class="detail-value" id="detailsCourseCode">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Section</span><p class="detail-value" id="detailsSectionCode">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Status</span><p class="detail-value" id="detailsStudentStatus">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Birthdate</span><p class="detail-value" id="detailsBirthdate">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Age</span><p class="detail-value" id="detailsAge">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Sex</span><p class="detail-value" id="detailsSex">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Email</span><p class="detail-value" id="detailsEmail">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Contact No</span><p class="detail-value" id="detailsContactNo">null</p></article>
+                                <article class="detail-card"><span class="detail-label">Permanent Address</span><p class="detail-value" id="detailsPermanentAddress">null</p></article>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="pane-details-so" role="tabpanel"
+                             aria-labelledby="tab-details-so">
+                            <div id="soChecklistContent" aria-live="polite"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -536,6 +588,6 @@
     <script src="js/auth-guard.js"></script>
     <script src="js/combobox.js?v=2"></script>
     <script src="js/student-number-check.js?v=2"></script>
-    <script src="js/registrar-students.js?v=13"></script>
+    <script src="js/registrar-students.js?v=14"></script>
 </body>
 </html>

@@ -12,6 +12,15 @@
     let currentRecordStatus = null;
     let assignTargetRecordId = null;
     let assignBatchTargetRecordId = null;
+    let soChecklistLoadedFor = null;
+
+    const SO_CHECKLIST_STATUSES = ['Active', 'Completed', 'Graduated'];
+    const SO_STATE_DISPLAY = {
+        MET: { icon: '✓', text: 'Met' },
+        WARNING: { icon: '⚠', text: 'Met with a warning' },
+        UNMET: { icon: '✗', text: 'Not met' },
+        NOT_DUE: { icon: '—', text: 'Not yet due' }
+    };
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -85,6 +94,120 @@
         el.textContent = '';
     }
 
+    function makeEl(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    /**
+     * Shows the SO Checklist tab only for statuses that have a checklist, always reopens
+     * on the Details tab, and forgets any loaded checklist (it reloads on first view).
+     */
+    function resetSoChecklistTab(status) {
+        soChecklistLoadedFor = null;
+        const content = document.getElementById('soChecklistContent');
+        if (content) content.replaceChildren();
+        const tabItem = document.getElementById('soChecklistTabItem');
+        if (tabItem) tabItem.classList.toggle('d-none', SO_CHECKLIST_STATUSES.indexOf(status) === -1);
+        const detailsTab = document.getElementById('tab-details-info');
+        if (detailsTab) bootstrap.Tab.getOrCreateInstance(detailsTab).show();
+    }
+
+    async function loadSoChecklist(recordId) {
+        const content = document.getElementById('soChecklistContent');
+        if (!content) return;
+        content.replaceChildren(makeEl('p', 'text-muted mb-0', 'Loading checklist…'));
+
+        let res;
+        try {
+            res = await fetch('/api/registrar/student-records/' + encodeURIComponent(recordId) + '/so-checklist', {
+                credentials: 'same-origin'
+            });
+        } catch (err) {
+            if (recordId !== currentRecordId) return;
+            content.replaceChildren(makeEl('div', 'alert alert-danger mb-0',
+                'Could not load the SO checklist. Check the connection and try again.'));
+            return;
+        }
+        if (recordId !== currentRecordId) return; // the Registrar opened another student meanwhile
+
+        if (res.status === 401) {
+            const box = makeEl('div', 'alert alert-warning mb-0');
+            box.appendChild(document.createTextNode('Your session has expired. '));
+            const link = makeEl('a', '', 'Log in again');
+            link.href = 'index.html';
+            box.appendChild(link);
+            content.replaceChildren(box);
+            return;
+        }
+        if (res.status === 404) {
+            content.replaceChildren(makeEl('div', 'alert alert-warning mb-0',
+                'This student is no longer available — refresh.'));
+            return;
+        }
+        if (!res.ok) {
+            content.replaceChildren(makeEl('div', 'alert alert-danger mb-0', 'Could not load the SO checklist.'));
+            return;
+        }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (err) {
+            if (recordId !== currentRecordId) return;
+            content.replaceChildren(makeEl('div', 'alert alert-danger mb-0', 'Could not load the SO checklist.'));
+            return;
+        }
+        if (recordId !== currentRecordId) return;
+        soChecklistLoadedFor = recordId;
+        renderSoChecklist(content, data);
+    }
+
+    function renderSoChecklist(container, data) {
+        container.replaceChildren();
+        if (data.stage === 'NOT_APPLICABLE') {
+            container.appendChild(makeEl('p', 'text-muted mb-0', 'There is no SO checklist for this status.'));
+            return;
+        }
+
+        if (data.stage === 'PREVIEW') {
+            container.appendChild(makeEl('div', 'alert alert-info',
+                'Preview — the full checklist applies once the student is Completed.'));
+        } else {
+            const unmet = data.items.filter(function (i) { return i.state === 'UNMET'; }).length;
+            const warnings = data.warningCount
+                ? ' — ' + data.warningCount + ' warning' + (data.warningCount === 1 ? '' : 's')
+                : '';
+            // Never "Ready to file": batch-level SO items are not checked here.
+            const summary = data.complete
+                ? 'Student requirements: Complete' + warnings
+                : 'Student requirements: ' + unmet + ' of ' + data.items.length + ' unmet' + warnings;
+            const tone = data.complete ? (data.warningCount ? 'alert-warning' : 'alert-success') : 'alert-danger';
+            container.appendChild(makeEl('div', 'alert ' + tone, summary));
+        }
+
+        const list = makeEl('ul', 'so-checklist');
+        data.items.forEach(function (item) {
+            const display = SO_STATE_DISPLAY[item.state] || { icon: '?', text: item.state };
+            const row = makeEl('li', 'so-checklist-row');
+            const icon = makeEl('span', 'so-state-icon so-state-' + String(item.state).toLowerCase(), display.icon);
+            icon.setAttribute('aria-hidden', 'true');
+            row.appendChild(icon);
+            const body = makeEl('div', '');
+            body.appendChild(makeEl('span', 'visually-hidden', display.text + ': '));
+            body.appendChild(makeEl('strong', '', item.label));
+            body.appendChild(makeEl('p', 'so-checklist-detail', item.detail));
+            row.appendChild(body);
+            list.appendChild(row);
+        });
+        container.appendChild(list);
+        container.appendChild(makeEl('p', 'text-muted small mt-3 mb-0',
+            'Batch-level SO items (List of Students, Attendance Sheet, Registry of Workers, '
+            + 'Registry of Workers Assessed) are not checked here.'));
+    }
+
     async function loadRecordDetails(recordId) {
         hideAlert('studentDetailsAlert');
 
@@ -149,6 +272,7 @@
             editLink.href = 'student-records.html?id=' + encodeURIComponent(r.recordId);
         }
 
+        resetSoChecklistTab(r.studentStatus);
         detailsModal.show();
     }
 
@@ -195,6 +319,16 @@
         const editStatusEl = document.getElementById('editStatusModal');
         if (editStatusEl) {
             editStatusModal = new bootstrap.Modal(editStatusEl);
+        }
+
+        const soTab = document.getElementById('tab-details-so');
+        if (soTab) {
+            // Load on first view of the tab, not on modal open (spec §8).
+            soTab.addEventListener('shown.bs.tab', function () {
+                if (currentRecordId && soChecklistLoadedFor !== currentRecordId) {
+                    loadSoChecklist(currentRecordId);
+                }
+            });
         }
 
         const dataTable = window.jQuery('#studentRecordsTable').DataTable({
@@ -667,9 +801,6 @@
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-'
             + String(d.getDate()).padStart(2, '0');
     }
-
-    // Replaced by the real implementation in Task 13 (SO Checklist tab).
-    function resetSoChecklistTab() {}
 
     function setupEditStatus(dataTable) {
         const editBtn = document.getElementById('editStatusBtn');
