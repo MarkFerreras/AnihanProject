@@ -348,6 +348,8 @@ public class RegistrarService {
         record.setSiblingCount(request.siblingCount());
         record.setBrotherCount(request.brotherCount());
         record.setSisterCount(request.sisterCount());
+        applyDates(record, request.enrollmentDate(), request.completionDate());
+        record.setEmploymentStatus(emptyToNull(request.employmentStatus()));
 
         record.setCourse(resolveCourse(request.courseCode()));
         record.setSection(resolveSection(request.sectionCode()));
@@ -361,6 +363,26 @@ public class RegistrarService {
         saveGuardian(saved, request.guardian());
 
         return buildDetailsResponse(saved);
+    }
+
+    /**
+     * Enrollment date is editable for every status. Completion date may be set or corrected
+     * only while the student is Completed or Graduated; for anyone else a non-null value that
+     * differs from the stored one is rejected and a null leaves the stored value alone, so a
+     * routine save never wipes it (spec 2026-10-01 SO checklist §4.3).
+     */
+    private void applyDates(StudentRecord record, LocalDate enrollmentDate, LocalDate completionDate) {
+        boolean completionEditable = StudentStatusTransitions.isCompletedOrGraduated(record.getStudentStatus());
+        if (!completionEditable && completionDate != null && !completionDate.equals(record.getCompletionDate())) {
+            throw new IllegalArgumentException(
+                    "Completion date can only be set for a Completed or Graduated student. Change the status first.");
+        }
+        LocalDate effectiveCompletion = completionEditable ? completionDate : record.getCompletionDate();
+        if (enrollmentDate != null && effectiveCompletion != null && enrollmentDate.isAfter(effectiveCompletion)) {
+            throw new IllegalArgumentException("Enrollment date cannot be after the completion date.");
+        }
+        record.setEnrollmentDate(enrollmentDate);
+        record.setCompletionDate(effectiveCompletion);
     }
 
     // ----- OJT -----

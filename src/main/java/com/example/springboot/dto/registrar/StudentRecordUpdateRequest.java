@@ -11,6 +11,7 @@ import com.example.springboot.dto.student.TesdaQualDto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record StudentRecordUpdateRequest(
@@ -54,6 +55,27 @@ public record StudentRecordUpdateRequest(
         List<SchoolYearDto> schoolYears,
         ParentDto father,
         ParentDto mother,
-        GuardianDto guardian
+        GuardianDto guardian,
+
+        // Editable for every status (spec 2026-10-01 SO checklist §4.3). The edit form always
+        // sends the loaded values back, so a routine save never wipes these three.
+        @PastOrPresent(message = "Enrollment date cannot be in the future")
+        LocalDate enrollmentDate,
+
+        // Accepted only while the student is Completed or Graduated — see
+        // RegistrarService.updateRecord. Normally set by the status endpoint.
+        @PastOrPresent(message = "Completion date cannot be in the future")
+        LocalDate completionDate,
+
+        @Pattern(regexp = EMPLOYMENT_STATUS_PATTERN,
+                message = "Employment status must be one of: " + EMPLOYMENT_STATUS_DISPLAY)
+        String employmentStatus
 ) {
+    /**
+     * The four Employment Status values (spec §5); null means "Not set". The
+     * #editEmploymentStatus select in student-records.html lists the same values,
+     * pinned by FrontendContractTest.
+     */
+    public static final String EMPLOYMENT_STATUS_PATTERN = "^(Employed|Self-employed|Unemployed|Further studies)$";
+    public static final String EMPLOYMENT_STATUS_DISPLAY = "Employed, Self-employed, Unemployed, Further studies";
 }
