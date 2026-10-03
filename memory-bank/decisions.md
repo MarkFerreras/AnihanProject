@@ -4,6 +4,23 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-03 - R4.2 SO Checklist: Planning Decisions (Confirmed)
+
+- **Portal pre-check (spec §4.5, plan Task 9): Confirmed yes (user).** `StudentPortalController.checkDuplicate`
+  also treats Completed and Graduated names as existing. Rationale: they already slip past the pre-check and are
+  only stopped later by `startOrResume`.
+- **Execution mode: Confirmed subagent-driven (user).** Use `superpowers:subagent-driven-development`: a fresh
+  subagent per task, with an individual review for larger tasks and one batched review for the small ones (5, 9,
+  10, 12, 14). Rationale: token efficiency. Each subagent gets only its own task text, not the ≈45k-token plan.
+- **Planning deviations from the spec (verified against code):** (1) checklist endpoint in a new
+  `SoChecklistController`, so the four `@WebMvcTest(RegistrarController.class)` classes stay untouched; (2)
+  section-first course/batch resolved in SQL `COALESCE` and pinned by a real-H2 test; (3) employment values as
+  pattern/display constants on `StudentRecordUpdateRequest`, pinned to the static `<select>` by
+  `FrontendContractTest`; (4) Form IX aliases suggest a generic "Form IX" with no one-click Switch (three types).
+- **Not executed yet (user instruction).**
+
+---
+
 ## 2026-10-01 - R4.2 SO Checklist (Confirmed, designed)
 
 **Decision** (spec: `docs/superpowers/specs/2026-10-01-so-checklist-design.md`):

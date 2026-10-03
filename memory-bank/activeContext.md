@@ -12,8 +12,12 @@
   section-first course/batch resolved in SQL (`COALESCE`) and pinned by a real-H2 test; employment values as
   pattern/display constants on `StudentRecordUpdateRequest`, pinned to the static `<select>` by a new
   `FrontendContractTest`; Form IX aliases suggest a generic "Form IX" with no one-click Switch.
-- **Pending clarifications:** (1) spec §4.5 portal pre-check (Task 9) — **Unverified, needs user confirmation**;
-  (2) execution mode (subagent-driven vs inline); (3) spec §13 Registrar assumptions remain unverified.
+- **Resolved (Confirmed by user, 2026-10-03):** Task 9 portal pre-check = yes; execution mode =
+  subagent-driven (recorded in the plan header with an "Execution efficiency" section, and in `decisions.md`).
+  **Do not execute until the user says so.**
+- **Still open:** spec §13 Registrar assumptions remain unverified (not blocking).
+- **Local setting (not committed):** `.claude/settings.local.json` now has `autoCompactEnabled: true`,
+  `autoCompactWindow: 150000` (user asked for compaction at ~150k tokens). The file is tracked by git.
 - **Blocked until approval:** Task 15 backs up and migrates the live `AnihanSRMS` DB
   (`2026-10-03-so-checklist.sql`) — must ask the user first.
 

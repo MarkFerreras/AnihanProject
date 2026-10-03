@@ -1,6 +1,14 @@
 # R4.2 SO Checklist Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Task 15 Steps 2–3 (backing up and migrating the live DB) must stop and ask the user. Task 9 runs only if the user confirmed it (see the task).
+> **For agentic workers:** REQUIRED SUB-SKILL: Use **superpowers:subagent-driven-development** to implement this plan task-by-task. This is the user's confirmed choice (2026-10-03): do not ask again, and do not switch to executing-plans. Dispatch a fresh subagent per task, in order (Task 0 → Task 15), with spec-compliance and code-quality reviews as described under "Execution efficiency" below. Steps use checkbox (`- [ ]`) syntax for tracking. Task 15 Steps 2–3 (backing up and migrating the live DB) must stop and ask the user. Task 9 is **Confirmed** by the user (2026-10-03), so run it.
+
+**Execution efficiency (follow while running the plan):**
+- Paste only the one task's text (plus the header's Conventions and Deviations) into each implementer subagent prompt. Never ask a subagent to read this whole plan (≈45k tokens).
+- Subagents read memory-bank logs top-only, per CLAUDE.md. They do not read the spec unless the task text points to a section.
+- Run per-task Gradle commands with `-q` (e.g. `./gradlew test -q --tests "..."`) so only failures print. Run the full suite only where the plan says to (Tasks 1 and 15).
+- Reviews: give Tasks 1–4, 6–8, 11 and 13 their own spec + code-quality review. Review the small tasks (5, 9, 10, 12, 14) together in one batched pass after Task 14. Re-review only what a fix changed.
+- Task 15 live check: prefer `browser_evaluate` / `browser_network_requests` over full `browser_snapshot`; take a snapshot only to diagnose a failure.
+- Don't re-run a check that already passed unless code changed since.
 
 **Goal:** Show the Registrar, per student, which TESDA Special Order (SO) requirements are met, met with a warning, unmet, or not yet due. The checklist is computed live, which needs a new `Completed` status, two new student fields, and an "Others"-label hint on upload.
 
@@ -49,7 +57,7 @@
 | `src/main/java/com/example/springboot/service/DocumentTypeSuggester.java` | Create | Pure "Others" label → document type hint (§9) |
 | `src/main/java/com/example/springboot/dto/registrar/TypeSuggestionResponse.java` | Create | `{ suggestedType }` |
 | `src/main/java/com/example/springboot/controller/DocumentController.java` | Modify | `GET /type-suggestion` |
-| `src/main/java/com/example/springboot/controller/StudentPortalController.java` | Modify (Task 9, if confirmed) | Pre-check also blocks Completed/Graduated |
+| `src/main/java/com/example/springboot/controller/StudentPortalController.java` | Modify (Task 9, confirmed) | Pre-check also blocks Completed/Graduated |
 | `src/main/resources/static/css/dashboard.css` | Modify | `.status-badge-completed` |
 | `src/main/resources/static/registrar.html` | Modify | Completed filter; Edit Status fields; details-modal tabs; checklist CSS |
 | `src/main/resources/static/js/registrar-students.js` | Modify | Completed badge; transition-aware status dialog; SO Checklist tab |
@@ -58,7 +66,7 @@
 | `src/main/resources/static/documents.html`, `js/registrar-documents.js` | Modify | "Did you mean …?" hint on staged "Others" rows |
 | Tests (see each task) | Create/Modify | see each task |
 
-**Expected test count at the end:** 578 baseline + 86 new = **664**, 0 failures (661 if Task 9 is skipped).
+**Expected test count at the end:** 578 baseline + 86 new = **664**, 0 failures.
 
 | Task | New tests |
 |---|---|
@@ -2928,9 +2936,9 @@ git commit -m "feat: suggest a real document type for look-alike Others labels"
 
 ---
 
-### Task 9: Portal duplicate pre-check also blocks Completed and Graduated (**user confirmation required**)
+### Task 9: Portal duplicate pre-check also blocks Completed and Graduated
 
-Spec §4.5 marks this "Recommended (confirm while planning)". **Only do this task if the user confirmed it.** If they declined, skip it, and the final count is 661.
+Spec §4.5 marked this "Recommended (confirm while planning)". **Confirmed by the user on 2026-10-03: do it.**
 
 **Files:**
 - Modify: `src/main/java/com/example/springboot/controller/StudentPortalController.java`
@@ -4059,7 +4067,7 @@ find build/test-results/test -name '*.xml' -exec grep -h -o 'tests="[0-9]*"' {} 
 grep -l '<failure\|<error' build/test-results/test/*.xml || echo "no failures"
 ```
 
-Expected: `BUILD SUCCESSFUL`, **664** (or 661 without Task 9), `no failures`. If the count differs, find which task's count is off before going further.
+Expected: `BUILD SUCCESSFUL`, **664**, `no failures`. If the count differs, find which task's count is off before going further.
 
 - [ ] **Step 2: Back up the live DB (ask the user first)**
 
@@ -4097,10 +4105,10 @@ Afterwards, remove every `ZZ_TEST_` document/record created and restore any test
 
 - [ ] **Step 5: Update the memory bank (newest entry at the top of each file)**
 
-- `activeContext.md`: new "Latest Session (2026-10-03 — R4.2 SO Checklist: Implemented)" with branch `feature/so-checklist`, the commit list, test count, migration status, live-check result, open items (spec §13 assumptions, follow-up cards §12, Task 9 decision).
+- `activeContext.md`: new "Latest Session (2026-10-03 — R4.2 SO Checklist: Implemented)" with branch `feature/so-checklist`, the commit list, test count, migration status, live-check result, open items (spec §13 assumptions, follow-up cards §12).
 - `progress.md`: completed items per task; deferred items (follow-up cards); any review findings left open.
 - `changeLog.md`: every file from the File Structure table, with the reason.
-- `decisions.md`: the four planning deviations listed at the top of this plan, plus the Task 9 decision.
+- `decisions.md`: the implementation outcome of the decisions already recorded on 2026-10-03 (four planning deviations, Task 9 confirmed, subagent-driven execution); add any new decision made during execution.
 - `testing.md`: suite count, the new test classes, and the live-check table from Step 4.
 
 - [ ] **Step 6: Add the conventions to `CLAUDE.md`**
