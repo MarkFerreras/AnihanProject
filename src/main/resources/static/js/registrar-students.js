@@ -694,6 +694,9 @@
             alertEl.classList.remove('d-none');
         }
 
+        // True while the date input holds the auto-filled "today" rather than a typed date.
+        let dateIsDefault = false;
+
         function currentRule() {
             return statusRule(currentRecordStatus, selectEl.value);
         }
@@ -702,8 +705,19 @@
             const rule = currentRule();
             dateGroup.classList.toggle('d-none', !rule.needsDate);
             reasonGroup.classList.toggle('d-none', !rule.needsReason);
-            if (rule.needsDate && !dateInput.value) {
-                dateInput.value = todayIso();
+            saveBtn.disabled = !selectEl.value;
+            if (rule.needsDate) {
+                if (rule.archive) {
+                    // Archive records need the real, long-past date: never default it, but keep
+                    // anything the Registrar typed themselves.
+                    if (dateIsDefault) {
+                        dateInput.value = '';
+                        dateIsDefault = false;
+                    }
+                } else if (!dateInput.value) {
+                    dateInput.value = todayIso();
+                    dateIsDefault = true;
+                }
             }
             if (dateHelp) {
                 dateHelp.textContent = rule.archive
@@ -723,6 +737,7 @@
             });
             selectEl.value = currentRecordStatus || 'Enrolling';
             dateInput.value = '';
+            dateIsDefault = false;
             dateInput.max = todayIso();
             reasonInput.value = '';
             updateStatusFields();
@@ -731,10 +746,17 @@
             editStatusModal.show();
         });
 
-        selectEl.addEventListener('change', updateStatusFields);
+        selectEl.addEventListener('change', function () {
+            hideAlert('editStatusAlert');
+            updateStatusFields();
+        });
+
+        dateInput.addEventListener('input', function () {
+            dateIsDefault = false;
+        });
 
         saveBtn.addEventListener('click', async function () {
-            if (!currentRecordId) return;
+            if (!currentRecordId || !selectEl.value) return;
 
             const rule = currentRule();
             const payload = { studentStatus: selectEl.value };
