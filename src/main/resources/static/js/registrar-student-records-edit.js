@@ -229,8 +229,9 @@
     // Native fieldset disabling cascades to every descendant form control — including
     // ones added later, like a new school-year row — so locking/unlocking a whole
     // category is just toggling one attribute; no per-field bookkeeping needed. Fields
-    // that must always stay read-only (Record ID, Enrollment Date, Reference No.,
-    // Student Number) keep their own explicit disabled/readonly attribute, which is
+    // that must always stay read-only (Record ID, Reference No., Student Number) — and
+    // Completion Date for students who are not Completed/Graduated — keep their own
+    // explicit disabled/readonly attribute, which is
     // unaffected by the surrounding fieldset becoming enabled.
 
     function setSectionEditable(section, editable) {
@@ -302,7 +303,15 @@
         setVal('editBatchCode', r.batchCode);
         setVal('editCourseCode', r.courseCode);
         setVal('editSectionCode', r.sectionCode);
-        setVal('editEnrollmentDate', r.enrollmentDate || 'Not set');
+        setVal('editEnrollmentDate', r.enrollmentDate || '');
+        setVal('editCompletionDate', r.completionDate || '');
+        // Completion date is set by the Completed status change; it can be corrected here
+        // only while the student is Completed or Graduated (the server enforces the same).
+        const completionInput = document.getElementById('editCompletionDate');
+        if (completionInput) {
+            completionInput.disabled = ['Completed', 'Graduated'].indexOf(r.studentStatus) === -1;
+        }
+        setVal('editEmploymentStatus', r.employmentStatus);
         updateAgeDisplay();
 
         // OJT
@@ -481,7 +490,12 @@
             schoolYears: buildSchoolYearRows(),
             father:   buildParent('Father'),
             mother:   buildParent('Mother'),
-            guardian: buildGuardian()
+            guardian: buildGuardian(),
+            // Always sent back as loaded (a disabled input still has its value), so a routine
+            // save never wipes these.
+            enrollmentDate: getNullableDate('editEnrollmentDate'),
+            completionDate: getNullableDate('editCompletionDate'),
+            employmentStatus: getVal('editEmploymentStatus') || null
         };
     }
 

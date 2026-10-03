@@ -452,7 +452,16 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label for="editEnrollmentDate" class="form-label">Enrollment Date</label>
-                                            <input type="text" class="form-control" id="editEnrollmentDate" disabled readonly>
+                                            <input type="date" class="form-control" id="editEnrollmentDate">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editCompletionDate" class="form-label">Completion Date</label>
+                                            <input type="date" class="form-control" id="editCompletionDate"
+                                                aria-describedby="editCompletionDateHelp" disabled>
+                                            <div class="form-text" id="editCompletionDateHelp">
+                                                Set by <strong>Edit Status → Completed</strong>. Editable here only for
+                                                Completed or Graduated students.
+                                            </div>
                                         </div>
                                     </div>
                                     <hr class="my-4">
@@ -469,6 +478,25 @@
                                         <div class="col-md-2">
                                             <label for="editOjtHoursRendered" class="form-label">Hours Rendered</label>
                                             <input type="number" step="0.01" min="0" class="form-control" id="editOjtHoursRendered">
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+                                    <h6 class="section-title">Employment</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="editEmploymentStatus" class="form-label">Employment Status</label>
+                                            <select class="form-select" id="editEmploymentStatus"
+                                                aria-describedby="editEmploymentStatusHelp">
+                                                <option value="">Not set</option>
+                                                <option value="Employed">Employed</option>
+                                                <option value="Self-employed">Self-employed</option>
+                                                <option value="Unemployed">Unemployed</option>
+                                                <option value="Further studies">Further studies</option>
+                                            </select>
+                                            <div class="form-text" id="editEmploymentStatusHelp">
+                                                Required for the TESDA Special Order once the student is Completed.
+                                            </div>
                                         </div>
                                     </div>
 
@@ -675,7 +703,7 @@
     <script src="js/jquery-4.0.0.min.js"></script>
     <script src="js/auth-guard.js"></script>
     <script src="js/combobox.js?v=2"></script>
-    <script src="js/registrar-student-records-edit.js?v=9"></script>
+    <script src="js/registrar-student-records-edit.js?v=10"></script>
 
 </body>
 

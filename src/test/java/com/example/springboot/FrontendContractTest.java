@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.springboot.dto.registrar.StudentRecordUpdateRequest;
 import com.example.springboot.dto.registrar.UpdateStudentStatusRequest;
 
 /**
@@ -47,5 +48,13 @@ class FrontendContractTest {
     void editStatusOptionsMatchTheServerAllowedValues() throws Exception {
         assertEquals(List.of(UpdateStudentStatusRequest.ALLOWED_VALUES_DISPLAY.split(", ")),
                 optionValues("registrar.html", "editStatusSelect"));
+    }
+
+    @Test
+    void employmentStatusOptionsMatchTheServerPattern() throws Exception {
+        List<String> expected = new ArrayList<>();
+        expected.add(""); // "Not set"
+        expected.addAll(List.of(StudentRecordUpdateRequest.EMPLOYMENT_STATUS_DISPLAY.split(", ")));
+        assertEquals(expected, optionValues("student-records.html", "editEmploymentStatus"));
     }
 }
