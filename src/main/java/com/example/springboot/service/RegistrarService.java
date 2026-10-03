@@ -366,10 +366,12 @@ public class RegistrarService {
     }
 
     /**
-     * Enrollment date is editable for every status. Completion date may be set or corrected
-     * only while the student is Completed or Graduated; for anyone else a non-null value that
-     * differs from the stored one is rejected and a null leaves the stored value alone, so a
-     * routine save never wipes it (spec 2026-10-01 SO checklist §4.3).
+     * Writes the enrollment and completion dates exactly as sent. A null enrollment date clears
+     * it, for every status. Completion date may be set, corrected or cleared (null) only while
+     * the student is Completed or Graduated; for any other status it is left untouched, and a
+     * non-null value that differs from the stored one is rejected. The edit form must therefore
+     * always send the loaded values back (spec 2026-10-01 SO checklist §4.3; pinned by
+     * FrontendContractTest).
      */
     private void applyDates(StudentRecord record, LocalDate enrollmentDate, LocalDate completionDate) {
         boolean completionEditable = StudentStatusTransitions.isCompletedOrGraduated(record.getStudentStatus());

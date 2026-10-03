@@ -57,8 +57,10 @@ public record StudentRecordUpdateRequest(
         ParentDto mother,
         GuardianDto guardian,
 
-        // Editable for every status (spec 2026-10-01 SO checklist §4.3). The edit form always
-        // sends the loaded values back, so a routine save never wipes these three.
+        // The three fields below are written exactly as sent: null clears enrollmentDate and
+        // employmentStatus for every status, and clears completionDate for Completed/Graduated
+        // (it is left untouched for other statuses). The edit form must therefore always send the
+        // loaded values back (spec 2026-10-01 SO checklist §4.3; pinned by FrontendContractTest).
         @PastOrPresent(message = "Enrollment date cannot be in the future")
         LocalDate enrollmentDate,
 

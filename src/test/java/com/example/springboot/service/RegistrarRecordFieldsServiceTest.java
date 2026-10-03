@@ -91,20 +91,87 @@ class RegistrarRecordFieldsServiceTest {
     }
 
     @Test
-    void aRoutineSaveKeepsTheDatesAndEmploymentStatus() {
+    void theThreeFieldsAreWrittenExactlyAsSent() {
         StudentRecord target = record("Completed");
-        target.setEnrollmentDate(ENROLLED);
-        target.setCompletionDate(COMPLETED);
-        target.setEmploymentStatus("Employed");
+        target.setEnrollmentDate(LocalDate.of(2024, 1, 8));
+        target.setCompletionDate(LocalDate.of(2025, 2, 14));
+        target.setEmploymentStatus("Unemployed");
         stubSuccessfulSave(target);
 
         StudentRecordDetailsResponse result =
                 registrarService.updateRecord(1, request(ENROLLED, COMPLETED, "Employed"));
 
         assertEquals("Lipata-Edited", result.lastName(), "The edit itself must apply");
+        assertEquals(ENROLLED, target.getEnrollmentDate());
+        assertEquals(COMPLETED, target.getCompletionDate());
+        assertEquals("Employed", target.getEmploymentStatus());
         assertEquals(ENROLLED, result.enrollmentDate());
         assertEquals(COMPLETED, result.completionDate());
         assertEquals("Employed", result.employmentStatus());
+    }
+
+    @Test
+    void anActiveStudentsStoredCompletionDateIsKeptWhenTheRequestEchoesIt() {
+        StudentRecord target = record("Active");
+        target.setCompletionDate(COMPLETED);
+        stubSuccessfulSave(target);
+
+        registrarService.updateRecord(1, request(ENROLLED, COMPLETED, null));
+
+        assertEquals(COMPLETED, target.getCompletionDate());
+    }
+
+    @Test
+    void anActiveStudentsStoredCompletionDateIsKeptWhenTheRequestOmitsIt() {
+        StudentRecord target = record("Active");
+        target.setCompletionDate(COMPLETED);
+        stubSuccessfulSave(target);
+
+        registrarService.updateRecord(1, request(ENROLLED, null, null));
+
+        assertEquals(COMPLETED, target.getCompletionDate(), "Not editable for Active, so never wiped");
+    }
+
+    @Test
+    void aDifferentCompletionDateIsRejectedForAnActiveStudentWithAStoredOne() {
+        StudentRecord target = record("Active");
+        target.setCompletionDate(COMPLETED);
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateRecord(1, request(ENROLLED, LocalDate.of(2026, 3, 18), null)));
+
+        assertEquals("Completion date can only be set for a Completed or Graduated student. "
+                + "Change the status first.", ex.getMessage());
+        assertEquals(COMPLETED, target.getCompletionDate());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void aNullCompletionDateClearsItForACompletedStudent() {
+        // By design (spec 2026-10-01 SO checklist 4.3): the three fields are written exactly as
+        // sent, so this relies on the edit form echoing the loaded completion date back
+        // (FrontendContractTest pins that the form sends it).
+        StudentRecord target = record("Completed");
+        target.setCompletionDate(COMPLETED);
+        stubSuccessfulSave(target);
+
+        registrarService.updateRecord(1, request(ENROLLED, null, null));
+
+        assertNull(target.getCompletionDate());
+    }
+
+    @Test
+    void updateRecordNeverChangesTheStatusOrTheStudentNumber() {
+        StudentRecord target = record("Completed");
+        target.setStudentNumber("2026-0042");
+        target.setCompletionDate(COMPLETED);
+        stubSuccessfulSave(target);
+
+        registrarService.updateRecord(1, request(ENROLLED, COMPLETED, "Employed"));
+
+        assertEquals("Completed", target.getStudentStatus());
+        assertEquals("2026-0042", target.getStudentNumber());
     }
 
     @Test
