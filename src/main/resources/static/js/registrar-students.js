@@ -13,6 +13,7 @@
     let assignTargetRecordId = null;
     let assignBatchTargetRecordId = null;
     let soChecklistLoadedFor = null;
+    let soChecklistRequest = 0;
 
     const SO_CHECKLIST_STATUSES = ['Active', 'Completed', 'Graduated'];
     const SO_STATE_DISPLAY = {
@@ -107,10 +108,15 @@
      */
     function resetSoChecklistTab(status) {
         soChecklistLoadedFor = null;
+        soChecklistRequest++; // invalidates any in-flight checklist request
         const content = document.getElementById('soChecklistContent');
         if (content) content.replaceChildren();
+        const hasChecklist = SO_CHECKLIST_STATUSES.indexOf(status) !== -1;
         const tabItem = document.getElementById('soChecklistTabItem');
-        if (tabItem) tabItem.classList.toggle('d-none', SO_CHECKLIST_STATUSES.indexOf(status) === -1);
+        if (tabItem) tabItem.classList.toggle('d-none', !hasChecklist);
+        // Disabled too, so Bootstrap's arrow/Home/End key handling skips the hidden tab.
+        const soTab = document.getElementById('tab-details-so');
+        if (soTab) soTab.disabled = !hasChecklist;
         const detailsTab = document.getElementById('tab-details-info');
         if (detailsTab) bootstrap.Tab.getOrCreateInstance(detailsTab).show();
     }
@@ -118,6 +124,7 @@
     async function loadSoChecklist(recordId) {
         const content = document.getElementById('soChecklistContent');
         if (!content) return;
+        const ticket = ++soChecklistRequest;
         content.replaceChildren(makeEl('p', 'text-muted mb-0', 'Loading checklist…'));
 
         let res;
@@ -126,12 +133,13 @@
                 credentials: 'same-origin'
             });
         } catch (err) {
-            if (recordId !== currentRecordId) return;
+            if (ticket !== soChecklistRequest || recordId !== currentRecordId) return;
             content.replaceChildren(makeEl('div', 'alert alert-danger mb-0',
                 'Could not load the SO checklist. Check the connection and try again.'));
             return;
         }
-        if (recordId !== currentRecordId) return; // the Registrar opened another student meanwhile
+        // Stale: the Registrar opened another student or changed the status meanwhile.
+        if (ticket !== soChecklistRequest || recordId !== currentRecordId) return;
 
         if (res.status === 401) {
             const box = makeEl('div', 'alert alert-warning mb-0');
@@ -156,13 +164,19 @@
         try {
             data = await res.json();
         } catch (err) {
-            if (recordId !== currentRecordId) return;
+            if (ticket !== soChecklistRequest || recordId !== currentRecordId) return;
             content.replaceChildren(makeEl('div', 'alert alert-danger mb-0', 'Could not load the SO checklist.'));
             return;
         }
-        if (recordId !== currentRecordId) return;
+        if (ticket !== soChecklistRequest || recordId !== currentRecordId) return;
+        try {
+            renderSoChecklist(content, data);
+        } catch (err) {
+            // Leave soChecklistLoadedFor unset so revisiting the tab retries.
+            content.replaceChildren(makeEl('div', 'alert alert-danger mb-0', 'Could not load the SO checklist.'));
+            return;
+        }
         soChecklistLoadedFor = recordId;
-        renderSoChecklist(content, data);
     }
 
     function renderSoChecklist(container, data) {
