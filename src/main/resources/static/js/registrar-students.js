@@ -60,6 +60,8 @@
             cls = 'status-badge-active';
         } else if (status === 'Enrolling' || status === 'Submitted') {
             cls = 'status-badge-enrolling';
+        } else if (status === 'Completed') {
+            cls = 'status-badge-completed';
         } else if (status === 'Graduated') {
             cls = 'status-badge-graduated';
         } else {
