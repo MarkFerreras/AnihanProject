@@ -1,5 +1,16 @@
 # Progress - Anihan SRMS
 
+## 2026-10-03 - R4.2 SO Checklist: Implementation Plan Written
+
+- **Completed:** implementation plan `docs/superpowers/plans/2026-10-03-so-checklist.md` on branch
+  `feature/so-checklist` (16 tasks: schema, status transitions, status endpoint, edit-form fields,
+  RequiredDocumentPolicy amendment, SoReadinessPolicy, checklist service/endpoint, DocumentTypeSuggester, optional
+  portal pre-check, four frontend tasks, regression + migration + live check + docs).
+- **In progress:** none — awaiting the user's choice of execution mode and the Task 9 decision.
+- **Remaining:** execute the plan; apply the migration to the live DB (needs approval); live Playwright check.
+- **Deferred (spec §12 follow-up cards):** SO Waivers & Sign-off, SO Filing Folder, SO Number & Graduation,
+  Archive Import, Form IX per qualification, data fix for the three delayed batches.
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified
 
 - **Completed (branch `feature/pre-export-missing-documents`, 13 code commits `765a4f8`..`bcd6052`):**

@@ -1,5 +1,13 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-03 - R4.2 SO Checklist (Implementation Plan)
+**Branch:** `feature/so-checklist` (not pushed)
+
+- **Created:** `docs/superpowers/plans/2026-10-03-so-checklist.md` — task-by-task TDD plan, with complete code
+  for every step, for the spec `docs/superpowers/specs/2026-10-01-so-checklist-design.md`.
+- **Updated:** `memory-bank/activeContext.md`, `progress.md`, `changeLog.md` (this entry).
+- **Verification:** documentation only; no build or test run needed. Plan self-reviewed against every spec section.
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Implementation)
 **Branch:** `feature/pre-export-missing-documents` (pushed; PR #68 open into `main`, not merged)
 **Commits:** `765a4f8`, `3834c95`, `41c90c2`, `6182123`, `0e95d97`, `2ed6605`, `c2eaa70`, `4d3f95c`, `52d5a5c`,

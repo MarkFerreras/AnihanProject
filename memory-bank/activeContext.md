@@ -1,5 +1,22 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-10-03 - R4.2 SO Checklist: Implementation Plan Written)
+
+- **Branch:** `feature/so-checklist` (Confirmed; created from `main` at `6f40bc3` before any file was written;
+  `main` untouched). Documentation only — no product code changed yet.
+- **Plan (Confirmed written, not executed):** `docs/superpowers/plans/2026-10-03-so-checklist.md` — 16 tasks
+  (0–15), TDD, expected suite 578 → 664 (661 if Task 9 is skipped). Built from
+  `docs/superpowers/specs/2026-10-01-so-checklist-design.md` after reading the affected code.
+- **Planning deviations from the spec (verified against code, recorded in the plan header):** checklist endpoint
+  in a new `SoChecklistController` (4 existing `@WebMvcTest(RegistrarController.class)` classes stay untouched);
+  section-first course/batch resolved in SQL (`COALESCE`) and pinned by a real-H2 test; employment values as
+  pattern/display constants on `StudentRecordUpdateRequest`, pinned to the static `<select>` by a new
+  `FrontendContractTest`; Form IX aliases suggest a generic "Form IX" with no one-click Switch.
+- **Pending clarifications:** (1) spec §4.5 portal pre-check (Task 9) — **Unverified, needs user confirmation**;
+  (2) execution mode (subagent-driven vs inline); (3) spec §13 Registrar assumptions remain unverified.
+- **Blocked until approval:** Task 15 backs up and migrates the live `AnihanSRMS` DB
+  (`2026-10-03-so-checklist.sql`) — must ask the user first.
+
 ## Latest Session (2026-10-01 - R4.2 SO Checklist: Design Spec Written)
 
 - **Checkout:** `main` (documentation only, per the user's instruction: brainstorm, then commit the spec to
