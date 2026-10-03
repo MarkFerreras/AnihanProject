@@ -112,8 +112,19 @@ public class StudentRecord {
     @Column(name = "enrollment_date")
     private LocalDate enrollmentDate;
 
+    /**
+     * The day the student finished training and OJT. Set when the status becomes
+     * Completed (see StudentStatusTransitions); null before that.
+     */
+    @Column(name = "completion_date")
+    private LocalDate completionDate;
+
     @Column(name = "student_status", nullable = false, length = 25)
     private String studentStatus = "Enrolling";
+
+    /** Employed / Self-employed / Unemployed / Further studies, or null ("Not set"). */
+    @Column(name = "employment_status", length = 25)
+    private String employmentStatus;
 
     public StudentRecord() {
     }
@@ -200,4 +211,10 @@ public class StudentRecord {
 
     public String getStudentStatus() { return studentStatus; }
     public void setStudentStatus(String studentStatus) { this.studentStatus = studentStatus; }
+
+    public LocalDate getCompletionDate() { return completionDate; }
+    public void setCompletionDate(LocalDate completionDate) { this.completionDate = completionDate; }
+
+    public String getEmploymentStatus() { return employmentStatus; }
+    public void setEmploymentStatus(String employmentStatus) { this.employmentStatus = employmentStatus; }
 }
