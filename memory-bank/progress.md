@@ -1,5 +1,16 @@
 # Progress - Anihan SRMS
 
+## 2026-10-04 - Trainer Class List Batch Year & Batch Filters: Implemented (uncommitted)
+
+- **Completed (branch `batch-filters`, uncommitted by user request):** `TrainerClassResponse` gains `batchCode`,
+  `batchYear`; new `TrainerBatchResponse`; `TrainerService.getMyClasses(semester, batchYear, batchCode)` (old 1-arg
+  overload delegates) and `getMyBatches()` (distinct, year desc then code asc, trainer-scoped, null-batch safe);
+  controller params + `/api/trainer/classes/batches`; Class List page dropdowns, Batch column, unified
+  `reloadClasses()`.
+- **Tests:** 578 -> 588 (6 service, 4 controller), 0 failures. API live check passed; browser UI unverified.
+- **Deferred:** non-numeric `batchYear` -> 500 (pre-existing type-mismatch handling in `GlobalExceptionHandler`).
+- **Remaining:** user commit/push; browser check.
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified
 
 - **Completed (branch `feature/pre-export-missing-documents`, 13 code commits `765a4f8`..`bcd6052`):**

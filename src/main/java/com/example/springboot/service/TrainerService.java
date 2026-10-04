@@ -11,10 +11,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.example.springboot.dto.trainer.TrainerBatchResponse;
 import com.example.springboot.dto.trainer.TrainerClassResponse;
 import com.example.springboot.dto.trainer.TrainerClassStudentResponse;
 import com.example.springboot.dto.trainer.TrainerSubjectResponse;
 import com.example.springboot.dto.trainer.TrainerSubjectStudentResponse;
+import com.example.springboot.model.Batch;
 import com.example.springboot.model.SchoolClass;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.ClassEnrollmentRepository;
@@ -132,12 +134,26 @@ public class TrainerService {
     }
 
     public List<TrainerClassResponse> getMyClasses(String semester) {
+        return getMyClasses(semester, null, null);
+    }
+
+    public List<TrainerClassResponse> getMyClasses(String semester, Short batchYear, String batchCode) {
         Integer trainerId = resolveCurrentTrainerId();
         List<SchoolClass> myClasses = classRepository.findByTrainerUserId(trainerId);
 
         if (semester != null && !semester.isBlank()) {
             myClasses = myClasses.stream()
                     .filter(c -> semester.equals(c.getSemester()))
+                    .collect(Collectors.toList());
+        }
+        if (batchYear != null) {
+            myClasses = myClasses.stream()
+                    .filter(c -> batchOf(c) != null && Objects.equals(batchYear, batchOf(c).getBatchYear()))
+                    .collect(Collectors.toList());
+        }
+        if (batchCode != null && !batchCode.isBlank()) {
+            myClasses = myClasses.stream()
+                    .filter(c -> batchOf(c) != null && batchCode.equals(batchOf(c).getBatchCode()))
                     .collect(Collectors.toList());
         }
 
@@ -153,10 +169,30 @@ public class TrainerService {
                 .toList();
     }
 
+    public List<TrainerBatchResponse> getMyBatches() {
+        Integer trainerId = resolveCurrentTrainerId();
+        return classRepository.findByTrainerUserId(trainerId).stream()
+                .map(this::batchOf)
+                .filter(Objects::nonNull)
+                .map(b -> new TrainerBatchResponse(b.getBatchCode(), b.getBatchYear()))
+                .distinct()
+                .sorted(Comparator
+                        .comparing(TrainerBatchResponse::batchYear,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(TrainerBatchResponse::batchCode,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    private Batch batchOf(SchoolClass c) {
+        return c.getSection() != null ? c.getSection().getBatch() : null;
+    }
+
     private TrainerClassResponse buildClassRow(SchoolClass c) {
         long enrolled = enrollmentRepository.countBySchoolClassClassId(c.getClassId());
         String courseName = (c.getSection() != null && c.getSection().getCourse() != null)
                 ? c.getSection().getCourse().getCourseName() : null;
+        Batch batch = batchOf(c);
         return new TrainerClassResponse(
                 c.getClassId(),
                 c.getSection().getSectionCode(),
@@ -165,6 +201,8 @@ public class TrainerService {
                 c.getSubject().getSubjectName(),
                 courseName,
                 c.getSemester(),
+                batch != null ? batch.getBatchCode() : null,
+                batch != null ? batch.getBatchYear() : null,
                 enrolled
         );
     }

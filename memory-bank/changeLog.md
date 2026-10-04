@@ -1,5 +1,23 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-04 - Trainer Class List Batch Year & Batch Filters
+**Branch:** `batch-filters` (uncommitted — user commits). **Plan:** `docs/superpowers/plans/2026-10-04-trainer-batch-filters.md`
+
+- `dto/trainer/TrainerClassResponse.java` — added `batchCode`, `batchYear` (before `enrolledCount`).
+- `dto/trainer/TrainerBatchResponse.java` — new record `(batchCode, batchYear)`.
+- `service/TrainerService.java` — 3-arg `getMyClasses` with batch filters; `getMyBatches()`; `batchOf` helper;
+  `buildClassRow` fills batch fields null-safely.
+- `controller/TrainerController.java` — `batchYear`/`batchCode` params on `GET /classes`; `GET /classes/batches`.
+- `static/trainer-classes.html` — Batch Year / Batch selects; Batch column.
+- `static/js/trainer-classes.js` — `fillSelect`, `loadAvailableBatches`, `reloadClasses`, `bindClassFilters`
+  (replaces `bindSemesterFilter`); Batch column; order indexes shifted to `[0],[3],[4]`.
+- Tests: `TrainerServiceTest` (+6), `TrainerControllerWebMvcTest` (+4; 3 existing switched to 3-arg form).
+- Verification: full suite 588/588; API live check passed; browser UI unverified.
+- Follow-up (user-requested label rename, trainer page only): "Filter by Semester/Year" -> "Class Year"
+  ("All Class Years"), "Batch Year" -> "Batch Intake Year" ("All Intake Years"), table header "Semester" ->
+  "Class Year", roster subtitle "Semester:" -> "Class Year:". Labels only; ids, params and API unchanged.
+  Registrar `classes.html` still says "Semester/Year".
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names (Implementation)
 **Branch:** `feature/pre-export-missing-documents` (pushed; PR #68 open into `main`, not merged)
 **Commits:** `765a4f8`, `3834c95`, `41c90c2`, `6182123`, `0e95d97`, `2ed6605`, `c2eaa70`, `4d3f95c`, `52d5a5c`,

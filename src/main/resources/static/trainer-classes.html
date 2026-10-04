@@ -90,18 +90,33 @@
                         <h2>Class List</h2>
                         <p class="mb-0">Use the <strong>Actions</strong> button to view enrolled students for a class.</p>
                     </div>
-                    <div class="logs-filter-section d-flex align-items-center">
-                        <label for="semesterFilterSelect" class="form-label mb-0 filter-label me-2">Filter by Semester/Year:</label>
-                        <select class="form-select form-select-sm w-auto" id="semesterFilterSelect">
-                            <option value="">All Semesters</option>
-                        </select>
+                    <div class="logs-filter-section d-flex align-items-center flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <label for="semesterFilterSelect" class="form-label mb-0 filter-label me-2">Class Year:</label>
+                            <select class="form-select form-select-sm w-auto" id="semesterFilterSelect">
+                                <option value="">All Class Years</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <label for="batchYearFilterSelect" class="form-label mb-0 filter-label me-2">Batch Intake Year:</label>
+                            <select class="form-select form-select-sm w-auto" id="batchYearFilterSelect">
+                                <option value="">All Intake Years</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <label for="batchFilterSelect" class="form-label mb-0 filter-label me-2">Batch:</label>
+                            <select class="form-select form-select-sm w-auto" id="batchFilterSelect">
+                                <option value="">All Batches</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="surface-card-body">
                     <table id="classesTable" class="table table-hover w-100">
                         <thead>
                             <tr>
-                                <th>Semester</th>
+                                <th>Class Year</th>
+                                <th>Batch</th>
                                 <th>Section Code</th>
                                 <th>Section</th>
                                 <th>Subject Code</th>
