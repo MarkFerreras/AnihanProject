@@ -38,6 +38,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/registrar/student-records")
 public class RegistrarController {
 
+    /** system_logs.action is VARCHAR(500). */
+    private static final int MAX_ACTION_LENGTH = 500;
+
     private final RegistrarService registrarService;
     private final SystemLogService systemLogService;
     private final UserRepository userRepository;
@@ -174,9 +177,6 @@ public class RegistrarController {
 
         return ResponseEntity.ok(updated);
     }
-
-    /** system_logs.action is VARCHAR(500). */
-    private static final int MAX_ACTION_LENGTH = 500;
 
     /**
      * e.g. "Changed status of Dela Cruz, Ana from Active to Graduated (completion date

@@ -10,6 +10,7 @@ import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.springboot.dto.registrar.SoChecklistResponse;
 import com.example.springboot.service.SoReadinessPolicy.Enrollment;
@@ -85,11 +86,16 @@ public class SoChecklistService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Transactional(readOnly = true)
     public SoChecklistResponse checklist(Integer recordId) {
         Student student = jdbcTemplate.query(STUDENT_SQL, STUDENT_MAPPER, recordId).stream()
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
 
+        // Caveat: documents.upload_date is stamped by the database's NOW(), while the grade lock
+        // time (locked_at) it is later compared against is stamped by the app clock. If the two
+        // clocks drift, a TOR uploaded moments after locking could read as older (or newer) than
+        // it is. Acceptable here: the server and the DB run on the same on-premise machine.
         Set<String> documentTypes = new HashSet<>();
         LocalDateTime newestTorUpload = null;
         List<DocumentRow> documents = jdbcTemplate.query(DOCUMENT_SQL, (rs, rowNum) -> new DocumentRow(

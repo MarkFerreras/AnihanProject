@@ -1,5 +1,8 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Default Security Questions
+-- Updated: 2026-10-03 (added student_records.completion_date and
+--            student_records.employment_status for the SO checklist — see
+--            migrations/2026-10-03-so-checklist.sql)
 -- Updated: 2026-10-01 (added documents.document_label — optional custom name
 --            for "Others" documents — see
 --            migrations/2026-10-01-add-documents-document-label.sql)

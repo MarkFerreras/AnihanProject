@@ -16,6 +16,11 @@ import java.util.stream.Collectors;
  * ("Director's letter" does not match "tor"). All alias knowledge lives here, the same idea
  * as StudentNumberImportMapping: to catch a new spelling, add it below and re-run
  * DocumentTypeSuggesterTest.
+ *
+ * <p>The matching is intentionally loose: a label that merely mentions a type ("TOR request
+ * letter") is still hinted, because a wrong hint costs the Registrar one ignored click while a
+ * missed one lets a real document sit unrecognised. When a label matches more than one type,
+ * the type listed first in {@code ALIASES} wins.
  */
 public final class DocumentTypeSuggester {
 
