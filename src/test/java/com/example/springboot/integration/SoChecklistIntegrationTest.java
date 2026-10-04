@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -121,6 +123,50 @@ class SoChecklistIntegrationTest {
     }
 
     @Test
+    void aTorUploadedAfterTheLockIsNotStaleWhenTheDbClockRunsEightHoursBehindTheApp() {
+        // Docker MySQL in UTC, app in UTC+8: upload_date reads 8h earlier than the app-clock locked_at.
+        LocalDateTime appNow = LocalDateTime.now().withNano(0).plusHours(8);
+        lockedGraduateWithTor(appNow.minusHours(2), appNow.minusHours(1).minusHours(8)); // real upload: 1h after the lock
+
+        SoChecklistItem tor = item(serviceWithAppClockAt(appNow).checklist(recordId("SR1")), "tor");
+
+        assertEquals("MET", tor.state());
+    }
+
+    @Test
+    void aTorUploadedBeforeTheLockStillWarnsWhenTheDbClockRunsEightHoursBehindTheApp() {
+        LocalDateTime appNow = LocalDateTime.now().withNano(0).plusHours(8);
+        lockedGraduateWithTor(appNow.minusHours(2), appNow.minusHours(3).minusHours(8)); // real upload: 1h before the lock
+
+        SoChecklistItem tor = item(serviceWithAppClockAt(appNow).checklist(recordId("SR1")), "tor");
+
+        assertEquals("WARNING", tor.state());
+    }
+
+    @Test
+    void withNoClockOffsetTheTorComparisonIsUnchanged() {
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        lockedGraduateWithTor(now.minusHours(2), now.minusHours(1)); // uploaded after the lock
+        assertEquals("MET", item(serviceWithAppClockAt(now).checklist(recordId("SR1")), "tor").state());
+
+        jdbc.update("DELETE FROM documents");
+        document("SR1", "Transcript of Records (TOR)", Timestamp.valueOf(now.minusHours(3)).toString()); // before the lock
+        assertEquals("WARNING", item(serviceWithAppClockAt(now).checklist(recordId("SR1")), "tor").state());
+    }
+
+    @Test
+    void subMinuteClockSkewIsNotTreatedAsAnOffset() {
+        // App clock 20s ahead of the DB. The upload (20s ago) is 10s older than the lock; an
+        // unrounded 20s shift would flip that to "after the lock", so the offset must round to zero.
+        LocalDateTime dbNow = LocalDateTime.now().withNano(0);
+        lockedGraduateWithTor(dbNow.minusSeconds(10), dbNow.minusSeconds(20));
+
+        SoChecklistItem tor = item(serviceWithAppClockAt(dbNow.plusSeconds(20)).checklist(recordId("SR1")), "tor");
+
+        assertEquals("WARNING", tor.state());
+    }
+
+    @Test
     void anUnknownRecordIsNotFound() {
         assertThrows(NoSuchElementException.class, () -> soChecklistService.checklist(999_999));
     }
@@ -135,6 +181,19 @@ class SoChecklistIntegrationTest {
                 VALUES (?, 'Dela Cruz', 'Ana', 'Reyes', DATE '2005-02-14', 'Female', 'Quezon City',
                     ?, DATE '2025-06-02', DATE '2026-03-20', ?, 'Unemployed', 0)
                 """, studentId, sectionCode, status);
+    }
+
+    /** One Graduated student with a single locked COMPETENT grade and a single TOR upload (DB-clock time). */
+    private void lockedGraduateWithTor(LocalDateTime lockedAt, LocalDateTime torUploadedAt) {
+        insertStudent("SR1", "S1", "Graduated");
+        grade(enroll("SR1", "BPP-101"), "SR1", "BPP-101", "COMPETENT", null, true, Timestamp.valueOf(lockedAt).toString());
+        document("SR1", "Transcript of Records (TOR)", Timestamp.valueOf(torUploadedAt).toString());
+    }
+
+    /** The real service on the H2 data, with the app clock pinned to a wall-clock time in the JVM zone. */
+    private SoChecklistService serviceWithAppClockAt(LocalDateTime appNow) {
+        Clock system = Clock.systemDefaultZone();
+        return new SoChecklistService(jdbc, Clock.fixed(appNow.atZone(system.getZone()).toInstant(), system.getZone()));
     }
 
     private Integer recordId(String studentId) {

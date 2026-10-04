@@ -1,5 +1,7 @@
 package com.example.springboot.service;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -7,6 +9,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -80,10 +83,21 @@ public class SoChecklistService {
     private record DocumentRow(String documentType, LocalDateTime uploadDate) {
     }
 
-    private final JdbcTemplate jdbcTemplate;
+    /** Asks the database for its own clock; MySQL and H2 (MySQL mode) both accept it. */
+    private static final String DB_NOW_SQL = "SELECT NOW()";
 
+    private final JdbcTemplate jdbcTemplate;
+    private final Clock clock;
+
+    @Autowired
     public SoChecklistService(JdbcTemplate jdbcTemplate) {
+        this(jdbcTemplate, Clock.systemDefaultZone());
+    }
+
+    /** The app clock is injectable so the DB-vs-app offset is testable; the default matches LocalDateTime.now(). */
+    public SoChecklistService(JdbcTemplate jdbcTemplate, Clock clock) {
         this.jdbcTemplate = jdbcTemplate;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -92,10 +106,10 @@ public class SoChecklistService {
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
 
-        // Caveat: documents.upload_date is stamped by the database's NOW(), while the grade lock
-        // time (locked_at) it is later compared against is stamped by the app clock. If the two
-        // clocks drift, a TOR uploaded moments after locking could read as older (or newer) than
-        // it is. Acceptable here: the server and the DB run on the same on-premise machine.
+        // documents.upload_date is stamped by the database (DEFAULT CURRENT_TIMESTAMP, in the DB
+        // session's time zone) while grades.locked_at is stamped by the app clock, and the two can
+        // be in different zones (Docker MySQL runs UTC, the app UTC+8). So the newest TOR upload is
+        // moved onto the app clock below before SoReadinessPolicy compares it with the last lock.
         Set<String> documentTypes = new HashSet<>();
         LocalDateTime newestTorUpload = null;
         List<DocumentRow> documents = jdbcTemplate.query(DOCUMENT_SQL, (rs, rowNum) -> new DocumentRow(
@@ -109,7 +123,25 @@ public class SoChecklistService {
             }
         }
 
+        if (newestTorUpload != null) {
+            newestTorUpload = newestTorUpload.plus(dbToAppClockOffset());
+        }
+
         List<Enrollment> enrollments = jdbcTemplate.query(ENROLLMENT_SQL, ENROLLMENT_MAPPER, student.studentId());
         return SoReadinessPolicy.evaluate(student, documentTypes, newestTorUpload, enrollments);
+    }
+
+    /**
+     * App clock minus DB clock, measured now and rounded to the nearest minute so sub-minute
+     * skew and query latency never move a timestamp, only a real zone or clock difference does.
+     * Both are read as wall-clock LocalDateTime values, with no JVM-zone conversion.
+     */
+    private Duration dbToAppClockOffset() {
+        LocalDateTime dbNow = jdbcTemplate.queryForObject(DB_NOW_SQL, LocalDateTime.class);
+        LocalDateTime appNow = LocalDateTime.now(clock);
+        if (dbNow == null) {
+            return Duration.ZERO;
+        }
+        return Duration.ofMinutes(Math.round(Duration.between(dbNow, appNow).toMillis() / 60_000.0));
     }
 }
