@@ -27,11 +27,18 @@ class RequiredDocumentPolicyTest {
     }
 
     @Test
-    void nonGraduatedStatusesNeverRequireCompletionDocuments() {
+    void studentsStillStudyingNeverRequireCompletionDocuments() {
         for (String status : List.of("Enrolling", "Submitted", "Active")) {
             assertTrue(RequiredDocumentPolicy.missing(status, ALL_INTAKE_TYPES).isEmpty(),
                     "completion documents must not be required for " + status);
         }
+    }
+
+    @Test
+    void completedStudentRequiresTheCompletionDocumentsToo() {
+        assertEquals(RequiredDocumentPolicy.missing("Graduated", Set.of()),
+                RequiredDocumentPolicy.missing("Completed", Set.of()));
+        assertEquals(7, RequiredDocumentPolicy.missing(" completed ", Set.of()).size());
     }
 
     @Test

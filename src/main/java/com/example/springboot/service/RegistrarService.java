@@ -271,17 +271,52 @@ public class RegistrarService {
      * deliberately pulled out of the general edit form so a routine field edit can never
      * silently change it, and every status change is a separately audited action.
      *
-     * <p>The set of values a Registrar may assign to is enforced at the DTO level
-     * ({@link com.example.springboot.dto.registrar.UpdateStudentStatusRequest}); this method
-     * trusts the caller has already validated it.
+     * <p>The set of target values is enforced at the DTO level
+     * ({@link com.example.springboot.dto.registrar.UpdateStudentStatusRequest}). Which moves are
+     * allowed from the student's <em>current</em> status, and what extra input each needs, is
+     * decided by {@link StudentStatusTransitions} (spec 2026-10-01 SO checklist 4.2). Only
+     * changes made here are checked; existing rows are never re-validated.
+     *
+     * @param completionDate required for Active to Completed and Active to Graduated
+     * @param reason         required for Active to Graduated and Graduated to Completed
      */
     @Transactional
-    public StudentRecordDetailsResponse updateStatus(Integer recordId, String newStatus) {
+    public StudentRecordDetailsResponse updateStatus(Integer recordId, String newStatus,
+                                                     LocalDate completionDate, String reason) {
         StudentRecord record = studentRecordRepository.findById(recordId)
                 .orElseThrow(() -> new NoSuchElementException("Student record not found: " + recordId));
 
+        StudentStatusTransitions.Rule rule = StudentStatusTransitions.check(record.getStudentStatus(), newStatus);
+        if (!rule.allowed()) {
+            throw new IllegalArgumentException(rule.rejection());
+        }
+        if (rule.requiresReason() && emptyToNull(reason) == null) {
+            throw new IllegalArgumentException("A reason is required for this status change.");
+        }
+        if (rule.requiresCompletionDate()) {
+            if (completionDate == null) {
+                throw new IllegalArgumentException("A completion date is required for this status change.");
+            }
+            validateCompletionDate(completionDate, record.getEnrollmentDate());
+            record.setCompletionDate(completionDate);
+        }
+        if (rule.clearsCompletionDate()) {
+            record.setCompletionDate(null);
+        }
+
         record.setStudentStatus(newStatus);
         return buildDetailsResponse(studentRecordRepository.save(record));
+    }
+
+    /** Spec 4.2: not in the future, and not before the enrollment date when that is set. */
+    private void validateCompletionDate(LocalDate completionDate, LocalDate enrollmentDate) {
+        if (completionDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Completion date cannot be in the future.");
+        }
+        if (enrollmentDate != null && completionDate.isBefore(enrollmentDate)) {
+            throw new IllegalArgumentException(
+                    "Completion date cannot be before the enrollment date (" + enrollmentDate + ").");
+        }
     }
 
     @Transactional
@@ -313,6 +348,8 @@ public class RegistrarService {
         record.setSiblingCount(request.siblingCount());
         record.setBrotherCount(request.brotherCount());
         record.setSisterCount(request.sisterCount());
+        applyDates(record, request.enrollmentDate(), request.completionDate());
+        record.setEmploymentStatus(emptyToNull(request.employmentStatus()));
 
         record.setCourse(resolveCourse(request.courseCode()));
         record.setSection(resolveSection(request.sectionCode()));
@@ -326,6 +363,28 @@ public class RegistrarService {
         saveGuardian(saved, request.guardian());
 
         return buildDetailsResponse(saved);
+    }
+
+    /**
+     * Writes the enrollment and completion dates exactly as sent. A null enrollment date clears
+     * it, for every status. Completion date may be set, corrected or cleared (null) only while
+     * the student is Completed or Graduated; for any other status it is left untouched, and a
+     * non-null value that differs from the stored one is rejected. The edit form must therefore
+     * always send the loaded values back (spec 2026-10-01 SO checklist §4.3; pinned by
+     * FrontendContractTest).
+     */
+    private void applyDates(StudentRecord record, LocalDate enrollmentDate, LocalDate completionDate) {
+        boolean completionEditable = StudentStatusTransitions.isCompletedOrGraduated(record.getStudentStatus());
+        if (!completionEditable && completionDate != null && !completionDate.equals(record.getCompletionDate())) {
+            throw new IllegalArgumentException(
+                    "Completion date can only be set for a Completed or Graduated student. Change the status first.");
+        }
+        LocalDate effectiveCompletion = completionEditable ? completionDate : record.getCompletionDate();
+        if (enrollmentDate != null && effectiveCompletion != null && enrollmentDate.isAfter(effectiveCompletion)) {
+            throw new IllegalArgumentException("Enrollment date cannot be after the completion date.");
+        }
+        record.setEnrollmentDate(enrollmentDate);
+        record.setCompletionDate(effectiveCompletion);
     }
 
     // ----- OJT -----

@@ -32,6 +32,7 @@ import com.example.springboot.dto.registrar.DocumentGenerateDataResponse;
 import com.example.springboot.dto.registrar.DocumentSummaryResponse;
 import com.example.springboot.dto.registrar.ExportCheckResponse;
 import com.example.springboot.dto.registrar.GenerateDocumentRequest;
+import com.example.springboot.dto.registrar.TypeSuggestionResponse;
 import com.example.springboot.model.Document;
 import com.example.springboot.model.User;
 import com.example.springboot.repository.UserRepository;
@@ -39,6 +40,7 @@ import com.example.springboot.service.DocumentExportService;
 import com.example.springboot.service.DocumentFolderService;
 import com.example.springboot.service.DocumentGenerationService;
 import com.example.springboot.service.DocumentService;
+import com.example.springboot.service.DocumentTypeSuggester;
 import com.example.springboot.service.SystemLogService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -182,6 +184,16 @@ public class DocumentController {
     @GetMapping("/labels")
     public ResponseEntity<List<String>> labels() {
         return ResponseEntity.ok(documentService.getDocumentLabels());
+    }
+
+    /**
+     * "Did you mean …?" hint for an "Others" label on the upload dialog (spec 2026-10-01 SO
+     * checklist §9). Read-only and not audit-logged; the page never switches on its own.
+     */
+    @GetMapping("/type-suggestion")
+    public ResponseEntity<TypeSuggestionResponse> typeSuggestion(
+            @RequestParam(name = "label", required = false) String label) {
+        return ResponseEntity.ok(new TypeSuggestionResponse(DocumentTypeSuggester.suggest(label).orElse(null)));
     }
 
     @PostMapping

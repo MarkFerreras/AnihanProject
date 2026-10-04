@@ -1,5 +1,53 @@
 # Progress - Anihan SRMS
 
+## 2026-10-04 - R4.2 SO Checklist: Implemented, Migrated and Live-Checked
+
+- **Completed (branch `feature/so-checklist`, base `428cc53`, not pushed):**
+  - T1 `36b9227` `student_records.completion_date` / `employment_status` (entity, schema mirrors, migration).
+  - T2 `f1f00b4` + T3 `a0f1933` `StudentStatusTransitions`; status endpoint enforces moves, completion date, reason;
+    extended audit text.
+  - T4 `6f46a13` + `ce4ba82` edit-form PUT writes enrollment date, completion date, employment status.
+  - T5 `248f95c` `RequiredDocumentPolicy`: completion documents for Completed and Graduated.
+  - T6 `90e286f` `SoReadinessPolicy`; T7 `0ab6613` `SoChecklistService` + `SoChecklistController`.
+  - T8 `53700b6` `DocumentTypeSuggester` + `GET /type-suggestion`; T9 `3335a0a` portal pre-check blocks Completed.
+  - T10 `efd8def` Completed filter/badge; T11 `92c9d30` + `fc05a95` status dialog; T12 `3f08503` edit-form UI;
+    T13 `ffb8868` + `d6695b8` SO Checklist tab; T14 `2c33466` upload hint.
+  - Cleanup `3403e51` / `60ce3e6` / `c4c6e19`; clock-offset fix `79a0033` (+ `27b3e7c` docs); section-removal guard
+    `dfe8e18`; T15 docs commit (memory bank + `CLAUDE.md`).
+- **Testing status:** full suite 681 tests, 0 failures (see `testing.md`); live check 9 of 10 items PASS via
+  UI/API, item 10 PASS via API only.
+- **Migration:** `2026-10-03-so-checklist.sql` applied to the live DB on 2026-10-04 (after the backup);
+  `schema.sql`, `AnihanSRMS.sql` and the H2 schema already match.
+- **In progress:** finishing the branch — the user decides push / PR (never to `main`) and what to do with the
+  untracked backup SQL (real student data; **not committed**).
+- **Remaining / deferred follow-up cards (spec §12):** SO Waivers & Sign-off, SO Filing Folder, SO Number &
+  Graduation, Archive Import, Form IX per qualification, data fix for the three delayed batches. Spec §13 Registrar
+  assumptions are still **Unverified**.
+- **Deferred review findings / technical debt (none Critical):**
+  - (a) `SoReadinessPolicy` redefines `"COMPETENT"` / `"NOT_COMPETENT"` instead of reusing the `GradeEquivalent`
+    constants.
+  - (b) No test cross-checks the JS `statusRule` against Java `StudentStatusTransitions` (the server is the
+    authority).
+  - (c) `js/registrar-students.js` is ~972 lines; consider splitting the checklist tab and status dialog out.
+  - (d) The section modal still shows a Remove button for Completed/Graduated students; it now returns the
+    `dfe8e18` 400 message. Cosmetic follow-up: hide or disable it.
+  - (e) Pre-existing: a `Submitted` record has no matching `#editStatusSelect` option (Save disabled), and
+    `registrar-documents.js:969` gives every student `status-badge-active`.
+  - (f) DB-vs-app clock offset is a heuristic (rounded to the minute; DST error only theoretical). Optional
+    long-term fix: set the MySQL container `TZ` to the app zone.
+  - (g) Live-check item 10 (export dialog UI) was verified through the API only.
+
+## 2026-10-03 - R4.2 SO Checklist: Implementation Plan Written
+
+- **Completed:** implementation plan `docs/superpowers/plans/2026-10-03-so-checklist.md` on branch
+  `feature/so-checklist` (16 tasks: schema, status transitions, status endpoint, edit-form fields,
+  RequiredDocumentPolicy amendment, SoReadinessPolicy, checklist service/endpoint, DocumentTypeSuggester, optional
+  portal pre-check, four frontend tasks, regression + migration + live check + docs).
+- **In progress:** none — awaiting the user's choice of execution mode and the Task 9 decision.
+- **Remaining:** execute the plan; apply the migration to the live DB (needs approval); live Playwright check.
+- **Deferred (spec §12 follow-up cards):** SO Waivers & Sign-off, SO Filing Folder, SO Number & Graduation,
+  Archive Import, Form IX per qualification, data fix for the three delayed batches.
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & Custom "Others" Names: Implemented & Live-Verified
 
 - **Completed (branch `feature/pre-export-missing-documents`, 13 code commits `765a4f8`..`bcd6052`):**

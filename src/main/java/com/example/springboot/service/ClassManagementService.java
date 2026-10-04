@@ -561,6 +561,13 @@ public class ClassManagementService {
             throw new IllegalArgumentException(
                     "Student " + studentId + " is not assigned to section " + sectionCode);
         }
+        // Completed/Graduated students keep their section, enrollments and grades for the SO
+        // checklist; reverting them to Submitted would bypass StudentStatusTransitions.
+        if (StudentStatusTransitions.isCompletedOrGraduated(student.getStudentStatus())) {
+            throw new IllegalArgumentException("Student " + studentId + " is "
+                    + student.getStudentStatus().trim()
+                    + " and cannot be removed from a section; change the status first.");
+        }
 
         int cascadedEnrollments = enrollmentRepository.deleteByStudentAndSectionCode(studentId, sectionCode);
         student.setSection(null);
