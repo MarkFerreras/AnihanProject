@@ -1,5 +1,17 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-04 - SO Checklist: TOR upload vs grade-lock clock fix
+**Branch:** `feature/so-checklist` (not pushed) | **Commit:** `79a0033`
+
+- **Defect:** `documents.upload_date` is stamped by the DB (Docker MySQL, UTC) and `grades.locked_at` by the app
+  clock (UTC+8), so a TOR uploaded 0-8h after the last lock showed the false "uploaded before the last grade lock"
+  warning. A false "met" was never possible.
+- **Fix:** `service/SoChecklistService` measures app-minus-DB clock (`SELECT NOW()` vs `LocalDateTime.now(clock)`,
+  rounded to the minute) and shifts the newest TOR upload onto the app clock before `SoReadinessPolicy` sees it.
+  Only queried when a TOR exists. New public `(JdbcTemplate, Clock)` constructor; `checklist()` unchanged.
+- **Tests:** 4 new in `SoChecklistIntegrationTest` (8h-behind DB: after-lock = MET, before-lock = WARNING; zero
+  offset unchanged; sub-minute skew ignored).
+
 ## 2026-10-03 - R4.2 SO Checklist (Implementation Plan)
 **Branch:** `feature/so-checklist` (not pushed)
 
