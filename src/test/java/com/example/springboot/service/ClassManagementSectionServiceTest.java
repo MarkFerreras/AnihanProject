@@ -223,6 +223,37 @@ class ClassManagementSectionServiceTest {
                 .hasMessageContaining("not assigned to section SEC-A");
     }
 
+    @Test
+    void removeStudentFromSectionRejectsCompletedStudentWithoutMutating() {
+        assertRemoveRejectedForStatus("Completed");
+    }
+
+    @Test
+    void removeStudentFromSectionRejectsGraduatedStudentWithoutMutating() {
+        assertRemoveRejectedForStatus("  graduated ");
+    }
+
+    private void assertRemoveRejectedForStatus(String status) {
+        Section s = sampleSection();
+        com.example.springboot.model.StudentRecord student = new com.example.springboot.model.StudentRecord();
+        student.setStudentId("S0001"); student.setStudentStatus(status); student.setSection(s);
+
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        when(studentRecordRepository.findByStudentId("S0001")).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.removeStudentFromSection("SEC-A", "S0001"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("S0001")
+                .hasMessageContaining(status.trim())
+                .hasMessageContaining("cannot be removed from a section");
+
+        org.mockito.Mockito.verify(enrollmentRepository, org.mockito.Mockito.never())
+                .deleteByStudentAndSectionCode(any(), any());
+        org.mockito.Mockito.verify(studentRecordRepository, org.mockito.Mockito.never()).save(any());
+        assertThat(student.getSection()).isSameAs(s);
+        assertThat(student.getStudentStatus()).isEqualTo(status);
+    }
+
     // Task 9: bulkEnrollSectionIntoClass
     @Test
     void bulkEnrollSectionIntoClassEnrollsEligibleAndSkipsRest() {

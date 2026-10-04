@@ -825,6 +825,11 @@ body.dashboard-page {
     color: #0a58ca;
 }
 
+.status-badge-completed {
+    background: rgba(111, 66, 193, 0.12);
+    color: #59359a;
+}
+
 /* --- Delete Confirmation Modal --- */
 .delete-confirm-modal .modal-content {
     border: none;

@@ -198,7 +198,8 @@ class RegistrarBulkLoadTest {
             new com.example.springboot.dto.registrar.StudentRecordUpdateRequest(
                 "STU-CHANGED", "Last", "First", "Middle", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null,
+                null, null, null);
 
         assertThrows(IllegalArgumentException.class,
             () -> registrarService.updateRecord(5, req));

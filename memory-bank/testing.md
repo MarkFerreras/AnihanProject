@@ -17,6 +17,57 @@ because `/api/trainer/**` is role-guarded; kept as a security pin).
 
 **Unverified:** browser rendering/interaction of the dropdowns (no Playwright MCP / Node this session).
 
+## 2026-10-04 - R4.2 SO Checklist: Full Regression + Live Check
+
+**Full suite (Confirmed):** on `feature/so-checklist` after the section-removal guard (`dfe8e18`): **681 tests,
+0 failures.** Count history: 675 before the clock-offset fix, +4 with it = 679, +2 with the guard = 681. The plan
+projected 664; the extra tests are review-driven additions (clock offset, portal blocking statuses, audit
+truncation, suggestion precedence, edit-payload contract).
+
+**New test classes:** `FrontendContractTest`, `RegistrarRecordUpdateControllerWebMvcTest`,
+`SoChecklistControllerWebMvcTest`, `StudentPortalControllerWebMvcTest`, `SoChecklistIntegrationTest` (real H2),
+`DocumentTypeSuggesterTest`, `RegistrarRecordFieldsServiceTest`, `SoReadinessPolicyTest`,
+`StudentStatusTransitionsTest`. Existing classes were also extended (for example `RequiredDocumentPolicyTest`,
+`ClassManagementService` tests, `RegistrarStatusServiceTest`).
+
+**Live check (Confirmed)** against the live Docker MySQL `AnihanSRMS` after the backup and the idempotent
+`2026-10-03-so-checklist.sql` migration (applied 2026-10-04), using the plan's 10-item checklist:
+
+| # | Item | Result |
+|---|------|--------|
+| 1 | Tab visibility | PASS |
+| 2 | Lazy load | PASS |
+| 3 | Edit Status | PASS |
+| 4 | Disabled moves | PASS |
+| 5 | Audit rows | PASS |
+| 6 | Edit form | PASS |
+| 7 | Checklist content | PASS |
+| 8 | Upload hint | PASS |
+| 9 | Status filter | PASS |
+| 10 | Pre-export check | PASS via API only; the UI dialog was **Unverified** |
+
+Items 1-9 were verified through the UI/API; item 10 through the API only.
+
+**Defect found by the live check, fixed (`79a0033`):** the stale-TOR rule compared `documents.upload_date` (stamped
+by MySQL, UTC) with `grades.locked_at` (stamped by the app, UTC+8) and falsely returned WARNING. After the fix a
+re-check on live MySQL passed all three scenarios: grades locked 30 min before the TOR upload -> MET; 30 min
+after -> WARNING; 9 h before -> MET.
+
+**Regression risks:** (1) the status rules exist twice (`StudentStatusTransitions` and `statusRule` in
+`js/registrar-students.js`) and must stay in step; (2) `RequiredDocumentPolicy` now treats Completed as well as
+Graduated as needing completion documents, so Documents-page export checks change for Completed students; (3)
+the edit-form PUT clears `enrollmentDate`/`employmentStatus` when they are sent as null (pinned by
+`FrontendContractTest`); (4) the clock-offset heuristic is rounded to the minute.
+
+**Unverified areas:** the item-10 UI dialog; a second environment (a database without the migration will fail on
+the new columns, so the migration is required before deploying this branch).
+
+**Cleanup after the live check:** about 10 `system_logs` rows remain (the table is append-only by design); the
+test student's status was restored; `ZZ_TEST_` rows were deleted; port 8080 was freed. The untracked backup
+`src/main/sql/backup-2026-10-03-pre-so-checklist.sql` contains real student data and is not committed.
+
+---
+
 ## 2026-10-01 - Pre-Export Missing-Documents Check & "Others" Names: Full Regression + Live Verification
 
 **Full suite:** `./gradlew test --rerun-tasks` on `feature/pre-export-missing-documents` at `bcd6052` -> BUILD

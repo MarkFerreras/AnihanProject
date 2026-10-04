@@ -31,7 +31,9 @@
     // -------------------------------------------------------
     // Upload staging state
     // -------------------------------------------------------
-    let stagedFiles = []; // [{ file, documentType, documentLabel }]
+    // [{ file, documentType, documentLabel, suggestion, suggestionTimer, hintEl }] — suggestionTimer is the
+    // pending debounce handle; hintEl is the hint node of the row currently rendered (null when it has none).
+    let stagedFiles = [];
     let documentLabelChoices = [];
     let uploadLockedStudentId = null;
     let uploadLockedLabel = null;
@@ -1180,7 +1182,7 @@
 
     function addStagedFiles(files) {
         files.forEach(function (file) {
-            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '' });
+            stagedFiles.push({ file: file, documentType: 'Others', documentLabel: '', suggestion: null });
         });
         renderStagedFiles();
     }
@@ -1214,7 +1216,10 @@
             });
             select.addEventListener('change', function () {
                 entry.documentType = select.value;
-                if (entry.documentType !== 'Others') entry.documentLabel = '';
+                if (entry.documentType !== 'Others') {
+                    entry.documentLabel = '';
+                    entry.suggestion = null;
+                }
                 renderStagedFiles();
                 // The re-render replaced the select; hand focus to its replacement so keyboard use isn't interrupted.
                 const rebuilt = document.getElementById('stagedFilesList').querySelectorAll('select')[index];
@@ -1226,6 +1231,7 @@
             removeBtn.addEventListener('click', function () { removeStagedFile(index); });
             row.appendChild(removeBtn);
 
+            entry.hintEl = null;
             if (entry.documentType === 'Others') {
                 const labelWrap = el('div', { class: 'staged-file-label' });
                 const inputId = 'stagedLabel' + index;
@@ -1237,8 +1243,17 @@
                     placeholder: 'Specify document name (optional)'
                 });
                 input.value = entry.documentLabel;
-                input.addEventListener('input', function () { entry.documentLabel = input.value; });
+                const hint = el('div', { class: 'staged-file-hint small mt-1', 'aria-live': 'polite' });
+                // Tracked on the entry so a late suggestion reply renders into the live row, not a
+                // node that a re-render has since detached.
+                entry.hintEl = hint;
+                input.addEventListener('input', function () {
+                    entry.documentLabel = input.value;
+                    scheduleTypeSuggestion(entry);
+                });
                 labelWrap.appendChild(input);
+                labelWrap.appendChild(hint);
+                renderTypeSuggestion(entry);
                 row.appendChild(labelWrap);
                 SrmsCombobox.attach(input, {
                     items: documentLabelChoices.map(function (l) { return { value: l, label: l }; }),
@@ -1251,6 +1266,59 @@
 
         $('#uploadStagedSummary').text(stagedFiles.length + ' file' + (stagedFiles.length === 1 ? '' : 's') + ', ' + formatSize(totalBytes));
         updateUploadSubmitState();
+    }
+
+    // "Did you mean …?" for "Others" labels (spec 2026-10-01 SO checklist §9). The alias list
+    // lives on the server (DocumentTypeSuggester); this only asks and shows the answer. It
+    // never switches the type on its own and never blocks the upload.
+    const SUGGESTION_DELAY_MS = 300;
+    const FORM_IX_GENERIC = 'Form IX';
+
+    function scheduleTypeSuggestion(entry) {
+        clearTimeout(entry.suggestionTimer);
+        entry.suggestion = null;
+        renderTypeSuggestion(entry);
+        const label = entry.documentLabel.trim();
+        if (!label) return;
+        entry.suggestionTimer = setTimeout(function () {
+            $.ajax({
+                url: '/api/registrar/documents/type-suggestion',
+                data: { label: label },
+                success: function (res) {
+                    // Ignore a reply for a label the Registrar has since changed.
+                    if (entry.documentType !== 'Others' || entry.documentLabel.trim() !== label) return;
+                    entry.suggestion = res && res.suggestedType ? res.suggestedType : null;
+                    renderTypeSuggestion(entry);
+                }
+                // No error handler on purpose: the hint is optional, so a failed lookup shows nothing.
+            });
+        }, SUGGESTION_DELAY_MS);
+    }
+
+    function renderTypeSuggestion(entry) {
+        const hint = entry.hintEl;
+        if (!hint) return;
+        hint.replaceChildren();
+        if (!entry.suggestion) return;
+        if (entry.suggestion === FORM_IX_GENERIC) {
+            hint.appendChild(document.createTextNode(
+                'Did you mean a Form IX? Pick the matching Form IX type from the list.'));
+            return;
+        }
+        hint.appendChild(document.createTextNode('Did you mean '));
+        hint.appendChild(el('em', { text: entry.suggestion }));
+        hint.appendChild(document.createTextNode('? '));
+        const switchBtn = el('button', {
+            type: 'button', class: 'btn btn-link btn-sm p-0 align-baseline', text: 'Switch'
+        });
+        switchBtn.setAttribute('aria-label', 'Switch type to ' + entry.suggestion);
+        switchBtn.addEventListener('click', function () {
+            entry.documentType = entry.suggestion;
+            entry.documentLabel = '';
+            entry.suggestion = null;
+            renderStagedFiles();
+        });
+        hint.appendChild(switchBtn);
     }
 
     function updateUploadSubmitState() {

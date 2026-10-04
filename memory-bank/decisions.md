@@ -14,6 +14,89 @@ part; every option yields at least one row.
 **Labels:** "Class Year" / "Batch Intake Year" (user-chosen) because both values are usually the same year
 (a class's semester defaults to the newest batch year) and "Semester/Year" vs "Batch Year" read as duplicates.
 
+## 2026-10-04 - R4.2 SO Checklist: Implementation Outcomes and New Decisions (Confirmed, built)
+
+Implementation of the 2026-10-03 decisions below, on `feature/so-checklist`; the "Not executed yet" note there is
+superseded.
+
+- **Execution: subagent-driven, fix by new commit.** A fresh subagent per task; issues found in review were fixed
+  in follow-up commits rather than by amending, so history shows each fix. **Disclosed deviation from the plan
+  header:** each subagent read only its own line range of the plan, not the whole plan, to save tokens.
+- **Four planning deviations from the spec: all implemented as planned** (separate `SoChecklistController`;
+  section-first course/batch via SQL `COALESCE` pinned by a real-H2 test; employment constants on
+  `StudentRecordUpdateRequest` pinned to the static `<select>` by `FrontendContractTest`; generic "Form IX" hint
+  with no Switch). See the plan header, "Deviations from the spec" 1-4. **Task 9 (portal pre-check) was Confirmed
+  by the user and built** (`3335a0a`).
+- **DB-vs-app clock offset normalised in the service (`79a0033`).** `documents.upload_date` is stamped by MySQL
+  (Docker, UTC) and `grades.locked_at` by the app `LocalDateTime.now()` (UTC+8), which gave a false stale-TOR
+  WARNING in the live check. Chosen: `SoChecklistService` measures `SELECT NOW()` against the app clock (rounded to
+  the minute, only when a TOR exists) and shifts the TOR upload time. Alternatives rejected: aligning the MySQL
+  container `TZ` with the app zone (deployment-side change that must be remembered on every restore/rebuild; kept
+  as an optional long-term fix); stamping both timestamps in the app (changes where existing timestamps are
+  written). Trade-off: a heuristic rounded to the minute; the DST error is theoretical. Verified live on MySQL.
+- **Edit-form PUT semantics (spec §4.3), by design.** `PUT /api/registrar/student-records/{id}` writes
+  `enrollmentDate` and `employmentStatus` exactly as sent (null clears them), and honours `completionDate` only
+  when the status is Completed or Graduated. This relies on the edit form echoing the loaded values, now pinned by
+  a `FrontendContractTest` test; a client omitting these fields would clear them.
+- **Section removal is guarded, not auto-reverting (`dfe8e18`).** Removing a Completed/Graduated student from a
+  section throws (HTTP 400) instead of letting removal revert the status to Submitted. Rationale: removal skipped
+  `StudentStatusTransitions`, could leave a stale `completion_date`, and removed the section link the SO checklist
+  reads; the Registrar must change the status first through the logged, validated path. Rejected: reverting
+  Completed/Graduated to Submitted on removal (silent, unlogged status move). Follow-up: hide/disable the Remove
+  button for such students in the section modal.
+- **Confirmed (user choice):** back up the live DB, apply the migration, run the live check, and update
+  `schema.sql` if new tables/columns were added. Done on 2026-10-04.
+- **Backup SQL is not committed.** `src/main/sql/backup-2026-10-03-pre-so-checklist.sql` holds real student data;
+  it stays untracked pending the user's decision.
+
+---
+
+## 2026-10-03 - R4.2 SO Checklist: Planning Decisions (Confirmed)
+
+- **Portal pre-check (spec §4.5, plan Task 9): Confirmed yes (user).** `StudentPortalController.checkDuplicate`
+  also treats Completed and Graduated names as existing. Rationale: they already slip past the pre-check and are
+  only stopped later by `startOrResume`.
+- **Execution mode: Confirmed subagent-driven (user).** Use `superpowers:subagent-driven-development`: a fresh
+  subagent per task, with an individual review for larger tasks and one batched review for the small ones (5, 9,
+  10, 12, 14). Rationale: token efficiency. Each subagent gets only its own task text, not the ≈45k-token plan.
+- **Planning deviations from the spec (verified against code):** (1) checklist endpoint in a new
+  `SoChecklistController`, so the four `@WebMvcTest(RegistrarController.class)` classes stay untouched; (2)
+  section-first course/batch resolved in SQL `COALESCE` and pinned by a real-H2 test; (3) employment values as
+  pattern/display constants on `StudentRecordUpdateRequest`, pinned to the static `<select>` by
+  `FrontendContractTest`; (4) Form IX aliases suggest a generic "Form IX" with no one-click Switch (three types).
+- **Not executed yet (user instruction).**
+
+---
+
+## 2026-10-01 - R4.2 SO Checklist (Confirmed, designed)
+
+**Decision** (spec: `docs/superpowers/specs/2026-10-01-so-checklist-design.md`):
+- **Source of truth is TESDA's 12 SO requirements** (Chapter 3), classified as 5 per-student files,
+  3 per-student data items, 4 per-batch items. R4.2 covers the 8 per-student items; batch items are a later
+  card. Rationale: the story is per-student and the card had grown to 4-5 stories' worth of scope.
+- **Separate pure `SoReadinessPolicy`** (SO readiness) beside `RequiredDocumentPolicy` (intake/export
+  completeness), both built from the shared `DocumentService.*_TYPE` constants. States MET / WARNING / UNMET /
+  NOT_DUE; stage from status: Enrolling/Submitted none, Active preview (no verdict), Completed/Graduated final.
+- **New status `Completed`** between Active and Graduated; Graduated means "SO issued". Transitions are
+  restricted only around Completed/Graduated (pure `StudentStatusTransitions`), with two logged escape hatches:
+  Graduated -> Completed (reason) and Active -> Graduated (completion date + reason, for digitized archive
+  records, since the portal is the only way records are created). `RequiredDocumentPolicy` completion documents
+  now apply to Completed and Graduated.
+- **New columns:** `student_records.employment_status` (Employed / Self-employed / Unemployed / Further
+  studies; met = answered, not employed) and `completion_date` (suggested when changing to Completed, cleared on
+  Completed -> Active). `enrollment_date` becomes editable on the edit form (historical records start in the
+  past, so a "today" suggestion was rejected).
+- **TOR rule:** file present + >= 1 enrollment + every enrollment has a locked grade row with
+  `remarks = 'COMPETENT'` (remarks already reflects re-exams; INC/D are NULL); TOR older than the latest
+  `locked_at` is a WARNING, not UNMET. **Form IX:** any one, labelled "at least one" and naming which is on file.
+  **Student Information:** core TOR/Form IX fields; blank middle name is a WARNING; course/batch section-first.
+- **UI:** view-only "SO Checklist" tab in the `registrar.html` details modal; wording "Student requirements",
+  never "Ready to file". Rejected: a manual "Ready to file" checkbox as the primary signal (moved to the later
+  Waivers & Sign-off card as a sign-off on top of the computed checklist).
+- **No new upload document types** for the 12 items (data and batch items would break the checklist); instead a
+  non-blocking whole-word "Did you mean ...?" hint on "Others" labels via a pure `DocumentTypeSuggester`.
+- **SO numbers assumed per student** (to verify with the Registrar); storing them is a later card.
+
 ## 2026-10-01 - Pre-Export Check & "Others" Names: Implementation-Time Decisions (Confirmed, built)
 
 **Decision (as built on `feature/pre-export-missing-documents`; the design decisions below stand unchanged):**
