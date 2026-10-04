@@ -31,7 +31,9 @@
     // -------------------------------------------------------
     // Upload staging state
     // -------------------------------------------------------
-    let stagedFiles = []; // [{ file, documentType, documentLabel, suggestion }]
+    // [{ file, documentType, documentLabel, suggestion, suggestionTimer, hintEl }] — suggestionTimer is the
+    // pending debounce handle; hintEl is the hint node of the row currently rendered (null when it has none).
+    let stagedFiles = [];
     let documentLabelChoices = [];
     let uploadLockedStudentId = null;
     let uploadLockedLabel = null;
@@ -1229,6 +1231,7 @@
             removeBtn.addEventListener('click', function () { removeStagedFile(index); });
             row.appendChild(removeBtn);
 
+            entry.hintEl = null;
             if (entry.documentType === 'Others') {
                 const labelWrap = el('div', { class: 'staged-file-label' });
                 const inputId = 'stagedLabel' + index;
@@ -1241,13 +1244,16 @@
                 });
                 input.value = entry.documentLabel;
                 const hint = el('div', { class: 'staged-file-hint small mt-1', 'aria-live': 'polite' });
+                // Tracked on the entry so a late suggestion reply renders into the live row, not a
+                // node that a re-render has since detached.
+                entry.hintEl = hint;
                 input.addEventListener('input', function () {
                     entry.documentLabel = input.value;
-                    scheduleTypeSuggestion(entry, hint);
+                    scheduleTypeSuggestion(entry);
                 });
                 labelWrap.appendChild(input);
                 labelWrap.appendChild(hint);
-                renderTypeSuggestion(hint, entry);
+                renderTypeSuggestion(entry);
                 row.appendChild(labelWrap);
                 SrmsCombobox.attach(input, {
                     items: documentLabelChoices.map(function (l) { return { value: l, label: l }; }),
@@ -1268,10 +1274,10 @@
     const SUGGESTION_DELAY_MS = 300;
     const FORM_IX_GENERIC = 'Form IX';
 
-    function scheduleTypeSuggestion(entry, hint) {
+    function scheduleTypeSuggestion(entry) {
         clearTimeout(entry.suggestionTimer);
         entry.suggestion = null;
-        renderTypeSuggestion(hint, entry);
+        renderTypeSuggestion(entry);
         const label = entry.documentLabel.trim();
         if (!label) return;
         entry.suggestionTimer = setTimeout(function () {
@@ -1282,14 +1288,16 @@
                     // Ignore a reply for a label the Registrar has since changed.
                     if (entry.documentType !== 'Others' || entry.documentLabel.trim() !== label) return;
                     entry.suggestion = res && res.suggestedType ? res.suggestedType : null;
-                    renderTypeSuggestion(hint, entry);
+                    renderTypeSuggestion(entry);
                 }
                 // No error handler on purpose: the hint is optional, so a failed lookup shows nothing.
             });
         }, SUGGESTION_DELAY_MS);
     }
 
-    function renderTypeSuggestion(hint, entry) {
+    function renderTypeSuggestion(entry) {
+        const hint = entry.hintEl;
+        if (!hint) return;
         hint.replaceChildren();
         if (!entry.suggestion) return;
         if (entry.suggestion === FORM_IX_GENERIC) {
@@ -1303,6 +1311,7 @@
         const switchBtn = el('button', {
             type: 'button', class: 'btn btn-link btn-sm p-0 align-baseline', text: 'Switch'
         });
+        switchBtn.setAttribute('aria-label', 'Switch type to ' + entry.suggestion);
         switchBtn.addEventListener('click', function () {
             entry.documentType = entry.suggestion;
             entry.documentLabel = '';
