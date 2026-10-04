@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,9 @@ import com.example.springboot.repository.StudentRecordRepository;
 @RequestMapping("/api/student-portal")
 public class StudentPortalController {
 
+    /** Statuses that make a name a duplicate. Enrolling is resumable, so it is not listed. */
+    private static final Set<String> BLOCKING_STATUSES = Set.of("Submitted", "Active", "Completed", "Graduated");
+
     private final StudentRecordRepository studentRecordRepository;
 
     public StudentPortalController(StudentRecordRepository studentRecordRepository) {
@@ -21,8 +25,9 @@ public class StudentPortalController {
     }
 
     /**
-     * Returns exists=true only when a Submitted or Active record already exists for this name,
-     * so Enrolling/Draft records are treated as resumable rather than duplicates.
+     * Returns exists=true when a Submitted, Active, Completed or Graduated record already exists
+     * for this name, so Enrolling records are treated as resumable rather than duplicates.
+     * StudentDetailsService.startOrResume still blocks any non-Enrolling match on its own.
      */
     @GetMapping("/check-duplicate")
     public ResponseEntity<Map<String, Boolean>> checkDuplicate(
@@ -34,8 +39,7 @@ public class StudentPortalController {
                 .findByLastNameIgnoreCaseAndFirstNameIgnoreCaseAndMiddleNameIgnoreCase(
                         lastName.trim(), firstName.trim(), middleName.trim())
                 .stream()
-                .anyMatch(r -> "Submitted".equals(r.getStudentStatus())
-                        || "Active".equals(r.getStudentStatus()));
+                .anyMatch(r -> r.getStudentStatus() != null && BLOCKING_STATUSES.contains(r.getStudentStatus()));
 
         return ResponseEntity.ok(Map.of("exists", blocked));
     }

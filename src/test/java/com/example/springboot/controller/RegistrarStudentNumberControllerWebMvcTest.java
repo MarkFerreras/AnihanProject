@@ -54,7 +54,8 @@ class RegistrarStudentNumberControllerWebMvcTest {
                 null, null, null, null, null, null, null, null, null,
                 false, null, null, null, null, null,
                 null, null, null, null, "Active",
-                null, List.of(), List.of(), null, null, null, null);
+                null, List.of(), List.of(), null, null, null, null,
+                null, null);
     }
 
     @Test

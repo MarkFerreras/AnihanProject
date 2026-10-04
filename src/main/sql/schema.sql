@@ -1,5 +1,8 @@
 -- ============================================================
 -- schema.sql — Clean Schema + Default Security Questions
+-- Updated: 2026-10-03 (added student_records.completion_date and
+--            student_records.employment_status for the SO checklist — see
+--            migrations/2026-10-03-so-checklist.sql)
 -- Updated: 2026-10-01 (added documents.document_label — optional custom name
 --            for "Others" documents — see
 --            migrations/2026-10-01-add-documents-document-label.sql)
@@ -236,7 +239,9 @@ CREATE TABLE IF NOT EXISTS student_records (
     section_code VARCHAR(20) NULL,
     profile_picture MEDIUMBLOB NULL,
     enrollment_date DATE NULL,
+    completion_date DATE NULL,
     student_status VARCHAR(25) NOT NULL DEFAULT 'Enrolling',
+    employment_status VARCHAR(25) NULL,
     PRIMARY KEY (record_id),
     UNIQUE KEY idx_student_id (student_id),
     UNIQUE KEY uq_student_number (student_number),

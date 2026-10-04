@@ -216,7 +216,8 @@ class RegistrarStudentNumberServiceTest {
                 "SR20260001", "Lipata-Edited", "Maria", null, null,
                 null, null, null, null, null, null, null, false, null, null,
                 null, null, null, null, null, null,
-                null, List.of(), List.of(), null, null, null);
+                null, List.of(), List.of(), null, null, null,
+                null, null, null);
 
         StudentRecordDetailsResponse result = registrarService.updateRecord(1, request);
 

@@ -59,7 +59,7 @@ public class StudentDetailsService {
                         lastName.trim(), firstName.trim(), middleName.trim());
 
         // Resume only an in-progress (Enrolling) record; never expose a
-        // Submitted/Active/Graduated student's data through the public portal.
+        // Submitted/Active/Completed/Graduated student's data through the public portal.
         var enrolling = matches.stream()
                 .filter(r -> "Enrolling".equalsIgnoreCase(r.getStudentStatus()))
                 .findFirst();
