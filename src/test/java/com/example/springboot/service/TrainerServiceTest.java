@@ -1,5 +1,6 @@
 package com.example.springboot.service;
 
+import com.example.springboot.dto.trainer.TrainerBatchResponse;
 import com.example.springboot.dto.trainer.TrainerClassResponse;
 import com.example.springboot.dto.trainer.TrainerClassStudentResponse;
 import com.example.springboot.dto.trainer.TrainerSubjectResponse;
@@ -377,5 +378,95 @@ class TrainerServiceTest {
 
         assertEquals(1, result.size());
         assertEquals("2026", result.getFirst().semester());
+    }
+
+    private SchoolClass classInBatch(int id, String semester, String batchCode, Short year) {
+        SchoolClass schoolClass = classForYear(id, semester);
+        schoolClass.getSection().setSectionCode("SEC-" + id);
+        schoolClass.getSection().setBatch(new Batch(batchCode, year));
+        return schoolClass;
+    }
+
+    @Test
+    void getMyClassesFiltersByBatchYear() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(
+                classInBatch(1, "2025", "B1", (short) 2025),
+                classInBatch(2, "2026", "B2", (short) 2026)));
+
+        List<TrainerClassResponse> result = service.getMyClasses(null, (short) 2026, null);
+
+        assertEquals(1, result.size());
+        assertEquals("B2", result.getFirst().batchCode());
+        assertEquals((short) 2026, result.getFirst().batchYear());
+    }
+
+    @Test
+    void getMyClassesFiltersByBatchCode() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(
+                classInBatch(1, "2025", "B1", (short) 2025),
+                classInBatch(2, "2026", "B2", (short) 2026)));
+
+        List<TrainerClassResponse> result = service.getMyClasses(null, null, "B1");
+
+        assertEquals(1, result.size());
+        assertEquals("B1", result.getFirst().batchCode());
+    }
+
+    @Test
+    void getMyClassesCombinesSemesterYearAndBatch() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(
+                classInBatch(1, "2026", "B2", (short) 2026),
+                classInBatch(2, "2025", "B2", (short) 2026),
+                classInBatch(3, "2026", "B3", (short) 2026),
+                classInBatch(4, "2026", "B2", (short) 2025)));
+
+        List<TrainerClassResponse> result = service.getMyClasses("2026", (short) 2026, "B2");
+
+        assertEquals(1, result.size());
+        assertEquals(1, result.getFirst().classId());
+    }
+
+    @Test
+    void getMyClassesBlankBatchCodeMeansNoFilter() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(
+                classInBatch(1, "2025", "B1", (short) 2025),
+                classInBatch(2, "2026", "B2", (short) 2026)));
+
+        List<TrainerClassResponse> result = service.getMyClasses(null, null, "  ");
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void getMyClassesToleratesSectionWithoutBatch() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(classForYear(1, "2026")));
+
+        List<TrainerClassResponse> result = service.getMyClasses(null, null, null);
+
+        assertEquals(1, result.size());
+        assertNull(result.getFirst().batchCode());
+        assertNull(result.getFirst().batchYear());
+    }
+
+    @Test
+    void getMyBatchesReturnsDistinctSortedBatchesForTrainerOnly() {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(trainer));
+        when(classRepository.findByTrainerUserId(42)).thenReturn(List.of(
+                classInBatch(1, "2025", "B1", (short) 2025),
+                classInBatch(2, "2026", "B2", (short) 2026),
+                classInBatch(3, "2026", "B2", (short) 2026),
+                classForYear(4, "2026")));
+
+        List<TrainerBatchResponse> result = service.getMyBatches();
+
+        assertEquals(List.of(
+                new TrainerBatchResponse("B2", (short) 2026),
+                new TrainerBatchResponse("B1", (short) 2025)), result);
+        verify(classRepository, never()).findAll();
     }
 }

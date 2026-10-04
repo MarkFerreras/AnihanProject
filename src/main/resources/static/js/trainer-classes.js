@@ -53,23 +53,48 @@ $(function () {
             url: '/api/trainer/classes/semesters',
             method: 'GET',
             success: function (semesters) {
-                const select = $('#semesterFilterSelect');
-                const selected = select.val();
-                select.find('option:not([value=""])').remove();
-                semesters.forEach(sem => select.append($('<option>').val(sem).text(sem)));
-                if (selected && semesters.includes(selected)) select.val(selected);
+                fillSelect($('#semesterFilterSelect'), semesters);
             }
         });
     }
 
-    function bindSemesterFilter() {
-        $('#semesterFilterSelect').off('change.semesterFilter').on('change.semesterFilter', function () {
-            const semester = $(this).val();
-            const url = semester
-                ? '/api/trainer/classes?semester=' + encodeURIComponent(semester)
-                : '/api/trainer/classes';
-            classesTable.ajax.url(url).load();
+    function fillSelect(select, values) {
+        const selected = select.val();
+        select.find('option:not([value=""])').remove();
+        values.forEach(v => select.append($('<option>').val(v).text(v)));
+        if (selected && values.includes(selected)) select.val(selected);
+    }
+
+    function loadAvailableBatches() {
+        return $.ajax({
+            url: '/api/trainer/classes/batches',
+            method: 'GET',
+            success: function (batches) {
+                const years = [...new Set(batches.map(b => b.batchYear).filter(y => y != null))]
+                    .sort((a, b) => b - a)
+                    .map(String);
+                fillSelect($('#batchYearFilterSelect'), years);
+                fillSelect($('#batchFilterSelect'), batches.map(b => b.batchCode));
+            }
         });
+    }
+
+    function reloadClasses() {
+        const params = new URLSearchParams();
+        const semester = $('#semesterFilterSelect').val();
+        const batchYear = $('#batchYearFilterSelect').val();
+        const batchCode = $('#batchFilterSelect').val();
+        if (semester) params.set('semester', semester);
+        if (batchYear) params.set('batchYear', batchYear);
+        if (batchCode) params.set('batchCode', batchCode);
+        const qs = params.toString();
+        classesTable.ajax.url('/api/trainer/classes' + (qs ? '?' + qs : '')).load();
+    }
+
+    function bindClassFilters() {
+        $('#semesterFilterSelect, #batchYearFilterSelect, #batchFilterSelect')
+            .off('change.classFilter')
+            .on('change.classFilter', reloadClasses);
     }
 
     classesTable = $('#classesTable').DataTable({
@@ -82,6 +107,7 @@ $(function () {
         },
         columns: [
             { data: 'semester' },
+            { data: 'batchCode', render: val => val || '<em class="text-muted">—</em>' },
             { data: 'sectionCode' },
             { data: 'sectionName' },
             { data: 'subjectCode' },
@@ -96,13 +122,14 @@ $(function () {
                 }
             }
         ],
-        order: [[0, 'desc'], [2, 'asc'], [3, 'asc']],
+        order: [[0, 'desc'], [3, 'asc'], [4, 'asc']],
         pageLength: 25,
         language: { emptyTable: 'No classes assigned.' }
     });
 
-    bindSemesterFilter();
+    bindClassFilters();
     loadAvailableSemesters();
+    loadAvailableBatches();
 
     $('#classesTable tbody').on('click', '.view-students-btn', function () {
         const row = classesTable.row($(this).closest('tr')).data();
@@ -113,7 +140,7 @@ $(function () {
     function openRoster(classId, subjectName, sectionName, semester) {
         currentClassId = classId;
         $('#classRosterModalLabel').text('Grade Input — ' + subjectName);
-        $('#classRosterSubtitle').text(sectionName + ' | Semester: ' + (semester || 'N/A'));
+        $('#classRosterSubtitle').text(sectionName + ' | Class Year: ' + (semester || 'N/A'));
         $('#gradeInputAlert').addClass('d-none').attr('class', 'd-none');
         $('#gradeInputTable tbody').empty();
         classRosterModal.show();

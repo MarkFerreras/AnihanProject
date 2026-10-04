@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.springboot.dto.trainer.TrainerBatchResponse;
 import com.example.springboot.dto.trainer.TrainerClassResponse;
 import com.example.springboot.dto.trainer.TrainerClassStudentResponse;
 import com.example.springboot.dto.trainer.TrainerSubjectResponse;
@@ -38,13 +39,20 @@ public class TrainerController {
 
     @GetMapping("/classes")
     public ResponseEntity<List<TrainerClassResponse>> getMyClasses(
-            @RequestParam(value = "semester", required = false) String semester) {
-        return ResponseEntity.ok(trainerService.getMyClasses(semester));
+            @RequestParam(value = "semester", required = false) String semester,
+            @RequestParam(value = "batchYear", required = false) Short batchYear,
+            @RequestParam(value = "batchCode", required = false) String batchCode) {
+        return ResponseEntity.ok(trainerService.getMyClasses(semester, batchYear, batchCode));
     }
 
     @GetMapping("/classes/semesters")
     public ResponseEntity<List<String>> getAvailableSemesters() {
         return ResponseEntity.ok(trainerService.getAvailableSemesters());
+    }
+
+    @GetMapping("/classes/batches")
+    public ResponseEntity<List<TrainerBatchResponse>> getMyBatches() {
+        return ResponseEntity.ok(trainerService.getMyBatches());
     }
 
     @GetMapping("/classes/{classId}/students")

@@ -1,5 +1,22 @@
 # Testing - Anihan SRMS
 
+## 2026-10-04 - Trainer Batch Filters: Full Suite + API Live Check
+
+**Full suite:** `./gradlew test` on `batch-filters` (uncommitted working tree) -> BUILD SUCCESSFUL; summed from
+`build/test-results/test/*.xml`: **588 tests, 0 failures, 0 errors, 0 skipped.** Baseline 578 + 10 new:
+`TrainerServiceTest` +6 (filter by year, by code, all three ANDed, blank code = no filter, section without
+batch, distinct/sorted trainer-only batches); `TrainerControllerWebMvcTest` +4 (batch params forwarded, blank
+`batchYear` = absent, `/batches` JSON, `/batches` 403 for non-trainer — the last passes pre-implementation
+because `/api/trainer/**` is role-guarded; kept as a security pin).
+
+**Live check (API only, Confirmed)** — real `AnihanSRMS`, `bootRun` on 8080, curl logged in as `trainer`
+(one class: id 7, semester 2026, batch B2026A/2026): `/batches` -> `[B2026A/2026]`; `batchYear=2026` -> 1,
+`=2025` -> 0; `batchCode=B2026A` -> 1, `=NOPE` -> 0; all three matching -> 1, one mismatched -> 0; blank params ->
+1; served HTML/JS contain the new selects/column/functions. `registrar` -> 403, anonymous -> 401 on `/batches`.
+`batchYear=abc` -> 500 (pre-existing; `/classes/abc/students` also 500). No data written. App stopped, 8080 free.
+
+**Unverified:** browser rendering/interaction of the dropdowns (no Playwright MCP / Node this session).
+
 ## 2026-10-04 - R4.2 SO Checklist: Full Regression + Live Check
 
 **Full suite (Confirmed):** on `feature/so-checklist` after the section-removal guard (`dfe8e18`): **681 tests,

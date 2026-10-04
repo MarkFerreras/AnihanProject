@@ -1,5 +1,28 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-04 - Merge origin/main into batch-filters
+
+- **Files:** `memory-bank/activeContext.md`, `changeLog.md`, `decisions.md`, `progress.md`, `testing.md` (conflict resolution only; all other files auto-merged from main's SO-checklist work).
+- **Why:** unblock the PR of `batch-filters` into `main`. Both sides prepended entries at the same line. Both kept; no content dropped. Verification: line-presence script (Confirmed); tests not run (Unverified).
+
+## 2026-10-04 - Trainer Class List Batch Year & Batch Filters
+**Branch:** `batch-filters` (uncommitted — user commits). **Plan:** `docs/superpowers/plans/2026-10-04-trainer-batch-filters.md`
+
+- `dto/trainer/TrainerClassResponse.java` — added `batchCode`, `batchYear` (before `enrolledCount`).
+- `dto/trainer/TrainerBatchResponse.java` — new record `(batchCode, batchYear)`.
+- `service/TrainerService.java` — 3-arg `getMyClasses` with batch filters; `getMyBatches()`; `batchOf` helper;
+  `buildClassRow` fills batch fields null-safely.
+- `controller/TrainerController.java` — `batchYear`/`batchCode` params on `GET /classes`; `GET /classes/batches`.
+- `static/trainer-classes.html` — Batch Year / Batch selects; Batch column.
+- `static/js/trainer-classes.js` — `fillSelect`, `loadAvailableBatches`, `reloadClasses`, `bindClassFilters`
+  (replaces `bindSemesterFilter`); Batch column; order indexes shifted to `[0],[3],[4]`.
+- Tests: `TrainerServiceTest` (+6), `TrainerControllerWebMvcTest` (+4; 3 existing switched to 3-arg form).
+- Verification: full suite 588/588; API live check passed; browser UI unverified.
+- Follow-up (user-requested label rename, trainer page only): "Filter by Semester/Year" -> "Class Year"
+  ("All Class Years"), "Batch Year" -> "Batch Intake Year" ("All Intake Years"), table header "Semester" ->
+  "Class Year", roster subtitle "Semester:" -> "Class Year:". Labels only; ids, params and API unchanged.
+  Registrar `classes.html` still says "Semester/Year".
+
 ## 2026-10-04 - SO Checklist: block removing Completed/Graduated students from a section
 **Branch:** `feature/so-checklist` (not pushed) | **Commit:** `dfe8e18`
 

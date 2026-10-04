@@ -1,5 +1,23 @@
 # Progress - Anihan SRMS
 
+## 2026-10-04 - Merged origin/main into batch-filters (md-only conflicts resolved)
+
+- **Done (Confirmed):** `git merge origin/main` on `batch-filters` (merge commit `a12c46b`; `main` untouched, nothing pushed). Brought in PR #70 (R4.2 SO Checklist) and later main commits. Code merged cleanly; only the five newest-first `memory-bank` logs conflicted, because both sides inserted an entry at the top of the file.
+- **Resolution:** kept both sides in full, batch-filters entries on top. Scripted check: every line either parent added is present. Only change: two "Latest Session" headings retitled "Session".
+- **Unverified:** full test suite not run after the merge (user chose to skip; main brought in new tests, schema and migration `2026-10-03-so-checklist.sql`). `main` also added stray `hs_err_pid*.log` / `replay_pid*.log` files to the repo root.
+- **Next:** user pushes `batch-filters` and opens the PR into `main` (should be conflict-free).
+
+## 2026-10-04 - Trainer Class List Batch Year & Batch Filters: Implemented (uncommitted)
+
+- **Completed (branch `batch-filters`, uncommitted by user request):** `TrainerClassResponse` gains `batchCode`,
+  `batchYear`; new `TrainerBatchResponse`; `TrainerService.getMyClasses(semester, batchYear, batchCode)` (old 1-arg
+  overload delegates) and `getMyBatches()` (distinct, year desc then code asc, trainer-scoped, null-batch safe);
+  controller params + `/api/trainer/classes/batches`; Class List page dropdowns, Batch column, unified
+  `reloadClasses()`.
+- **Tests:** 578 -> 588 (6 service, 4 controller), 0 failures. API live check passed; browser UI unverified.
+- **Deferred:** non-numeric `batchYear` -> 500 (pre-existing type-mismatch handling in `GlobalExceptionHandler`).
+- **Remaining:** user commit/push; browser check.
+
 ## 2026-10-04 - R4.2 SO Checklist: Implemented, Migrated and Live-Checked
 
 - **Completed (branch `feature/so-checklist`, base `428cc53`, not pushed):**

@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.config.SecurityConfig;
+import com.example.springboot.dto.trainer.TrainerBatchResponse;
 import com.example.springboot.dto.trainer.TrainerClassResponse;
 import com.example.springboot.dto.trainer.TrainerClassStudentResponse;
 import com.example.springboot.dto.trainer.TrainerSubjectResponse;
@@ -89,8 +90,8 @@ class TrainerControllerWebMvcTest {
     void getMyClassesReturnsList() throws Exception {
         var row = new TrainerClassResponse(2, "CARS-2026-A", "Section A",
                 "CK-101", "Basic Cookery",
-                "Culinary Arts and Restaurant Services", "2026", 12L);
-        when(service.getMyClasses(null)).thenReturn(List.of(row));
+                "Culinary Arts and Restaurant Services", "2026", "B2", (short) 2026, 12L);
+        when(service.getMyClasses(null, null, null)).thenReturn(List.of(row));
 
         mvc.perform(get("/api/trainer/classes"))
                 .andExpect(status().isOk())
@@ -141,18 +142,53 @@ class TrainerControllerWebMvcTest {
     @Test
     @WithMockUser(username = "trainer", roles = "TRAINER")
     void getMyClassesPassesExplicitSemesterToService() throws Exception {
-        when(service.getMyClasses("2026")).thenReturn(List.of());
+        when(service.getMyClasses("2026", null, null)).thenReturn(List.of());
         mvc.perform(get("/api/trainer/classes").param("semester", "2026"))
                 .andExpect(status().isOk());
-        verify(service).getMyClasses("2026");
+        verify(service).getMyClasses("2026", null, null);
     }
 
     @Test
     @WithMockUser(username = "trainer", roles = "TRAINER")
     void getMyClassesPassesBlankSemesterToService() throws Exception {
-        when(service.getMyClasses("")).thenReturn(List.of());
+        when(service.getMyClasses("", null, null)).thenReturn(List.of());
         mvc.perform(get("/api/trainer/classes").param("semester", ""))
                 .andExpect(status().isOk());
-        verify(service).getMyClasses("");
+        verify(service).getMyClasses("", null, null);
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getMyClassesPassesBatchFiltersToService() throws Exception {
+        when(service.getMyClasses(null, (short) 2026, "B2")).thenReturn(List.of());
+        mvc.perform(get("/api/trainer/classes").param("batchYear", "2026").param("batchCode", "B2"))
+                .andExpect(status().isOk());
+        verify(service).getMyClasses(null, (short) 2026, "B2");
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getMyClassesTreatsBlankBatchYearAsAbsent() throws Exception {
+        when(service.getMyClasses(null, null, null)).thenReturn(List.of());
+        mvc.perform(get("/api/trainer/classes").param("batchYear", ""))
+                .andExpect(status().isOk());
+        verify(service).getMyClasses(null, null, null);
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void getMyBatchesReturnsBatches() throws Exception {
+        when(service.getMyBatches()).thenReturn(List.of(new TrainerBatchResponse("B2", (short) 2026)));
+        mvc.perform(get("/api/trainer/classes/batches"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].batchCode").value("B2"))
+                .andExpect(jsonPath("$[0].batchYear").value(2026));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void getMyBatchesReturns403ForNonTrainer() throws Exception {
+        mvc.perform(get("/api/trainer/classes/batches"))
+                .andExpect(status().isForbidden());
     }
 }

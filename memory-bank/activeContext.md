@@ -1,6 +1,25 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-10-04 - R4.2 SO Checklist: Implemented)
+## Latest Session (2026-10-04 - Trainer Class List: Batch Year & Batch Filters: Implemented, Uncommitted)
+
+- **Branch:** `batch-filters` (Confirmed; based on `78b60b0`; `main` untouched). **Nothing committed or pushed —
+  per the user's explicit instruction, the user commits and pushes.** Plan:
+  `docs/superpowers/plans/2026-10-04-trainer-batch-filters.md` (untracked), executed inline.
+- **What:** `trainer-classes.html` gains "Batch Year" and "Batch" dropdowns ANDed with the Semester filter, plus a
+  Batch column. Dropdown values come from the DB via the trainer's own classes (Confirmed with user: not every
+  batch in the table, not hardcoded). Backend: `GET /api/trainer/classes?semester=&batchYear=&batchCode=` and new
+  `GET /api/trainer/classes/batches`. No schema change, no `system_logs` writes.
+- **Labels (Confirmed, user request):** the filters read **Class Year** (`classes.semester`, when the class
+  runs; defaults to the newest batch year) and **Batch Intake Year** (`batches.batch_year`, when the student
+  group started). Trainer page only; registrar `classes.html` unchanged.
+- **Full suite (Confirmed):** 578 -> 588 tests, 0 failures, 0 errors.
+- **Live check:** API level only (curl against real `AnihanSRMS` via `bootRun`), passed — see `testing.md`.
+  **Browser UI unverified:** Playwright MCP was not connected and Node is not installed this session.
+- **Open items:** (1) user to review, commit and push; (2) browser check of the three dropdowns; (3) a non-numeric
+  `batchYear` returns HTTP 500 (same pre-existing behaviour as `/classes/abc/students`; UI never sends one);
+  (4) the live DB's `admin` account does not accept the seed password `password123` (registrar/trainer do).
+
+## Session (2026-10-04 - R4.2 SO Checklist: Implemented)
 
 - **Branch:** `feature/so-checklist` (Confirmed; base `428cc53`; **not pushed**; `main` untouched). Task label:
   R4.2 SO Checklist (Jira AGILE-87, epic AGILE-44), plan `docs/superpowers/plans/2026-10-03-so-checklist.md`,

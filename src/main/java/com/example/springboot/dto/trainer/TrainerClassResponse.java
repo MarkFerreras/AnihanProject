@@ -8,5 +8,7 @@ public record TrainerClassResponse(
         String subjectName,
         String courseName,
         String semester,
+        String batchCode,
+        Short batchYear,
         long enrolledCount
 ) {}

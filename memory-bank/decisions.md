@@ -4,6 +4,16 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-04 - Trainer Batch Filters (Confirmed, built)
+
+**Decision:** `GET /api/trainer/classes/batches` is derived from the trainer's own classes
+(`findByTrainerUserId` -> section -> batch), not a new repository query, and lists only batches the trainer
+teaches (user-confirmed over "every batch in the table"). Year and batch dropdowns are independent (no cascade);
+all filters are server-side and ANDed. Rationale: same trainer scoping as the class list with one fewer moving
+part; every option yields at least one row.
+**Labels:** "Class Year" / "Batch Intake Year" (user-chosen) because both values are usually the same year
+(a class's semester defaults to the newest batch year) and "Semester/Year" vs "Batch Year" read as duplicates.
+
 ## 2026-10-04 - R4.2 SO Checklist: Implementation Outcomes and New Decisions (Confirmed, built)
 
 Implementation of the 2026-10-03 decisions below, on `feature/so-checklist`; the "Not executed yet" note there is
