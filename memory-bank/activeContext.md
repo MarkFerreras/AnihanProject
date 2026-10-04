@@ -1,6 +1,60 @@
 # Active Context - Anihan SRMS
 
-## Latest Session (2026-10-03 - R4.2 SO Checklist: Implementation Plan Written)
+## Latest Session (2026-10-04 - R4.2 SO Checklist: Implemented)
+
+- **Branch:** `feature/so-checklist` (Confirmed; base `428cc53`; **not pushed**; `main` untouched). Task label:
+  R4.2 SO Checklist (Jira AGILE-87, epic AGILE-44), plan `docs/superpowers/plans/2026-10-03-so-checklist.md`,
+  spec `docs/superpowers/specs/2026-10-01-so-checklist-design.md`. Executed subagent-driven (see `decisions.md`).
+- **Commits (428cc53..HEAD):** `36b9227` (T1 schema), `f1f00b4` (T2 transitions), `a0f1933` (T3 status endpoint),
+  `6f46a13` + `ce4ba82` (T4 edit-form fields), `248f95c` (T5 RequiredDocumentPolicy), `90e286f` (T6
+  SoReadinessPolicy), `0ab6613` (T7 checklist endpoint), `53700b6` (T8 DocumentTypeSuggester), `3335a0a` (T9 portal
+  pre-check), `efd8def` (T10 Completed filter/badge), `92c9d30` + `fc05a95` (T11 status dialog), `3f08503` (T12
+  edit-form fields UI), `ffb8868` + `d6695b8` (T13 SO Checklist tab), `2c33466` (T14 upload hint), cleanup
+  `3403e51` / `60ce3e6` / `c4c6e19`, clock fix `79a0033` + docs `27b3e7c`, section-removal guard `dfe8e18`, then
+  this docs commit (T15 Steps 5-7).
+- **What was built:** status lifecycle `Enrolling -> Submitted -> Active -> Completed -> Graduated` (Completed =
+  training + OJT done; Graduated = SO issued); `StudentStatusTransitions` (mirrored by `statusRule` in
+  `js/registrar-students.js`); new columns `student_records.completion_date` and `employment_status`;
+  `SoReadinessPolicy` + `SoChecklistService` + read-only `GET /api/registrar/student-records/{recordId}/so-checklist`
+  (REGISTRAR only); `DocumentTypeSuggester` + `GET /api/registrar/documents/type-suggestion`; `RequiredDocumentPolicy`
+  treats Completed and Graduated as completion statuses; the student portal pre-check blocks Completed too; SO
+  Checklist tab + status dialog (`registrar-students.js?v=15`), upload hint (`registrar-documents.js?v=9`).
+- **Full suite (Confirmed):** **681 tests, 0 failures** (plan projected 664; 675 before the clock fix, +4 = 679,
+  +2 section-guard tests = 681).
+- **Migration (Confirmed, user chose "back up + migrate live DB, then live check, and update schema.sql if new
+  tables/columns were added"):** `src/main/sql/migrations/2026-10-03-so-checklist.sql` (idempotent) was applied to
+  the LIVE `AnihanSRMS` DB (Docker `mysql-server`) on 2026-10-04 after a backup at
+  `src/main/sql/backup-2026-10-03-pre-so-checklist.sql` (untracked, 110,802 bytes, **contains real student data,
+  NOT committed**). `schema.sql`, `AnihanSRMS.sql` and the H2 test schema already match the live DB (21 tables,
+  the two new `student_records` columns present) — confirmed, no further schema edit needed. **This build
+  requires the migration**: `StudentRecord` maps the two new columns, so a DB without them breaks student-record
+  reads.
+- **Live check (Playwright + API against the live DB, 2026-10-04):** 10 items; items 1-9 PASS via UI/API, item 10
+  (Documents-page export dialog) PASS via API only (**Unverified in the UI**). One defect found and fixed in
+  `79a0033`: the TOR check compared `documents.upload_date` (MySQL/Docker, UTC) with `grades.locked_at` (app
+  clock, UTC+8) and showed a false stale-TOR WARNING; `SoChecklistService` now measures the DB-vs-app clock
+  offset and shifts the TOR upload time (re-verified live, 3 scenarios, see `testing.md`). Optional long-term
+  alternative: set the MySQL container `TZ` to the app zone. The run added ~10 `system_logs` rows (append-only,
+  left in place); the test student was restored, `ZZ_TEST_` rows deleted, port 8080 freed.
+- **Final whole-branch review (code-reviewer, 428cc53..HEAD):** no Critical issues. Important #1
+  (`removeStudentFromSection` reset any status to Submitted and deleted enrollments) fixed in `dfe8e18`
+  (IllegalArgumentException -> HTTP 400 for Completed/Graduated). Important #2 (stale `CLAUDE.md` Graduated-only
+  document rule) fixed by this docs commit.
+- **Open items:** (1) **Finish the branch** — the user must decide push / PR (they previously chose "push and
+  create a PR"; ask again, never push or merge to `main`) and whether to commit, keep local, or delete the backup
+  SQL (it holds real student data). (2) Deferred minors in `progress.md` (incl. the section modal still showing a
+  Remove button for Completed/Graduated students, which now returns the 400 message). (3) Spec §13 Registrar
+  assumptions remain **Unverified** (SO numbers per student; Employment Status wording / "Abroad"; whether TESDA
+  "Start and End Date" means calendar dates; which of the 12 items are non-waivable). (4) Follow-up cards, spec
+  §12: SO Waivers & Sign-off, SO Filing Folder, SO Number & Graduation, Archive Import, Form IX per
+  qualification, data fix for the three delayed batches.
+- **Blocked:** nothing.
+- **Last verified files:** `git log`/`git diff --stat 428cc53..HEAD` (54 files), `schema.sql` (21 `CREATE TABLE`),
+  `model/` (20 entity files), plan lines 4056-4133, spec §12-13, `CLAUDE.md`.
+- **Warnings:** untracked `hs_err_pid*.log`, `replay_pid*.log` and the backup SQL, plus the modified
+  `.claude/settings.local.json`, are deliberately not staged (stage by name only).
+
+## Session (2026-10-03 - R4.2 SO Checklist: Implementation Plan Written)
 
 - **Branch:** `feature/so-checklist` (Confirmed; created from `main` at `6f40bc3` before any file was written;
   `main` untouched). Documentation only — no product code changed yet.

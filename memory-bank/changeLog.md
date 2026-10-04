@@ -1,5 +1,18 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-04 - SO Checklist: block removing Completed/Graduated students from a section
+**Branch:** `feature/so-checklist` (not pushed) | **Commit:** `dfe8e18`
+
+- **Defect (final whole-branch review, Important #1):** `ClassManagementService.removeStudentFromSection` reset any
+  status to Submitted, bypassing `StudentStatusTransitions`, left a stale `completion_date`, and deleted the
+  enrollment/grade links the SO checklist reads.
+- **Fix:** `service/ClassManagementService` now throws `IllegalArgumentException` (HTTP 400, "... is Completed and
+  cannot be removed from a section; change the status first.") when
+  `StudentStatusTransitions.isCompletedOrGraduated(status)`.
+- **Tests:** +2 in `ClassManagementSectionServiceTest` (Completed and Graduated rejected; no enrollment delete, no
+  student save).
+- **Follow-up (not done):** the section modal still shows a Remove button for those students (cosmetic).
+
 ## 2026-10-04 - SO Checklist: TOR upload vs grade-lock clock fix
 **Branch:** `feature/so-checklist` (not pushed) | **Commit:** `79a0033`
 
@@ -11,6 +24,52 @@
   Only queried when a TOR exists. New public `(JdbcTemplate, Clock)` constructor; `checklist()` unchanged.
 - **Tests:** 4 new in `SoChecklistIntegrationTest` (8h-behind DB: after-lock = MET, before-lock = WARNING; zero
   offset unchanged; sub-minute skew ignored).
+
+## 2026-10-04 - R4.2 SO Checklist (Implementation, Migration, Live Check, Docs)
+**Branch:** `feature/so-checklist` (base `428cc53`; not pushed) | **Commits:** `36b9227`, `f1f00b4`, `a0f1933`,
+`6f46a13`, `ce4ba82`, `248f95c`, `90e286f`, `0ab6613`, `53700b6`, `3335a0a`, `efd8def`, `92c9d30`, `fc05a95`,
+`3f08503`, `ffb8868`, `d6695b8`, `2c33466`, cleanup `3403e51` / `60ce3e6` / `c4c6e19`, clock fix `79a0033` + `27b3e7c`,
+guard `dfe8e18`, + the docs commit. Files below come from `git diff --stat 428cc53..HEAD`.
+
+- **Backend, new (`src/main/java/com/example/springboot/`):** `service/StudentStatusTransitions` (pure status-move
+  rules, completion-date/reason requirements); `service/SoReadinessPolicy` (pure checklist rules);
+  `service/SoChecklistService` (three BLOB-free JdbcTemplate queries feeding the policy); `controller/SoChecklistController`
+  (read-only `GET /api/registrar/student-records/{recordId}/so-checklist`, REGISTRAR); `service/DocumentTypeSuggester`
+  (pure "Others" label -> type hint); `dto/registrar/SoChecklistItem`, `SoChecklistResponse`, `TypeSuggestionResponse`.
+- **Backend, modified:** `model/StudentRecord` (`completionDate`, `employmentStatus`);
+  `dto/registrar/UpdateStudentStatusRequest` (`Completed`, `completionDate`, `reason`);
+  `dto/registrar/StudentRecordUpdateRequest` (`enrollmentDate`, `completionDate`, `employmentStatus` + employment
+  constants); `dto/registrar/StudentRecordDetailsResponse` (`completionDate`, `employmentStatus`);
+  `service/RegistrarService` (enforce transitions in `updateStatus`; dates + employment in `updateRecord`);
+  `controller/RegistrarController` (pass new status inputs; extended audit text); `service/RequiredDocumentPolicy`
+  (completion documents for Completed and Graduated); `controller/DocumentController` (`GET /type-suggestion`);
+  `controller/StudentPortalController` (pre-check also blocks Completed/Graduated); `service/StudentDetailsService`
+  (comment only); `service/ClassManagementService` (guard, see the `dfe8e18` entry).
+- **SQL:** new `src/main/sql/migrations/2026-10-03-so-checklist.sql` (idempotent `ADD COLUMN completion_date` after
+  `enrollment_date`, `employment_status` after `student_status`; **applied to the live DB 2026-10-04** with the
+  user's approval after a backup); mirrored in `src/main/sql/schema.sql`, `src/main/sql/AnihanSRMS.sql` and
+  `src/test/resources/document-storage-h2-schema.sql`; new `src/test/resources/so-checklist-h2-schema.sql`
+  (`classes`, `class_enrollments`, `grades` for the real-H2 checklist test).
+- **Frontend (`src/main/resources/static/`):** `registrar.html` (Completed filter, Edit Status date/reason fields,
+  details-modal tabs, checklist CSS); `js/registrar-students.js` (Completed badge, transition-aware status dialog
+  via `statusRule`, lazy-loaded SO Checklist tab; script `?v=15`); `css/dashboard.css` (`.status-badge-completed`);
+  `student-numbers.html` + `js/registrar-student-numbers.js` (Completed filter + badge);
+  `student-records.html` + `js/registrar-student-records-edit.js` (editable enrollment/completion dates, Employment
+  Status select under OJT); `documents.html` + `js/registrar-documents.js` ("Did you mean ...?" hint on staged
+  "Others" rows, hint CSS; script `?v=9`).
+- **Tests (new files):** `FrontendContractTest`, `SchemaContractTest` (extended), `controller/SoChecklistControllerWebMvcTest`,
+  `controller/RegistrarRecordUpdateControllerWebMvcTest`, `controller/StudentPortalControllerWebMvcTest`,
+  `integration/SoChecklistIntegrationTest`, `service/StudentStatusTransitionsTest`, `service/SoReadinessPolicyTest`,
+  `service/DocumentTypeSuggesterTest`, `service/RegistrarRecordFieldsServiceTest`. Extended:
+  `DocumentControllerWebMvcTest`, `RegistrarStatusControllerWebMvcTest`, `RegistrarStatusServiceTest`,
+  `RequiredDocumentPolicyTest`, `ClassManagementSectionServiceTest`; constructor-arity-only updates in
+  `RegistrarBatchControllerWebMvcTest`, `RegistrarStudentNumberControllerWebMvcTest`, `RegistrarBatchServiceTest`,
+  `RegistrarBulkLoadTest`, `RegistrarStudentNumberServiceTest`.
+- **Docs:** `CLAUDE.md` (new "Student lifecycle & SO checklist" convention; "Required documents & labels" now says
+  Completed or Graduated; "Core tables" corrected from 19 to 21 by adding `security_questions` and
+  `user_security_answers`, which were already stale before this branch); the five memory-bank logs.
+- **Verification:** 681 tests, 0 failures; live check 9/10 UI+API, 1 API-only; migration applied and verified. See
+  `testing.md`.
 
 ## 2026-10-03 - R4.2 SO Checklist (Implementation Plan)
 **Branch:** `feature/so-checklist` (not pushed)

@@ -4,6 +4,43 @@ Each entry: decision + brief rationale. Older entries (pre-2026-04-26) are summa
 
 ---
 
+## 2026-10-04 - R4.2 SO Checklist: Implementation Outcomes and New Decisions (Confirmed, built)
+
+Implementation of the 2026-10-03 decisions below, on `feature/so-checklist`; the "Not executed yet" note there is
+superseded.
+
+- **Execution: subagent-driven, fix by new commit.** A fresh subagent per task; issues found in review were fixed
+  in follow-up commits rather than by amending, so history shows each fix. **Disclosed deviation from the plan
+  header:** each subagent read only its own line range of the plan, not the whole plan, to save tokens.
+- **Four planning deviations from the spec: all implemented as planned** (separate `SoChecklistController`;
+  section-first course/batch via SQL `COALESCE` pinned by a real-H2 test; employment constants on
+  `StudentRecordUpdateRequest` pinned to the static `<select>` by `FrontendContractTest`; generic "Form IX" hint
+  with no Switch). See the plan header, "Deviations from the spec" 1-4. **Task 9 (portal pre-check) was Confirmed
+  by the user and built** (`3335a0a`).
+- **DB-vs-app clock offset normalised in the service (`79a0033`).** `documents.upload_date` is stamped by MySQL
+  (Docker, UTC) and `grades.locked_at` by the app `LocalDateTime.now()` (UTC+8), which gave a false stale-TOR
+  WARNING in the live check. Chosen: `SoChecklistService` measures `SELECT NOW()` against the app clock (rounded to
+  the minute, only when a TOR exists) and shifts the TOR upload time. Alternatives rejected: aligning the MySQL
+  container `TZ` with the app zone (deployment-side change that must be remembered on every restore/rebuild; kept
+  as an optional long-term fix); stamping both timestamps in the app (changes where existing timestamps are
+  written). Trade-off: a heuristic rounded to the minute; the DST error is theoretical. Verified live on MySQL.
+- **Edit-form PUT semantics (spec §4.3), by design.** `PUT /api/registrar/student-records/{id}` writes
+  `enrollmentDate` and `employmentStatus` exactly as sent (null clears them), and honours `completionDate` only
+  when the status is Completed or Graduated. This relies on the edit form echoing the loaded values, now pinned by
+  a `FrontendContractTest` test; a client omitting these fields would clear them.
+- **Section removal is guarded, not auto-reverting (`dfe8e18`).** Removing a Completed/Graduated student from a
+  section throws (HTTP 400) instead of letting removal revert the status to Submitted. Rationale: removal skipped
+  `StudentStatusTransitions`, could leave a stale `completion_date`, and removed the section link the SO checklist
+  reads; the Registrar must change the status first through the logged, validated path. Rejected: reverting
+  Completed/Graduated to Submitted on removal (silent, unlogged status move). Follow-up: hide/disable the Remove
+  button for such students in the section modal.
+- **Confirmed (user choice):** back up the live DB, apply the migration, run the live check, and update
+  `schema.sql` if new tables/columns were added. Done on 2026-10-04.
+- **Backup SQL is not committed.** `src/main/sql/backup-2026-10-03-pre-so-checklist.sql` holds real student data;
+  it stays untracked pending the user's decision.
+
+---
+
 ## 2026-10-03 - R4.2 SO Checklist: Planning Decisions (Confirmed)
 
 - **Portal pre-check (spec §4.5, plan Task 9): Confirmed yes (user).** `StudentPortalController.checkDuplicate`
