@@ -58,6 +58,24 @@ class StudentPortalControllerWebMvcTest {
     }
 
     @Test
+    void aSubmittedStudentsNameIsReportedAsExisting() throws Exception {
+        existingStudentWithStatus("Submitted");
+        expectExists(true);
+    }
+
+    @Test
+    void anActiveStudentsNameIsReportedAsExisting() throws Exception {
+        existingStudentWithStatus("Active");
+        expectExists(true);
+    }
+
+    @Test
+    void aRecordWithNoStatusIsNotADuplicateAndDoesNotFail() throws Exception {
+        existingStudentWithStatus(null);
+        expectExists(false);
+    }
+
+    @Test
     void anEnrollingRecordIsResumableNotADuplicate() throws Exception {
         existingStudentWithStatus("Enrolling");
         expectExists(false);

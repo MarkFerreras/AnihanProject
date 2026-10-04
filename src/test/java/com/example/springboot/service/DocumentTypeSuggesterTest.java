@@ -62,6 +62,14 @@ class DocumentTypeSuggesterTest {
     }
 
     @Test
+    void whenALabelMatchesTwoTypesTheEarlierTypeInTheAliasListWins() {
+        // TOR is listed before PSA Birth Certificate, PSA before Form IX, Form IX before OJT.
+        assertSuggests("Transcript of Records (TOR)", List.of("TOR and birth certificate", "birth certificate, tor"));
+        assertSuggests("PSA Birth Certificate", List.of("PSA copy of form 137", "form 137 and birth cert"));
+        assertSuggests(DocumentTypeSuggester.FORM_IX_GENERIC, List.of("OJT permanent record"));
+    }
+
+    @Test
     void blankOrNullLabelsSuggestNothing() {
         assertTrue(DocumentTypeSuggester.suggest(null).isEmpty());
         assertTrue(DocumentTypeSuggester.suggest("   ").isEmpty());

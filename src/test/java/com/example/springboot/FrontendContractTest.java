@@ -57,4 +57,27 @@ class FrontendContractTest {
         expected.addAll(List.of(StudentRecordUpdateRequest.EMPLOYMENT_STATUS_DISPLAY.split(", ")));
         assertEquals(expected, optionValues("student-records.html", "editEmploymentStatus"));
     }
+
+    /**
+     * RegistrarService.applyDates rejects a changed completion date for a non-Completed student and
+     * clears a null enrollment date, so the edit form must always send all three loaded values back
+     * (spec 2026-10-01 SO checklist §4.3).
+     */
+    @Test
+    void editFormPayloadAlwaysSendsTheDatesAndEmploymentStatus() throws Exception {
+        String js = Files.readString(Path.of(STATIC + "js/registrar-student-records-edit.js"));
+        Matcher fn = Pattern.compile("(?s)function buildPayload\\(\\)\\s*\\{(.*?)\\n    \\}").matcher(js);
+        assertTrue(fn.find(), "registrar-student-records-edit.js has no buildPayload()");
+        String body = fn.group(1);
+
+        String html = Files.readString(Path.of(STATIC + "student-records.html"));
+        for (String[] field : new String[][] {
+                { "enrollmentDate", "editEnrollmentDate" },
+                { "completionDate", "editCompletionDate" },
+                { "employmentStatus", "editEmploymentStatus" } }) {
+            assertTrue(Pattern.compile("(?m)^\\s*" + field[0] + ":\\s*.*'" + field[1] + "'").matcher(body).find(),
+                    "buildPayload() must send " + field[0] + " from #" + field[1]);
+            assertTrue(html.contains("id=\"" + field[1] + "\""), "student-records.html has no #" + field[1]);
+        }
+    }
 }

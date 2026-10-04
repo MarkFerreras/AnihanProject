@@ -1,5 +1,6 @@
 package com.example.springboot.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -53,8 +55,12 @@ class RegistrarStatusControllerWebMvcTest {
     }
 
     private StudentRecordDetailsResponse details(String status, LocalDate completionDate) {
+        return details(status, completionDate, "Lipata");
+    }
+
+    private StudentRecordDetailsResponse details(String status, LocalDate completionDate, String lastName) {
         return new StudentRecordDetailsResponse(
-                1, "SR20260001", null, "Lipata", "Maria", null,
+                1, "SR20260001", null, lastName, "Maria", null,
                 null, null, null, null, null, null, null, null, null,
                 false, null, null, null, null, null,
                 null, null, null, null, status,
@@ -208,7 +214,29 @@ class RegistrarStatusControllerWebMvcTest {
 
     @Test
     @WithMockUser(username = "registrar", roles = "REGISTRAR")
-    void returns400ForAReasonLongerThan255Characters() throws Exception {
+    void truncatesTheAuditLineToTheSystemLogsColumnWidth() throws Exception {
+        // system_logs.action is VARCHAR(500); an over-long name + reason must not fail the insert.
+        String longName = "L".repeat(300);
+        String reason = "r".repeat(255);
+        LocalDate done = LocalDate.of(2014, 3, 15);
+        when(registrarService.getRecordById(1)).thenReturn(details("Graduated", done, longName));
+        when(registrarService.updateStatus(eq(1), eq("Completed"), isNull(), eq(reason)))
+                .thenReturn(details("Completed", done, longName));
+
+        mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentStatus\":\"Completed\",\"reason\":\"" + reason + "\"}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<String> action = ArgumentCaptor.forClass(String.class);
+        verify(systemLogService).logAction(any(), eq("registrar"), eq("ROLE_REGISTRAR"), action.capture(), any());
+        assertThat(action.getValue()).hasSize(500).endsWith("...")
+                .startsWith("Changed status of " + longName);
+    }
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void returns400ForAReasonLongerThan255Characters()throws Exception {
         mvc.perform(put("/api/registrar/student-records/1/status").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"studentStatus\":\"Graduated\",\"completionDate\":\"2014-03-15\",\"reason\":\""
