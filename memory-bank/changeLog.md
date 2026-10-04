@@ -1,5 +1,10 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-04 - Merge origin/main into batch-filters
+
+- **Files:** `memory-bank/activeContext.md`, `changeLog.md`, `decisions.md`, `progress.md`, `testing.md` (conflict resolution only; all other files auto-merged from main's SO-checklist work).
+- **Why:** unblock the PR of `batch-filters` into `main`. Both sides prepended entries at the same line. Both kept; no content dropped. Verification: line-presence script (Confirmed); tests not run (Unverified).
+
 ## 2026-10-04 - Trainer Class List Batch Year & Batch Filters
 **Branch:** `batch-filters` (uncommitted — user commits). **Plan:** `docs/superpowers/plans/2026-10-04-trainer-batch-filters.md`
 
