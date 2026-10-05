@@ -129,6 +129,66 @@ public class TrainerGradeControllerWebMvcTest {
                 .andExpect(status().isForbidden());
     }
 
+    // ----- Task 13a additions -----
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void trainerCanOnlyGradeOwnClass() throws Exception {
+        doThrow(new IllegalArgumentException("You are not assigned to this class"))
+                .when(gradeService).saveGrades(eq(1), anyList());
+        String payload = "[{\"studentId\":\"STU001\",\"finalPercentage\":88,\"hoursRendered\":40}]";
+
+        mockMvc.perform(put(BASE).contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("You are not assigned to this class"));
+        verifyNoInteractions(systemLogService);
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void gradeForStudentNotEnrolledRejected() throws Exception {
+        doThrow(new IllegalArgumentException("Student not enrolled in this class: GHOST"))
+                .when(gradeService).saveGrades(eq(1), anyList());
+        String payload = "[{\"studentId\":\"GHOST\",\"finalPercentage\":88,\"hoursRendered\":40}]";
+
+        mockMvc.perform(put(BASE).contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Student not enrolled in this class: GHOST"));
+    }
+
+    @Test
+    @WithMockUser(username = "trainer", roles = "TRAINER")
+    void unlockRestrictedAndLogged() throws Exception {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(userWithId(12)));
+
+        mockMvc.perform(post(BASE + "/unlock")).andExpect(status().isOk());
+        verify(systemLogService).logAction(eq(12), eq("trainer"), eq("ROLE_TRAINER"),
+                eq("Unlocked grades for class #1"), any());
+
+        // Not-owner reject: 400 and no audit row.
+        reset(systemLogService);
+        doThrow(new IllegalArgumentException("You are not assigned to this class"))
+                .when(gradeService).unlockGrades(1);
+        mockMvc.perform(post(BASE + "/unlock")).andExpect(status().isBadRequest());
+        verifyNoInteractions(systemLogService);
+    }
+
+    @Test
+    @WithMockUser(roles = { "REGISTRAR" })
+    void unlockForbiddenForNonTrainer() throws Exception {
+        mockMvc.perform(post(BASE + "/unlock")).andExpect(status().isForbidden());
+        verifyNoInteractions(gradeService);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void saveAndLockForbiddenForAdmin() throws Exception {
+        mockMvc.perform(put(BASE).contentType(MediaType.APPLICATION_JSON).content("[]"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(BASE + "/lock")).andExpect(status().isForbidden());
+        verifyNoInteractions(gradeService);
+    }
+
     private static User userWithId(int id) {
         User u = new User();
         u.setUserId(id);

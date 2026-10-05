@@ -1,10 +1,13 @@
 package com.example.springboot.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -231,5 +234,70 @@ class RegistrarRecordFieldsServiceTest {
         registrarService.updateRecord(1, request(null, COMPLETED, null));
 
         assertNull(target.getEmploymentStatus());
+    }
+
+    // ========== Task 12: identifier immutability, course validation, failed update ==========
+
+    private static StudentRecordUpdateRequest requestWith(String studentId, String courseCode) {
+        return new StudentRecordUpdateRequest(
+                studentId, "Lipata", "Maria", null, null,        // id, last, first, middle, birthdate
+                null, null, null, null, null, null, null,        // sex .. religion
+                false, null, null,                               // baptized, date, place
+                null, null, null,                                // sibling counts
+                null, courseCode, null,                          // batchCode, courseCode, sectionCode
+                null, List.of(), List.of(), null, null, null,    // ojt, tesda, years, father, mother, guardian
+                null, null, null);                               // enrollment, completion, employment
+    }
+
+    @Test
+    void updateRecordNeverChangesStudentIdOrStudentNumber() {
+        StudentRecord target = record("Active");
+        target.setStudentNumber("2026-0042");
+        stubSuccessfulSave(target);
+
+        // 1. The payload type has no student-number component at all.
+        assertThat(java.util.Arrays.stream(StudentRecordUpdateRequest.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName))
+                .doesNotContain("studentNumber");
+
+        // 2. A normal edit leaves both identifiers untouched.
+        registrarService.updateRecord(1, requestWith("SR20260001", null));
+        assertEquals("SR20260001", target.getStudentId());
+        assertEquals("2026-0042", target.getStudentNumber());
+
+        // 3. A payload carrying a different student id is rejected and nothing is saved.
+        assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateRecord(1, requestWith("SR20269999", null)));
+        assertEquals("SR20260001", target.getStudentId());
+        assertEquals("2026-0042", target.getStudentNumber());
+        verify(studentRecordRepository, times(1)).save(any(StudentRecord.class));
+    }
+
+    @Test
+    void updateWithUnknownCourseIsRejected() {
+        StudentRecord target = record("Active");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+        when(courseRepository.findById("NOPE")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateRecord(1, requestWith("SR20260001", "NOPE")));
+
+        assertEquals("Course code does not exist: NOPE", ex.getMessage());
+        verify(studentRecordRepository, never()).save(any(StudentRecord.class));
+    }
+
+    @Test
+    void failedUpdateWritesNothing() {
+        StudentRecord target = record("Active");
+        when(studentRecordRepository.findById(1)).thenReturn(Optional.of(target));
+        when(courseRepository.findById("NOPE")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> registrarService.updateRecord(1, requestWith("SR20260001", "NOPE")));
+
+        // The failure happens before any persistence call, so no child table is touched.
+        verify(studentRecordRepository, never()).save(any(StudentRecord.class));
+        verifyNoInteractions(studentOjtRepository, tesdaQualRepository, schoolYearRepository,
+                parentRepository, guardianRepository, educationRepository);
     }
 }

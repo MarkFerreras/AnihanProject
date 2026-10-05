@@ -67,6 +67,31 @@ class HtmlDocxConverterTest {
         assertThrows(IllegalArgumentException.class, () -> HtmlDocxConverter.toDocx(null));
     }
 
+    // ----- Task 13b additions -----
+
+    @Test
+    void generatedDocumentHandlesUnicodeNamesAndMissingPlaceholders() throws IOException {
+        String html = "<html><body><p>Ñoño Dela Peña, Bayan ng Cañete — Pangalan: {{middleName}}</p>"
+                + "<p>Unclosed <b>tag <i>here";
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+
+        Map<String, byte[]> parts = unzip(HtmlDocxConverter.toDocx(bytes));
+
+        assertEquals(5, parts.size());
+        // Content is embedded verbatim: no placeholder substitution, no HTML repair, no mangled UTF-8.
+        assertArrayEquals(bytes, parts.get("word/afchunk.html"));
+        assertTrue(new String(parts.get("word/afchunk.html"), StandardCharsets.UTF_8).contains("Peña"));
+
+        // Whitespace-only HTML is still a structurally valid package.
+        Map<String, byte[]> blank = unzip(HtmlDocxConverter.toDocx("   ".getBytes(StandardCharsets.UTF_8)));
+        assertTrue(blank.containsKey("word/document.xml"));
+
+        // Zero-byte HTML is refused with a clear message rather than producing an empty docx.
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> HtmlDocxConverter.toDocx(new byte[0]));
+        assertEquals("The document has no content to convert.", ex.getMessage());
+    }
+
     private static Map<String, byte[]> unzip(byte[] zip) throws IOException {
         Map<String, byte[]> parts = new HashMap<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip))) {

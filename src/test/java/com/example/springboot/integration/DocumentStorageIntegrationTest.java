@@ -491,6 +491,66 @@ class DocumentStorageIntegrationTest {
                 documentRepository.findDistinctDocumentLabels());
     }
 
+    // ----- Task 13b additions -----
+
+    @Test
+    void exportCheckMatchesExportForEveryScope() {
+        Batch batch = batchRepository.save(new Batch("B2026A", (short) 2026));
+        Course course = courseRepository.save(new Course("C1", "Culinary Arts and Restaurant Services"));
+        Section s1 = new Section();
+        s1.setSectionCode("S1");
+        s1.setSection("Section 1");
+        s1.setBatch(batch);
+        s1.setCourse(course);
+        sectionRepository.save(s1);
+        Section s2 = new Section();
+        s2.setSectionCode("S2");
+        s2.setSection("Section 2");
+        s2.setBatch(batch);
+        s2.setCourse(course);
+        sectionRepository.save(s2);
+
+        StudentRecord inS1 = newStudent("SR1", "Abad", "Ana", batch, s1);
+        StudentRecord inS2NoDocs = newStudent("SR2", "Bautista", "Bea", batch, s2);
+        StudentRecord unassigned = newStudent("SR3", "Cruz", "Cia", batch, null);
+        StudentRecord unassignedNoDocs = newStudent("SR4", "Dizon", "Di", batch, null);
+        studentRecordRepository.saveAll(List.of(inS1, inS2NoDocs, unassigned, unassignedNoDocs));
+        saveDocument(inS1, "PSA Birth Certificate", "psa.pdf");
+        saveDocument(inS1, "Form 137", "f137.pdf");
+        saveDocument(unassigned, "OJT Report", "ojt.pdf");
+
+        for (String student : List.of("SR1", "SR2", "SR3", "SR4")) {
+            assertCheckMatchesExport(DocumentExportScope.STUDENT, student);
+        }
+        assertCheckMatchesExport(DocumentExportScope.SECTION, "S1");
+        assertCheckMatchesExport(DocumentExportScope.SECTION, "S2");
+        assertCheckMatchesExport(DocumentExportScope.BATCH, "B2026A");
+        assertCheckMatchesExport(DocumentExportScope.UNASSIGNED, "B2026A");
+
+        // The check also covers the zero-document students the ZIP omits.
+        assertEquals(java.util.Set.of("SR1", "SR2", "SR3", "SR4"),
+                checkStudentIds(DocumentExportScope.BATCH, "B2026A"));
+    }
+
+    @Test
+    void idPictureReplaceKeepsExactlyOneRow() {
+        StudentRecord student = newStudent("SR1", "Dela Cruz", "Maria", null, null);
+        studentRecordRepository.save(student);
+
+        documentService.uploadIdPicture("SR1", new org.springframework.mock.web.MockMultipartFile(
+                "file", "first.png", "image/png", new byte[] { 1, 2, 3 }));
+        documentService.uploadIdPicture("SR1", new org.springframework.mock.web.MockMultipartFile(
+                "file", "second.jpg", "image/jpeg", new byte[] { 4, 5, 6, 7 }));
+
+        Integer rows = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM documents WHERE student_id = 'SR1' AND document_type = ?",
+                Integer.class, DocumentService.ID_PICTURE_TYPE);
+        assertEquals(1, rows);
+        var picture = documentService.findIdPicture("SR1").orElseThrow();
+        assertEquals("second.jpg", picture.getFileName());
+        assertEquals(4, picture.getFileSize());
+    }
+
     private StudentRecord newStudent(String studentId, String lastName, String firstName,
                                      Batch batch, Section section) {
         StudentRecord student = new StudentRecord();

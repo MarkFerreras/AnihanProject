@@ -809,6 +809,107 @@ class DocumentServiceTest {
         verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
     }
 
+    // ----- Task 13b additions -----
+
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> rejectedUploads() {
+        return java.util.stream.Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of("exe", "malware.exe",
+                        new MockMultipartFile("files", "malware.exe", "application/octet-stream", new byte[] { 1 }),
+                        "Unsupported file type"),
+                org.junit.jupiter.params.provider.Arguments.of("zero-byte", "empty.pdf",
+                        new MockMultipartFile("files", "empty.pdf", "application/pdf", new byte[0]),
+                        "empty"),
+                org.junit.jupiter.params.provider.Arguments.of("oversized", "big.pdf",
+                        oversized("big.pdf"),
+                        "10MB"));
+    }
+
+    private static MultipartFile oversized(String name) {
+        MultipartFile file = mock(MultipartFile.class);
+        lenient().when(file.isEmpty()).thenReturn(false);
+        lenient().when(file.getSize()).thenReturn(10L * 1024 * 1024 + 1);
+        lenient().when(file.getOriginalFilename()).thenReturn(name);
+        return file;
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.MethodSource("rejectedUploads")
+    void uploadRejectsDisallowedTypeEmptyAndOversizedFile(String label, String fileName,
+                                                          MultipartFile file, String messagePart) {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.uploadBatch(
+                "SR20260001", List.of(TOR_TYPE), List.of(file), sampleAudit()));
+
+        assertTrue(ex.getMessage().contains(messagePart), ex.getMessage());
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadSameTypeTwiceReplacesOrRejectsPerRule() {
+        // Verified rule: there is no de-duplication by type. A second upload of the
+        // same document type simply inserts another row (both are kept).
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        List<Document> saved = new java.util.ArrayList<>();
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> {
+            saved.add(inv.getArgument(0));
+            return inv.getArgument(0);
+        });
+
+        service.upload("SR20260001", TOR_TYPE, pdf("first.pdf"));
+        service.upload("SR20260001", TOR_TYPE, pdf("second.pdf"));
+
+        assertEquals(2, saved.size());
+        assertEquals(TOR_TYPE, saved.get(0).getDocumentType());
+        assertEquals(TOR_TYPE, saved.get(1).getDocumentType());
+        verify(documentRepository, never()).delete(any(Document.class));
+    }
+
+    @Test
+    void customLabelOnlyForOthersAndNeverLogged() {
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+
+        // Rejected on a non-"Others" type.
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of(TOR_TYPE), java.util.Arrays.asList("Secret Label"), List.of(pdf("a.pdf")), sampleAudit()));
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+
+        // Accepted on "Others"; the audit text must not leak the label.
+        when(documentRepository.save(any(Document.class))).thenAnswer(inv -> {
+            Document d = inv.getArgument(0);
+            d.setDocumentId(7);
+            return d;
+        });
+        when(documentRepository.findSummariesByIds(any())).thenReturn(List.of());
+        try {
+            service.uploadBatch("SR20260001", List.of("Others"), java.util.Arrays.asList("Secret Label"),
+                    List.of(pdf("b.pdf")), sampleAudit());
+        } catch (RuntimeException ignored) {
+            // the summary lookup is stubbed empty; only the audit call matters here
+        }
+
+        org.mockito.ArgumentCaptor<String> action = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(systemLogService).logAction(any(), any(), any(), action.capture(), any());
+        assertFalse(action.getValue().contains("Secret Label"), action.getValue());
+    }
+
+    @Test
+    void idPictureNeverInUploadDropdownTypes() throws IOException {
+        // /types feeds BOTH dropdowns, so the endpoint list includes the ID picture
+        // (needed by the filter). The upload dropdown is narrowed client-side.
+        assertTrue(service.getDocumentTypes().contains(DocumentService.ID_PICTURE_TYPE),
+                "filter dropdown needs the ID picture type");
+        String js = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/resources/static/js/registrar-documents.js"));
+        assertTrue(js.contains("documentTypeChoices = types.filter(function (t) { return t !== 'ID Picture (1x1 / 2x2)'; })"),
+                "upload choices must exclude the ID picture type");
+        // And the server refuses it in batch upload.
+        when(studentRecordRepository.findByStudentId("SR20260001")).thenReturn(Optional.of(student));
+        assertThrows(IllegalArgumentException.class, () -> service.uploadBatch("SR20260001",
+                List.of(DocumentService.ID_PICTURE_TYPE), List.of(pdf("id.pdf")), sampleAudit()));
+    }
+
     // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------

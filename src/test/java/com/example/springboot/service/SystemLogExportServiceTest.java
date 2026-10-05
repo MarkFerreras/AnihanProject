@@ -1,10 +1,12 @@
 package com.example.springboot.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
 
 import com.example.springboot.dto.SystemLogResponse;
+import com.example.springboot.repository.SystemLogRepository;
 
 class SystemLogExportServiceTest {
 
@@ -58,6 +61,48 @@ class SystemLogExportServiceTest {
             assertEquals("admin", document.getTables().get(0).getRow(1).getCell(2).getText());
             assertEquals("Updated, details for registrar", document.getTables().get(0).getRow(1).getCell(4).getText());
         }
+    }
+
+    // ----- Task 13c additions (ISO 25010: Security / Functional correctness) -----
+
+    @Test
+    void logExportRespectsRangeAndEscapesCsv() {
+        // Export renders exactly the rows it is handed; range filtering is the query's job
+        // (SystemLogService.queryLogs), so verify both halves together with a real window.
+        SystemLogRepository repo = org.mockito.Mockito.mock(SystemLogRepository.class);
+        com.example.springboot.model.SystemLog inRange = new com.example.springboot.model.SystemLog(
+                1, "admin", "ROLE_ADMIN", "Said \"hi\", then\nleft", "127.0.0.1");
+        inRange.setTimestamp(LocalDateTime.of(2026, 4, 10, 9, 0));
+        org.mockito.Mockito.when(repo.findByTimestampBetweenOrderByTimestampDesc(
+                org.mockito.ArgumentMatchers.eq(LocalDateTime.of(2026, 4, 1, 0, 0)),
+                org.mockito.ArgumentMatchers.eq(LocalDate.of(2026, 4, 18).atTime(java.time.LocalTime.MAX))))
+                .thenReturn(List.of(inRange));
+        SystemLogQueryResult result = new SystemLogService(repo)
+                .queryLogs(null, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 18));
+
+        String csv = new String(systemLogExportService.export(SystemLogExportFormat.CSV, result).content(),
+                StandardCharsets.UTF_8);
+
+        assertTrue(csv.contains("Selected Range,2026-04-01 to 2026-04-18"));
+        assertTrue(csv.contains("\"Said \"\"hi\"\", then\nleft\""), csv);
+        assertEquals(1, result.logs().size());
+        assertTrue(!csv.contains("2026-03-"), "Nothing outside the window appears");
+    }
+
+    @Test
+    void logExportEmptyRangeAndInvalidRange() {
+        SystemLogQueryResult empty = new SystemLogQueryResult(List.of(),
+                LocalDateTime.of(2026, 4, 1, 0, 0), LocalDateTime.of(2026, 4, 18, 23, 59, 59));
+        String csv = new String(systemLogExportService.export(SystemLogExportFormat.CSV, empty).content(),
+                StandardCharsets.UTF_8);
+        String[] lines = csv.split("\r\n");
+        assertEquals("Date & Time,User ID,Username,Role,Action,IP Address", lines[lines.length - 1],
+                "Zero rows -> the header row is the last line");
+
+        SystemLogRepository repo = org.mockito.Mockito.mock(SystemLogRepository.class);
+        assertThrows(IllegalArgumentException.class, () -> new SystemLogService(repo)
+                .queryLogs(null, LocalDate.of(2026, 4, 18), LocalDate.of(2026, 4, 1)));
+        org.mockito.Mockito.verifyNoInteractions(repo);
     }
 
     private SystemLogQueryResult sampleQueryResult() {

@@ -882,4 +882,43 @@ class DocumentControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.student.studentId").value("SR20260001"));
     }
+
+    // ----- Task 13b additions -----
+
+    @Test
+    @WithMockUser(username = "registrar", roles = "REGISTRAR")
+    void downloadMissingDocumentReturns404() throws Exception {
+        when(documentService.prepareDownload(404))
+                .thenThrow(new java.util.NoSuchElementException("Document not found: 404"));
+
+        mvc.perform(get("/api/registrar/documents/404/download"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Document not found: 404"));
+
+        verify(systemLogService, never()).logAction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void trainerAndAdminCannotAccessDocumentApi() throws Exception {
+        String base = "/api/registrar/documents";
+        List<org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder> requests = List.of(
+                get(base), get(base + "/folders/tree"), get(base + "/student/SR1"),
+                get(base + "/types"), get(base + "/labels"), get(base + "/type-suggestion"),
+                get(base + "/1/download"), get(base + "/1/view"), delete(base + "/1").with(csrf()),
+                get(base + "/export/student/SR1"), get(base + "/export/section/S1"),
+                get(base + "/export/batch/B1"), get(base + "/export/batch/B1/unassigned"),
+                get(base + "/export-check/student/SR1"),
+                post(base + "/batch").with(csrf()), post(base + "/id-picture").with(csrf()),
+                get(base + "/id-picture/SR1"), delete(base + "/id-picture/SR1").with(csrf()),
+                get(base + "/generate-data/SR1"), post(base + "/generate").with(csrf()));
+
+        for (String role : List.of("TRAINER", "ADMIN")) {
+            for (var request : requests) {
+                mvc.perform(request.with(org.springframework.security.test.web.servlet.request
+                                .SecurityMockMvcRequestPostProcessors.user("someone").roles(role)))
+                        .andExpect(status().isForbidden());
+            }
+        }
+        verifyNoInteractions(documentService, documentExportService, documentGenerationService);
+    }
 }

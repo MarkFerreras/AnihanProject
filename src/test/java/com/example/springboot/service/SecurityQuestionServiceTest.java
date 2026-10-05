@@ -34,6 +34,9 @@ import com.example.springboot.repository.SecurityQuestionRepository;
 import com.example.springboot.repository.UserRepository;
 import com.example.springboot.repository.UserSecurityAnswerRepository;
 
+/**
+ * ISO 25010: Security (answer confidentiality, lockout against guessing) and Reliability (lockout state machine).
+ */
 @ExtendWith(MockitoExtension.class)
 class SecurityQuestionServiceTest {
 
@@ -346,6 +349,135 @@ class SecurityQuestionServiceTest {
 
         assertEquals("newHash", user.getPassword());
         assertTrue(user.getPasswordChangedAt() != null);
+    }
+
+    // ========== Task 5 additions ==========
+
+    // T5-08
+    @Test
+    void service_answersAreStoredHashedAndNormalized() {
+        User user = buildUser(5, "trainer");
+        when(userSecurityAnswerRepository.countByUserUserId(5)).thenReturn(0L);
+        when(passwordEncoder.encode("manila")).thenReturn("HASH(manila)");
+
+        service.setupAnswers(user, List.of(
+                new SecurityAnswerSlotRequest(1, null, "  Manila "),
+                new SecurityAnswerSlotRequest(2, null, "Blue")));
+
+        org.mockito.ArgumentCaptor<UserSecurityAnswer> saved =
+                org.mockito.ArgumentCaptor.forClass(UserSecurityAnswer.class);
+        verify(userSecurityAnswerRepository, times(2)).save(saved.capture());
+        assertEquals("HASH(manila)", saved.getAllValues().get(0).getAnswerHash());
+        // The encoder was only ever handed the trimmed, lower-cased text, never the raw input.
+        verify(passwordEncoder).encode("manila");
+        verify(passwordEncoder, never()).encode("  Manila ");
+    }
+
+    @Test
+    void service_verifyTreatsWhitespaceAndCaseAsEquivalent() {
+        User user = buildUser(5, "trainer");
+        stubTwoStoredAnswers(user);
+        when(passwordEncoder.matches("manila", "hash1")).thenReturn(true);
+        when(passwordEncoder.matches("blue", "hash2")).thenReturn(true);
+
+        service.verifyAnswers("trainer", List.of("  Manila ", "BLUE"));
+
+        assertEquals(0, user.getFailedSecurityAttempts());
+    }
+
+    // T5-09 (N = MAX_FAILED_ATTEMPTS = 3, a private constant)
+    @Test
+    void service_lockoutAfterMaxFailedAttempts() {
+        User user = buildUser(5, "trainer");
+        stubTwoStoredAnswers(user);
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        for (int i = 1; i <= 3; i++) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.verifyAnswers("trainer", List.of("x", "y")));
+        }
+        assertTrue(user.getSecurityLocked());
+        assertEquals(3, user.getFailedSecurityAttempts());
+
+        // Even the correct answers are now refused, without any answer comparison.
+        org.mockito.Mockito.clearInvocations(passwordEncoder);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.verifyAnswers("trainer", List.of("rex", "blue")));
+        assertTrue(ex.getMessage().contains("locked"));
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    // T5-10
+    @Test
+    void service_successfulVerifyResetsFailedCounter() {
+        User user = buildUser(5, "trainer");
+        stubTwoStoredAnswers(user);
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+        when(passwordEncoder.matches("rex", "hash1")).thenReturn(true);
+        when(passwordEncoder.matches("blue", "hash2")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> service.verifyAnswers("trainer", List.of("no", "no")));
+        assertThrows(IllegalArgumentException.class, () -> service.verifyAnswers("trainer", List.of("no", "no")));
+        assertEquals(2, user.getFailedSecurityAttempts());
+
+        service.verifyAnswers("trainer", List.of("rex", "blue"));
+        assertEquals(0, user.getFailedSecurityAttempts());
+
+        assertThrows(IllegalArgumentException.class, () -> service.verifyAnswers("trainer", List.of("no", "no")));
+        assertEquals(1, user.getFailedSecurityAttempts());
+        assertFalse(user.getSecurityLocked());
+    }
+
+    // T5-11
+    @Test
+    void service_resetPasswordRejectsWeakOrMismatched() {
+        User user = buildUser(5, "trainer");
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(user));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.resetPassword("trainer", "Str0ng!Pass", "Str0ng!Pass2"));
+
+        assertEquals("oldHash", user.getPassword());
+        verify(userRepository, never()).save(any());
+    }
+
+    /**
+     * FINDING: the service performs no strength/length check of its own; the policy lives only in
+     * ResetPasswordRequest (DTO). A caller bypassing the controller can set a 2-character password.
+     */
+    @Test
+    void service_resetPasswordWithWeakPassword_currentlyAcceptedWithoutDtoValidation() {
+        User user = buildUser(5, "trainer");
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("ab", "oldHash")).thenReturn(false);
+        when(passwordEncoder.encode("ab")).thenReturn("weakHash");
+
+        service.resetPassword("trainer", "ab", "ab");
+
+        assertEquals("weakHash", user.getPassword());
+    }
+
+    /**
+     * FINDING: two identical custom questions pass validateSlots (the duplicate check only covers
+     * default question ids), so a user can store the same question twice.
+     */
+    @Test
+    void setupAnswersWithIdenticalCustomQuestions_currentlyAccepted() {
+        User user = buildUser(5, "trainer");
+        when(userSecurityAnswerRepository.countByUserUserId(5)).thenReturn(0L);
+
+        service.setupAnswers(user, List.of(
+                new SecurityAnswerSlotRequest(null, "My first phone?", "Nokia"),
+                new SecurityAnswerSlotRequest(null, "My first phone?", "Samsung")));
+
+        verify(userSecurityAnswerRepository, times(2)).save(any(UserSecurityAnswer.class));
+    }
+
+    private void stubTwoStoredAnswers(User user) {
+        when(userRepository.findByUsername("trainer")).thenReturn(Optional.of(user));
+        when(userSecurityAnswerRepository.findByUserUserIdOrderBySlot(5)).thenReturn(List.of(
+                buildStoredAnswer(user, petQuestion, null, "hash1", 1),
+                buildStoredAnswer(user, colorQuestion, null, "hash2", 2)));
     }
 
     // ========== helpers ==========

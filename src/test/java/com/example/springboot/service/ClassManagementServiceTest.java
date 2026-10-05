@@ -19,6 +19,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -136,5 +138,144 @@ class ClassManagementServiceTest {
                 () -> service.updateClassTrainer(1, new UpdateClassTrainerRequest(10)));
         assertTrue(ex.getMessage().toLowerCase().contains("disabled"));
         verify(classRepository, never()).save(any());
+    }
+
+    // ========== Task 12: class creation, enrollment, section membership ==========
+
+    private com.example.springboot.model.StudentRecord student(String id, String status, Section section) {
+        com.example.springboot.model.StudentRecord s = new com.example.springboot.model.StudentRecord();
+        s.setStudentId(id);
+        s.setStudentStatus(status);
+        s.setSection(section);
+        return s;
+    }
+
+    @Test
+    void createClassDuplicateSubjectSectionSemesterRejected() {
+        when(sectionRepository.findById("SEC-A")).thenReturn(Optional.of(schoolClass.getSection()));
+        when(subjectRepository.findById("CK-101")).thenReturn(Optional.of(schoolClass.getSubject()));
+        when(classRepository.existsBySectionSectionCodeAndSubjectSubjectCodeAndSemester("SEC-A", "CK-101", "2026"))
+                .thenReturn(true);
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.createClass(
+                        new com.example.springboot.dto.registrar.CreateClassRequest("SEC-A", "CK-101", null, "2026")));
+
+        assertEquals("A class for this section, subject, and semester already exists.", ex.getMessage());
+        verify(classRepository, never()).save(any());
+    }
+
+    @Test
+    void reassignTrainerValidatesTrainerRoleAndLogsAudit() {
+        // Service half of the contract: a non-trainer is rejected and nothing is saved.
+        // The single audit-log row is written by the controller (see
+        // ServiceMutationLogAuditWebMvcTest, which asserts exactly one logAction call).
+        trainer.setRole("ROLE_ADMIN");
+        when(classRepository.findById(1)).thenReturn(Optional.of(schoolClass));
+        when(userRepository.findById(10)).thenReturn(Optional.of(trainer));
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> service.updateClassTrainer(1, new UpdateClassTrainerRequest(10)));
+
+        assertTrue(ex.getMessage().contains("User is not a trainer"));
+        verify(classRepository, never()).save(any());
+        verifyNoInteractions(enrollmentRepository);
+    }
+
+    @Test
+    void bulkEnrollSectionReportsPartialSuccess() {
+        Section sec = schoolClass.getSection();
+        var active = student("SR1", "Active", sec);
+        var submitted = student("SR2", "Submitted", sec);
+        var already = student("SR3", "Active", sec);
+        var completed = student("SR4", "Completed", sec);
+        var enrolling = student("SR5", "Enrolling", sec);
+        when(classRepository.findById(1)).thenReturn(Optional.of(schoolClass));
+        when(studentRecordRepository.findBySectionSectionCode("SEC-A"))
+                .thenReturn(java.util.List.of(active, submitted, already, completed, enrolling));
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(eq(1), anyString()))
+                .thenAnswer(inv -> "SR3".equals(inv.getArgument(1)));
+
+        var report = service.bulkEnrollSectionIntoClass(1);
+
+        assertEquals(2, report.enrolledCount());
+        assertEquals(1, report.skippedAlreadyEnrolled());
+        assertEquals(2, report.skippedIneligible());
+        assertEquals(5, report.totalConsidered());
+        var saved = org.mockito.ArgumentCaptor.forClass(com.example.springboot.model.ClassEnrollment.class);
+        verify(enrollmentRepository, times(2)).save(saved.capture());
+        assertEquals(java.util.List.of("SR1", "SR2"),
+                saved.getAllValues().stream().map(e -> e.getStudent().getStudentId()).toList());
+    }
+
+    @Test
+    void enrollSameStudentTwiceIsIdempotent() {
+        // Observed behaviour: the second call is rejected (not silently accepted) and creates no row.
+        var s = student("SR1", "Active", schoolClass.getSection());
+        when(classRepository.findById(1)).thenReturn(Optional.of(schoolClass));
+        when(studentRecordRepository.findByStudentId("SR1")).thenReturn(Optional.of(s));
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(1, "SR1"))
+                .thenReturn(false, true);
+        var request = new com.example.springboot.dto.registrar.EnrollStudentRequest(1, "SR1");
+
+        service.enrollStudent(request);
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.enrollStudent(request));
+
+        assertEquals("Student is already enrolled in this class.", ex.getMessage());
+        verify(enrollmentRepository, times(1)).save(any(com.example.springboot.model.ClassEnrollment.class));
+    }
+
+    @Test
+    void removeCompletedOrGraduatedFromSectionRejected() {
+        Section sec = schoolClass.getSection();
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        for (String status : new String[] {"Completed", "Graduated"}) {
+            var s = student("SR-" + status, status, sec);
+            when(studentRecordRepository.findByStudentId("SR-" + status)).thenReturn(Optional.of(s));
+
+            var ex = assertThrows(IllegalArgumentException.class,
+                    () -> service.removeStudentFromSection("SEC-A", s.getStudentId()));
+
+            assertTrue(ex.getMessage().contains("cannot be removed from a section"));
+            assertEquals(status, s.getStudentStatus());
+            assertSame(sec, s.getSection());
+        }
+        verify(studentRecordRepository, never()).save(any());
+        verify(enrollmentRepository, never()).deleteByStudentAndSectionCode(anyString(), anyString());
+
+        // An Active student is removed and reset to Submitted.
+        var active = student("SR-A", "Active", sec);
+        when(studentRecordRepository.findByStudentId("SR-A")).thenReturn(Optional.of(active));
+        when(enrollmentRepository.deleteByStudentAndSectionCode("SR-A", "SEC-A")).thenReturn(3);
+
+        assertEquals(3, service.removeStudentFromSection("SEC-A", "SR-A"));
+        assertNull(active.getSection());
+        assertEquals("Submitted", active.getStudentStatus());
+        verify(studentRecordRepository).save(active);
+    }
+
+    @Test
+    void deleteSectionWithClassesBlocked() {
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        when(classRepository.existsBySectionSectionCode("SEC-A")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> service.deleteSection("SEC-A"));
+
+        verify(sectionRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    void deleteSectionWithStudentsCurrentlyReliesOnDatabaseFk() {
+        // FINDING: deleteSection() checks only for classes referencing the section; it has no
+        // explicit "section still has students" guard. Expected (per the brief): blocked with a
+        // friendly IllegalArgumentException. Observed: deleteById is invoked and protection comes
+        // solely from the students.section_code foreign key (a DB error, not a clean message).
+        when(sectionRepository.existsById("SEC-A")).thenReturn(true);
+        when(classRepository.existsBySectionSectionCode("SEC-A")).thenReturn(false);
+
+        service.deleteSection("SEC-A");
+
+        verify(sectionRepository).deleteById("SEC-A");
+        verifyNoInteractions(studentRecordRepository);
     }
 }
