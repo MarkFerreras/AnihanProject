@@ -265,6 +265,75 @@ class StudentNumberSheetParserTest {
         assertTrue(ex.getMessage().contains("csv, xlsx"), ex.getMessage());
     }
 
+    // ----- Task 13c additions (ISO 25010: Compatibility / Reliability) -----
+
+    @Test
+    void csvVariants_bomSemicolonCrlf() {
+        // BOM + CRLF line endings (what Excel "CSV UTF-8" writes) parse cleanly.
+        byte[] bomCrlf = ("﻿Reference No.,Student Number\r\nSR20260001,2026-001\r\nSR20260002,2026-002\r\n")
+                .getBytes(StandardCharsets.UTF_8);
+        List<ParsedRow> rows = parser.parse(bomCrlf, "csv");
+        assertEquals(2, rows.size());
+        assertEquals("SR20260001", rows.get(0).reference());
+        assertEquals("2026-002", rows.get(1).studentNumber());
+
+        // FINDING: the CSV splitter only knows ','. A semicolon-delimited file (Excel in
+        // many locales) is not supported; it fails with a clear "no header row" message
+        // rather than being misread. Pinned as current behaviour.
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> parser.parse(csv("Reference No.;Student Number\r\nSR20260001;2026-001\r\n"), "csv"));
+        assertTrue(ex.getMessage().contains("header row"), ex.getMessage());
+    }
+
+    @Test
+    void xlsxVariants_formulaNumericIdHiddenEmptySheet() throws Exception {
+        // Formula cell (see FINDING below) and a numeric reference no.
+        byte[] xlsx;
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            XSSFSheet sheet = wb.createSheet("Visible");
+            Row h = sheet.createRow(0);
+            h.createCell(0).setCellValue("Reference No.");
+            h.createCell(1).setCellValue("Student Number");
+            Row r1 = sheet.createRow(1);
+            r1.createCell(0).setCellValue(20260001d); // numeric id
+            r1.createCell(1).setCellFormula("\"2026-\"&\"001\"");
+            XSSFSheet hidden = wb.createSheet("Hidden");
+            hidden.createRow(0).createCell(0).setCellValue("Reference No.");
+            wb.setSheetHidden(1, true);
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            wb.write(out);
+            xlsx = out.toByteArray();
+        }
+        List<ParsedRow> rows = parser.parse(xlsx, "xlsx");
+        assertEquals(1, rows.size(), "The hidden second sheet is never read");
+        assertEquals("20260001", rows.get(0).reference());
+        // FINDING: DataFormatter is used without a FormulaEvaluator, so a formula cell is
+        // read as its formula TEXT, not its cached value. Such a number would then fail the
+        // student-number format check at import (INVALID_FORMAT) rather than be applied
+        // wrongly. Pinned as current behaviour.
+        assertEquals("\"2026-\"&\"001\"", rows.get(0).studentNumber());
+
+        // Empty workbook (a sheet, no rows) -> clear error.
+        byte[] empty = workbook(sheet -> { });
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> parser.parse(empty, "xlsx"));
+        assertTrue(ex.getMessage().contains("header row"), ex.getMessage());
+    }
+
+    @Test
+    void headerAliasCaseAndWhitespaceInsensitive() {
+        List<ParsedRow> rows = parser.parse(csv("""
+                   REFERENCE   no. ,  sTuDeNt\tNuMbEr ,LAST NAME, first name
+                SR20260001, 2026-001 ,Ligan,Sean
+                """), "csv");
+
+        assertEquals(1, rows.size());
+        assertEquals("SR20260001", rows.get(0).reference());
+        assertEquals("2026-001", rows.get(0).studentNumber());
+        assertEquals("Ligan", rows.get(0).lastName());
+        assertEquals("Sean", rows.get(0).firstName());
+    }
+
     // ----- helpers -----
 
     private interface SheetBuilder {

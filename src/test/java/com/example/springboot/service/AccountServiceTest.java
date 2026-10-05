@@ -273,5 +273,40 @@ class AccountServiceTest {
         user.setEnabled(true);
         return user;
     }
-}
 
+    // ========== Task 12: duplicate identity and wrong current password ==========
+
+    @Test
+    void usernameOrEmailChangeToExistingRejected() {
+        // The self-service account path can only change the username; there is no email-change
+        // method in AccountService (email is changed through the admin update path).
+        User user = buildUser("oldUser", "ROLE_ADMIN");
+        String originalName = user.getUsername();
+        when(userRepository.findByUsername("oldUser")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", user.getPassword())).thenReturn(true);
+        when(userRepository.existsByUsername("taken")).thenReturn(true);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> accountService.updateUsername("oldUser", "taken", "password123"));
+
+        assertEquals("Username is already taken", ex.getMessage());
+        assertEquals(originalName, user.getUsername());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void passwordChangeWithWrongCurrentPasswordRejected() {
+        User user = buildUser("admin", "ROLE_ADMIN");
+        String storedHash = user.getPassword();
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong", storedHash)).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> accountService.updatePassword("admin", "wrong", "newPassword1", "newPassword1"));
+
+        assertEquals("Current password is incorrect", ex.getMessage());
+        assertEquals(storedHash, user.getPassword());
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+}

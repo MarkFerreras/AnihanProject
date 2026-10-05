@@ -1,5 +1,13 @@
 # Change Log - Anihan SRMS
 
+## 2026-10-05 - SRMS JUnit Test Suite
+**Branch:** `new-unit-tests` (uncommitted). **Plan:** `docs/superpowers/plans/2026-10-05-srms-test-suite.md`
+
+- New test classes under `src/test/java/com/example/springboot/`: `security/*`, `controller/{GlobalExceptionHandler,Lookup,PasswordRecovery,SecurityQuestion,StudentDetails,ServiceMutationLogAudit}WebMvcTest`, `dto/DtoValidationTest`, `repository/*H2Test` (+ `src/test/resources/repository-h2-schema.sql`), `service/{CustomUserDetails,SessionAuthenticationHelper,AgeCalculatorEdge,GradeEquivalentBoundary,SoReadinessPolicyMatrix,StudentStatusTransitionsMatrix,StudentIdGeneration}*Test`, `integration/AuditAndRollbackH2Test`.
+- Additive edits to ~20 existing test classes (only deletions: 2 moved closing braces). 
+- New doc: `docs/test-evidence/ISO25010-test-index.md`.
+- No production or build changes. Verified: 1041 tests, 0 failures.
+
 ## 2026-10-04 - Merge origin/main into batch-filters
 
 - **Files:** `memory-bank/activeContext.md`, `changeLog.md`, `decisions.md`, `progress.md`, `testing.md` (conflict resolution only; all other files auto-merged from main's SO-checklist work).

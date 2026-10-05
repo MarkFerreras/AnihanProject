@@ -232,4 +232,49 @@ class SystemLogServiceTest {
         assertEquals("ROLE_REGISTRAR", results.get(1).role());
         assertEquals("Viewed records", results.get(1).action());
     }
+
+    // ----- Task 13c additions (ISO 25010: Security - non-repudiation / integrity) -----
+
+    @Test
+    void logsRepositoryAndServiceExposeNoUpdateOrDelete() {
+        java.util.regex.Pattern mutating = java.util.regex.Pattern.compile(
+                "(?i)^(update|delete|remove|edit|purge|clear|truncate).*");
+        for (java.lang.reflect.Method m : SystemLogService.class.getDeclaredMethods()) {
+            org.junit.jupiter.api.Assertions.assertFalse(mutating.matcher(m.getName()).matches(),
+                    "SystemLogService must stay append-only: " + m.getName());
+        }
+        // The repository inherits JpaRepository's delete*/saveAll; nothing in the service may call them.
+        for (java.lang.reflect.Method m : SystemLogRepository.class.getDeclaredMethods()) {
+            org.junit.jupiter.api.Assertions.assertFalse(mutating.matcher(m.getName()).matches(),
+                    "SystemLogRepository must not declare mutators: " + m.getName());
+        }
+        // Behavioural check: the only write the service performs is save().
+        when(systemLogRepository.save(any(SystemLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        systemLogService.logAction(1, "a", "ROLE_ADMIN", "x", "1.1.1.1");
+        verify(systemLogRepository).save(any(SystemLog.class));
+        org.mockito.Mockito.verifyNoMoreInteractions(systemLogRepository);
+    }
+
+    @Test
+    void ipAddressUsesRemoteAddrAndHandlesNull() throws Exception {
+        // Null user and null ip are persisted as given, without throwing.
+        when(systemLogRepository.save(any(SystemLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        systemLogService.logAction(null, "ghost", "ROLE_TRAINER", "Failed login", null);
+        ArgumentCaptor<SystemLog> captor = ArgumentCaptor.forClass(SystemLog.class);
+        verify(systemLogRepository).save(captor.capture());
+        assertEquals(null, captor.getValue().getUserId());
+        assertEquals(null, captor.getValue().getIpAddress());
+        assertNotNull(captor.getValue().getTimestamp());
+
+        // Callers take the address from getRemoteAddr() and never trust X-Forwarded-For
+        // (spoofable on an unproxied LAN deployment).
+        java.nio.file.Path root = java.nio.file.Path.of("src/main/java");
+        try (var files = java.nio.file.Files.walk(root)) {
+            for (java.nio.file.Path f : files.filter(x -> x.toString().endsWith(".java")).toList()) {
+                String src = java.nio.file.Files.readString(f);
+                org.junit.jupiter.api.Assertions.assertFalse(src.contains("X-Forwarded-For"),
+                        "Unexpected proxy-header trust in " + f);
+            }
+        }
+    }
 }

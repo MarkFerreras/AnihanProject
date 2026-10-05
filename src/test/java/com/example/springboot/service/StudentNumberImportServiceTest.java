@@ -395,4 +395,110 @@ class StudentNumberImportServiceTest {
         assertEquals(StudentNumberImportOutcome.WILL_ASSIGN, outcomeOf(report, 0));
         assertEquals("2026-001", byReference.get("SR20260001").getStudentNumber());
     }
+
+    // ----- Task 13c additions (ISO 25010: Reliability / Integrity) -----
+
+    /**
+     * FINDING: the same Reference No. on two rows is NOT detected (only duplicate student
+     * numbers are). Both rows classify as WILL_ASSIGN and, on apply, the later row silently
+     * wins. Pinned as current behaviour.
+     */
+    @Test
+    void duplicateReferenceNoInFileFlagged_currentlyNotFlagged() {
+        givenStudent(1, "SR20260001", null, "Ligan", "Sean");
+        String sheet = """
+                Reference No.,Student Number
+                SR20260001,2026-001
+                SR20260001,2026-002
+                """;
+
+        StudentNumberImportReport preview = service.preview(csv(sheet), false);
+        assertEquals(2, preview.totalRows());
+        assertEquals(StudentNumberImportOutcome.WILL_ASSIGN, outcomeOf(preview, 0));
+        assertEquals(StudentNumberImportOutcome.WILL_ASSIGN, outcomeOf(preview, 1));
+
+        service.apply(csv(sheet), false);
+        assertEquals("2026-002", byReference.get("SR20260001").getStudentNumber());
+    }
+
+    @Test
+    void twoRowsSameStudentNumberFlagged() {
+        givenStudent(1, "SR20260001", null, "Ligan", "Sean");
+        givenStudent(2, "SR20260002", null, "Reyes", "Anna");
+
+        StudentNumberImportReport report = service.apply(csv("""
+                Reference No.,Student Number
+                SR20260001,2026-001
+                SR20260002,2026-001
+                """), false);
+
+        assertEquals(StudentNumberImportOutcome.DUPLICATE_IN_FILE, outcomeOf(report, 0));
+        assertEquals(StudentNumberImportOutcome.DUPLICATE_IN_FILE, outcomeOf(report, 1));
+        assertEquals(0, report.applicableRows());
+        assertNull(byReference.get("SR20260001").getStudentNumber());
+        assertNull(byReference.get("SR20260002").getStudentNumber());
+        verify(studentRecordRepository, never()).save(any());
+    }
+
+    @Test
+    void existingNumberNotOverwrittenWithoutOptIn() {
+        givenStudent(1, "SR20260001", "OLD-1", "Ligan", "Sean");
+        String sheet = """
+                Reference No.,Student Number
+                SR20260001,2026-001
+                """;
+
+        StudentNumberImportReport blocked = service.apply(csv(sheet), false);
+        assertEquals(StudentNumberImportOutcome.CONFLICT_EXISTING, outcomeOf(blocked, 0));
+        assertEquals("OLD-1", byReference.get("SR20260001").getStudentNumber());
+        verify(studentRecordRepository, never()).save(any());
+
+        StudentNumberImportReport allowed = service.apply(csv(sheet), true);
+        assertEquals(StudentNumberImportOutcome.WILL_OVERWRITE, outcomeOf(allowed, 0));
+        assertEquals("2026-001", byReference.get("SR20260001").getStudentNumber());
+    }
+
+    @Test
+    void previewWritesNothing() {
+        givenStudent(1, "SR20260001", null, "Ligan", "Sean");
+        givenStudent(2, "SR20260002", "OLD-2", "Reyes", "Anna");
+
+        StudentNumberImportReport report = service.preview(csv("""
+                Reference No.,Student Number
+                SR20260001,2026-001
+                SR20260002,2026-002
+                """), true);
+
+        assertEquals(2, report.applicableRows());
+        verify(studentRecordRepository, never()).save(any());
+        assertNull(byReference.get("SR20260001").getStudentNumber());
+        assertEquals("OLD-2", byReference.get("SR20260002").getStudentNumber());
+    }
+
+    @Test
+    void corruptOrOversizedFileRejected() {
+        givenStudent(1, "SR20260001", null, "Ligan", "Sean");
+
+        // Corrupt "xlsx" (not a zip).
+        MultipartFile corrupt = new MockMultipartFile("file", "sheet.xlsx", "application/octet-stream",
+                "this is definitely not a workbook".getBytes(StandardCharsets.UTF_8));
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class,
+                () -> service.apply(corrupt, false));
+        assertTrue(ex1.getMessage() != null && !ex1.getMessage().isBlank());
+
+        // Oversized (> 5MB).
+        MultipartFile big = new MockMultipartFile("file", "sheet.csv", "text/csv", new byte[5 * 1024 * 1024 + 1]);
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class,
+                () -> service.apply(big, false));
+        assertTrue(ex2.getMessage().contains("5MB"), ex2.getMessage());
+
+        // Disallowed extension.
+        MultipartFile exe = new MockMultipartFile("file", "sheet.exe", "application/octet-stream", new byte[] { 1 });
+        IllegalArgumentException ex3 = assertThrows(IllegalArgumentException.class,
+                () -> service.apply(exe, false));
+        assertTrue(ex3.getMessage().contains("Unsupported"), ex3.getMessage());
+
+        verify(studentRecordRepository, never()).save(any());
+        assertNull(byReference.get("SR20260001").getStudentNumber());
+    }
 }

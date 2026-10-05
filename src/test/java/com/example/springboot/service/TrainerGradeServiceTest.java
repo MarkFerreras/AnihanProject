@@ -412,4 +412,103 @@ public class TrainerGradeServiceTest {
         when(classRepository.findById(1)).thenReturn(Optional.of(sc));
         assertThrows(IllegalArgumentException.class, () -> gradeService.lockGrades(1));
     }
+
+    // ----- Task 13a additions -----
+
+    @Test
+    void lockedGradeCannotBeEdited() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        Grade g = stubExistingGrade(classId, "STU001", sc);
+        g.setLocked(true);
+        g.setFinalPercentage(new BigDecimal("88"));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("STU001", "50", null, null, "20"))));
+
+        assertTrue(ex.getMessage().contains("locked"));
+        assertEquals(new BigDecimal("88"), g.getFinalPercentage(), "locked row must not be mutated");
+        verify(gradeRepository, never()).save(any());
+    }
+
+    @Test
+    void lockAlreadyLockedIsRejectedOrNoop() {
+        // Verified behaviour: re-locking is an idempotent no-op that refreshes lockedAt (no exception).
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        Grade g = new Grade();
+        g.setLocked(true);
+        g.setLockedAt(java.time.LocalDateTime.of(2026, 1, 1, 0, 0));
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(g));
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        assertDoesNotThrow(() -> gradeService.lockGrades(classId));
+
+        assertTrue(g.isLocked());
+        assertNotNull(g.getLockedAt());
+    }
+
+    @Test
+    void trainerCanOnlyGradeOwnClass() {
+        stubTrainerLookup();
+        User other = new User();
+        other.setUserId(999);
+        SchoolClass sc = new SchoolClass();
+        sc.setClassId(7);
+        sc.setTrainer(other);
+        when(classRepository.findById(7)).thenReturn(Optional.of(sc));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(7, List.of(req("STU001", "88", null, null, "20"))));
+        assertThrows(IllegalArgumentException.class, () -> gradeService.unlockGrades(7));
+        verify(gradeRepository, never()).save(any());
+    }
+
+    @Test
+    void classWithNoTrainerAssignedIsRejected() {
+        stubTrainerLookup();
+        SchoolClass sc = new SchoolClass();
+        sc.setClassId(8);
+        when(classRepository.findById(8)).thenReturn(Optional.of(sc));
+        assertThrows(IllegalArgumentException.class, () -> gradeService.lockGrades(8));
+    }
+
+    @Test
+    void gradeForStudentNotEnrolledRejected() {
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        when(enrollmentRepository.existsBySchoolClassClassIdAndStudentStudentId(classId, "GHOST")).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> gradeService.saveGrades(classId, List.of(req("GHOST", "88", null, null, "20"))));
+
+        assertTrue(ex.getMessage().contains("GHOST"));
+        verify(gradeRepository, never()).save(any());
+    }
+
+    @Test
+    void unlockRestrictedAndLogged() {
+        // The service lets only the class's assigned trainer unlock (no admin/registrar path here);
+        // the audit row is written by the controller (see TrainerGradeControllerWebMvcTest).
+        stubTrainerLookup();
+        Integer classId = 1;
+        SchoolClass sc = ownedClass(classId);
+        Grade g = new Grade();
+        g.setLocked(true);
+        g.setLockedAt(java.time.LocalDateTime.now());
+        when(classRepository.findById(classId)).thenReturn(Optional.of(sc));
+        when(gradeRepository.findBySchoolClassClassId(classId)).thenReturn(List.of(g));
+        when(gradeRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        gradeService.unlockGrades(classId);
+
+        assertFalse(g.isLocked());
+        assertNull(g.getLockedAt());
+    }
 }

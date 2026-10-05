@@ -65,4 +65,18 @@ class CourseCodeGeneratorTest {
         assertThat(CourseCodeGenerator.uniqueCode("Culinary Arts and Restaurant Services", taken::contains))
                 .isEqualTo("CARS3");
     }
+
+    @Test
+    void courseCodeCollisionAddsNumericSuffix() {
+        Set<String> taken = new java.util.HashSet<>();
+        String first = CourseCodeGenerator.uniqueCode("Culinary Arts", taken::contains);
+        taken.add(first);
+        String second = CourseCodeGenerator.uniqueCode("Culinary Arts", taken::contains);
+        taken.add(second);
+        String third = CourseCodeGenerator.uniqueCode("Culinary Arts", taken::contains);
+
+        assertThat(first).isEqualTo("CA");
+        assertThat(second).isEqualTo("CA2");
+        assertThat(third).isEqualTo("CA3");
+    }
 }

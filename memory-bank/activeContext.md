@@ -1,5 +1,11 @@
 # Active Context - Anihan SRMS
 
+## Latest Session (2026-10-05 - SRMS JUnit Test Suite: Implemented, Uncommitted)
+
+- **Branch:** `new-unit-tests` (Confirmed). **No commits/pushes** per user. Plan `docs/superpowers/plans/2026-10-05-srms-test-suite.md`, executed via subagent-driven development (Tasks 0-15 all reviewed).
+- **State:** 1041 tests green. Index: `docs/test-evidence/ISO25010-test-index.md`. 25 findings pinned as `_currentlyX` tests; none fixed (production code untouched).
+- **Open:** user decision on fixing findings, JaCoCo, and when to commit. Last verified files: the test classes listed in changeLog.
+
 ## Latest Session (2026-10-04 - Trainer Class List: Batch Year & Batch Filters: Implemented, Uncommitted)
 
 - **Branch:** `batch-filters` (Confirmed; based on `78b60b0`; `main` untouched). **Nothing committed or pushed —

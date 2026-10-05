@@ -304,4 +304,55 @@ class AdminServiceTest {
                 user.setEnabled(true);
                 return user;
         }
+
+        // ========== Task 12: last-admin protection and duplicate identity changes ==========
+
+        @Test
+        void adminCannotDisableOrDemoteLastAdmin() {
+                // There is no explicit "last admin" counter. Protection is indirect: an admin can never
+                // disable, delete or demote their own account, so the acting admin always survives.
+                User admin = buildUser(1, "admin", "admin@anihan.edu", "ROLE_ADMIN", "Admin", "System", "Owner");
+                when(userRepository.findById(1)).thenReturn(Optional.of(admin));
+
+                assertThrows(AccessDeniedException.class, () -> adminService.softDeleteUser(1, "admin"));
+                assertThrows(AccessDeniedException.class, () -> adminService.hardDeleteUser(1, "admin"));
+                AdminUpdateUserRequest demote = new AdminUpdateUserRequest(null, "admin@anihan.edu",
+                                "ROLE_TRAINER", "Admin", "System", "Owner", LocalDate.of(1996, 4, 11), null);
+                assertThrows(AccessDeniedException.class, () -> adminService.updateUser(1, demote, "admin"));
+
+                assertTrue(admin.getEnabled() == null || admin.getEnabled());
+                assertEquals("ROLE_ADMIN", admin.getRole());
+                verify(userRepository, never()).save(any(User.class));
+                verify(userRepository, never()).delete(any(User.class));
+        }
+
+        @Test
+        void usernameOrEmailChangeToExistingRejected() {
+                User target = buildUser(2, "registrar", "registrar@anihan.edu", "ROLE_REGISTRAR", "Reg", "Is", "Trar");
+                User other = buildUser(3, "taken", "taken@anihan.edu", "ROLE_TRAINER", "Oth", "Er", "User");
+                when(userRepository.findById(2)).thenReturn(Optional.of(target));
+
+                // duplicate username
+                when(userRepository.findByUsername("taken")).thenReturn(Optional.of(other));
+                AdminUpdateUserRequest sameUsername = new AdminUpdateUserRequest("taken", "registrar@anihan.edu",
+                                "ROLE_REGISTRAR", "Reg", "Is", "Trar", LocalDate.of(1990, 1, 1), null);
+                IllegalArgumentException u = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.updateUser(2, sameUsername, "admin"));
+                assertEquals("Username is already taken by another account", u.getMessage());
+
+                // duplicate email (username unchanged)
+                when(userRepository.findByEmail("taken@anihan.edu")).thenReturn(Optional.of(other));
+                AdminUpdateUserRequest sameEmail = new AdminUpdateUserRequest(null, "taken@anihan.edu",
+                                "ROLE_REGISTRAR", "Reg", "Is", "Trar", LocalDate.of(1990, 1, 1), null);
+                IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                () -> adminService.updateUser(2, sameEmail, "admin"));
+                assertEquals("Email is already taken by another account", e.getMessage());
+
+                // create path: duplicate username
+                when(userRepository.existsByUsername("taken")).thenReturn(true);
+                assertThrows(IllegalArgumentException.class, () -> adminService.createUser(new AdminCreateUserRequest(
+                                "taken", "password123", "ROLE_TRAINER", "L", "F", "M", null, LocalDate.of(1990, 1, 1))));
+
+                verify(userRepository, never()).save(any(User.class));
+        }
 }

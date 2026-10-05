@@ -1,5 +1,13 @@
 # Progress - Anihan SRMS
 
+## 2026-10-05 - SRMS JUnit Test Suite (Tasks 0-15): Implemented, Uncommitted
+
+- **Done (Confirmed):** suite grown to **1041 tests, 0 failures** (summed from `build/test-results/test/*.xml`, 85 result files; two full runs incl. `--rerun-tasks`). Branch `new-unit-tests`. Every task had a spec+quality review; final whole-branch review: no Critical.
+- **Nothing committed or pushed beyond pre-existing `b29ca23`, `c54fe49`** (user: "Just code, no commits"). Production code and `build.gradle.kts` untouched.
+- **Evidence index:** `docs/test-evidence/ISO25010-test-index.md`; Gradle HTML report `build/reports/tests/test/index.html`.
+- **Findings pinned (not fixed):** F1-F25, see index. Notables: `/api/lookup/**` reachable by PENDING_* sessions; malformed JSON / non-numeric path -> 500; session id not rotated; `/api/student/{id}` GET+submit permitAll with guessable ref; entity/schema drift (User.email, ClassEnrollment, Grade); `AnihanSRMS.sql` missing 4 tables + `student_number`; duplicate Reference No in import not flagged; `deleteSection` relies on DB FK; `generateStudentId` race.
+- **Deferred:** JaCoCo coverage % (needs build change approval); minors: 5s timing assert in `AuditAndRollbackH2Test`, overlapping Age/Grade tests, `Replace.ANY` inconsistency. F10 Unverified. Baseline discrepancy 692 (after Task 0) vs 588 in testing.md: Unverified.
+
 ## 2026-10-04 - Merged origin/main into batch-filters (md-only conflicts resolved)
 
 - **Done (Confirmed):** `git merge origin/main` on `batch-filters` (merge commit `a12c46b`; `main` untouched, nothing pushed). Brought in PR #70 (R4.2 SO Checklist) and later main commits. Code merged cleanly; only the five newest-first `memory-bank` logs conflicted, because both sides inserted an entry at the top of the file.

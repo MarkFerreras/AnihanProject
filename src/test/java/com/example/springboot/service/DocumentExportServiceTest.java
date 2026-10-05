@@ -412,6 +412,34 @@ class DocumentExportServiceTest {
         assertEquals(2, prepared.flaggedCount());
     }
 
+    // ----- Task 13b additions -----
+
+    @Test
+    void zipHandlesDuplicateAndUnsafeFilenames() {
+        when(batchRepository.existsById("B2026A")).thenReturn(true);
+        when(documentFolderRepository.findExportRows(DocumentExportScope.BATCH, "B2026A")).thenReturn(List.of(
+                row(1, "SR1", null, "Ana/Marie", "Dela:Cruz*", "S1", "scan.pdf"),
+                row(2, "SR1", null, "Ana/Marie", "Dela:Cruz*", "S1", "scan.pdf"),
+                row(3, "SR1", null, "Ana/Marie", "Dela:Cruz*", "S1", "a" + (char) 92 + "b:c*d.pdf"),
+                row(4, "SR2", null, "Juan", "Santos", null, "scan.pdf"),
+                row(5, "SR2", null, "Juan", "Santos", null, "scan.pdf")));
+
+        var entries = service.prepareExport(DocumentExportScope.BATCH, "B2026A").entries();
+
+        java.util.Set<String> lower = new java.util.HashSet<>();
+        for (var entry : entries) {
+            String name = entry.entryName();
+            assertTrue(lower.add(name.toLowerCase(java.util.Locale.ROOT)), "duplicate entry: " + name);
+            assertFalse(name.contains("\\"), name);
+            assertFalse(name.contains(".."), name);
+            for (String segment : name.split("/")) {
+                assertFalse(segment.isBlank(), name);
+                assertFalse(segment.matches(".*[:*?\"<>|].*"), "unsafe segment in " + name);
+            }
+        }
+        assertEquals(5, lower.size());
+    }
+
     // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------

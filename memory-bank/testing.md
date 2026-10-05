@@ -1,5 +1,9 @@
 # Testing - Anihan SRMS
 
+## 2026-10-05 - Full Suite After Test-Suite Plan
+
+`./gradlew test -q` and `--rerun-tasks` on `new-unit-tests` (uncommitted): **1041 tests, 0 failures, 0 errors, 0 skipped** (85 XML files). Coverage %: Unverified (JaCoCo skipped). Open flake risks: `AuditAndRollbackH2Test` concurrency (accepts either race outcome) and a 5000 ms timing assertion on a 100k-row log query; `LocalDate.now()`-dependent tests fail only at midnight/New Year rollover. Full catalogue: `docs/test-evidence/ISO25010-test-index.md`.
+
 ## 2026-10-04 - Trainer Batch Filters: Full Suite + API Live Check
 
 **Full suite:** `./gradlew test` on `batch-filters` (uncommitted working tree) -> BUILD SUCCESSFUL; summed from
